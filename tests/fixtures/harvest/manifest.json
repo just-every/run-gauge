@@ -1,0 +1,29 @@
+{
+  "currency": "AUD",
+  "units": "decimal-hours",
+  "coverage": "all-time",
+  "timezone": "Australia/Brisbane",
+  "namespace": "synthetic-fixture",
+  "projectLeads": {
+    "j-1": "p-1"
+  },
+  "projectMembers": {
+    "j-1": [
+      "p-1"
+    ]
+  },
+  "rates": {
+    "p-1": {
+      "effective": "2026-01-01",
+      "costMinor": 4000,
+      "billMinor": 10000
+    }
+  },
+  "reconciliation": {
+    "c-1/2026-09": {
+      "count": 12,
+      "seconds": 43200,
+      "amountMinor": 120000
+    }
+  }
+}

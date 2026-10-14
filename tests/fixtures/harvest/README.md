@@ -1,0 +1,1 @@
+Synthetic-only documented-shape CSV fixtures. No real customer export supplied. Header mapping is explicit; Harvest exports vary by chosen report and columns. No fixture data ships in the application.

@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "professional-services-gauge",
+  "main": "src/server.ts",
+  "compatibility_date": "2026-09-08",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gauge",
+      "database_id": "local-gauge-only",
+      "migrations_dir": "migrations/core"
+    }
+  ]
+}

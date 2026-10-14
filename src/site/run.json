@@ -1,0 +1,10 @@
+{
+  "name": "Gauge",
+  "repository": "https://github.com/just-every/run-gauge",
+  "clone": "git clone https://github.com/just-every/run-gauge.git",
+  "folder": "run-gauge",
+  "requirements": "Needs Node 22 or later and pnpm 10.12.4, on macOS, Linux or Windows with WSL2.",
+  "licence": "MIT",
+  "docs": true,
+  "hosted": []
+}

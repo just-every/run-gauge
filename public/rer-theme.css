@@ -1,0 +1,64 @@
+/* Gauge's declared theme: every token the app, the run site, the Lobby, sign-in, /setup and the development outbox
+   read, defined once. The --rer-* names are Base's; the --g-* names are Gauge's own. Faces come from /fonts/fonts.css.
+   Base's buttons keep the colour chosen at setup (src/branding.json primaryColor, #174F84 by default) because no
+   --rer-accent is declared here.
+   Colour lives in the cyanotype drawings; in the app the accent marks only the primary action, the current tab,
+   approved chips and scale markers. */
+:root {
+  /* type */
+  --rer-font-body: 'Mona Sans', 'Mona Sans Fallback', 'Helvetica Neue', Arial, sans-serif;
+  --rer-font-heading: 'Mona Sans', 'Mona Sans Fallback', 'Helvetica Neue', Arial, sans-serif;
+  --rer-wordmark-weight: 700;
+  --rer-wordmark-tracking: -0.015em;
+  --g-weight-display: 800; --g-weight-heading: 700; --g-weight-body: 400; --g-weight-strong: 600;
+  --g-track-display: -0.022em; --g-track-heading: -0.015em;
+  --g-display: 72px; --g-h1-app: 32px; --g-h2: 40px; --g-h2-app: 20px;
+  --g-body: 17px; --g-small: 14px; --g-micro: 12px;
+  /* colour */
+  --rer-page: #FDFCF7;
+  --rer-surface: #FFFFFF;
+  --rer-text: #16181F;
+  --rer-muted: #4A4C53;
+  --rer-border: #DDD9CE;
+  --rer-focus: #174F84;
+  --rer-link: #174F84;
+  --g-cyan: #174F84; --g-cyan-deep: #0B3C70; --g-cyan-wash: #E7EEF5;
+  --g-pill: #1A1D29;
+  --g-input: #C9C5BA; --g-tick: #9A978F;
+  --g-warn: #8A3B12; --g-warn-wash: #F6E9E1;
+  /* space, radius, depth */
+  --g-space: 4px;
+  --rer-radius: 12px; --g-radius-chip: 999px; --g-radius-input: 8px; --rer-button-radius: 999px;
+  --g-shadow: 0 1px 2px rgba(22, 24, 31, .06), 0 8px 24px rgba(22, 24, 31, .06);
+  --rer-logo: url('/brand/mark.svg');
+}
+@media (max-width: 760px) {
+  :root { --g-display: 40px; --g-h1-app: 26px; --g-h2: 28px; }
+}
+
+/* Base's no-JavaScript documents (sign-in, /setup, account): Gauge's card on paper with the cyanotype strip along
+   the page bottom. These rules only restyle Base's frame; its markup is unchanged. */
+html.rer-themed body { padding-bottom: 168px; background: url('/brand/band.svg') center bottom / 1440px 150px repeat-x, var(--rer-page); font-size: 16px; }
+html.rer-themed main { margin-top: 10vh; border: 1px solid var(--rer-border); box-shadow: var(--g-shadow); border-radius: var(--rer-radius); text-align: left; }
+html.rer-themed :is(.rer-brand, .brand) { justify-content: center; font-size: 24px; font-weight: 700; letter-spacing: var(--g-track-heading); }
+html.rer-themed h1 { text-align: center; font-size: 34px; font-weight: 700; letter-spacing: var(--g-track-heading); }
+html.rer-themed main > p:first-of-type { text-align: center; }
+html.rer-themed dl { grid-template-columns: 7em minmax(0, 1fr); gap: 0; }
+html.rer-themed dt, html.rer-themed dd { padding: 12px 0; border-bottom: 1px solid var(--rer-border); }
+html.rer-themed label { font-size: 14px; font-weight: 600; }
+html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 44px; border-color: var(--g-input); border-radius: var(--g-radius-input); }
+html.rer-themed button { border-radius: var(--rer-button-radius); min-height: 48px; font-weight: 600; }
+@media (max-width: 480px) { html.rer-themed body { padding-bottom: 120px; background-size: 1440px 110px, auto; } html.rer-themed main { margin-top: 4vh; } }
+
+/* Base's run-site documents (/run and the not-found page): the homepage's header, with its lockup size and rule, and
+   48 px of paper between the last line and the band. These rules only restyle Base's frame; its markup is unchanged. */
+body:has(> .art) .bar { width: min(100% - 96px, 1272px); max-width: none; padding: 26px 0 20px; border-bottom: 1px solid color-mix(in srgb, var(--rer-text) 30%, transparent); }
+body:has(> .art) .brand { gap: 10px; font-size: 22px; font-weight: 700; letter-spacing: var(--g-track-heading); }
+body:has(> .art) .brand img { width: 38px; height: 20px; }
+body:has(> .art) .bar nav { gap: 56px; font-size: 18px; font-weight: 400; }
+body:has(> .art) .art { height: 180px; min-height: 0; }
+body:has(> .art) main { padding-bottom: calc(180px + 48px); }
+@media (max-width: 760px) {
+  body:has(> .art) .bar { width: calc(100% - 40px); padding: 18px 0 14px; }
+  body:has(> .art) .bar nav { gap: 28px; font-size: 16px; }
+}

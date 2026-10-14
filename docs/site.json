@@ -1,0 +1,37 @@
+{
+  "sections": [
+    {
+      "title": "Start here",
+      "pages": [
+        { "slug": "overview", "title": "What Gauge does", "file": "overview.md", "summary": "One agency week in order: agreed work, approved time, next month's capacity and one billing packet." },
+        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Run Gauge on your computer, finish setup and add your first engagement." }
+      ]
+    },
+    {
+      "title": "Each week",
+      "pages": [
+        { "slug": "week-in-review", "title": "Week in review", "file": "week-in-review.md", "summary": "The week's exceptions, agent proposals and engagement economics on one page." },
+        { "slug": "time", "title": "Time and approvals", "file": "time.md", "summary": "Record time by hand or with a timer, then submit, return, approve and correct it." },
+        { "slug": "expenses", "title": "Expenses and receipts", "file": "expenses.md", "summary": "Project expenses with private receipts, approved or returned by the lead." },
+        { "slug": "capacity", "title": "Next-month capacity", "file": "capacity.md", "summary": "Calendars, leave and staffing show each person's remaining time and flag conflicts." },
+        { "slug": "billing", "title": "Billing packets", "file": "billing.md", "summary": "Prepare, approve and download one packet of approved work, and correct it with adjustments." }
+      ]
+    },
+    {
+      "title": "Set up",
+      "pages": [
+        { "slug": "engagements", "title": "Engagements and terms", "file": "engagements.md", "summary": "Clients, people, engagements, terms and change orders, tasks and milestones." },
+        { "slug": "rates", "title": "Effective-dated rates", "file": "rates.md", "summary": "Cost and bill rates that take effect on a date; approved work keeps its rate." },
+        { "slug": "access", "title": "People and access", "file": "access.md", "summary": "Invite your team and give each person the role they need." },
+        { "slug": "agents", "title": "Agents prepare, you approve", "file": "agents.md", "summary": "Let an agent you already run draft time, staffing, packets and change orders." }
+      ]
+    },
+    {
+      "title": "Your data",
+      "pages": [
+        { "slug": "move-in", "title": "Move in from Harvest", "file": "move-in.md", "summary": "Preview a Harvest export, reconcile the totals, apply it and undo it if you change your mind." },
+        { "slug": "backup-and-restore", "title": "Back up and restore", "file": "backup-and-restore.md", "summary": "Export every record, history and receipt, and restore it into an empty Gauge." }
+      ]
+    }
+  ]
+}

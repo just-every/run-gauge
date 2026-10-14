@@ -1,0 +1,66 @@
+import { Buffer } from 'node:buffer'
+import { canonicalJson, sha256, type SourceBundle, type SourceRecord, type TargetEffect } from '../modules/import-kit/src/d1/index'
+import { need, text, date, zone, integer, money, type Value, charge } from './model'
+import { forecastDates } from './forecast'
+export function parseCsv(source: string): Record<string,string>[] {
+ const rows:string[][]=[];let row:string[]=[],cell='',quoted=false
+ for(let i=0;i<source.length;i++){const c=source[i];if(c==='"'){if(quoted&&source[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&source[i+1]==='\n')i++;row.push(cell);if(row.some(Boolean))rows.push(row);row=[];cell=''}else cell+=c}
+ need(!quoted,'Unclosed CSV quote');if(cell||row.length){row.push(cell);rows.push(row)}
+ const header=rows.shift();need(header?.length,'CSV needs headers');header[0]=header[0].replace(/^\uFEFF/,'');need(new Set(header).size===header.length,'Duplicate CSV column')
+ return rows.map((r,i)=>{need(r.length===header.length,`CSV row ${i+2} has the wrong column count`);return Object.fromEntries(header.map((h,j)=>[h,r[j]]))})
+}
+function seconds(raw:string){need(/^\d+(\.\d{1,6})?$/.test(raw),'Hours must be decimal text, up to six places');const [whole,frac='']=raw.split('.'),den=10n**BigInt(frac.length),num=(BigInt(whole)*den+BigInt(frac||0))*3600n;need(num%den===0n,'Hours do not represent exact whole seconds');return integer(Number(num/den),'Duration seconds',1,86400)}
+export interface HarvestInput { manifest: Value; files: Record<string,string>; archives?: {name:string;mediaType:string;base64:string}[] }
+export function harvest(input:HarvestInput) {
+ const m=input.manifest;need(m && typeof m==='object','Manifest required');need(m.currency==='AUD'&&m.units==='decimal-hours'&&m.coverage==='all-time','Declare AUD, decimal-hours and all-time coverage');zone(m.timezone);text(m.namespace,'Stable source account namespace')
+ const bundle:SourceBundle={records:[],artifacts:[],diagnostics:[]},effects=new Map<string,TargetEffect[]>(),totals:Record<string,{count:number;seconds:number;amountMinor:number}>={}
+ const namespace=`harvest:${m.namespace}`,id=(k:string,s:string)=>`hv_${sha256(`${namespace}:${k}:${s}`).slice(0,32)}`
+ const records:Record<string,Record<string,string>[]>={}
+ for(const name of ['clients.csv','people.csv','projects.csv','time.csv']){need(typeof input.files[name]==='string',`Supply ${name}`);records[name]=parseCsv(input.files[name])}
+ for(const [name,content]of Object.entries(input.files)){need(['clients.csv','people.csv','projects.csv','time.csv','forecast.csv'].includes(name),'Unsupported source file; review omissions explicitly');const bytes=Buffer.from(content);need(bytes.length<=2*1024*1024,'Each source file is limited to 2 MiB');bundle.artifacts.push({name,sha256:sha256(bytes),size:bytes.length,original:{status:'available',base64:bytes.toString('base64')}})}
+ need(Object.values(records).reduce((n,r)=>n+r.length,0)<=1000,'This pilot importer accepts at most 1000 rows per reviewed package; split at complete engagement boundaries')
+ const columns=(file:string)=>m.columns?.[file]??{}
+ const field=(r:Record<string,string>,file:string,key:string,def:string)=>text(r[columns(file)[key]??def],`${file}: ${key}`)
+ const add=(file:string,index:number,k:string,s:string,payload:Value,ef:TargetEffect[])=>{const artifact=bundle.artifacts.find(f=>f.name===file)!;const record:SourceRecord={namespace,kind:k,sourceId:s,payload,payloadHash:sha256(canonicalJson(payload)),artifactHash:artifact.sha256,location:{artifact:file,row:index+2}};bundle.records.push(record);effects.set(`${k}:${s}`,ef)}
+ const clients=new Map<string,string>(),people=new Map<string,string>(),projects=new Map<string,string>(),clientNames=new Map<string,string>(),tasks=new Set<string>()
+ records['clients.csv'].forEach((r,i)=>{const s=field(r,'clients','id','Client ID'),name=field(r,'clients','name','Client');need(!clients.has(s),'Duplicate client id');clients.set(s,id('clients',s));clientNames.set(s,name);add('clients.csv',i,'clients',s,r,[{targetKind:'clients',targetId:id('clients',s),value:{name,source:{namespace,externalId:s}}}])})
+ records['people.csv'].forEach((r,i)=>{const s=field(r,'people','id','Person ID'),name=field(r,'people','name','Name');need(!people.has(s),'Duplicate person id');people.set(s,id('people',s));const rate=m.rates?.[s];need(rate&&rate.billMinor!==undefined&&rate.costMinor!==undefined,`Resolve cost (or explicit null) and bill rates for person ${s}`);date(rate.effective);add('people.csv',i,'people',s,r,[{targetKind:'people',targetId:id('people',s),value:{name,timezone:m.timezone,contractor:r.Contractor==='Yes',source:{namespace,externalId:s}}}])})
+ records['projects.csv'].forEach((r,i)=>{const s=field(r,'projects','id','Project ID'),client=field(r,'projects','clientId','Client ID'),lead=String(m.projectLeads?.[s]??'');need(clients.has(client)&&people.has(lead),`Resolve client and responsible lead for project ${s}`);need(!projects.has(s),'Duplicate project id');projects.set(s,id('engagements',s));add('projects.csv',i,'engagements',s,r,[{targetKind:'engagements',targetId:id('engagements',s),value:{name:field(r,'projects','name','Project'),clientId:clients.get(client)!,leadId:people.get(lead)!,members:(m.projectMembers?.[s]??[]).map((person:string)=>{need(people.has(person),'Resolve every project member');return people.get(person)!}),scope:r.Notes||'Imported scope requires review',currency:'AUD',timezone:m.timezone,source:{namespace,externalId:s}}}])})
+ // Dates and durations are retained; Harvest's date-only export does not assert clock instants.
+ records['time.csv'].forEach((r,i)=>{
+  const s=field(r,'time','id','Time Entry ID'),person=field(r,'time','personId','Person ID'),project=field(r,'time','projectId','Project ID'),day=date(field(r,'time','date','Date')),duration=seconds(field(r,'time','hours','Hours')),task=field(r,'time','task','Task')
+  need(people.has(person)&&projects.has(project),`Unresolved time identity ${s}`);const rate=m.rates[person];need(rate.effective<=day,`Rate begins after time ${s}`);money(rate.billMinor);if(rate.costMinor!==null)money(rate.costMinor)
+  const taskKey=`${project}:${task}`,taskId=id('tasks',taskKey),ef:TargetEffect[]=[]
+  if(!tasks.has(taskKey)){tasks.add(taskKey);ef.push({targetKind:'tasks',targetId:taskId,value:{engagementId:projects.get(project)!,name:task,remainingSeconds:0,source:{namespace,externalId:taskKey}}})}
+  const billed=field(r,'time','billed','Invoiced?');need(['Yes','No'].includes(billed),'Resolve source invoiced status explicitly')
+  const billable=field(r,'time','billable','Billable?');need(['Yes','No'].includes(billable),'Resolve source billable flag explicitly')
+  ef.push({targetKind:'time',targetId:id('time',s),value:{engagementId:projects.get(project)!,personId:people.get(person)!,taskId,service:task,notes:r[columns('time').notes??'Notes']??'',billable:billable==='Yes',start:null,end:null,durationSeconds:duration,workDate:day,timezone:m.timezone,status:'draft',source:{namespace,externalId:s,billed:billed==='Yes',clockInstants:'not-supplied',billMinor:charge(duration,rate.billMinor),costMinor:rate.costMinor===null?null:charge(duration,rate.costMinor)}}})
+  add('time.csv',i,'time',s,r,ef)
+  const projectRow=records['projects.csv'].find(p=>field(p,'projects','id','Project ID')===project)!,client=field(projectRow,'projects','clientId','Client ID'),key=`${client}/${day.slice(0,7)}`;totals[key]??={count:0,seconds:0,amountMinor:0};totals[key].count++;totals[key].seconds+=duration;totals[key].amountMinor+=billable==='Yes'?charge(duration,rate.billMinor):0;need(Number.isSafeInteger(totals[key].amountMinor),'Client period total exceeds exact integer range')
+ })
+ // Explicit rates remain native data, never account grants; all imported work awaits review.
+ for(const [person,personId]of people){const r=m.rates[person];add('people.csv',records['people.csv'].findIndex(p=>field(p,'people','id','Person ID')===person),'rates',person,{person,...r},[{targetKind:'rates',targetId:id('rates',person),value:{personId,service:'*',effective:r.effective,costMinor:r.costMinor,billMinor:r.billMinor,currency:'AUD',source:{namespace,externalId:person}}}])}
+ if(input.files['forecast.csv']){
+  const rows=parseCsv(input.files['forecast.csv'])
+  need(m.schedulePeriods&&m.schedulePeople&&m.scheduleProjects,'Forecast requires explicit period, person and project mappings')
+  rows.forEach((r,i)=>{
+   const person=m.schedulePeople[r.Person],project=m.scheduleProjects[`${r.Client}/${r.Project}`]
+   need(people.has(person)&&projects.has(project),'Unresolved Forecast identity')
+   const ef:TargetEffect[]=[]
+   for(const [column,period]of Object.entries(m.schedulePeriods) as [string,Value][]){
+    if(!r[column]||Number(r[column])===0)continue
+    const total=seconds(r[column])
+    for(const {day,dailySeconds}of forecastDates(period,total))ef.push({
+     targetKind:'staffing',targetId:id('staffing',`${i}:${column}:${day}`),
+     value:{personId:people.get(person)!,engagementId:projects.get(project)!,from:day,to:day,dailySeconds,commitment:'tentative',source:{namespace,periodTotalSeconds:total,externalId:`${i}:${column}`}}
+    })
+   }
+   add('forecast.csv',i,'staffing',String(i),r,ef)
+  })
+ }
+ const expected=m.reconciliation;need(expected&&canonicalJson(expected)===canonicalJson(totals),'Independent client/month count, seconds and billable amount totals do not reconcile')
+ for(const archive of input.archives??[]){need(archive.mediaType==='application/pdf','Historical archives must be PDF');const bytes=Buffer.from(archive.base64,'base64');need(bytes.length<=1024*1024&&bytes.toString('base64')===archive.base64,'Invalid or oversized PDF');const name=text(archive.name,'Archive filename',200);need(name.endsWith('.pdf'),'PDF filename required');bundle.artifacts.push({name,sha256:sha256(bytes),size:bytes.length,original:{status:'available',base64:archive.base64}});add(name,-1,'archives',name,{name,kind:'historical-document'},[{targetKind:'archives',targetId:id('archives',name),value:{name,mediaType:archive.mediaType,base64:archive.base64,semantics:'Historical document only; no editable invoice or active authority',source:{namespace,externalId:name}}}])}
+ need(bundle.records.length<=1000,'The complete package exceeds 1000 source records including rates and optional files')
+ const manifestBytes=Buffer.from(JSON.stringify(m));bundle.artifacts.push({name:'manifest.json',sha256:sha256(manifestBytes),size:manifestBytes.length,original:{status:'available',base64:manifestBytes.toString('base64')}})
+ return {bundle,namespace,memberships:m.projectMembers??{},mapping:{version:'gauge-harvest-1',map:(r:SourceRecord)=>({effects:effects.get(`${r.kind}:${r.sourceId}`)??[]})},totals,omissions:['No native authority or approval imported.','Date-only time has unknown clock instants.','Historical rate versions are supplied in the manifest; source approval history is unavailable.','Invoice PDFs are historical documents, not editable invoices.','Forecast aggregate periods are mapped to tentative daily allocations; actual calendars must be reviewed.']}
+}

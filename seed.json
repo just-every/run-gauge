@@ -1,0 +1,103 @@
+{
+  "id": "gauge",
+  "name": "Gauge",
+  "version": "0.1.0",
+  "maturity": "first-release-local",
+  "category": "professional-services",
+  "spine": {
+    "id": "engagement",
+    "record": "Client engagement with agreed terms, approved work and billing preparation"
+  },
+  "description": "Owner-run agency engagements, time approval, capacity, operational economics and reconciled billing-preparation packets.",
+  "capabilities": [
+    {
+      "id": "agency-operations",
+      "clauses": [
+        "ENGAGEMENT-001",
+        "BUDGET-001",
+        "RATE-001",
+        "CAPACITY-001",
+        "TIME-001",
+        "TIME-002",
+        "COST-001",
+        "ECONOMICS-001",
+        "BILLING-001",
+        "BILLING-002",
+        "REVIEW-001",
+        "ACCESS-001",
+        "MOVE-001"
+      ]
+    },
+    {
+      "id": "http-dispatch",
+      "clauses": [
+        "HTTP-001"
+      ]
+    }
+  ],
+  "nonGoals": [
+    "Tax or statutory invoice issuance",
+    "Payments or payroll",
+    "Retainers",
+    "Integrated model/calendar/accounting providers in phase 1"
+  ],
+  "externals": [
+    {
+      "id": "cloudflare",
+      "required": false,
+      "why": "Optional owner-account deployment; local runtime needs no provider account",
+      "data": [
+        "HTTP requests"
+      ],
+      "adapters": []
+    }
+  ],
+  "env": [],
+  "deploy": {
+    "healthPath": "/health",
+    "publicPaths": [
+      "/",
+      "/health",
+      "/signin"
+    ],
+    "notes": "Native owner sessions guard /app; unknown paths return real 404s; the development outbox is local-only."
+  },
+  "extensionPoints": {
+    "contributions": [],
+    "policies": [],
+    "events": [],
+    "slots": [],
+    "adapters": []
+  },
+  "limits": {
+    "status": "unmeasured"
+  },
+  "accessibility": {
+    "level": "WCAG 2.2 AA",
+    "status": "target; unaudited"
+  },
+  "operatingCost": {
+    "status": "unmeasured"
+  },
+  "composition": {
+    "base": "base",
+    "family": "professional-services",
+    "edition": "gauge",
+    "modules": [
+      "job-queue",
+      "release",
+      "deploy-kit",
+      "container",
+      "demo-host",
+      "integrations",
+      "mail",
+      "ai",
+      "portability",
+      "erasure",
+      "dependencies",
+      "operator-auth",
+      "owner-claim",
+      "import-kit"
+    ]
+  }
+}

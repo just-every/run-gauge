@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "projectId": "gauge-local/edition",
+  "name": "Gauge",
+  "sourceRepository": "https://github.com/just-every/run-gauge",
+  "license": "MIT"
+}

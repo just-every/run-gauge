@@ -21,7 +21,10 @@
           "migrations/core/0016_import_kit_custody.sql",
           "migrations/core/0017_gauge_agent_proposals.sql",
           "tests",
-          "scripts/installer"
+          "scripts/installer",
+          "src/demo.ts",
+          "src/demo-data.ts",
+          "migrations/core/0018_owner_signin.sql"
         ]
       }
     },
@@ -52,7 +55,7 @@
         ],
         "origin": {
           "repository": "https://github.com/runeditrun/base.git",
-          "revision": "79f61faef682f9d6cdb64e843cfbd3cf02887982",
+          "revision": "38aa7efdb3cceec585d2344ed54dd559295b9059",
           "paths": [
             "modules/operator-auth"
           ]
@@ -120,7 +123,7 @@
         ],
         "origin": {
           "repository": "https://github.com/runeditrun/base.git",
-          "revision": "79f61faef682f9d6cdb64e843cfbd3cf02887982",
+          "revision": "38aa7efdb3cceec585d2344ed54dd559295b9059",
           "paths": [
             "modules/owner-claim"
           ]
@@ -140,6 +143,23 @@
           "revision": "79f61faef682f9d6cdb64e843cfbd3cf02887982",
           "paths": [
             "modules/import-kit"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/demo",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/demo"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "38aa7efdb3cceec585d2344ed54dd559295b9059",
+          "paths": [
+            "modules/demo"
           ]
         }
       }

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "domain": "run-gauge.com",
+  "name": "Gauge",
+  "instanceType": "basic",
+  "settings": {
+    "MAIL_PROVIDER": "development",
+    "MAIL_FROM": "demo@demo.invalid"
+  }
+}

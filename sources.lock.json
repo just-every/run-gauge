@@ -491,7 +491,7 @@
       "executable": false
     },
     "public/gauge.css": {
-      "sha256": "2cb0d4d9318d0c27b727493b8d48c149ef243e872a91ff87ab38ad149afc18f4",
+      "sha256": "dbc7ff28e2b55c9c4f276430bbd78f277f789298eda55b9945b1f51eeff48ce9",
       "executable": false
     },
     "public/move-in.html": {
@@ -807,7 +807,7 @@
       "executable": false
     },
     "src/gauge/ui.ts": {
-      "sha256": "a9c45ae707d248a323a1985e255838150b50dc2b54b0746d7232ca7d2501ce8b",
+      "sha256": "e220d888f4badd367d446a943953a6ce0a1c7cd5891aef9c8709dfb5666e2b2c",
       "executable": false
     },
     "src/identity.ts": {

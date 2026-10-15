@@ -3,8 +3,9 @@
   "domain": "run-gauge.com",
   "name": "Gauge",
   "instanceType": "basic",
+  "ownerEmail": "jordan.avery@studio.example",
   "settings": {
     "MAIL_PROVIDER": "development",
-    "MAIL_FROM": "demo@demo.invalid"
+    "MAIL_FROM": "gauge@studio.example"
   }
 }

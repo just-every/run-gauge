@@ -8,7 +8,7 @@ export const title = 'Gauge: finish every week ready to bill'
 export const description = 'Approve your team’s time, see next month’s capacity, and hand your bookkeeper one clean billing packet.'
 
 const ARROW = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h13m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-const actions = (variant = '') => `<div class="s-actions${variant}"><a class="s-run" href="/run">Run Gauge${ARROW}</a><a class="s-docs" href="/docs">Read the docs</a></div><p class="s-small">Free and open source, MIT licensed.</p>`
+const actions = (variant = '', demo = false) => `<div class="s-actions${variant}"><a class="s-run" href="/run">Run Gauge${ARROW}</a>${demo ? `<a class="s-run" href="https://demo.run-gauge.com/">Try the demo${ARROW}</a>` : ''}<a class="s-docs" href="/docs">Read the docs</a></div><p class="s-small">Free and open source, MIT licensed.</p>`
 
 const sections = [
  { id: 'free', eyebrow: 'FREE', heading: '100% free. Yours to run.', body: 'Run it on your own computer, keep every record, and export it all whenever you like.' },
@@ -30,7 +30,7 @@ const included = [
 ]
 
 export function landingHtml(links: SiteLinks, styles: string[]) {
- const hero = `<section class="s-hero"><h1>Finish every week ready to bill.</h1><p class="s-sub">${description}</p><p class="s-alt">100% free, open source alternative to <strong>Harvest</strong>, <strong>Productive</strong> and <strong>Scoro</strong></p>${actions()}</section><div class="s-hero-art">${heroDrawing()}</div>`
+ const hero = `<section class="s-hero"><h1>Finish every week ready to bill.</h1><p class="s-sub">${description}</p><p class="s-alt">100% free, open source alternative to <strong>Harvest</strong>, <strong>Productive</strong> and <strong>Scoro</strong></p>${actions('', true)}</section><div class="s-hero-art">${heroDrawing()}</div>`
  const body = sections.map((s, n) => `<section class="s-feature${n % 2 ? ' s-feature--flip' : ''}" id="${s.id}" aria-labelledby="${s.id}-title"><div class="s-copy"><p class="s-eyebrow">${s.eyebrow}</p><h2 id="${s.id}-title">${s.heading}</h2><p>${s.body}</p></div><div class="s-art">${drawings[s.id]()}</div></section>`).join('')
  const also = `<section class="s-also" aria-labelledby="also-title"><h2 id="also-title">Also included</h2><ul>${included.map(x => `<li>${x.icon}<div><h3>${x.title}</h3><p>${x.body}</p></div></li>`).join('')}</ul></section>`
  const closing = `<section class="s-close" aria-labelledby="close-title">${sheet(`<h2 id="close-title">Your week, in order.</h2><p class="s-close-line">Agency operations you run yourself.</p>${actions(' s-actions--light')}`, 's-close-sheet')}</section>`

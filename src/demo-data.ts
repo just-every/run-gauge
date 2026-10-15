@@ -1,10 +1,11 @@
 import { charge, type Kind, type Value } from './gauge/model'
+import { historicalInvoice } from './demo-archive'
 
 export interface DemoRecord { kind: Kind; id: string; value: Value }
 
 /** A small agency's current week, using the native record shapes in the Harvest
  * fixtures and Gauge's public-door flows. Dates move with the demo's clock. */
-export function demoRecords(now: Date, ownerId: string): DemoRecord[] {
+export function demoRecords(now: Date, ownerId: string, agentId: string): DemoRecord[] {
  const records: DemoRecord[] = []
  const add = (kind: Kind, id: string, value: Value) => records.push({ kind, id: `demo-${id}`, value })
  const at = now.getTime(), day = (offset: number) => new Date(at + offset * 86400000).toISOString().slice(0, 10)
@@ -52,5 +53,19 @@ export function demoRecords(now: Date, ownerId: string): DemoRecord[] {
  }
  const time = records.find(r => r.id === 'demo-time-0')!, v = time.value, economics = v.economics
  add('packets', 'packet-harbour', { engagementId: 'demo-harbour', title: 'Harbour Coffee · weekly delivery', status: 'draft', currency: 'AUD', createdAt: at - 1800000, createdBy: ownerId, totalMinor: economics.billMinor, lines: [{ kind: 'time', sourceId: time.id, sourceRevision: `${time.id}-v1`, description: v.notes, amountMinor: economics.billMinor, currency: 'AUD', durationSeconds: v.durationSeconds, billRateMinor: economics.billRateMinor, roundedBillingSeconds: v.durationSeconds, roundingSeconds: 900, roundingPolicy: 'ceil duration to increment; round amount half-up to cents', rateUnit: 'AUD cents per hour', rateId: economics.rateId, budgetId: economics.budgetId }] })
+ // The agent's week: two proposals waiting on the owner and one the owner declined.
+ const evidence = (source: string, summary: string) => [{ source, summary }]
+ add('proposals', 'proposal-staffing', { kind: 'staffing', engagementId: 'demo-northline', status: 'proposed', preparedBy: agentId, preparedAt: at - 5400000, assumptions: 'Launch week needs one more designer for asset revisions; Ella is on leave for part of it.',
+  evidence: evidence('Capacity · next month', 'Maya is committed across two engagements; Sam has contractor hours free.'), plan: { commitment: 'tentative', alternatives: [
+   { personId: 'demo-sam', from: allocationDay(7), to: allocationDay(11), dailySeconds: 14400, rationale: 'Contractor with free hours that week; already knows the campaign creative.' },
+   { personId: 'demo-noah', from: allocationDay(7), to: allocationDay(9), dailySeconds: 10800, rationale: 'Shorter cover from the analytics side, leaving his store work on track.' }] } })
+ add('proposals', 'proposal-billing', { kind: 'billing', engagementId: 'demo-banksia', status: 'proposed', preparedBy: agentId, preparedAt: at - 3600000, assumptions: 'The discovery milestone was approved this week; the participant vouchers are reimbursable and approved.',
+  evidence: evidence('Milestone · Research and service blueprint', 'Approved by the owner yesterday and not yet in a packet.'), plan: { title: 'Banksia Health · discovery milestone', sources: ['milestones:demo-banksia-discovery', 'expenses:demo-expense-1'] } })
+ add('proposals', 'proposal-change-order', { kind: 'change-order', engagementId: 'demo-harbour', status: 'declined', preparedBy: agentId, preparedAt: Date.parse(`${day(-3)}T15:10:00+10:00`), decidedBy: ownerId, decidedAt: Date.parse(`${day(-2)}T10:30:00+10:00`), reason: 'Loyalty integration waits for the client\'s next quarter budget.',
+  assumptions: 'The client asked about a loyalty integration during the checkout review.', evidence: evidence('Time notes · Checkout implementation', 'Client requested loyalty points at checkout.'),
+  plan: { mode: 'hourly', amountMinor: 480000, effortSeconds: 86400, roundingSeconds: 900, brief: 'Add loyalty points to checkout: 24 hours at current rates.' } })
+ const invoice = 'harbour-coffee-invoice-1042.pdf'
+ add('archives', 'archive-harbour-1042', { name: invoice, mediaType: 'application/pdf', semantics: 'Historical document only; no editable invoice or active authority', source: { namespace: 'harvest', externalId: invoice },
+  base64: historicalInvoice(['Invoice 1042 (Harvest)', 'Harbour Coffee', `Issued ${day(-60)}`, 'Online store discovery workshop · 12 h · A$2,220.00', 'Total A$2,220.00 AUD', 'Kept from Harvest as a historical document.']) })
  return records
 }

@@ -16,8 +16,7 @@ rer dev
   email, port, password or answers file.
 - Give the owner the `RER_READY` address and the `RER_OPEN` link, and ask
   nothing. `RER_OPEN` is a credential: share it only with the owner, in this
-  chat. A seed without dev identity prints `RER_SIGN_IN` (its local outbox)
-  instead.
+  chat.
 - Stop the app with `rer dev --stop`. If a start is refused, the message names
   the cause and the next command: run that command.
 
@@ -29,7 +28,7 @@ For the current shell, run `export PATH="$HOME/.local/bin:$PATH"` after installi
 
 To install for a real owner instead of a review launch, run the verbs yourself
 from the checkout root. `rer` runs each verb with the exact `@runeditrun/rer`
-version this checkout pins in `package.json` (0.2.4); do not add a local CLI copy.
+version this checkout pins in `package.json` (0.2.22); do not add a local CLI copy.
 
 ```sh
 rer install
@@ -50,11 +49,11 @@ Help, check, describe, doctor and stop do not select or acquire Node.
 After `RER_READY`, `dev` prints `RER_SIGNED_IN EMAIL` and `RER_OPEN URL`.
 Open that URL on this computer: the app opens signed in as the owner and
 finishes first-run setup at `/setup`. Treat the line as a credential.
-`dev --as PERSONA` starts as a persona or signed out; `dev --login` prints
-the outbox instead: follow its newest ordinary sign-in link. Until first-run
+`dev --as PERSONA` starts as a persona or signed out; legacy `dev --login`
+uses the same automatic sign-in. Until first-run
 completion is stored durably, app routes send the signed-in owner to `/setup`;
 signed-out visitors sign in and return there. Once complete, `/setup` opens the
-app or settings. The local outbox sends no external email.
+app or settings. Local runs send no email.
 
 The saved local port is used; a first setup saves the first free port from 8787. Explicit ports are decimal
 integers from 1 through 65535 and must be free; a busy requested port fails
@@ -76,9 +75,7 @@ Queue waits report their reason and live position while the command waits. Packa
 
 Use the setup prompt instead of `--owner-email` when entering the real owner
 mailbox. Open the `RER_OPEN` URL printed by `dev` on this computer; the app opens
-signed in as the owner. With `dev --login`, open the outbox it prints, choose
-the newest ordinary sign-in message and follow its link. No external email is
-sent. Stop `dev` with
+signed in as the owner. No email is sent. Stop `dev` with
 `rer dev --stop` or Ctrl-C, and stop `preview` with
 `rer preview --stop` before build or verification.
 
@@ -108,9 +105,9 @@ proven in ACCEPTANCE.md only after its named test has passed.
 
 Gauge owns `src/gauge` (domain, server handlers and pages), its migrations
 `0006`, `0016` and `0017` onward, `public/gauge.css` and the tests. `src/base`,
-`src/modules/*` and the other numbered migrations are byte copies of Base
-`79f61faef682f9d6cdb64e843cfbd3cf02887982` (0001 and 0005 keep their historical
-revision) recorded in `base-copies.json`; change them only by refreshing from
+`src/modules/*` and the recorded numbered migrations are byte copies of Base
+`rer-v0.2.22` (`1ce15dd8cbb7c8cf2d83ebfde2b4a8a130ff9d74`) recorded in
+`base-copies.json` (0001 keeps its historical bytes unrecorded); change them only by refreshing from
 Base (`node scripts/edition-authoring/cli.mjs refresh-base ...`). Applied
 migrations never change: add a new numbered migration. After any tracked change
 run `pnpm run source:lock` so CI's source check passes.

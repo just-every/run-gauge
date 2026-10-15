@@ -1,23 +1,35 @@
 import assert from 'node:assert/strict'
-import {spawn,execFileSync} from 'node:child_process'
-import {createServer} from 'node:net'
+import {execFileSync} from 'node:child_process'
+import {createRequire} from 'node:module'
 import {randomBytes,randomUUID} from 'node:crypto'
-import {mkdtemp,rm,writeFile} from 'node:fs/promises'
+import {mkdtemp,readdir,readFile,realpath,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
-import {join} from 'node:path'
+import {join,resolve} from 'node:path'
+import {createServer} from 'node:net'
+const {Miniflare,convertV4MiniflareOptions}=createRequire(await realpath('node_modules/wrangler/package.json'))('miniflare')
+// The emitted Worker with production mail; outbound capture stands in for the mail provider and never reaches it.
 export async function harness(){
- const directory=await mkdtemp(join(tmpdir(),'gauge-flow-')),socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));const origin=`http://127.0.0.1:${port}`,secret=()=>randomBytes(32).toString('hex')
- const vars={AUTH_LOCAL:'true',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret(),SETUP_TOKEN:secret(),MAIL_PROVIDER:'development',MAIL_FROM:'auth@localhost.test',RER_DEV_KEY:secret()}
- await writeFile(join(directory,'private.env'),Object.entries(vars).map(([k,v])=>`${k}=${v}`).join('\n'),{mode:0o600})
- const wrangler='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json',env={...process.env,WRANGLER_SEND_METRICS:'false',CI:'true',CLOUDFLARE_INCLUDE_PROCESS_ENV:'false',CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV:'true'}
- execFileSync(process.execPath,[wrangler,'d1','migrations','apply','DB','--local','--persist-to',directory,'--config',config],{stdio:'pipe',env})
- const worker=spawn(process.execPath,[wrangler,'dev','--config',config,'--local','--persist-to',directory,'--ip','127.0.0.1','--port',String(port),'--inspector-port','0','--env-file',join(directory,'private.env')],{stdio:['ignore','pipe','pipe'],env});let output='';worker.stdout.on('data',c=>output+=c);worker.stderr.on('data',c=>output+=c)
- const request=(path,cookie='',options={})=>fetch(origin+path,{redirect:'manual',...options,headers:{cookie,...options.headers}})
+ const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
+ const directory=await mkdtemp(join(tmpdir(),'gauge-flow-')),origin=`https://127.0.0.1:${port}`,secret=()=>randomBytes(32).toString('hex'),mails=[]
+ const vars={AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret(),SETUP_TOKEN:secret(),MAIL_PROVIDER:'resend',MAIL_FROM:'Gauge <auth@example.test>',MAIL_API_KEY:'test-only-key'}
+ const config=JSON.parse(await readFile('dist/server/wrangler.json','utf8')),server=resolve('dist/server')
+ execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',env:{...process.env,WRANGLER_SEND_METRICS:'false',CI:'true'}})
+ const mf=new Miniflare({...convertV4MiniflareOptions({
+  host:'127.0.0.1',port,https:true,
+  modulesRoot:server,modules:[config.main,...(await readdir(join(server,'assets'))).filter(f=>f.endsWith('.js')).map(f=>`assets/${f}`)].map(f=>({type:'ESModule',path:join(server,f)})),
+  compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},
+  d1Databases:{DB:config.d1_databases[0].database_id},bindings:vars,
+  outboundService:async request=>{if(request.url!=='https://api.resend.com/emails')throw Error(`Unexpected test network destination ${new URL(request.url).origin}`);mails.push(await request.json());return Response.json({id:`test-receipt-${mails.length}`})},
+ }),resourcePersistencePath:join(directory,'v3')})
+ // Miniflare's fetch does not encode Node's FormData; send it as the browser would.
+ const encoded=async options=>{if(!(options.body instanceof FormData))return options;const form=new Request(origin,{method:'POST',body:options.body});return {...options,body:await form.arrayBuffer(),headers:{...options.headers,'content-type':form.headers.get('content-type')}}}
+ const request=async(path,cookie='',options={})=>{const sent=await encoded(options);return mf.dispatchFetch(origin+path,{redirect:'manual',...sent,headers:{...(cookie?{cookie}:{}),...sent.headers}})}
  const post=(path,input,cookie='')=>request(path,cookie,{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(input)})
- const close=async()=>{worker.kill('SIGTERM');await new Promise(r=>worker.exitCode!==null||worker.signalCode!==null?r():worker.once('exit',r))}
- try{let ready=false;for(let n=0;n<240&&!ready;n++){if(worker.exitCode!==null)throw Error('Worker exited');try{ready=(await request('/health')).ok}catch{}if(!ready)await new Promise(r=>setTimeout(r,250))}assert(ready,'Worker became healthy')
- const confirmLatest=async()=>{const listing=await(await request('/__dev/outbox','',{headers:{'x-rer-dev-key':vars.RER_DEV_KEY}})).text(),message=listing.match(/href="(\/__dev\/outbox\?message=[^"]+)"/)?.[1];assert(message,'outbox message');const detail=await(await request(message.replaceAll('&amp;','&'),'',{headers:{'x-rer-dev-key':vars.RER_DEV_KEY}})).text(),link=new URL(detail.match(/href="([^"]*\/auth\/confirm\?token=[^"]+)"/)[1].replaceAll('&amp;','&'),origin),response=await post('/auth/confirm',{token:link.searchParams.get('token')});assert.equal(response.status,303,'native confirmation');return response.headers.getSetCookie().map(l=>l.split(';')[0]).join('; ')}
- const claim=await post('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Test owner'});if(claim.status!==303)throw Error(`owner claim answered ${claim.status}: ${(await claim.text()).slice(0,300)}; worker: ${output.split('\n').filter(l=>/error|Error|✘/.test(l)).slice(-8).join(' | ')}`)
+ let closed;const close=()=>closed??=mf.dispose()
+ try{await mf.ready
+ const cookieOf=response=>response.headers.getSetCookie().map(l=>l.split(';')[0]).join('; ')
+ const confirmLatest=async()=>{const link=new URL(mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0]),response=await post('/auth/confirm',{token:link.searchParams.get('token')});assert.equal(response.status,303,'native confirmation');return cookieOf(response)}
+ const claim=await post('/auth/bootstrap',{token:vars.SETUP_TOKEN,displayName:'Test owner'});assert.equal(claim.status,303,`owner claim: ${(await claim.text()).slice(0,300)}`)
  assert.equal((await post('/auth/magic-link',{email:vars.OWNER_EMAIL})).status,202);const owner=await confirmLatest()
  assert.equal((await request('/setup',owner,{method:'POST',headers:{origin,'content-type':'application/x-www-form-urlencoded'},body:'confirm=yes'})).status,303)
  const invite=async(name)=>{const response=await post('/auth/invite',{email:`${name}@example.test`,displayName:name,role:'member'},owner);assert.equal(response.status,202);const cookie=await confirmLatest(),session=await(await request('/auth/session',cookie)).json();return {cookie,id:session.operator.id}}

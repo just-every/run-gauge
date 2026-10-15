@@ -14,8 +14,8 @@ rer dev
 ```
 
 Use the setup prompt instead of the owner-email flag when entering the real
-mailbox. Follow the newest ordinary sign-in message in the printed local
-outbox; no external email is sent. Stop `dev` with
+mailbox. Open the `RER_OPEN` URL printed by `dev` on this computer; the app
+opens signed in as the owner and no email is sent. Stop `dev` with
 `rer dev --stop` or Ctrl-C, and stop `preview` with
 `rer preview --stop` before build or verification.
 
@@ -36,16 +36,16 @@ provider.
 ## Local data and recovery
 
 Setup and development use explicit owner identity and real local migrations.
-Dev and preview use the same owner and canonical `.wrangler/state`; the local
-development outbox is available only on loopback. Any process with access to
-the machine can read that outbox and sign in as the owner. Private settings are
+Dev and preview use the same owner and canonical `.wrangler/state`; dev sign-in
+answers only on loopback with this checkout's dev key. Any process that can read
+the checkout can read that key and sign in as the owner. Private settings are
 kept in `.dev.vars` with mode 0600 and are not copied into build output.
 
 Local export creates a private archive with an integrity receipt and explicit
 exclusions. Gauge's archive contains every `g_` domain table (records, revision history,
 receipt bytes, billing sources, export receipts, agent proposals) and import-kit
 custody, plus the owner records its adapter declares in
-`scripts/installer/portability-policy.mjs`; Gauge has no background jobs. Sessions and sign-in credentials, the outbox,
+`scripts/installer/portability-policy.mjs`; Gauge has no background jobs. Sessions and sign-in credentials, historical development mail,
 bookkeeping, private settings and
 transient runtime state are excluded. Import validates and restores atomically
 into an empty destination; confirmed reset preserves export archives. Run setup

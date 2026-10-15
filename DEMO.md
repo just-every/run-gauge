@@ -10,8 +10,8 @@ Open the weekly review, approve submitted work, then approve and download the
 Harbour Coffee billing packet. Invitations return success without delivery;
 there is no captured-mail UI. Gauge’s first-release workflow has no public
 internet probe, AI provider, accounting write or invoice-send integration.
-`src/mail.server.mjs` uses Base’s `demoEffect` for native authentication mail;
-Base’s guard handles HTTP effects. No provider credentials are needed.
+Native authentication mail is suppressed under `RER_DEMO`, and Base’s guard
+handles HTTP effects. No provider credentials are needed.
 
 The `Run demo` workflow deploys the separate test host with `test_only`, removes
 it with `test_only` plus `remove`, and deploys production with neither input.
@@ -114,6 +114,14 @@ request waiting for minutes. Admission answers within 12 seconds, each progress
 poll within two seconds, and a copy that cannot start within 45 seconds is ended.
 A retry while it is starting resumes that copy without taking a second place.
 
+Cloudflare prepares container capacity as demand grows. A temporary lack of
+available instances can occur below `maxInstances`; it is not an account cap.
+The host keeps the same visitor and reservation while requesting placement
+within the existing startup budget. It repeats placement only when Cloudflare
+explicitly reports that no instance is available, never after an application
+boot or health failure. If placement remains unavailable, the visitor gets
+"Every demo is in use right now" and the reservation is released.
+
 At most `maxInstances` demos (10 unless set) run at once, and one IP starts at
 most 3 a minute.
 Mail is suppressed silently; all other effects follow the real/mocked policy above.
@@ -160,7 +168,11 @@ The seed needs, beyond the adoption above:
    cookie; either wait ends with an error naming what did not happen.
 
 `rer deploy --demo --dry-run` builds everything into `.rer/demo-host/` (add it
-to `.gitignore`) with no provider request. To try it locally with Docker, add
+to `.gitignore`) with no provider request. The build first loads the seed's
+Vite configuration, including any preparation it performs (for example,
+generating `wrangler.toml` from `deploy/wrangler.template.toml`). It then checks
+the configured Worker entry before compiling, and checks the emitted Worker
+again before packaging. To try it locally with Docker, add
 Cloudflare's always-passing Turnstile test secret to `.rer/demo-host/.dev.vars`
 (`TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA`) and run, in that
 folder, `wrangler dev --local-protocol https --var TURNSTILE_SITE_KEY:1x00000000000000000000AA`.

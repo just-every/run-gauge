@@ -128,6 +128,8 @@
 .g-app :is(th, td):first-child { padding-left: 0; }
 .g-app :is(th, td):last-child { padding-right: 0; }
 .g-app th.g-num, .g-app td.g-num { text-align: right; white-space: nowrap; }
+/* A decision's reason wraps beside its status so the decided date stays in view. */
+.g-app td.g-decision { min-width: 18ch; white-space: normal; }
 .g-record { font-weight: var(--g-weight-strong); color: var(--rer-text) !important; text-decoration: none; }
 .g-record:hover { text-decoration: underline; }
 /* The engagements list reads at the pick's body size. */
@@ -232,9 +234,10 @@
   .g-app { font-size: 16px; }
   .g-top, .g-tabs, .g-main, .g-foot { width: calc(100% - 40px); }
   .g-top { min-height: 60px; }
-  .g-top .g-brand { font-size: 20px; }
-  .g-who { gap: 16px; font-size: 15px; }
-  .g-who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+  /* The product name never wraps; the signed-in name gives way first. */
+  .g-top .g-brand { flex: none; font-size: 20px; white-space: nowrap; }
+  .g-who { min-width: 0; gap: 16px; font-size: 15px; }
+  .g-who span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .g-strip { height: 28px; }
   .g-strip::after { bottom: 7px; }
   /* The tabs wrap rather than scroll: every tab, the current one included, stays in view without script. */

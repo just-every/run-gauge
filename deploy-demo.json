@@ -2,7 +2,6 @@
   "version": 1,
   "domain": "run-gauge.com",
   "name": "Gauge",
-  "instanceType": "basic",
   "ownerEmail": "jordan.avery@studio.example",
   "settings": {
     "MAIL_PROVIDER": "development",

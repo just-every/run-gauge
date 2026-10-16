@@ -2,15 +2,13 @@
 
 Gauge is an MIT-licensed agency operations seed for owner-led design, marketing and software agencies of about 5–40 people. It keeps engagements and agreed terms, effective-dated rates, capacity, time and expense approval, operational economics, weekly exceptions and deduplicated billing-preparation packets in your own workspace. An agent you already run can prepare time drafts, staffing alternatives, billing packets and change orders; the right person approves each one. [CONTRACT.md](CONTRACT.md) lists the seventeen first-release clauses and [ACCEPTANCE.md](ACCEPTANCE.md) records their proof. Source code: [just-every/run-gauge](https://github.com/just-every/run-gauge).
 
-Install the shared `rer` command once, with either method:
+One line installs the shared `rer` command, clones Gauge and starts it:
 
 ```sh
-npx -y @runeditrun/rer cli install
-# or
-curl -fsSL https://runeditrun.com/install.sh | sh
+npx -y @runeditrun/rer dev just-every/run-gauge
 ```
 
-Then, from this checkout:
+To start it again later, run `cd run-gauge && rer dev`. To choose the owner yourself, from the checkout:
 
 ```sh
 rer install

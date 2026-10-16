@@ -315,7 +315,7 @@
       "executable": false
     },
     "docs/getting-started.md": {
-      "sha256": "81f63d5308af520b167cb2924d9d04a1cd9968f8133333231cba8d54c97bf992",
+      "sha256": "95537e22b3869f2a3f7c36da4e610b815e1e11e7a3daaaffb3d9e618b5fa0eb1",
       "executable": false
     },
     "docs/move-in.md": {
@@ -503,7 +503,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "d7c98ae8f0d34bb0f3bd4f557eb3589b97f4c47dde9b9ea616ac30ff8d2c3a02",
+      "sha256": "1308d92fc0b5cc92c64b96a6c2f0801b3d55d3d2b6ac4f915e2f894e5aca1797",
       "executable": false
     },
     "RELEASE.json": {
@@ -2323,7 +2323,7 @@
       "executable": false
     },
     "src/site/run.json": {
-      "sha256": "10292da54854fbb738a30ad872e3b2ab1473aa51670735dddac4b8be99e002e3",
+      "sha256": "2712feedf498de51215a3545890f0357b74e1dd58c6652534ba740070c19155b",
       "executable": false
     },
     "src/site/site.css": {

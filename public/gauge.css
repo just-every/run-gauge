@@ -233,10 +233,10 @@
 @media (max-width: 760px) {
   .g-app { font-size: 16px; }
   .g-top, .g-tabs, .g-main, .g-foot { width: calc(100% - 40px); }
-  .g-top { min-height: 60px; }
+  .g-top { min-height: 60px; gap: 10px; }
   /* The product name never wraps; the signed-in role drops before the name gives way. */
   .g-top .g-brand { flex: none; font-size: 20px; white-space: nowrap; }
-  .g-who { min-width: 0; gap: 16px; font-size: 15px; }
+  .g-who { min-width: 0; gap: 10px; font-size: 15px; }
   .g-who > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .g-who-role { display: none; }
   .g-strip { height: 28px; }

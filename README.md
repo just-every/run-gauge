@@ -8,10 +8,9 @@ One line installs the shared `rer` command, clones Gauge and starts it:
 npx -y @runeditrun/rer dev just-every/run-gauge
 ```
 
-To start it again later, run `cd run-gauge && rer dev`. To choose the owner yourself, from the checkout:
+Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-gauge` does the same. To start it again later, run `cd run-gauge && rer dev`. To choose the owner yourself, run `npx -y @runeditrun/rer install just-every/run-gauge`, then from the checkout:
 
 ```sh
-rer install
 rer setup
 rer dev
 ```

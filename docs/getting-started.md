@@ -1,4 +1,4 @@
-Gauge runs on your own computer with `rer`, the Run Edit Run command. You need Node 22 or later and pnpm 10.12.4, on macOS, Linux or Windows with WSL2.
+Gauge runs on your own computer with `rer`, the Run Edit Run command. It runs on macOS, Linux or Windows with WSL2, and brings the Node and pnpm versions it needs.
 
 ## Get Gauge and start it
 
@@ -6,7 +6,7 @@ Gauge runs on your own computer with `rer`, the Run Edit Run command. You need N
 npx -y @runeditrun/rer dev just-every/run-gauge
 ```
 
-That one line installs `rer`, clones Gauge and starts it; to start it again later, run `cd run-gauge && rer dev`. `rer dev` installs everything, makes you the owner and starts Gauge. A first start can take a few minutes. When it is ready it prints a `RER_OPEN` link: open it on this computer and Gauge opens signed in as you. Keep that link private, because it signs you in.
+That one line installs `rer`, clones Gauge and starts it. Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-gauge` does the same. To start it again later, run `cd run-gauge && rer dev`. `rer dev` installs everything, makes you the owner and starts Gauge. A first start can take a few minutes. When it is ready it prints a `RER_OPEN` link: open it on this computer and Gauge opens signed in as you. Keep that link private, because it signs you in.
 
 To stop Gauge, run `rer dev --stop`. Run `rer dev` again whenever you want to use it; your records stay where they were.
 

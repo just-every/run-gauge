@@ -12,6 +12,6 @@ export function siteDocument(title: string, description: string, styles: string[
   + `${styles.map(href => `<link rel="stylesheet" href="${e(href)}">`).join('')}</head><body class="s-page">${artDefs}${body}</body></html>`
 }
 
-export const siteHeader = (links: SiteLinks) => `<header class="s-bar">${lockup('/', 'Gauge')}<nav aria-label="Site"><a href="/docs">Docs</a><a href="${e(links.repository)}">Source</a></nav></header>`
+export const siteHeader = (links: SiteLinks) => `<header class="s-bar">${lockup('/', 'Gauge')}<nav aria-label="Site"><a href="/docs">Docs</a><a href="/contract">Contract</a><a href="${e(links.repository)}">Source</a></nav></header>`
 
 export const siteFooter = (links: SiteLinks) => `<footer class="s-foot"><div class="s-foot-brand">${lockup('/', 'Gauge')}<p>Agency operations you run yourself.</p></div><nav aria-label="Footer"><a href="/docs">Docs</a><a href="${e(links.repository)}">Source</a><a href="${e(links.licence)}">MIT licensed</a></nav></footer>`

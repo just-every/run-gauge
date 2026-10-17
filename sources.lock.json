@@ -259,7 +259,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "57265fb5e46449175bf5c96b05e9cf265783a6aeaf7a496d77811833b5ed1648",
+      "sha256": "52c211bf0e6035aa9dbb2475bb8bc67cbf6adb921da424bc7e3265a0862f4ec2",
       "executable": false
     },
     "CLAUDE.md": {
@@ -443,11 +443,11 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "29d200e4092354ebf06462e33a31b9484fe060360eaf70775337e26e7cbef530",
+      "sha256": "0c75d0edcbef2a42df3156146127e0e30161c3abb35956733a6496aeda8e90d8",
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "5f7b6984230e282625e6fe8779f5ec3c5f1d226c667f7c3b32ef66ceae82aa07",
+      "sha256": "1773c52255cc1d637ce93c9a3ba0c37276f658bbfd8b36ddca2d6cd541ba1e41",
       "executable": false
     },
     "PROVENANCE.md": {
@@ -598,6 +598,18 @@
       "sha256": "0306653dc0f77893e27c2e5d3748aa8c7d3d4f60d81c99673199ae1ff2efe6c3",
       "executable": false
     },
+    "src/base/contract-filter.ts": {
+      "sha256": "eec5be7da15653b69dd343fb3cf9f7a2e695eb215c5ee118f3508090e9c29232",
+      "executable": false
+    },
+    "src/base/contract-page.ts": {
+      "sha256": "8fff886df5869401818c0a3422a9a9cb73f3f1c4cb100d46f2a315176102b64f",
+      "executable": false
+    },
+    "src/base/contract-style.ts": {
+      "sha256": "41afdf1cb60983b340283b13e414102387eb2a4af022d730220050a4384d0753",
+      "executable": false
+    },
     "src/base/deployment-health.ts": {
       "sha256": "49f4dac80429ea7d9477b40799a6242f9af4870f3229df70d0ac1f635476b8b7",
       "executable": false
@@ -647,7 +659,15 @@
       "executable": false
     },
     "src/base/run-site.ts": {
-      "sha256": "b902f9421d902f73fac0fe50c874d1200f1dca33a811fb52c60a9bb76c95ea40",
+      "sha256": "608a6b61630ee1cddfa4bd797f2b6c1880ab699b89c82e37bba18f4690b5ca01",
+      "executable": false
+    },
+    "src/base/seed-contract.d.mts": {
+      "sha256": "2add6b0252ab6cb78051c7c5c2754daaebada6d7bea411df85eb8b0cb8a0ce09",
+      "executable": false
+    },
+    "src/base/seed-contract.mjs": {
+      "sha256": "fe40fa189caf33b7531b6d02e31616275f324d5727b9b0db7ddf35998712dd7c",
       "executable": false
     },
     "src/base/setup-state.ts": {
@@ -2311,7 +2331,7 @@
       "executable": false
     },
     "src/site/frame.ts": {
-      "sha256": "03e9508ab2da2ec3bd0320519d75b80a939cf90589ef431c8afa28e05f5e2baa",
+      "sha256": "3c533ac5f48da5c37fc9138b40a36c7db7e69e4f30951d661c1fd87b519d00b4",
       "executable": false
     },
     "src/site/landing.ts": {
@@ -2319,7 +2339,7 @@
       "executable": false
     },
     "src/site/pages.ts": {
-      "sha256": "efeb16af8756e20761a649ad53888093468ca36cbaee9acff51ea6a3f83ed8f2",
+      "sha256": "f70be1f494535448fe85fd6df9071c59fbad317bd7e06112e7015a0be1ad698b",
       "executable": false
     },
     "src/site/run.json": {

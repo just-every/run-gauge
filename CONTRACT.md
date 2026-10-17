@@ -1,62 +1,543 @@
 # Gauge product contract
 
-Gauge is for the owner or operations lead of an agency of roughly 5–40 people: design, marketing or software work, with staff, contractors, hourly engagements and fixed-fee projects. Its job is to finish each week knowing what was promised, who can deliver it, what the work cost and what is ready to bill.
+Target edition: 17 October 2026. Gauge is a US agency professional services automation product for the owner or operations lead of a 5–40 person design, marketing, software agency or consultancy. It connects estimates and retainers, staffing, time and expenses, delivery evidence and invoicing to a live margin, utilization and cash forecast. A buyer can replace Kantata, Harvest + Forecast, Scoro or Teamwork.com, or choose Gauge over Productive, Rocketlane or Float, without maintaining a separate spreadsheet for the core agency job.
 
-**First-release outcome.** Each week the agency approves delivered time against scoped work, reviews capacity and margin, and exports one deduplicated billing packet for its own books. Agents may prepare that work; a person with the right authority decides it.
+This is the destination product, not a description limited to today's release. Missing implementation is work to build, not a reduction in scope. Every clause gives the buyer behavior and an acceptance journey through a public screen, API, command, download or provider callback. Network/provider sandboxes may substitute at the paid/network edge in tests; no application mock or fabricated completion satisfies a clause. [ACCEPTANCE.md](ACCEPTANCE.md) repeats every journey and its current status. The final Status table cites implementation and tests, not a claim of live agency, provider or hosted proof.
 
-This document sets required behavior. [ACCEPTANCE.md](ACCEPTANCE.md) records which clauses are proven and by which test. A named test is a target until its result is recorded there.
+## Product target
+
+| | |
+| --- | --- |
+| Category | Professional services automation (PSA) / agency management software |
+| Incumbents a buyer switches from | Kantata, Harvest + Forecast, Scoro, Teamwork.com, Productive, Rocketlane, Float |
+| First buyer | Owner or operations lead of a 5–40 person US agency or consultancy, working in USD with W-2 employees, 1099 contractors, project leads, finance and an outside accountant |
+
+The complete job runs from pipeline and accepted scope through retainers, phase budgets, resource requests, calendars and delivery, to approved actuals, issued invoices, collection and an explained portfolio forecast. Client collaboration, mobile/desktop time, follow-up, migration and accounting reconciliation belong to that job. PSA-specific estimates and project work remain in Gauge; neighboring products remain separate as BOUNDARY-003 specifies.
 
 ## Operating rules
 
-- A new installation starts empty. People enter or import real records; nothing is seeded.
-- Every read and write goes through a native Base session. Each server handler checks the current session, operator and Gauge grant itself, and every write repeats that check inside the same D1 batch that commits it. Route guards and display names confer nothing.
-- Every write carries a request key. Repeating the key with the same content returns the first outcome; reusing it for different work is refused.
-- Approval binds an exact record revision. A changed record must be approved again; approved records change only through an audited correction that keeps the prior value, actor and reason.
-- Money is integer AUD cents. Durations are whole seconds, kept apart from billing rounding. There is no implicit currency conversion.
-- Roles: the **owner** holds finance authority and alone assigns grants; **finance** sees rates, costs, billing and import custody; a **lead** approves work on engagements they lead; **staff** record their own work; an **agent** grant names no person and may only prepare and withdraw proposals.
+- New installations start empty. The owner enters real records or imports authorized source data. Existing demo/test fixtures are never a substitute for agency migration or live-provider evidence.
+- US-first means USD new-business defaults, US billing addresses and payment terms, sales-tax provider handoff, card/ACH through the agency merchant account and IANA timezones with daylight-saving handling. Exact money carries currency; durations remain whole seconds, separate from billing increments. No implicit FX or silent conversion of historical AUD records.
+- Every page, read, write, API, download and callback checks current native or scoped integration authority at the handler; writes recheck grants in the committing transaction. Revocation takes effect at the next request. Browser writes check origin, credentials stay private, and restored data never imports authority.
+- Every write uses a request key. Same key and content yields the original outcome; different content is refused. External commands also carry stable source/action identity and reconcile uncertain results before another attempt.
+- Approval binds exact record revisions, terms, recipients and computed effects. Changed inputs require renewed approval. Approved commercial versions, frozen rates and issued artifacts keep their history; corrections append linked records with actor and reason.
+- Owner holds finance authority and alone manages grants. Finance sees private rates/costs and authorizes money; leads control assigned delivery and staffing; staff confirm their own work. Detailed target roles and delegation are GOVERN-001 through GOVERN-004.
+- Agents prepare; the appropriate person decides. Agent grants cannot self-approve, commit staffing, promise client changes or bill. A bounded policy can authorize only its stated follow-up action after the required human decisions. Sources and imported notes are inert data, never instructions or authority. Existing agents receive no private amounts; future least-privilege financial analysis requires a separately authorized finance scope.
+- Unknown capacity, missing costs, stale connectors, pending ACH and unconfirmed evidence remain explicit. Successful submission or job invocation never proves delivery, payment or forecast recovery.
 
-## First release: seventeen clauses
+## Published operating core
 
-Each clause says what a person can do and the test that proves it. Flow tests run through HTTP against the built Worker with real local D1 (`tests/gauge.mjs`, `tests/gauge-agent.mjs`, `tests/gauge-forecast.mjs`); the browser journey (`tests/fresh-clone.mjs`) runs the same product at 1440 and 390 pixels from a fresh clone with `rer` verbs.
+The seventeen released clause IDs remain intact. Their existing implementation is the AUD agency pilot and CSV billing-packet mode; `done` here means that original behavior has code/test evidence. SETUP-001 and the invoice/accounting clauses extend it to the approved US destination. Retainers, integrations, clients and full forecasting are target work. This supersedes the former AUD-first destination and first-release exclusions, without changing the approved UI or runtime in this documentation round.
 
-1. **ENGAGEMENT-001 — Set up agreed work.** Finance creates clients and people (with work timezone and contractor flag), an engagement with its responsible lead, assigned members, agreed scope and work timezone, and its tasks and milestones. *Proof:* `ENGAGEMENT-001 real empty account to scoped engagement`.
-2. **BUDGET-001 — Agree terms and change orders.** A lead or finance drafts hourly or fixed-fee terms (budget, effort, billing rounding, reason) and approves the exact version; an approved version cannot change, and a change order is a new version beside it. *Proof:* `BUDGET-001 immutable approved terms and additive change orders`.
-3. **RATE-001 — Keep rates by effective date.** Finance adds person/service cost and bill rates as effective-dated, immutable versions; approving time freezes the rate that applied, so adding today's rate never rewrites past work. Rates stay private to finance. *Proof:* `RATE-001 effective-dated private rates`; `TIME-002 return, correction and approval of exact revisions` (later rate leaves approved economics unchanged).
-4. **CAPACITY-001 — See next month's capacity.** People maintain dated working calendars (including contractor availability) and leave; leads allocate staff as tentative or committed. Gauge shows daily available, committed, tentative and remaining time, flags conflicts on committed work and treats a missing calendar as unknown, not zero. *Proof:* `CAPACITY-001 working calendar, leave and separate tentative staffing`; Forecast import `tests/gauge-forecast.mjs`.
-5. **TIME-001 — Record time.** Staff record manual intervals or run a persistent timer, with engagement, task, service, notes, billable flag and explicit IANA timezone. Overlapping intervals and a second running timer are refused. *Proof:* `TIME-001 persistent timer, exact manual duration, parallel exclusion and idempotence`.
-6. **TIME-002 — Approve and correct time.** Staff submit; the lead returns with a reason or approves the exact revision; approved time is reopened only through an audited correction and approved again. *Proof:* `TIME-002 return, correction and approval of exact revisions`.
-7. **COST-001 — Record expenses with receipts.** Staff add project expenses with receipt files and a reimbursable flag; the lead returns or approves; receipts are fixed at submission and only their owner or finance can download them. *Proof:* `COST-001 expense receipt custody, exact approval and attachment privacy`.
-8. **ECONOMICS-001 — Reconcile the engagement.** Finance sees the latest approved budget against approved actual time and cost, billable value and remaining effort, with the source IDs of entries missing a cost or bill rate. Others see hours without private costs. *Proof:* `ECONOMICS-001 approved actual cost and remaining effort`.
-9. **BILLING-001 — Draft a billing packet.** Finance selects approved, unbilled hourly work, approved reimbursable expenses or an approved fixed-fee milestone; the draft reserves those exact source revisions, and a concurrent second reservation of the same source fails. *Proof:* `BILLING-001 concurrent source reservations and fixed-fee eligibility`.
-10. **BILLING-002 — Approve and export once.** Finance approves the exact draft, which fixes its lines and CSV artifact with source IDs, revisions, durations, rates and rounding; formula-like text is escaped; repeated downloads return the same bytes; a correction is a linked adjustment packet, never an overwrite. *Proof:* `BILLING-002 exact approval, formula-safe repeated exports and linked correction`.
-11. **REVIEW-001 — Review the week's exceptions.** The Review page lists missing time against calendars, overspend, capacity conflicts, approved unbilled work, missing bill rates and decisions due (including agent proposals awaiting this person), each linked to its source record. *Proof:* `REVIEW-001 grounded decisions, missing time and capacity exceptions`.
-12. **ACCESS-001 — See only permitted work.** Staff see their own work on assigned engagements, leads approve only engagements they lead, private costs and rates stay with finance, and only the owner grants or revokes access; revocation takes effect on the next request, and unauthenticated or unauthorized direct transport calls are refused. *Proof:* `ACCESS-001 native personas, scoped data and direct transport denials`; `ACCESS-001 revocation and minimal replay acknowledgements`.
-13. **MOVE-001 — Move in from Harvest and leave whole.** Finance previews a Harvest export package (dry run, no writes), reconciles independent client/month totals, applies it in bounded journaled batches, rolls back a partial import, re-imports without duplicates and undoes untouched imported records; edited records refuse undo. `rer export` and `rer import` restore the complete dataset into an empty install and refuse corrupt archives or occupied destinations. See [MOVE-IN.md](MOVE-IN.md). *Proof:* `MOVE-001 Harvest preview, partial rollback, native reconciliation, idempotence and untouched undo`; `MOVE-001 complete D1 archive restore, corruption and occupied refusal`; browser journey export → fresh clone → import.
-14. **AGENT-001 — Time reconstruction.** An agent drafts a time entry for a person from cited, consented evidence (for example a calendar entry), noting any ambiguous client match; only that person confirms the actual interval and billability, which creates their own draft to submit. *Proof:* `AGENT-001 time reconstruction: the agent drafts, only the person confirms actual time`.
-15. **AGENT-002 — Resourcing.** An agent offers up to five tentative staffing alternatives with rationale; the page shows each alternative's effect on the person's remaining capacity and conflicts (and, for finance, estimated cost and billable value); the lead approves one, which becomes a tentative allocation. Agents cannot propose committed staffing. *Proof:* `AGENT-002 resourcing: tentative alternatives only, the lead approves one`.
-16. **AGENT-003 — Billing preparation.** An agent proposes the source lines for a packet; Gauge refuses unapproved, already allocated, duplicated or rate-less sources at preparation; finance approves, which drafts the exact packet, then approves the packet as in BILLING-002. The agent never sees amounts. *Proof:* `AGENT-003 billing preparation: eligibility checked, finance approves the exact packet`.
-17. **AGENT-004 — Delivery exceptions.** An agent drafts a change-order brief grounded in exceptions; the lead declines it with a reason or approves it, which drafts a change-order version whose terms the lead then approves (BUDGET-001). An agent can withdraw its own open proposal. *Proof:* `AGENT-004 delivery exceptions: change-order briefs are declined or approved by the lead`.
+- **ENGAGEMENT-001 — Set up agreed work.** Finance creates clients and people (with work timezone and contractor flag), an engagement with its responsible lead, assigned members, agreed scope and work timezone, and its tasks and milestones. **Acceptance evidence:** `ENGAGEMENT-001 real empty account to scoped engagement`.
 
-### Agent rules (clauses 14–17)
+- **BUDGET-001 — Agree terms and change orders.** A lead or finance drafts hourly or fixed-fee terms (budget, effort, billing rounding, reason) and approves the exact version; an approved version cannot change, and a change order is a new version beside it. **Acceptance evidence:** `BUDGET-001 immutable approved terms and additive change orders`.
 
-The agent is any program the owner runs (for example their own coding agent) signed in as an operator with an **agent** grant. It uses the same HTTP API as the app ([API.md](API.md)). It reads engagements, tasks, people, calendars, staffing and approved work without private costs or rates. It may prepare and withdraw proposals and nothing else: every other command answers 403. Each proposal keeps its assumptions, cited evidence and plan. The person who decides must hold the authority the effect needs (the person themselves for time, the lead or finance for staffing and change orders, finance for billing); the agent and the preparer can never decide. Approval writes the effect through the ordinary command in the same D1 batch, records who decided and when, and links the created record. Evidence and imported notes are inert text: no instruction inside them grants authority.
+- **RATE-001 — Keep rates by effective date.** Finance adds person/service cost and bill rates as effective-dated, immutable versions; approving time freezes the rate that applied, so adding today's rate never rewrites past work. Rates stay private to finance. **Acceptance evidence:** `RATE-001 effective-dated private rates`; `TIME-002 return, correction and approval of exact revisions` (later rate leaves approved economics unchanged).
 
-## Decided defaults
+- **CAPACITY-001 — See next month's capacity.** People maintain dated working calendars (including contractor availability) and leave; leads allocate staff as tentative or committed. Gauge shows daily available, committed, tentative and remaining time, flags conflicts on committed work and treats a missing calendar as unknown, not zero. **Acceptance evidence:** `CAPACITY-001 working calendar, leave and separate tentative staffing`; Forecast import `tests/gauge-forecast.mjs`.
 
-These are decided for the first release:
+- **TIME-001 — Record time.** Staff record manual intervals or run a persistent timer, with engagement, task, service, notes, billable flag and explicit IANA timezone. Overlapping intervals and a second running timer are refused. **Acceptance evidence:** `TIME-001 persistent timer, exact manual duration, parallel exclusion and idempotence`.
 
-- **Buyer and scope:** agency services, not solo freelancing or enterprise Salesforce replacement. Hourly and fixed-fee engagements; retainers come after a balance and carry-over contract is agreed.
-- **Jurisdiction:** Australian agency pilot, AUD reporting currency, explicit IANA work timezone per person and engagement (default `Australia/Brisbane` in forms), no tax engine.
-- **Books:** billing preparation only; the agency's existing accounting tool issues invoices and posts to the ledger.
-- **Order of work:** time approvals, then billing reconciliation, then capacity, then agent preparation, then accounting writes (later).
-- **First move-in:** Harvest (with Forecast schedule CSV), changed only by a pilot agency's actual export.
-- **Agents:** no model account, calendar connection or mail is needed; the owner's own agent prepares through the API, and people decide.
-- **Evidence before switching:** keep the incumbent until a consenting agency reconciles one real billing period, restore and continued owner work in Gauge.
+- **TIME-002 — Approve and correct time.** Staff submit; the lead returns with a reason or approves the exact revision; approved time is reopened only through an audited correction and approved again. **Acceptance evidence:** `TIME-002 return, correction and approval of exact revisions`.
 
-## Out of the first release
+- **COST-001 — Record expenses with receipts.** Staff add project expenses with receipt files and a reimbursable flag; the lead returns or approves; receipts are fixed at submission and only their owner or finance can download them. **Acceptance evidence:** `COST-001 expense receipt custody, exact approval and attachment privacy`.
 
-Payroll, statutory accounting or general-ledger posting, tax determination, invoice issuance, payment collection or money movement, revenue-recognition certification, retainers, external client portals, pervasive screen or activity monitoring, a universal project-management suite, regulated legal or clinical billing, and contractor marketplaces. Also out: integrated model providers, calendar reads, outbound email, accounting writes, multi-currency, and a hosted deployment. Margin is an operational calculation from declared inputs, not audited profit. "Gauge" is a working name, not a cleared trademark.
+- **ECONOMICS-001 — Reconcile the engagement.** Finance sees the latest approved budget against approved actual time and cost, billable value and remaining effort, with the source IDs of entries missing a cost or bill rate. Others see hours without private costs. **Acceptance evidence:** `ECONOMICS-001 approved actual cost and remaining effort`.
 
-## Platform
+- **BILLING-001 — Draft a billing packet.** Finance selects approved, unbilled hourly work, approved reimbursable expenses or an approved fixed-fee milestone; the draft reserves those exact source revisions, and a concurrent second reservation of the same source fails. **Acceptance evidence:** `BILLING-001 concurrent source reservations and fixed-fee eligibility`.
 
-Gauge runs on Base `79f61faef682f9d6cdb64e843cfbd3cf02887982` in package mode with the published `@runeditrun/rer` 0.2.4: TanStack Start and Hono on one Cloudflare Worker with D1, Base native sessions, the Lobby at `/`, owner claim at `/setup`, sign-in at `/signin` and the app at `/app`. `/health` is public; unknown routes return 404. The shared command contract is [SEED-COMMAND-CONTRACT.md](SEED-COMMAND-CONTRACT.md).
+- **BILLING-002 — Approve and export once.** Finance approves the exact draft, which fixes its lines and CSV artifact with source IDs, revisions, durations, rates and rounding; formula-like text is escaped; repeated downloads return the same bytes; a correction is a linked adjustment packet, never an overwrite. **Acceptance evidence:** `BILLING-002 exact approval, formula-safe repeated exports and linked correction`.
+
+- **REVIEW-001 — Review the week's exceptions.** The Review page lists missing time against calendars, overspend, capacity conflicts, approved unbilled work, missing bill rates and decisions due (including agent proposals awaiting this person), each linked to its source record. **Acceptance evidence:** `REVIEW-001 grounded decisions, missing time and capacity exceptions`.
+
+- **ACCESS-001 — See only permitted work.** Staff see their own work on assigned engagements, leads approve only engagements they lead, private costs and rates stay with finance, and only the owner grants or revokes access; revocation takes effect on the next request, and unauthenticated or unauthorized direct transport calls are refused. **Acceptance evidence:** `ACCESS-001 native personas, scoped data and direct transport denials`; `ACCESS-001 revocation and minimal replay acknowledgements`.
+
+- **MOVE-001 — Move in from Harvest and leave whole.** Finance previews a Harvest export package (dry run, no writes), reconciles independent client/month totals, applies it in bounded journaled batches, rolls back a partial import, re-imports without duplicates and undoes untouched imported records; edited records refuse undo. `rer export` and `rer import` restore the complete dataset into an empty install and refuse corrupt archives or occupied destinations. See [MOVE-IN.md](MOVE-IN.md). **Acceptance evidence:** `MOVE-001 Harvest preview, partial rollback, native reconciliation, idempotence and untouched undo`; `MOVE-001 complete D1 archive restore, corruption and occupied refusal`; browser journey export → fresh clone → import.
+
+- **AGENT-001 — Time reconstruction.** An agent drafts a time entry for a person from cited, consented evidence (for example a calendar entry), noting any ambiguous client match; only that person confirms the actual interval and billability, which creates their own draft to submit. **Acceptance evidence:** `AGENT-001 time reconstruction: the agent drafts, only the person confirms actual time`.
+
+- **AGENT-002 — Resourcing.** An agent offers up to five tentative staffing alternatives with rationale; the page shows each alternative's effect on the person's remaining capacity and conflicts (and, for finance, estimated cost and billable value); the lead approves one, which becomes a tentative allocation. Agents cannot propose committed staffing. **Acceptance evidence:** `AGENT-002 resourcing: tentative alternatives only, the lead approves one`.
+
+- **AGENT-003 — Billing preparation.** An agent proposes the source lines for a packet; Gauge refuses unapproved, already allocated, duplicated or rate-less sources at preparation; finance approves, which drafts the exact packet, then approves the packet as in BILLING-002. The agent never sees amounts. **Acceptance evidence:** `AGENT-003 billing preparation: eligibility checked, finance approves the exact packet`.
+
+- **AGENT-004 — Delivery exceptions.** An agent drafts a change-order brief grounded in exceptions; the lead declines it with a reason or approves it, which drafts a change-order version whose terms the lead then approves (BUDGET-001). An agent can withdraw its own open proposal. **Acceptance evidence:** `AGENT-004 delivery exceptions: change-order briefs are declined or approved by the lead`.
+
+
+## Target clauses
+
+### Agency setup and sales to delivery
+
+- **SETUP-001 — US agency setup.** The owner sets the legal business, US billing address, USD base currency, EIN reference, fiscal year, workweek and IANA timezones. Money uses explicit ISO currency and exact minor units; old AUD records keep their currency and never silently convert. USD is the new-install default. **Acceptance evidence:** Start empty, configure a New York agency, quote and invoice USD work across a daylight-saving change; import an old AUD record and require an explicit conversion policy before consolidation.
+
+- **SETUP-002 — Client and contact workspace.** Finance keeps legal clients, billing and project contacts, addresses, tax and exemption references, payment terms, PO requirements, tags and custom fields; search and merge preserve linked engagements and external identities. **Acceptance evidence:** Create two similarly named clients, merge the duplicate, search by PO and external ID, and verify terms and every linked project remain attached.
+
+- **SALES-001 — Opportunity pipeline.** Leads track agency opportunities with stages, probability, owner, proposed start/end, services, expected value and staffing demand; won and lost outcomes retain history. Weighted revenue and tentative capacity remain visibly distinct from signed work. **Acceptance evidence:** Create two deals at different probabilities, move one to won, and reconcile weighted pipeline and booked backlog without double counting.
+
+- **SALES-002 — Costed estimates.** Leads model service, role, hours, subcontractor and expense lines, rate assumptions, contingency, discounts and margin for hourly, fixed and mixed work; private costs remain finance-only. Versions compare projected margin and feasible dates before sale. **Acceptance evidence:** Estimate design and engineering with a contractor and discount, compare versions and show a non-finance recipient no internal costs.
+
+- **SALES-003 — Proposals and client acceptance.** Send a branded, versioned proposal with scope, deliverables, exclusions, dates, payment schedule and expiry; track delivery, viewing, questions and acceptance or rejection. Bind accepted terms to the exact version and attach signed evidence from Docusign or Inkwell when signatures are needed. **Acceptance evidence:** Send two proposal versions to a controlled inbox; accept the latest through the client link and require a fresh acceptance after changing its price.
+
+- **SALES-004 — Won work becomes an engagement.** Convert accepted estimates or won CRM deals into scoped work, phase budgets, tasks, milestones, staffing requests and invoice schedules with stable links back to the deal and accepted terms; replays create no duplicate. **Acceptance evidence:** Accept a fixed-fee estimate, convert it twice, and find one engagement whose budget and milestones reconcile to that estimate.
+
+- **SALES-005 — Change scope with the client.** Track scope requests, baseline differences, schedule and margin impact, internal review and client acceptance; no pending change consumes approved client budget or authorizes billing. Retain signed change evidence beside prior terms. **Acceptance evidence:** Propose extra work, decline it, revise and accept it as the client, then verify only the accepted increment changes the forecast.
+
+- **RATE-002 — Client rate cards and cost policy.** Finance versions client, service, role and person rate cards, with effective dates, overtime rules, write-downs and negotiated overrides; an explain view shows precedence and approval freezes the chosen values. W-2 loaded costs and 1099 contractor costs are declared inputs, not payroll calculations. Publish precedence among entry, project, client-role, role, person and service overrides. **Acceptance evidence:** Approve identical services for two clients at different rates, cross an effective date, and trace billed value and declared loaded cost without changing historical approvals.
+
+- **BUDGET-002 — Phase and service budgets.** Split engagements into phases and services with hour, fee, expense and margin budgets, caps and controlled transfers; rolled-up totals equal the approved engagement and warn before a cap is exceeded. Mixed hourly and fixed phases retain distinct billing bases. **Acceptance evidence:** Split a $60000 project across discovery and delivery, move an approved allowance and verify phase and project totals and the overspend alert.
+
+
+### Retainers and recurring commercial promises
+
+- **RETAINER-001 — Recurring hours and value retainers.** Set monthly, quarterly or annual retainers with included hours or USD value, eligible services, proration, start/end and renewal terms. Keep each period and its commercial version separate from ad hoc project budgets. Terms explicitly choose whether all, billable or nonbillable approved work consumes allowance. **Acceptance evidence:** Create a $10000 monthly retainer and a 40-hour quarterly retainer, start mid-period and verify the previewed prorated entitlement and renewal dates.
+
+- **RETAINER-002 — Rollover and overage rules.** Version unused allowance carry-over, cap, expiry, deficit carry-forward and overage rates per retainer; show FIFO consumption and bill only allowed overages. Never change a closed period by editing current rules. **Acceptance evidence:** Carry 8 of 40 unused hours into a capped next period, consume them before expiry, exceed allowance by 3 hours and reconcile the overage at its agreed rate.
+
+- **RETAINER-003 — Explained remaining balance.** Staff, leads and permitted clients see opening allowance, rollover, confirmed consumption, pending time, adjustments and remaining hours/value with source work and rule versions; unapproved evidence is visibly provisional. **Acceptance evidence:** Open a retainer statement, trace a consumed hour to approved time, and verify pending time changes the projection but not posted consumption.
+
+- **RETAINER-004 — Retainer period corrections.** Close each retainer period once, preserve its statement and use approved adjustments for late time, waivers, refunds, pauses, renewal changes and cancellation; finance sees the next period and cash effect before approval. **Acceptance evidence:** Close October, receive late October work in November, approve a partial overage waiver, and show the original statement plus a linked adjustment without double consumption.
+
+- **RETAINER-005 — Scheduled retainer billing.** Create the next recurring budget and invoice draft on its contractual schedule, in advance or arrears as configured; include overages and credits with no duplicate on restart. Finance sets the auto-issue policy and reviews exceptions. **Acceptance evidence:** Advance the public test clock over month-end twice and restart the job; obtain one new period and one correct draft, with disputed overages held.
+
+
+### Staffing and resource planning
+
+- **RESOURCE-001 — Skills and resource requests.** Keep skills, proficiency, teams, employment type, location and role needs; filter feasible people using dated availability, permissions and finance-visible cost. Placeholders represent unfilled roles until a lead approves a named person. **Acceptance evidence:** Request a 20-hour UX specialist, find qualified available staff and a contractor, fill a placeholder and verify no duplicate demand remains.
+
+- **RESOURCE-002 — Portfolio resource schedule.** Leads plan daily/weekly allocations across projects on a searchable calendar, shift or split bookings and inspect tentative versus committed demand; overbooking and unknown capacity stay visible before committing. **Acceptance evidence:** Move a booking across a holiday and another project, split it between two staff and verify both conflicts and unallocated demand.
+
+- **RESOURCE-003 — Leave and holiday approvals.** Maintain per-person part-time schedules, US federal and agency holidays, regional exceptions and requested/approved leave; private leave reasons stay private. Approval immediately recalculates conflicting staffing and alerts the responsible lead. Working hours can differ by weekday and change from an effective date without rewriting historical capacity. **Acceptance evidence:** Approve leave on a staffed date, observe reduced capacity and a lead notification, and override one holiday for an agreed contractor workday.
+
+- **RESOURCE-004 — Scheduled versus actual utilization.** Compare scheduled, recorded, submitted and approved hours by person, service and project; report billable and total utilization against net workable hours, with holidays, leave and missing calendars explained. Distinguish billable/capacity utilization from billable/scheduled utilization; label tentative inclusion. **Acceptance evidence:** Schedule 30 billable hours in a 32-hour available week, approve 24 and record 4 pending; reconcile each denominator and drill to the four categories.
+
+- **RESOURCE-005 — Resource demand forecast.** Forecast committed backlog and probability-weighted pipeline over months, including unfilled roles, contractors and planned hires; owner-approved scenarios compare capacity, revenue and margin without modifying the baseline. **Acceptance evidence:** Compare hire, contractor and delayed-start scenarios for a pipeline deal; close it as won and ensure demand moves to committed once.
+
+
+### Project delivery and client collaboration
+
+- **DELIVERY-001 — Task execution and views.** Teams assign tasks and subtasks with status, priority, dates, estimates, checklists, recurring work and billability; list, board and personal-work views filter by client and project. Time and expense records link to their delivery task. **Acceptance evidence:** Create and assign a recurring task with subtasks, move it through a board and log time against it; see the same status and total in project and personal views.
+
+- **DELIVERY-002 — Dependencies and Gantt schedules.** Plan phase, task and milestone dependencies with baselines, business-day durations, critical path and controlled rescheduling; show client date and capacity effects before changing commitments. **Acceptance evidence:** Delay an upstream task two days across Thanksgiving; inspect the dependent milestone and staffing conflicts, then approve one new baseline.
+
+- **DELIVERY-003 — Reusable delivery templates.** Create versioned project and client-onboarding templates with task dependencies, phase budgets, forms, owners and milestone billing; instantiate relative dates without changing running projects when a template evolves. **Acceptance evidence:** Apply a new-client template to two start dates, update its version, and confirm the earlier projects keep their original plans.
+
+- **DELIVERY-004 — Project conversations and documents.** Comment, mention and subscribe on scoped tasks and projects; version files, attach links and search permitted content. Record decisions and deliverable approvals separately from conversation; files retain private/project/client visibility. Deliverable proofing retains version-specific annotations, reviewer requests and external approval decisions. **Acceptance evidence:** Upload two deliverable revisions, mention a teammate and approve one as client-visible; a client and unrelated employee cannot fetch private revisions.
+
+- **DELIVERY-005 — Milestone acceptance and risks.** Leads track delivery health, issues, risk owner, mitigation and dated client dependencies; clients approve or reject a delivered milestone with reason. Delivery acceptance and finance authorization remain separate gates for billing. **Acceptance evidence:** Reject a milestone for missing work, resolve its issue and accept it; verify neither the initial delivery nor acceptance alone issues an invoice.
+
+- **DELIVERY-006 — Client intake and follow-through.** Clients complete project-scoped onboarding forms, upload requested inputs and see their due actions; leads schedule reminders and escalate blocked inputs. Link broader shared-file work to Chest and accounting-practice requests to Blotter; those remain separate products. **Acceptance evidence:** Request brand assets with a due date, upload as the client, reject an incomplete submission and verify reminders stop only after acceptance.
+
+
+### Time capture and expense operations
+
+- **TIME-003 — Daily and weekly timesheets.** Workers enter day/week grids, copy recent tasks and favorites, bulk submit and see missing hours and approval status. Lock periods by policy; a historical correction preserves the original approver and exact duration before billing rounding. **Acceptance evidence:** Fill a week using a favorite and manual interval, return one day, correct it and resubmit; a locked period refuses an unapproved edit.
+
+- **TIME-004 — Timesheet policies and reviewer queues.** Set due dates, required notes, maximum hours, billability and multi-level review policies; route work to a delegate when the lead is absent and show policy failures and approver ageing. A worker cannot self-approve when separation is required. **Acceptance evidence:** Submit short-note and excessive-hours entries, resolve the flags, delegate review during leave and verify the original worker cannot bypass the policy.
+
+- **TIME-005 — Consented evidence inbox.** Workers explicitly connect permitted calendars and delivery projects, review suggested intervals with sources and ambiguous client matches, and confirm actual duration and billability. Revocation stops collection; activity, meetings and PRs never post approved time by themselves. **Acceptance evidence:** Connect a calendar and issue project, resolve a meeting matching two clients and reject a PR-only suggestion; revoke access and verify collection stops.
+
+- **TIME-006 — Timer continuity and idle recovery.** One durable timer follows the same worker across web, desktop, mobile and extension; reconnects and duplicate stops preserve exact time. Idle detection and forgotten timers ask the worker how to split or discard intervals without passive surveillance. **Acceptance evidence:** Start on desktop, inspect on mobile, disconnect, reconnect and stop twice; recover an overnight timer with the worker choosing the actual interval.
+
+- **COST-002 — Expense policy and reimbursement.** Record categories, vendor, incurred currency, approved FX evidence, tax and markup, reimbursable and client-billable status; route policy exceptions, receipt review and reimbursement exports to finance or payroll without conflating reimbursement with client recovery. **Acceptance evidence:** Submit a travel receipt with a policy exception, approve it, export it for reimbursement and invoice its allowed markup once.
+
+- **COST-003 — Contractor and purchase commitments.** Track subcontractor scope, PO commitments, expected vendor costs, received invoices and approval; include committed unbilled costs in forecasts and match actual costs once. Export W-9 and 1099 classification references to the accounting provider without filing tax forms. **Acceptance evidence:** Commit $8000 to a subcontractor, receive two bills against it and reconcile forecast versus actual cost without doubling the commitment.
+
+
+### Economics, forecasts and financial control
+
+- **FINANCE-001 — Explain actual and forecast margin.** Finance sees approved and provisional labor/expense costs, earned operational value, billed revenue, credits, paid cash, remaining effort and estimate at completion per project and phase. Missing rates/costs visibly prevent a reliable margin; revenue recognition is separately labeled. **Acceptance evidence:** Approve time and expenses, leave one cost unknown, invoice half the project and trace actual/forecast margin and its incomplete flag to source records.
+
+- **FINANCE-002 — Revenue and cash forecast.** Forecast revenue, invoice dates, payment terms, retainers, collection probability and expected cash by month; distinguish contracted backlog, weighted pipeline, issued receivables and bank-settled cash and show assumption ranges. **Acceptance evidence:** Delay a milestone by two weeks and change a payment promise; reconcile the shifted cash curve while booked revenue and settled cash remain distinct.
+
+- **FINANCE-003 — Project scenarios and baseline comparison.** Finance and leads compare scope, rates, staffing, write-downs and deadline alternatives in isolated scenarios; each shows dates, utilization, remaining cost, margin and cash effects across affected projects. Only named approvals adopt a scenario. **Acceptance evidence:** Model replacing a staff member with a contractor across two projects, compare baseline economics and adopt only the selected future staffing changes.
+
+- **FINANCE-004 — Monthly period close.** Finance resolves missing time, unapproved costs, WIP, retainer usage, unbilled work and connector mismatches, then closes a period with an immutable reconciliation and role-checked reopening or later adjustment. **Acceptance evidence:** Attempt close with missing cost and an unmatched invoice, resolve both and close; late time requires a linked adjustment or authorized reopen.
+
+- **FINANCE-005 — Revenue schedules for the accountant.** Configure service-delivery, milestone and time-based operational revenue schedules, deferred/unbilled balances and journal mappings; reconcile to invoices and send reviewed ASC 606 inputs to QBO/Xero or enterprise ERP. The accountant decides recognition policy and certification. **Acceptance evidence:** Bill a prepaid fixed project, recognize approved monthly delivery by the selected policy and reconcile the reviewed journal export to deferred and unbilled balances.
+
+
+### Invoices and collections
+
+- **INVOICE-001 — Issue numbered USD invoices.** Finance converts eligible approved time, services, reimbursable costs and fixed budgets into numbered USD invoices with bill-to, remit-to, PO, terms, due dates and exact source allocation. Draft, approved, issued, partially paid, paid, void and credited states remain explicit. **Acceptance evidence:** Issue a USD invoice from time and expenses, race a second issue and verify one immutable numbered invoice with each source billed once.
+
+- **INVOICE-002 — Progress and consolidated invoices.** Bill deposits, milestone amounts, percentages of fixed work, time-based partials and retainers; combine multiple project/phase budgets for one client with per-line source and remaining-to-bill amounts. Prevent cumulative overbilling and double billing deposits. **Acceptance evidence:** Collect a 20% deposit on two projects, issue a combined progress invoice and reconcile the deposit deduction and each remaining budget.
+
+- **INVOICE-003 — Branded invoice delivery.** Preview branded invoice PDF and a secure hosted page, deliver from a verified agency work address through Gmail, Microsoft 365 or transactional mail, and show provider acceptance, bounce and client view state. The PDF, message and invoice version stay linked. **Acceptance evidence:** Send an invoice to a controlled mailbox, open its exact PDF and hosted page, then induce a bounce and observe an actionable delivery failure.
+
+- **INVOICE-004 — Credits voids and write-downs.** Finance issues linked credit notes, void/reissue corrections, approved discounts and write-offs with reasons, tax effects and source allocation; changing an issued amount never rewrites the original or makes its work eligible to bill again. **Acceptance evidence:** Credit part of an issued expense, void an unpaid invoice and reissue the valid balance; reconcile every source and original document.
+
+- **INVOICE-005 — US sales tax and exemptions.** Determine service taxability and jurisdiction using reviewed agency policy and Avalara or Stripe Tax, retain exemption-certificate references, and reconcile tax returned by QBO/Xero. Estimate, issue and credit use consistent tax evidence; the accounting/tax provider files returns. **Acceptance evidence:** Issue taxable and exempt US service invoices in provider test mode, credit a taxed line and reconcile the provider calculation, invoice and books.
+
+- **INVOICE-006 — Accounts receivable and payment allocation.** Finance sees ageing, statements, disputed amounts, unapplied payments, partial payments, credits and payment promises; allocate cash with unique external references and show the identity total equals paid plus credited plus owed. **Acceptance evidence:** Receive one payment covering two invoices, leave an unapplied balance and trace ageing and statement totals through a later credit.
+
+- **INVOICE-007 — Overdue follow-up until resolution.** Run approved email collection cadences by due date and client terms with delivery, reply, promise-to-pay and dispute holds; stop on verified payment, credit or cancellation and escalate uncertain outcomes to the named finance owner. **Acceptance evidence:** Send a scheduled overdue reminder, record a client dispute, pause it, then ingest payment before the next send and prove the sequence stops.
+
+- **PAYMENT-001 — Stripe card and ACH payment links.** Connect the agency merchant account and attach a Stripe-hosted card/ACH payment link to each invoice; partial payments and fees remain explicit and ACH is pending until settled. Gauge never receives card or bank credentials or holds funds. **Acceptance evidence:** Pay an invoice in Stripe test mode by card and another by ACH, verify pending then settled state and confirm no sensitive payment details reach Gauge.
+
+- **PAYMENT-002 — Reconcile processor outcomes.** Verify signed provider events and reconcile payments, refunds, disputes, fees, payouts and ACH returns with periodic read-back; duplicate and out-of-order events cannot double-allocate or falsely mark settled cash. **Acceptance evidence:** Replay payment webhooks out of order, simulate an ACH return and refund, then reconcile against Stripe read-back and invoice balances.
+
+- **PAYMENT-003 — External payments and bank reconciliation.** Reconcile accounting-recorded ACH, check, wire and card payments to Gauge invoices by stable references; finance resolves ambiguous matches, overpayments and reversals before changing paid status. **Acceptance evidence:** Import a QBO check payment against two similarly numbered invoices, resolve its match as finance and reverse it in QBO; Gauge reflects the exact final allocation.
+
+
+### Reporting and client visibility
+
+- **REPORT-001 — Portfolio profitability dashboard.** Filter firm, client, project, team, service and lead by date; compare budget, burn, estimate at completion, operational margin and losses with historical trends and drill-through to approved records and missing costs. **Acceptance evidence:** Compare a profitable retainer and loss-making fixed project, filter by team and trace the margin difference to source time and costs.
+
+- **REPORT-002 — Utilization and realization dashboard.** Report scheduled/actual billable utilization, effective bill rates, realization against standard rate value, write-offs and nonbillable time with defined denominators and cost privacy; group by person, role, client and period. **Acceptance evidence:** Approve ten hours at standard value, write down two hours on the invoice and reconcile realized rate and utilization without exposing salary to leads.
+
+- **REPORT-003 — Revenue cash and backlog dashboard.** Finance sees weighted pipeline, signed backlog, WIP, retainer balances, invoices, collections and cash forecasts in USD with explicit as-of time, connector freshness and reconciliation exceptions. **Acceptance evidence:** Move a deal through won, delivered, invoiced and paid; see value transfer between buckets once and flag stale accounting state.
+
+- **REPORT-004 — Custom reports and scheduled delivery.** Authorized users build saved reports from permitted fields, choose calculated measures and time/group filters, export CSV/XLSX/PDF and schedule email delivery with recipient scope and freshness checks. **Acceptance evidence:** Schedule a client profit report to finance and a cost-free status report to a lead; revoke the recipient and verify the next delivery is stopped.
+
+- **REPORT-005 — Trace every reported amount.** Every report figure identifies its source rows, formula, rate version, currency, approvals and as-of timestamp; export totals equal on-screen totals, and unknowns stay distinct from zero. **Acceptance evidence:** Drill from a project burn amount into frozen rate/time evidence, export it and independently reconcile the same total while one unknown cost stays flagged.
+
+- **CLIENT-001 — Scoped client portal.** Client sponsors and collaborators see only invited projects, accepted scope, deliverables, selected budget/burn, milestones and actions; finance chooses which monetary details to share. Cross-client access, revoked links and private staff costs are refused at the handler. **Acceptance evidence:** Invite contacts from two clients, expose a budget to one sponsor and attempt direct URL/API access to the other project and internal rates.
+
+- **CLIENT-002 — Client status and budget reports.** Leads publish a dated, client-readable status with delivered/remaining work, budget burn, retainer balance, forecast dates, risks and next decisions; clients acknowledge or comment, and later versions preserve the published record. **Acceptance evidence:** Publish a redacted weekly status, have a client question a milestone, revise it and inspect both publications without leaking cost or other clients.
+
+- **CLIENT-003 — Client financial self-service.** Clients view issued invoices, credit notes, statements and permitted retainer consumption, download documents, pay through the processor and raise disputes; portal replies route to the responsible lead or finance owner. **Acceptance evidence:** As a client, open the statement, question an overage, download the invoice and pay its undisputed balance; finance sees the reply and correct outstanding amount.
+
+
+### Named live integrations
+
+- **CONNECT-001 — QuickBooks Online.** Connect the agency QBO company by OAuth; map customers, services, accounts, tax codes, invoices and credits, persist external IDs and sync payment/allocation changes back. Choose the issuing system per entity so one invoice never issues twice. **Acceptance evidence:** Create and credit an invoice in a QBO sandbox, pay it there, replay the sync and reconcile one external invoice and its final balance.
+
+- **CONNECT-002 — Xero.** Connect Xero by OAuth with organization-scoped contacts, items, tax/account mapping, invoices, credit notes and payment reconciliation; show validation conflicts and preserve original external IDs. **Acceptance evidence:** Issue, amend by credit and partially pay a Xero sandbox invoice; restart sync and reconcile one document with the correct remaining balance.
+
+- **CONNECT-003 — Google Calendar.** Collect only worker-consented Google Calendar events from selected calendars with attendee/privacy controls, date ranges, incremental cursors and deletion handling; propose time and availability context without treating attendance as work. **Acceptance evidence:** Sync a private and shared calendar, edit then delete an event and revoke consent; suggestions update or disappear and private descriptions remain hidden.
+
+- **CONNECT-004 — Microsoft 365 and Outlook.** Use scoped Microsoft Graph calendar/email consent for work context, staff interoperability and approved agency messages; tenant approval, revoked permissions, private events and shared mailbox boundaries remain visible. **Acceptance evidence:** Connect a Microsoft test tenant, process a changed calendar event and an invoice reply, then revoke one scope and verify its collection stops.
+
+- **CONNECT-005 — Jira.** Map Jira projects, issues, epics, statuses and worklogs to Gauge tasks and evidence; preserve issue identities and source permissions, reconcile updates and deletions, and require worker confirmation before suggested time posts. **Acceptance evidence:** Resolve a Jira issue, import a worklog update twice and inspect one linked delivery change and an unapproved time suggestion.
+
+- **CONNECT-006 — Linear.** Connect Linear GraphQL projects, cycles and issues for scoped delivery progress and activity citations; reconcile webhook and polling updates with stable IDs without inventing worked duration. **Acceptance evidence:** Move a Linear issue to done, replay its webhook and inspect one linked completion while its time suggestion remains unconfirmed.
+
+- **CONNECT-007 — GitHub.** Read selected repositories through a GitHub App or scoped token for issue, PR, review and merge evidence; support approved issue follow-ups and keep private-repository content within project rights. Commits alone never establish billability. **Acceptance evidence:** Merge a PR in an authorized repo, propose its milestone effect and verify a client and unauthorized repo receive no private code/context.
+
+- **CONNECT-008 — Asana.** Map Asana projects, tasks, subtasks, assignments, dates and completion to Gauge delivery evidence; handle webhook replay, edits and deletion with explicit source-of-truth rules. **Acceptance evidence:** Complete an Asana task, change its due date and replay both events; Gauge shows the current source date and one linked completion.
+
+- **CONNECT-009 — Slack.** Deliver timesheet nudges, staffing conflicts, decisions and billing alerts into configured Slack users/channels; signed interactive actions recheck native authority and revision, and replies attach to the exact follow-up. **Acceptance evidence:** Send a missing-time nudge to a controlled workspace, submit time from its action and reject a stale or wrong-person approval.
+
+- **CONNECT-010 — Microsoft Teams.** Deliver equivalent private/channel reminders and approval cards through a registered Teams app with tenant consent; authenticate callbacks, map users and retain message and reply references. **Acceptance evidence:** Send a Teams approval card, approve as the assigned lead and reject a forwarded card from another user; show the verified resulting revision.
+
+- **CONNECT-011 — HubSpot and Orbit.** Import won deals, companies, contacts, accepted line items and dates from HubSpot or sibling Orbit with stable deal IDs; return project health and commercial changes while the CRM remains the sales system of record. **Acceptance evidence:** Convert the same HubSpot and Orbit won-deal event twice and verify one project per deal; a later CRM edit becomes a reviewed change.
+
+- **CONNECT-012 — Salesforce.** Map Salesforce accounts, opportunities, products and approved contract references to PSA scope and resource demand; return delivery/financial summaries with field mapping and conflict ownership, without recreating enterprise CRM. **Acceptance evidence:** Convert a sandbox closed-won opportunity and verify its staffing demand and linked project; a replay and conflicting amount produce no duplicate or silent overwrite.
+
+- **CONNECT-013 — Harvest API and Forecast continuity.** Connect Harvest API v2 and Forecast API/schedule exports for a controlled parallel run of projects, time, expenses, rates and staffing; reconcile source identities and billed flags, and stop writes to the old system at a reviewed cutover. **Acceptance evidence:** Sync the same Harvest time twice, amend it at source, compare Forecast staffing to actuals and adopt an unbilled period without billing history again.
+
+- **CONNECT-014 — NetSuite.** Send reviewed customers, project invoices, credits, expenses and revenue inputs to NetSuite using account/department/entity mappings; reconcile payment and posting results to stable external transaction IDs. **Acceptance evidence:** Post an invoice and credit to a NetSuite sandbox, simulate a mapping rejection and reconcile payment after correcting it with no duplicate.
+
+- **CONNECT-015 — Sage Intacct.** Map Sage Intacct customers, projects, dimensions, invoice/credit and expense inputs, retain batch/external IDs and reconcile accepted, rejected and paid results in the PSA exception queue. **Acceptance evidence:** Send a two-project batch to an Intacct test company with one rejected dimension, resolve it and reconcile both transactions and payment once.
+
+- **CONNECT-016 — Zapier and Crank automation.** Publish scoped new/changed project, time approval, budget-risk, invoice and payment triggers and approved actions through Zapier and sibling Crank; sign events, enforce idempotency and recheck actor permissions on writes. **Acceptance evidence:** Trigger a Zapier and Crank workflow from a budget exception, replay it and verify one permitted follow-up; a revoked connection receives no new data.
+
+- **CONNECT-017 — Work email and reply routing.** Connect Gmail, Microsoft 365 work mailboxes or Resend/SES transactional sending for authorized proposals, invoices and follow-ups; verify sender domains, handle bounce/complaint suppression and attach provider delivery IDs and inbound replies to their case. **Acceptance evidence:** Deliver an approved invoice via a controlled sender, reply from the client and simulate a hard bounce; the case shows the reply and suppresses repeated bad-address sends.
+
+- **CONNECT-018 — Document and signature handoff.** Accept proposals and signed scope from Platter, Inkwell, Docusign and PandaDoc and link contract versions to Locket; use stable document IDs, signature state and original artifacts rather than importing document text as authority. **Acceptance evidence:** Receive a signed scope event twice, link one accepted version and request review when a later unsigned revision arrives.
+
+- **CONNECT-019 — Connector health and reconciliation.** Every connector exposes scopes, source-of-truth mapping, last successful sync, cursor, lag and unresolved exceptions; durable rate-limited jobs support backfill, restart, idempotency and dead-letter resolution. Secrets are encrypted, redacted, rotated and revoked per connection. **Acceptance evidence:** Expire a provider token mid-page, restart after reauthorization and reconcile source counts and money without lost or duplicated records; logs and exports contain no secret.
+
+- **CONNECT-020 — Documented API and signed webhooks.** Expose versioned, documented PSA read/write APIs with scoped app credentials, pagination, filters and request keys, plus signed outbound events with replay protection, delivery history and controlled redelivery. API rights equal native rights. **Acceptance evidence:** Page all projects through an app credential, post time with the same key twice, verify a signed event and reject a revoked credential and stale replay.
+
+
+### Follow-up and unattended operation
+
+- **FOLLOWUP-001 — Timesheet submission and approval cadence.** Run configured weekly submission reminders and approver follow-ups using each worker timezone, working days, leave and due date; Slack, Teams and email delivery keep references, replies and escalation, and stop when the exact required timesheet is accepted. **Acceptance evidence:** Miss a Friday submission, receive a nudge, submit, then return and resubmit one entry; reminders move to the right person and stop after final approval.
+
+- **FOLLOWUP-002 — Owned operational cases.** Each risk, blocked input, staffing gap, billing exception and client decision has a responsible person, next action, due time, attempts, external references, reply state and completion evidence. Snooze, reassignment and escalation preserve history; successful job invocation is not completion. **Acceptance evidence:** Open a scope-risk case, send an approved request, receive an ambiguous reply and escalate; close only after verified client acceptance and an updated forecast.
+
+- **FOLLOWUP-003 — Rules and approval policies.** Owners configure event/schedule rules for risk alerts, staffing requests, time reminders, retainer drafts and finance handoffs with conditions, contact limits, quiet hours, spend/authority limits and manual pause. Financial and client commitments need the named human approval unless an explicit bounded policy permits the exact action. **Acceptance evidence:** Configure a budget-risk rule, trigger it twice, pause it and change the budget; observe one bounded case and require fresh approval after input changes.
+
+- **FOLLOWUP-004 — Durable scheduled jobs.** Schedule recurring work with durable claims, idempotency, bounded retries, backoff, provider limits, cancellation and uncertain-result reconciliation. Restarts cannot lose work or send twice; exhausted or expired authority produces an owned exception. **Acceptance evidence:** Restart during a retainer draft and a timed-out email send, read back provider state and verify one draft/send or a visible uncertain case requiring a person.
+
+
+### Move in and switch without losing the business record
+
+- **MIGRATE-001 — Shared migration custody and reconciliation.** Every named importer captures provider/account identity, administrator permissions, all pages/date ranges, original files, source IDs, mappings and independent control totals. Preview before write; report rejects/omissions; apply a reviewed fingerprint in resumable batches, undo untouched effects and preserve later native edits. No provider record grants access or approval by itself. **Acceptance evidence:** Preview a filtered and incomplete export, refuse completeness, then reconcile full counts, raw/billable hours, costs, invoice/paid/outstanding totals and retainer balances by client/month/currency; interrupt, resume, reapply and undo without losing native edits.
+
+- **MIGRATE-002 — Harvest complete move-in.** Accept detailed time CSV/XLSX and owner-authorized Harvest API v2 JSON captures for clients, people, projects, tasks, rate histories, estimates, expenses/receipts, invoices/payments and approvals. Retain raw hours separately from rounded hours, billable/invoiced/locked flags and invoice IDs; PDF invoice/estimate ZIPs remain linked artifacts rather than invented financial state. **Acceptance evidence:** Import 2.11 raw hours and 2.25 rounded hours as 7596 actual and 8100 billing seconds, with historical rates and invoice reference; reconcile billed/unbilled, costs and outstanding balances, reject incomplete PDF-only finance history.
+
+- **MIGRATE-003 — Forecast complete schedule move-in.** Accept Forecast Project and Team CSV exports, weekly/monthly periods as rows or columns, and authorized API captures of people, projects, assignments and availability. Preserve periods, working days, leave, placeholders and tentative/committed meaning; aggregate totals never invent original daily facts. **Acceptance evidence:** Import both export orientations and compare team capacity and project totals across a holiday; keep aggregates labeled until reviewed day mappings or exact API allocations resolve them.
+
+- **MIGRATE-004 — Kantata OX and SX move-in.** Identify Kantata OX versus Salesforce-native SX. OX accepts time CSV/XLSX in complete year windows, Insights ID tables and asynchronous Data Export API JSON/download artifacts; SX accepts Salesforce object CSV ZIPs/API captures with a reviewed SX-specific relationship map. Carry clients, people, skills, estimates, scope, tasks, schedules, time, expenses, rates, invoices, payments and WIP with source IDs. **Acceptance evidence:** Reconcile an OX two-year package including time/invoice/expense joins and a separate SX Salesforce package; missing object permissions or export windows block cutover, and neither flavor uses the other mapping.
+
+- **MIGRATE-005 — Scoro move-in.** Accept Scoro filtered CSV/XLS exports and v2 API JSON captures for contacts, quotes, projects/tasks, bookings, time, rates, expenses, invoices/payments and history. Preserve timezone-bearing timestamps, duration versus billable_duration and billing by invoice_line_id or allocated_invoice_id. Validate filters, grouping and historical coverage before declaring complete. **Acceptance evidence:** Import an entry with only allocated_invoice_id and preserve it as billed; compare two differently grouped reports and reconcile raw hours, billable value and invoice totals without duplication.
+
+- **MIGRATE-006 — Teamwork.com move-in.** Accept Teamwork timesheet CSV/Excel, invoice Excel/accounting exports and paginated v1/v3 JSON captures for clients, users, projects, task lists/subtasks, dependencies, milestones, budgets/retainers, time, expenses, billing and proofs. Preserve minutes, user work dates versus UTC audit timestamps, isbillable/isbilled, invoice IDs, archive state and retainer carry history. **Acceptance evidence:** Import DST-boundary time, an archived project, invoiced and uninvoiced work, a proof approval and a value retainer with surplus/deficit carry; reconcile project financial and period balances.
+
+- **MIGRATE-007 — Productive move-in.** Accept manager-level CSV/XLSX table exports and authorized Productive API JSON captures for deals, budgets, service/phase rates, bookings, time versions, expenses, invoices/attributions and retainers. Verify units from the capture, preserve worked/billable differences, draft-invoiced entries and manually marked invoiced states without inventing invoice numbers. **Acceptance evidence:** Import an unnumbered-draft attribution and a manually invoiced entry, verify neither rebills, and reconcile a retainer opening balance and dated rate override to the manager source reports.
+
+- **MIGRATE-008 — Rocketlane move-in.** Accept owner-exported tracked-time reports and paginated Rocketlane JSON API captures of accounts, people, project/phase/task/ad-hoc work, budgets, time, allocations, approvals and financial records. Preserve integer minutes, SOFT/HARD and placeholder allocations, daily units, rate overrides and epoch audit timestamps; request additional original finance exports where time APIs do not supply billing/payment history. **Acceptance evidence:** Import phase and ad-hoc entries plus soft placeholder demand, then reconcile approval/rate history and invoices to separate source finance totals before authorizing cutover.
+
+- **MIGRATE-009 — Float move-in.** Accept Float schedule and report CSVs with complete year windows and paginated JSON API captures of /tasks allocations, /logged-time actuals, /timeoffs leave, people, projects, phases and rates. Preserve dated weekday capacity, historical costs, retained project bill rates and allocation granularity; repeated budget values on task rows count once. **Acceptance evidence:** Import two export windows with repeated phase budgets, an effective-dated workweek and leave; reconcile schedule and actuals, process duplicate deletion events and require a fresh full comparison after missed deletion coverage.
+
+- **MIGRATE-010 — Shadow run cutover and continuation.** Run Gauge beside the source for a complete agency billing period, comparing delivery, capacity, approved time, expenses, rates, retainers, invoices and payments. Owner and finance choose a cutover fence and system responsible for each open invoice/period; keep opening balances, historical reports and source links usable from day one. **Acceptance evidence:** Reconcile one period, adopt the next unbilled period, route late time and an old invoice payment to the correct system and issue the first new invoice once; changed source extracts produce explicit revisions, not duplicate history.
+
+
+### People, permissions and governance
+
+- **GOVERN-001 — Owner and finance rights.** Owner alone manages grants, identity/connector custody and installation policy; finance manages rates, private costs, billing, accounting sync, monetary corrections and close. Define approval thresholds and two-person review for sensitive changes; audit every grant and decision. **Acceptance evidence:** Try a cost export and credit as staff and as finance, then attempt an above-limit credit by its preparer; only an independent authorized approver can proceed.
+
+- **GOVERN-002 — Leads staff and contractors rights.** Leads manage delivery/staffing and approve assigned projects; staff and 1099 contractors record only their own assigned work and see permitted delivery context; no worker sees private rates, salary or leave reasons. Delegation is dated, scoped and revocable across UI/API/files. **Acceptance evidence:** Give a contractor two projects and a lead one project, directly call unauthorized approval/file routes and revoke a dated delegate; all requests enforce the resulting rights.
+
+- **GOVERN-003 — Resource manager accountant and client rights.** Resource managers plan capacity and permitted skill/cost views without invoice authority; read-only accountants inspect financial exports and close evidence; client sponsors approve scope/deliverables and view shared finances, collaborators see only delivery. Custom role grants cannot bypass finance separation. **Acceptance evidence:** Exercise each role through direct APIs and downloads; a resource manager cannot issue invoices, an accountant cannot edit time and a client collaborator cannot read private billing.
+
+- **GOVERN-004 — Enterprise identity and lifecycle.** Support SAML/OIDC sign-in through Okta, Microsoft Entra ID, Google Workspace or sibling Auth, MFA/passkeys, SCIM provisioning, domain controls and deprovisioning that ends sessions and app credentials immediately. Preserve a controlled recovery owner. **Acceptance evidence:** Provision a staff member through SCIM, require MFA, revoke them at the IdP and prove their old session and app token fail the next request.
+
+- **GOVERN-005 — Searchable business audit.** Keep actor, time, record/revision, previous and resulting values, approval, source, policy and external outcome for user and automated work; finance/owner can search and export a scoped, tamper-evident audit without secrets. **Acceptance evidence:** Trace a corrected time entry through approval, invoice adjustment and provider sync; export the audit and verify every decision and external reference.
+
+- **GOVERN-006 — Retention erasure and privacy.** Owner sets retention for evidence, files and personal data, previews erasure consequences and anonymizes/removes eligible content with a completion record while preserving legally retained financial totals and minimal audit. Erasure covers search, caches and connected copies where authorized; later erasure journals fence old restores. **Acceptance evidence:** Erase an exited worker with historical billed work, verify receipts/evidence removal and retained lawful financial totals, then restore an old archive with the erasure journal and prove private content stays erased.
+
+- **GOVERN-007 — Provider and agent custody.** Keep scoped provider credentials encrypted and out of pages, logs and portable archives; owner can rotate/revoke and inspect use. Agent tools receive the minimum permitted data and never treat imported text as authority; approvals bind exact inputs and expire after changes. **Acceptance evidence:** Rotate a provider key during a queued task and revoke an agent, then attempt an evidence-text instruction and stale approval; all are refused without leaking secrets.
+
+
+### Mobile desktop and everyday access
+
+- **MOBILE-001 — Complete responsive agency workflow.** Workers record time and receipts, leads approve work and inspect staffing, finance reviews budgets and invoices, and clients read reports and pay at 390px as well as 1440px; keyboard/screen-reader labels, focus, error recovery and accessible tables support WCAG 2.2 AA. **Acceptance evidence:** At both widths complete a realistic worker-to-client invoice path with keyboard and screen-reader checks; no clipped controls or private data leak occurs.
+
+- **MOBILE-002 — Native iOS and Android.** Provide native apps with shared timer state, offline time/expense drafts, camera receipts, push reminders and approval deep links; secure device credentials, offline conflict review and remote revocation preserve exact work and privacy. **Acceptance evidence:** On iOS and Android capture a receipt and time offline, reconnect once, approve from a push notification and revoke the lost device without duplicate work.
+
+- **MOBILE-003 — Desktop timer applications.** Provide macOS and Windows menu-bar/tray timers with project/task shortcuts, worker-controlled idle prompts, offline recovery and shared timer exclusion; no screenshots, keystroke logging or invisible activity capture. **Acceptance evidence:** Start a macOS timer, inspect it on Windows/web, recover a network outage and stop twice; one exact interval remains after worker-confirmed idle correction.
+
+- **MOBILE-004 — Browser timer extension.** Provide Chrome and Edge extensions for quick timer entry from permitted Jira, Linear, GitHub and Asana pages with explicit project selection and restricted host permissions; browser data is collected only by user action and revocation ends access. **Acceptance evidence:** Start from a linked Jira page, stop on web and verify one task-linked interval; an unrelated page cannot be read and extension revocation ends API use.
+
+
+### Owned platform and product boundaries
+
+- **BASE-001 — Run and own the complete product.** Gauge remains MIT open source and runs locally or in the agency own supported Cloudflare account using Base install/setup/dev/build/preview/deploy commands. The owner controls domain, storage and provider accounts; clean installs start empty and health/unknown-route behavior is explicit. **Acceptance evidence:** Clone, install, set up an empty agency, start locally and deploy a private test installation; open health, sign-in and unknown routes without seeded client data.
+
+- **BASE-002 — Whole installation portability.** Export and restore every supported project, commercial version, work record, source original, receipt, audit, retainer, invoice, schedule and outcome with integrity validation into an empty destination. Exclude installation authority and provider secrets, require fresh reconnection, and never replay external writes from restored history. **Acceptance evidence:** Round-trip a complete agency dataset into an empty install, reconcile counts and money, reject corruption/occupied restore and verify no old session or external job runs.
+
+- **BASE-003 — Replace platform interfaces explicitly.** Declare Base auth, mail, model, storage, dependency and portability interfaces and their replacements. Owner-selected mail/model providers use the same controls; missing configuration produces actionable failure and never fabricated business results. Keep schema upgrades forward-only and documented. **Acceptance evidence:** Switch a supported mail/model provider, revoke its credentials and observe an explicit failed job with unchanged business records; upgrade then export/restore without losing historical calculations.
+
+- **BASE-004 — Capacity backup and recovery operations.** Publish measured supported dataset/job/upload limits and operate durable backups, restore drills, connector lag/error monitoring and recoverable migrations. Large imports run resumably in bounded jobs or suitable workers; quotas never silently drop rows or mark unfinished work complete. **Acceptance evidence:** At the published capacity import and bill a multi-project agency, interrupt jobs, restore a backup and reconcile all counts and financial totals; exceeding a bound produces a visible resumable/refused operation.
+
+
+## Push further
+
+Agents use the same rights, immutable inputs and real outcome checks as people. Each proposed action names its data, authority and completion condition.
+
+- **RECOVER-001 — Portfolio recovery agent.** Continuously join signed scope, approved changes, retainer rules, delivery evidence, capacity, rates, time/cost, invoices and payment expectations to detect drift. Open an owned case and propose a feasible cross-project recovery, comparing dates, team load, margin and cash with cited assumptions. **Acceptance evidence:** Delay a key deliverable on two staffed projects, ingest missing cost and compare contractor, scope and date alternatives; every proposal cites the relevant records and shows both projects effects.
+
+- **RECOVER-002 — Negotiate and execute approved recovery.** With explicit lead/client/finance authority, draft and send scoped requests to staff, contractor and client, interpret replies as proposals and renegotiate feasible alternatives. Approvals name exact schedule, scope, amounts, recipient and expiry; execute authorized staffing, delivery and billing changes through real connectors, escalating conflicts. **Acceptance evidence:** Approve one recovery, receive a client counteroffer and a staffing refusal, show a revised feasible plan and require renewed affected approvals before connector writes.
+
+- **RECOVER-003 — Verify recovery improved the outcome.** Read back the changed delivery schedule, allocations, approved commercial terms and invoice/payment state; recompute the forecast against the approved baseline after follow-up. Close only when forecast dates, load and cash/margin improve as promised, otherwise reopen with the actual variance. **Acceptance evidence:** Simulate a successful write with unchanged provider state and refuse closure, then reconcile the real changes and demonstrate measured forecast improvement or escalate the remaining gap.
+
+- **RECOVER-004 — Retainer promise to cash steward.** Explain each included promise, consumed work, carry-over and overage from versioned terms and delivery evidence; chase missing worker/client approvals, prepare invoices and reconcile accounting/payment outcomes. Lead approves changed promises and waivers; finance approves monetary corrections. **Acceptance evidence:** Detect an overused retainer with pending work, obtain approvals and a client overage decision, draft the correct invoice and follow it to a reconciled payment or owned exception.
+
+- **RECOVER-005 — Evidence to completed timesheet agent.** Gather opt-in calendar and delivery evidence, ask the worker about unmatched/overlapping intervals and billability, then follow submission and approver replies to an accepted timesheet. No passive monitoring, invented durations or self-approval; revocation stops collection. **Acceptance evidence:** Offer an ambiguous two-client meeting and PR activity, accept only worker-confirmed intervals, follow a return-for-clarification and stop after the lead approves.
+
+- **RECOVER-006 — Forecast learning with traceable assumptions.** Compare historical estimates, staffing, changes, missing costs, approved actuals and collection timing to identify bias and propose better role effort, cost and payment assumptions with confidence, cohort and sample lineage. Owner selects usable history and adopts future versions; approved terms and past work never change silently. **Acceptance evidence:** Learn from late fixed projects, exclude one atypical client, replay a proposed assumption on held-out completed work and preview the next estimate before adoption.
+
+- **RECOVER-007 — Signed scope to governed delivery agent.** Read approved proposal/SOW documents, extract deliverables, exclusions, retainer terms, roles and billing triggers with exact citations, flag ambiguity and propose a staffed plan and financial setup. Lead and finance review all effects before creation; signature alone never resolves ambiguous meaning. **Acceptance evidence:** Provide a signed SOW with a conflicting milestone and retainer clause, require human resolution, then approve a feasible plan whose budgets and invoice triggers match the accepted interpretation.
+
+- **RECOVER-008 — Cited operational analyst and financial guardian.** Answer natural-language questions using role-permitted records, show formulas, sources, freshness and uncertainty, and propose actions for time-policy, margin or billing discrepancies; never expose private costs or turn an answer into authority. **Acceptance evidence:** Ask a lead and finance why utilization fell and one project lost margin; each answer cites reconciled records and permitted amounts, and a proposed correction still requires the authorized person.
+
+- **RECOVER-009 — Migration and configuration agent.** Inspect authorized source captures, suggest mappings and setup, explain unsupported objects and reconciliation differences, and follow unresolved cases through shadow billing and the first settled cycle. Owner approves mappings/cutover and finance confirms monetary totals; the agent cannot guess missing history or approve its own mapping. **Acceptance evidence:** Present two ambiguous source users and mismatched invoice totals, resolve as the owner/finance, reconcile the shadow period and verify first-cycle invoice/payment continuity before recommending retirement of the incumbent.
+
+
+## Honest boundaries and neighboring products
+
+- **BOUNDARY-001 — Books payroll and tax remain specialist products.** Gauge owns agency estimates, staffing, delivery, time, expenses, invoicing and operational forecasts. QBO, Xero, NetSuite, Sage Intacct or sibling Pantry own statutory books and accountant-reviewed close; Gusto/ADP own payroll, W-2/1099 filing and benefits. Tax and revenue-recognition judgments stay with the appointed provider/accountant, with reconciled PSA inputs. **Acceptance evidence:** Export approved labor/expense and revenue inputs to an accounting/payroll test receiver, reconcile acceptance and rejection, and find no claim that Gauge filed payroll or certified profit.
+
+- **BOUNDARY-002 — Payments use the agency merchant account.** Stripe or the accounting platform contracted processor executes card/ACH collection, settlement and refunds under the agency agreement. Gauge supplies authorized invoice instructions, shows pending/failed/settled outcomes and reconciles them; processor onboarding and restricted-business requirements are explicit implementation obligations. **Acceptance evidence:** Connect the agency Stripe test account, complete invoice payment and refund, and trace settlement while confirming Gauge holds no money or card/bank numbers.
+
+- **BOUNDARY-003 — Products remain separate.** Gauge remains a standalone PSA. Orbit owns general CRM, Platter proposal authoring, Inkwell signatures, Locket CLM, Chest broad file storage, Slate the company wiki, Crank general automation and Auth workforce identity. Gauge keeps project-specific records and connects to those products and Jira/Linear/GitHub/Asana; it neither absorbs a sibling nor requires one to do its own PSA job. **Acceptance evidence:** Use an external CRM, signature provider and delivery tool to complete estimate-to-cash, retain source links, and export Gauge independently with no shared-product requirement.
+
+## Migration format sources
+
+The destination adapters accept the real source formats below; source permissions, filters, version and units are validated per capture. APIs complement exports when a file omits relationships. Any unavailable object requires a named supplemental capture and a visible exception; missing data is never guessed or treated as zero.
+
+| Source | Official extraction and mapping reference |
+| --- | --- |
+| Harvest | [API v2 time fields](https://help.getharvest.com/api-v2/timesheets-api/timesheets/time-entries/); [CSV/Excel and PDF ZIP exports](https://support.getharvest.com/hc/en-us/articles/31625325401229-Exporting-data) |
+| Forecast | [Project/Team schedule CSV orientations](https://help.getharvest.com/forecast/schedule/analyze/exporting-data/); [Harvest synchronization limits](https://help.getharvest.com/forecast/harvest-and-forecast/faqs/data-sync-harvest-and-forecast/) |
+| Kantata | [OX versus SX](https://www.kantata.com/product-choice); [OX time CSV/XLSX](https://knowledge.kantata.com/hc/en-us/articles/360001493714-Export-Time-Entries); [Data Export API](https://developer.kantata.com/kantata/specification/data-exports); [Salesforce CSV ZIP export for SX](https://help.salesforce.com/s/articleView?id=sf.admin_exportdata.htm&language=en_US) |
+| Scoro | [CSV/XLS filtered exports](https://support.scoro.com/hc/en-us/articles/12805208507533-Exporting-data-an-overview); [v2 API time/invoice relationships](https://api.scoro.com/api/v2) |
+| Teamwork.com | [CSV/Excel timesheets](https://support.teamwork.com/projects/time-tracking/track-and-manage-time-in-my-timesheet); [v3 time JSON](https://apidocs.teamwork.com/docs/teamwork/endpoints-by-object/time-tracking/get-projects-api-v3-time-json); [retainer rules](https://support.teamwork.com/projects/project-budgets/retainer-budgets) |
+| Productive | [CSV/XLSX table exports](https://help.productive.io/en/articles/2622585-table-data-export); [API schema](https://developer.productive.io/reference/download_spec?format=json); [invoice attribution distinctions](https://help.productive.io/en/articles/12059035-understanding-the-invoice-and-invoiced-fields-in-reports-budgets-and-projects) |
+| Rocketlane | [Time JSON API](https://developer.rocketlane.com/reference/get-all-time-entries); [entry units and work types](https://developer.rocketlane.com/reference/create-time-entry); [resource allocations](https://developer.rocketlane.com/v1.3/reference/resource-allocations) |
+| Float | [Schedule/report CSV](https://support.float.com/en/articles/1813316-export-your-data); [allocation and actual APIs](https://developer.float.com/tutorial_assigning_tasks_to_your_team.html); [pagination/deletion export guidance](https://developer.float.com/tutorial_exporting_the_schedule_data.html) |
+
+## Approved scope coverage
+
+| Approved requirement | Named clauses |
+| --- | --- |
+| Complete standalone US PSA; incumbent replacement and all inventory table-stakes | Published core; SETUP-001 through BASE-004; MIGRATE-001 through MIGRATE-010; BOUNDARY-001 through BOUNDARY-003 |
+| USD issuance, QBO/Xero, Stripe links and payment reconciliation | SETUP-001; INVOICE-001 through INVOICE-007; PAYMENT-001 through PAYMENT-003; CONNECT-001; CONNECT-002 |
+| Included-hours/value retainers, rollover, overages and remaining balance | RETAINER-001 through RETAINER-005; CLIENT-003 |
+| Estimates/proposals and HubSpot/Orbit pipeline feed revenue/capacity | SALES-001 through SALES-005; RESOURCE-005; FINANCE-002; CONNECT-011 |
+| Google/Microsoft and Jira/Linear/GitHub/Asana evidence and progress | TIME-005; CONNECT-003 through CONNECT-008 |
+| Slack/Teams nudges/approvals; desktop/mobile/extension timers | CONNECT-009; CONNECT-010; FOLLOWUP-001; MOBILE-001 through MOBILE-004 |
+| Client budget/status; utilization/realization/profitability | REPORT-001 through REPORT-005; CLIENT-001 through CLIENT-003; RESOURCE-004 |
+| Inventory premium and differentiators, named integrations and automation | FINANCE-003 through FINANCE-005; CONNECT-001 through CONNECT-020; GOVERN-004; FOLLOWUP-001 through FOLLOWUP-004 |
+| Evidence-grounded recovery negotiation, approved execution and improved forecast | RECOVER-001 through RECOVER-003 |
+| Further retainer, time, forecast-learning, policy and migration agents | RECOVER-004 through RECOVER-009 |
+
+## Homepage claims
+
+No desk-built `CLAIMS.md` was present for Gauge on 17 October 2026. The existing homepage in `src/site/landing.ts` stays untouched; its material promises map below. This table records current homepage wording and does not substitute for the target obligations above.
+
+| Claim # | Claim text | Clause id(s) | Status |
+| --- | --- | --- | --- |
+| 1 | Approve your team’s time, see next month’s capacity, and hand your bookkeeper one clean billing packet. | TIME-002; CAPACITY-001; BILLING-002 | done |
+| 2 | 100% free. Yours to run. | BASE-001 | partial |
+| 3 | Run it on your own computer, keep every record, and export it all whenever you like. | MOVE-001; BASE-001; BASE-002 | partial |
+| 4 | Your agent prepares. You approve. | AGENT-001; AGENT-002; AGENT-003; AGENT-004; ACCESS-001 | done |
+| 5 | See next month before it starts. Calendars, leave and staffing show each person’s remaining time, and flag any conflicts. | CAPACITY-001 | done |
+| 6 | Bill each hour once. A packet reserves its exact sources, and an approved packet downloads the same CSV every time. | BILLING-001; BILLING-002 | done |
+| 7 | Change rates. Keep the past. | RATE-001 | done |
+| 8 | Try it beside Harvest. Preview your Harvest export without changing anything, compare the totals, and keep Harvest until you’re sure. | MOVE-001; MIGRATE-010 | partial |
+| 9 | Fixed-fee milestones. Approve each delivered milestone. | ENGAGEMENT-001; BILLING-001 | done |
+| 10 | Change orders. Each one is a new version beside the terms. | BUDGET-001 | done |
+| 11 | Expenses. Receipts stay private to their owner and finance. | COST-001 | done |
+| 12 | Timer. A persistent timer that keeps running. | TIME-001 | done |
+| 13 | Roles. Staff, leads and finance each see their own part. | ACCESS-001 | done |
+| 14 | Export everything. Every record, history and receipt, in one archive. | MOVE-001; BASE-002 | partial |
+| 15 | Free and open source alternative to Harvest, Productive and Scoro. | BASE-001; MIGRATE-002; MIGRATE-005; MIGRATE-007 | partial |
+
+## Status
+
+Judged from the code and tests at commit `2d227a48623b4270f608fee6b9b672383093b379` (17 October 2026).
+
+| Clauses | Done | Partial | Missing | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Published | 17 | 0 | 0 | 17 |
+| Target and push further | 0 | 46 | 69 | 115 |
+| All | 17 | 46 | 69 | 132 |
+
+| Clause | Title | Kind | Status | Evidence | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `ENGAGEMENT-001` | Set up agreed work | published | done | `src/gauge/catalog.ts`; `tests/gauge.mjs` |  |
+| `BUDGET-001` | Agree terms and change orders | published | done | `src/gauge/catalog.ts`; `tests/gauge.mjs` |  |
+| `RATE-001` | Keep rates by effective date | published | done | `src/gauge/catalog.ts`; `src/gauge/time.ts`; `tests/gauge.mjs` |  |
+| `CAPACITY-001` | See next month's capacity | published | done | `src/gauge/reports.ts`; `tests/gauge.mjs`; `tests/gauge-forecast.mjs` |  |
+| `TIME-001` | Record time | published | done | `src/gauge/time.ts`; `tests/gauge.mjs` |  |
+| `TIME-002` | Approve and correct time | published | done | `src/gauge/time.ts`; `tests/gauge.mjs` |  |
+| `COST-001` | Record expenses with receipts | published | done | `src/gauge/expenses.ts`; `tests/gauge.mjs` |  |
+| `ECONOMICS-001` | Reconcile the engagement | published | done | `src/gauge/reports.ts`; `tests/gauge.mjs` |  |
+| `BILLING-001` | Draft a billing packet | published | done | `src/gauge/billing.ts`; `tests/gauge.mjs` |  |
+| `BILLING-002` | Approve and export once | published | done | `src/gauge/billing.ts`; `src/gauge/billing-corrections.ts`; `tests/gauge.mjs` |  |
+| `REVIEW-001` | Review the week's exceptions | published | done | `src/gauge/reports.ts`; `tests/gauge.mjs` |  |
+| `ACCESS-001` | See only permitted work | published | done | `src/gauge/store.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` |  |
+| `MOVE-001` | Move in from Harvest and leave whole | published | done | `src/gauge/harvest.ts`; `src/gauge/imports.ts`; `tests/gauge.mjs`; `tests/gauge-portability.mjs` |  |
+| `AGENT-001` | Time reconstruction | published | done | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |  |
+| `AGENT-002` | Resourcing | published | done | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |  |
+| `AGENT-003` | Billing preparation | published | done | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |  |
+| `AGENT-004` | Delivery exceptions | published | done | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |  |
+| `SETUP-001` | US agency setup | target | partial | `src/gauge/model.ts`; `src/gauge/catalog.ts`; `tests/gauge.mjs` | People and work timezones exist; business settings, USD defaults, fiscal setup and explicit cross-currency handling do not. |
+| `SETUP-002` | Client and contact workspace | target | missing |  | Client records contain names only; no contacts, terms, search, custom fields or merge. |
+| `SALES-001` | Opportunity pipeline | target | missing |  | No opportunity records, stages, weighted pipeline or won/lost workflow. |
+| `SALES-002` | Costed estimates | target | partial | `src/gauge/catalog.ts`; `src/gauge/proposals.ts` | Budget effort and staffing economics exist; no pre-sale estimate lines, mixed estimates, contingencies or version comparison. |
+| `SALES-003` | Proposals and client acceptance | target | missing |  | No proposal document, external acceptance or signature-provider intake. |
+| `SALES-004` | Won work becomes an engagement | target | missing |  | No accepted-estimate or deal conversion; engagement creation is manual. |
+| `SALES-005` | Change scope with the client | target | partial | `src/gauge/catalog.ts`; `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` | Internal immutable change versions exist; client review, signed acceptance and integrated date/margin effects are absent. |
+| `RATE-002` | Client rate cards and cost policy | target | partial | `src/gauge/catalog.ts`; `src/gauge/time.ts`; `tests/gauge.mjs` | Immutable person/service rates ship; client/role cards, precedence and loaded-cost policies are missing. |
+| `BUDGET-002` | Phase and service budgets | target | partial | `src/gauge/catalog.ts`; `src/gauge/reports.ts` | Tasks and priced milestones exist; phase/service budgets, transfers and mixed phase billing do not. |
+| `RETAINER-001` | Recurring hours and value retainers | target | missing |  | No retainer terms, periods or included-value ledger. |
+| `RETAINER-002` | Rollover and overage rules | target | missing |  | No rollover, expiry, deficit or overage calculation. |
+| `RETAINER-003` | Explained remaining balance | target | missing |  | No retainer statements, source allocation or balance reporting. |
+| `RETAINER-004` | Retainer period corrections | target | missing |  | No retainer close, correction or lifecycle workflow. |
+| `RETAINER-005` | Scheduled retainer billing | target | missing |  | No recurring schedule, retainer budget rollover or automatic invoice draft. |
+| `RESOURCE-001` | Skills and resource requests | target | missing |  | No skills catalogue, staffing requests or role placeholders. |
+| `RESOURCE-002` | Portfolio resource schedule | target | partial | `src/gauge/catalog.ts`; `src/gauge/reports.ts`; `src/gauge/ui-capacity.ts`; `tests/gauge.mjs` | Daily cross-project allocation totals ship; interactive moves/splits, search and unfilled-demand scheduling are absent. |
+| `RESOURCE-003` | Leave and holiday approvals | target | partial | `src/gauge/catalog.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` | Dated calendars and private leave exist; holiday calendars, leave approval and delivered conflict notifications do not. |
+| `RESOURCE-004` | Scheduled versus actual utilization | target | partial | `src/gauge/reports.ts`; `tests/gauge.mjs` | Capacity and actuals exist separately; variance and utilization ratios are missing. |
+| `RESOURCE-005` | Resource demand forecast | target | partial | `src/gauge/reports.ts`; `src/gauge/proposals.ts` | Daily demand and tentative alternatives ship; weighted long-term demand, hiring and baseline scenarios are absent. |
+| `DELIVERY-001` | Task execution and views | target | partial | `src/gauge/catalog.ts`; `src/gauge/ui-engagements.ts`; `tests/gauge.mjs` | Tasks with remaining effort exist; assignment, statuses, subtasks, recurrence and alternate views do not. |
+| `DELIVERY-002` | Dependencies and Gantt schedules | target | missing |  | No dependencies, Gantt timeline, critical path or baseline rescheduling. |
+| `DELIVERY-003` | Reusable delivery templates | target | missing |  | No project or onboarding template system. |
+| `DELIVERY-004` | Project conversations and documents | target | partial | `src/gauge/catalog.ts`; `src/gauge/harvest.ts` | Scope text and imported historical files exist; task discussions, document versioning and project file rights are absent. |
+| `DELIVERY-005` | Milestone acceptance and risks | target | partial | `src/gauge/catalog.ts`; `src/gauge/billing.ts`; `tests/gauge.mjs` | Internal fixed-milestone approval exists; risks, client dependencies and client acceptance are missing. |
+| `DELIVERY-006` | Client intake and follow-through | target | missing |  | No external intake forms, requested-file workflow or client reminders. |
+| `TIME-003` | Daily and weekly timesheets | target | partial | `src/gauge/time.ts`; `src/gauge/ui-time.ts`; `tests/gauge.mjs` | Manual intervals and revision approval ship; weekly grid, favorites, bulk submission and period locking do not. |
+| `TIME-004` | Timesheet policies and reviewer queues | target | partial | `src/gauge/time.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` | Lead return/approval exists; configurable policies, delegation and multi-level separation are absent. |
+| `TIME-005` | Consented evidence inbox | target | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` | Manually cited time proposals and personal confirmation exist; live collection, consent management and evidence inbox are absent. |
+| `TIME-006` | Timer continuity and idle recovery | target | partial | `src/gauge/time.ts`; `tests/gauge.mjs` | Persistent web timer and parallel exclusion ship; cross-device clients, offline reconciliation and idle recovery do not. |
+| `COST-002` | Expense policy and reimbursement | target | partial | `src/gauge/expenses.ts`; `src/gauge/billing.ts`; `tests/gauge.mjs` | Private receipt approval and reimbursable packet sources exist; expense categories, FX, markup and reimbursement reconciliation are absent. |
+| `COST-003` | Contractor and purchase commitments | target | missing |  | No vendor commitments, purchase orders, contractor bills or expected-cost ledger. |
+| `FINANCE-001` | Explain actual and forecast margin | target | partial | `src/gauge/reports.ts`; `tests/gauge.mjs` | Approved cost, billable value and remaining effort ship; realized/forecast margin, earned revenue and source-complete cost forecasts do not. |
+| `FINANCE-002` | Revenue and cash forecast | target | missing |  | No revenue or cash forecast; daily staffing alone is available. |
+| `FINANCE-003` | Project scenarios and baseline comparison | target | partial | `src/gauge/proposals.ts`; `src/gauge/ui-proposals.ts`; `tests/gauge-agent.mjs` | Tentative staffing alternatives show capacity and estimated economics; whole-project scenarios, cash and cross-project effects are missing. |
+| `FINANCE-004` | Monthly period close | target | missing |  | No period close, WIP checklist or accounting reconciliation lock. |
+| `FINANCE-005` | Revenue schedules for the accountant | target | missing |  | No revenue schedules, deferred revenue or journal mapping. |
+| `INVOICE-001` | Issue numbered USD invoices | target | partial | `src/gauge/billing.ts`; `tests/gauge.mjs` | Deduplicated approved billing packets ship; invoice numbering, USD issuance, customer terms and invoice states are absent. |
+| `INVOICE-002` | Progress and consolidated invoices | target | partial | `src/gauge/catalog.ts`; `src/gauge/billing.ts`; `tests/gauge.mjs` | Fixed-milestone packet sources exist; percentage progress, deposits and multi-project invoices are missing. |
+| `INVOICE-003` | Branded invoice delivery | target | missing |  | No invoice PDF/page, invoice email delivery or delivery tracking. |
+| `INVOICE-004` | Credits voids and write-downs | target | partial | `src/gauge/billing-corrections.ts`; `tests/gauge.mjs` | Linked adjustment packets preserve source history; invoice credit notes, void/reissue and write-offs are absent. |
+| `INVOICE-005` | US sales tax and exemptions | target | missing |  | No sales-tax configuration, provider calculation, exemption workflow or tax reversal. |
+| `INVOICE-006` | Accounts receivable and payment allocation | target | missing |  | No issued receivables, payment allocations, credit balance or ageing. |
+| `INVOICE-007` | Overdue follow-up until resolution | target | missing |  | No collection cadence, delivered reminder, reply handling or payment stop condition. |
+| `PAYMENT-001` | Stripe card and ACH payment links | target | missing |  | No Stripe connection, hosted payment links or settlement flow. |
+| `PAYMENT-002` | Reconcile processor outcomes | target | missing |  | No processor events, refund/dispute records or payout reconciliation. |
+| `PAYMENT-003` | External payments and bank reconciliation | target | missing |  | No external payment reconciliation or ambiguous payment queue. |
+| `REPORT-001` | Portfolio profitability dashboard | target | partial | `src/gauge/reports.ts`; `src/gauge/ui-review.ts` | Per-engagement economics exist; portfolio dimensions, explicit margin and trends are missing. |
+| `REPORT-002` | Utilization and realization dashboard | target | missing |  | No utilization/realization dashboard or billed-versus-standard measures. |
+| `REPORT-003` | Revenue cash and backlog dashboard | target | missing |  | No linked pipeline-to-cash dashboard or financial buckets. |
+| `REPORT-004` | Custom reports and scheduled delivery | target | missing |  | No report builder, saved reporting or scheduled report exports. |
+| `REPORT-005` | Trace every reported amount | target | partial | `src/gauge/reports.ts`; `src/gauge/billing.ts`; `tests/gauge.mjs` | Source IDs and frozen billing calculations exist; common report lineage, formulas and consistent export reconciliation are missing. |
+| `CLIENT-001` | Scoped client portal | target | missing |  | No external client identities, project portal or client-specific rights. |
+| `CLIENT-002` | Client status and budget reports | target | missing |  | No publishable client reports, client replies or budget-sharing policy. |
+| `CLIENT-003` | Client financial self-service | target | missing |  | No client invoice/statement/retainer self-service or payment/dispute portal. |
+| `CONNECT-001` | QuickBooks Online | target | missing |  | No QBO OAuth, accounting writes, object mappings or reconciliation. |
+| `CONNECT-002` | Xero | target | missing |  | No Xero connection, writes or payment reconciliation. |
+| `CONNECT-003` | Google Calendar | target | missing |  | No Google OAuth, calendar event sync or consent controls. |
+| `CONNECT-004` | Microsoft 365 and Outlook | target | missing |  | No Microsoft Graph connection, mail context or calendar interoperability. |
+| `CONNECT-005` | Jira | target | missing |  | No Jira connection or worklog/progress reconciliation. |
+| `CONNECT-006` | Linear | target | missing |  | No Linear connection or issue evidence sync. |
+| `CONNECT-007` | GitHub | target | missing |  | No GitHub App, repository scopes or evidence ingestion. |
+| `CONNECT-008` | Asana | target | missing |  | No Asana connector or delivery reconciliation. |
+| `CONNECT-009` | Slack | target | missing |  | No Slack delivery, signed interactions or reply routing. |
+| `CONNECT-010` | Microsoft Teams | target | missing |  | No Teams app, delivery or approval callbacks. |
+| `CONNECT-011` | HubSpot and Orbit | target | missing |  | No HubSpot or Orbit deal handoff or health sync. |
+| `CONNECT-012` | Salesforce | target | missing |  | No Salesforce connector or opportunity mapping. |
+| `CONNECT-013` | Harvest API and Forecast continuity | target | partial | `src/gauge/harvest.ts`; `src/gauge/forecast.ts`; `tests/gauge-forecast.mjs` | Live Harvest/Forecast connections, continuous comparison and cutover write control are absent. |
+| `CONNECT-014` | NetSuite | target | missing |  | No NetSuite integration or posting reconciliation. |
+| `CONNECT-015` | Sage Intacct | target | missing |  | No Sage Intacct integration or batch/payment reconciliation. |
+| `CONNECT-016` | Zapier and Crank automation | target | missing |  | No Zapier/Crank triggers, signed outbound events or scoped automation credentials. |
+| `CONNECT-017` | Work email and reply routing | target | missing |  | No business mail delivery/reply routing; the existing mail module handles operator authentication only. |
+| `CONNECT-018` | Document and signature handoff | target | missing |  | No commercial-document or signature integrations. |
+| `CONNECT-019` | Connector health and reconciliation | target | missing |  | No live connector framework, encrypted provider custody or reconciliation dashboard. |
+| `CONNECT-020` | Documented API and signed webhooks | target | partial | `API.md`; `src/gauge/http.ts`; `src/gauge/commands.ts`; `tests/gauge.mjs` | Session-based commands/state and request keys ship; app scopes, API pagination/versioning and outbound webhooks do not. |
+| `FOLLOWUP-001` | Timesheet submission and approval cadence | target | partial | `src/gauge/reports.ts`; `src/gauge/time.ts`; `tests/gauge.mjs` | Review detects missing time and decisions; no scheduled messages, replies or escalation. |
+| `FOLLOWUP-002` | Owned operational cases | target | missing |  | No durable operational cases, next actions, attempt/reply tracking or verified closure. |
+| `FOLLOWUP-003` | Rules and approval policies | target | missing |  | No configurable event/schedule rules or unattended action policies. |
+| `FOLLOWUP-004` | Durable scheduled jobs | target | missing |  | No durable unattended PSA scheduler or external action reconciliation. |
+| `MIGRATE-001` | Shared migration custody and reconciliation | target | partial | `src/gauge/imports.ts`; `src/gauge/harvest.ts`; `tests/gauge.mjs` | Harvest journaled preview/apply/undo exists; complete cross-provider finance/retainer control totals and coverage checks do not. |
+| `MIGRATE-002` | Harvest complete move-in | target | partial | `src/gauge/harvest.ts`; `tests/gauge.mjs`; `tests/fixtures/harvest/README.md` | Current AUD CSV adapter handles clients/people/projects/time and supplied rates; full USD history, source approvals, expenses, invoice/payment and estimate migration are absent. |
+| `MIGRATE-003` | Forecast complete schedule move-in | target | partial | `src/gauge/forecast.ts`; `tests/gauge-forecast.mjs`; `MOVE-IN.md` | Project schedule periods-in-columns with reviewed working dates ships; Team/rows, API allocations, leave, placeholders and source-granularity retention are absent. |
+| `MIGRATE-004` | Kantata OX and SX move-in | target | missing |  | No Kantata OX or SX importer or relationship/control-total mapping. |
+| `MIGRATE-005` | Scoro move-in | target | missing |  | No Scoro export/API importer or invoice-allocation mapping. |
+| `MIGRATE-006` | Teamwork.com move-in | target | missing |  | No Teamwork.com importer, retainer history or delivery/billing mapping. |
+| `MIGRATE-007` | Productive move-in | target | missing |  | No Productive importer, invoice attribution or recurring-budget mapping. |
+| `MIGRATE-008` | Rocketlane move-in | target | missing |  | No Rocketlane importer or reconciled allocation, approval and finance mapping. |
+| `MIGRATE-009` | Float move-in | target | missing |  | No Float importer, rate/capacity history or deletion-feed reconciliation. |
+| `MIGRATE-010` | Shadow run cutover and continuation | target | partial | `src/gauge/harvest.ts`; `src/gauge/imports.ts`; `tests/gauge.mjs` | Stable import identities, billed flags and native reconciliation exist; complete parallel-run comparison and invoice/retainer ownership cutover do not. |
+| `GOVERN-001` | Owner and finance rights | target | partial | `src/gauge/store.ts`; `src/gauge/catalog.ts`; `tests/gauge.mjs` | Owner/finance access exists; amount thresholds and independent two-person controls are absent. |
+| `GOVERN-002` | Leads staff and contractors rights | target | partial | `src/gauge/store.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` | Assigned staff/lead scope and private data checks ship; contractor-specific grants and dated delegation are absent. |
+| `GOVERN-003` | Resource manager accountant and client rights | target | missing |  | No resource-manager, accountant, client or configurable role grants. |
+| `GOVERN-004` | Enterprise identity and lifecycle | target | missing |  | Native Base operator sessions exist; no enterprise SSO, MFA/passkey policy or SCIM integration. |
+| `GOVERN-005` | Searchable business audit | target | partial | `src/gauge/store.ts`; `src/gauge/proposals.ts`; `tests/gauge.mjs` | Record history and proposal decisions exist; comprehensive searchable/exportable external-action audit and integrity checks are absent. |
+| `GOVERN-006` | Retention erasure and privacy | target | missing |  | No Gauge personal-data retention, entity erasure or restore erasure fence. |
+| `GOVERN-007` | Provider and agent custody | target | partial | `src/gauge/proposals.ts`; `src/gauge/store.ts`; `tests/gauge-agent.mjs` | Agent grant limits, inert cited evidence and exact decisions exist; provider encryption, purpose/data scopes and rotation are absent. |
+| `MOBILE-001` | Complete responsive agency workflow | target | partial | `src/gauge/ui.ts`; `src/gauge/ui-time.ts`; `tests/fresh-clone.mjs` | Responsive current time/capacity/approval/billing-packet journey exists; invoice/client screens and complete accessibility validation do not. |
+| `MOBILE-002` | Native iOS and Android | target | missing |  | No native mobile applications, offline synchronization or push delivery. |
+| `MOBILE-003` | Desktop timer applications | target | missing |  | No macOS/Windows timer applications or offline recovery. |
+| `MOBILE-004` | Browser timer extension | target | missing |  | No browser extension or browser-host consent model. |
+| `BASE-001` | Run and own the complete product | target | partial | `AGENTS.md`; `SEED-COMMAND-CONTRACT.md`; `src/server.ts`; `tests/gauge-cli-journey.mjs` | Local Base command path exists; hosted target deployment and new integration operational capacity remain unproven. |
+| `BASE-002` | Whole installation portability | target | partial | `tests/gauge-portability.mjs`; `tests/gauge.mjs`; `src/gauge/import-targets.ts` | Current whole-dataset archive/restore is proven; retainers/invoices/connectors and safe restoration of their external jobs do not exist yet. |
+| `BASE-003` | Replace platform interfaces explicitly | target | partial | `base-copies.json`; `edition.json`; `src/modules/operator-auth/README.md`; `SEED-COMMAND-CONTRACT.md` | Base composition and current interfaces are recorded; model-backed PSA execution and tested provider substitution for the target are absent. |
+| `BASE-004` | Capacity backup and recovery operations | target | partial | `MOVE-IN.md`; `src/gauge/imports.ts`; `tests/gauge.mjs` | Current bounded import and archive recovery exist; target capacity measurements, scheduled backups and operational monitoring are absent. |
+| `RECOVER-001` | Portfolio recovery agent | push-further | partial | `src/gauge/reports.ts`; `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` | Grounded exceptions and staffing/change proposals exist; continuous cross-system diagnosis, cases and portfolio/cash recovery comparison are absent. |
+| `RECOVER-002` | Negotiate and execute approved recovery | push-further | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` | Human decision and exact proposal effects ship; external negotiation, approved follow-up delivery and cross-system execution are absent. |
+| `RECOVER-003` | Verify recovery improved the outcome | push-further | missing |  | No cross-system read-back, recovery baseline comparison or verified case closure. |
+| `RECOVER-004` | Retainer promise to cash steward | push-further | missing |  | No retainer steward, delivered approval chasing or invoice/payment completion loop. |
+| `RECOVER-005` | Evidence to completed timesheet agent | push-further | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` | Cited reconstruction and personal confirmation ship; connected collection and active completion chasing are absent. |
+| `RECOVER-006` | Forecast learning with traceable assumptions | push-further | partial | `src/gauge/reports.ts`; `src/gauge/proposals.ts` | Actuals and recorded proposal assumptions exist; outcome learning, confidence and prospective recalibration do not. |
+| `RECOVER-007` | Signed scope to governed delivery agent | push-further | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` | Cited change-order briefs exist; initial document extraction, ambiguity resolution and complete plan/retainer setup are absent. |
+| `RECOVER-008` | Cited operational analyst and financial guardian | push-further | missing |  | No embedded natural-language reporting, financial policy analysis or role-aware cited answers. |
+| `RECOVER-009` | Migration and configuration agent | push-further | partial | `src/gauge/imports.ts`; `src/gauge/harvest.ts`; `tests/gauge.mjs` | Reviewed import planning exists; configuration/migration agents, case resolution and settled-cycle verification do not. |
+| `BOUNDARY-001` | Books payroll and tax remain specialist products | target | missing |  | No live payroll/accountant input integration or end-to-end handoff reconciliation. |
+| `BOUNDARY-002` | Payments use the agency merchant account | target | missing |  | No merchant onboarding, live collection/refund or settlement reconciliation. |
+| `BOUNDARY-003` | Products remain separate | target | missing |  | Named sibling/external handoffs for the complete PSA target are not implemented. |

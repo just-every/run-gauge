@@ -20,7 +20,7 @@ export function demoRecords(now: Date, ownerId: string, agentId: string): DemoRe
  ]
  for (const p of people) {
   add('people', p.id, { name: p.name, timezone, contractor: p.contractor })
-  add('rates', `rate-${p.id}`, { personId: `demo-${p.id}`, service: '*', effective: day(-90), costMinor: p.cost, billMinor: p.bill, currency: 'AUD' })
+  add('rates', `rate-${p.id}`, { personId: `demo-${p.id}`, service: '*', effective: day(-90), costMinor: p.cost, billMinor: p.bill, currency: 'USD' })
   add('calendars', `calendar-${p.id}`, { personId: `demo-${p.id}`, from, to, dailySeconds: p.contractor ? 21600 : 28800, weekdays: '1,2,3,4,5', timezone })
  }
  const projects = [
@@ -30,8 +30,8 @@ export function demoRecords(now: Date, ownerId: string, agentId: string): DemoRe
  ]
  for (const p of projects) {
   add('clients', `client-${p.id}`, { name: p.client })
-  add('engagements', p.id, { clientId: `demo-client-${p.id}`, leadId: `demo-${p.lead}`, name: p.name, scope: p.scope, timezone, currency: 'AUD', members: people.map(p => `demo-${p.id}`) })
-  add('budgets', `budget-${p.id}`, { engagementId: `demo-${p.id}`, mode: p.mode, amountMinor: p.budget, effortSeconds: p.effort, roundingSeconds: 900, reason: 'Agreed delivery scope and weekly review', status: 'approved', currency: 'AUD', createdAt: at - 21 * 86400000, approvedAt: at - 20 * 86400000, approvedBy: ownerId })
+  add('engagements', p.id, { clientId: `demo-client-${p.id}`, leadId: `demo-${p.lead}`, name: p.name, scope: p.scope, timezone, currency: 'USD', members: people.map(p => `demo-${p.id}`) })
+  add('budgets', `budget-${p.id}`, { engagementId: `demo-${p.id}`, mode: p.mode, amountMinor: p.budget, effortSeconds: p.effort, roundingSeconds: 900, reason: 'Agreed delivery scope and weekly review', status: 'approved', currency: 'USD', createdAt: at - 21 * 86400000, approvedAt: at - 20 * 86400000, approvedBy: ownerId })
   p.tasks.forEach((name, i) => add('tasks', `${p.id}-task-${i}`, { engagementId: `demo-${p.id}`, name, remainingSeconds: (i + 2) * 28800 }))
   if (p.mode === 'fixed') {
    add('milestones', 'banksia-discovery', { engagementId: 'demo-banksia', name: 'Research and service blueprint', due: day(-2), amountMinor: 900000, status: 'approved', approvedBy: ownerId, approvedAt: at - 86400000 })
@@ -48,13 +48,13 @@ export function demoRecords(now: Date, ownerId: string, agentId: string): DemoRe
   const start = Date.parse(`${workDate}T09:00:00${offset(workDate)}`), durationSeconds = (i % 3 + 2) * 3600
   const status = i < 7 ? 'approved' : i < 10 ? 'submitted' : 'draft'
   add('time', `time-${i}`, { personId: `demo-${p.id}`, engagementId: `demo-${project.id}`, taskId: `demo-${project.id}-task-${i % 2}`, service: project.services[i % 2], notes: project.notes[i % 2], billable: true, start, end: start + durationSeconds * 1000, durationSeconds, timezone, workDate, status, source: null,
-   ...(status === 'approved' ? { approvedBy: ownerId, approvedAt: at - 3600000, economics: { rateId: `demo-rate-${p.id}`, budgetId: `demo-budget-${project.id}`, mode: project.mode, roundingSeconds: 900, costMinor: charge(durationSeconds, p.cost), billRateMinor: p.bill, roundedBillingSeconds: durationSeconds, billMinor: charge(durationSeconds, p.bill, 900), currency: 'AUD' } } : {}) })
+   ...(status === 'approved' ? { approvedBy: ownerId, approvedAt: at - 3600000, economics: { rateId: `demo-rate-${p.id}`, budgetId: `demo-budget-${project.id}`, mode: project.mode, roundingSeconds: 900, costMinor: charge(durationSeconds, p.cost), billRateMinor: p.bill, roundedBillingSeconds: durationSeconds, billMinor: charge(durationSeconds, p.bill, 900), currency: 'USD' } } : {}) })
  }
  for (const [i, description, amountMinor] of [[0, 'Client workshop materials', 8650], [1, 'Research participant vouchers', 24000], [2, 'Launch photo license', 12500]] as const) {
-  add('expenses', `expense-${i}`, { engagementId: `demo-${projects[i].id}`, personId: `demo-${people[i].id}`, date: day(-i - 1), description, amountMinor, currency: 'AUD', reimbursable: true, attachmentIds: i === 0 ? ['demo-receipt'] : [], status: i === 2 ? 'submitted' : 'approved', ...(i < 2 ? { approvedBy: ownerId, approvedAt: at - 3600000 } : {}) })
+  add('expenses', `expense-${i}`, { engagementId: `demo-${projects[i].id}`, personId: `demo-${people[i].id}`, date: day(-i - 1), description, amountMinor, currency: 'USD', reimbursable: true, attachmentIds: i === 0 ? ['demo-receipt'] : [], status: i === 2 ? 'submitted' : 'approved', ...(i < 2 ? { approvedBy: ownerId, approvedAt: at - 3600000 } : {}) })
  }
  const time = records.find(r => r.id === 'demo-time-0')!, v = time.value, economics = v.economics
- add('packets', 'packet-harbour', { engagementId: 'demo-harbour', title: 'Harbor Coffee · weekly delivery', status: 'draft', currency: 'AUD', createdAt: at - 1800000, createdBy: ownerId, totalMinor: economics.billMinor, lines: [{ kind: 'time', sourceId: time.id, sourceRevision: `${time.id}-v1`, description: v.notes, amountMinor: economics.billMinor, currency: 'AUD', durationSeconds: v.durationSeconds, billRateMinor: economics.billRateMinor, roundedBillingSeconds: v.durationSeconds, roundingSeconds: 900, roundingPolicy: 'ceil duration to increment; round amount half-up to cents', rateUnit: 'AUD cents per hour', rateId: economics.rateId, budgetId: economics.budgetId }] })
+ add('packets', 'packet-harbour', { engagementId: 'demo-harbour', title: 'Harbor Coffee · weekly delivery', status: 'draft', currency: 'USD', createdAt: at - 1800000, createdBy: ownerId, totalMinor: economics.billMinor, lines: [{ kind: 'time', sourceId: time.id, sourceRevision: `${time.id}-v1`, description: v.notes, amountMinor: economics.billMinor, currency: 'USD', durationSeconds: v.durationSeconds, billRateMinor: economics.billRateMinor, roundedBillingSeconds: v.durationSeconds, roundingSeconds: 900, roundingPolicy: 'ceil duration to increment; round amount half-up to cents', rateUnit: 'USD cents per hour', rateId: economics.rateId, budgetId: economics.budgetId }] })
  // The agent's week: two proposals waiting on the owner and one the owner declined.
  const evidence = (source: string, summary: string) => [{ source, summary }]
  add('proposals', 'proposal-staffing', { kind: 'staffing', engagementId: 'demo-northline', status: 'proposed', preparedBy: agentId, preparedAt: at - 5400000, assumptions: 'Launch week needs one more designer for asset revisions; Ella is on leave for part of it.',
@@ -68,6 +68,6 @@ export function demoRecords(now: Date, ownerId: string, agentId: string): DemoRe
   plan: { mode: 'hourly', amountMinor: 480000, effortSeconds: 86400, roundingSeconds: 900, brief: 'Add loyalty points to checkout: 24 hours at current rates.' } })
  const invoice = 'harbor-coffee-invoice-1042.pdf'
  add('archives', 'archive-harbour-1042', { name: invoice, mediaType: 'application/pdf', semantics: 'Historical document only; no editable invoice or active authority', source: { namespace: 'harvest', externalId: invoice },
-  base64: historicalInvoice(['Invoice 1042 (Harvest)', 'Harbor Coffee', `Issued ${day(-60)}`, 'Online store discovery workshop · 12 h · $2,220.00', 'Total $2,220.00', 'Kept from Harvest as a historical document.']) })
+  base64: historicalInvoice(['Invoice 1042 (Harvest)', 'Harbor Coffee', `Issued ${day(-60)}`, 'Online store discovery workshop · 12 h · $2,220.00', 'Total $2,220.00 USD', 'Kept from Harvest as a historical document.']) })
  return records
 }

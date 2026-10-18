@@ -7,7 +7,9 @@ The importer follows Harvest's documented export format and has been tested with
 On **Imports**, **Preview source package** takes:
 
 - `clients.csv`, `people.csv`, `projects.csv` and `time.csv` from Harvest, and optionally `forecast.csv` (a Forecast project schedule with periods in columns) and archived invoice PDFs;
-- a manifest in JSON that names the account, the timezone, the column mapping, each project's lead and reviewed members, one historical rate per person, and your own client and month totals to reconcile against.
+- a required manifest in JSON that names the account, the currency, the timezone, the column mapping, each project's lead and reviewed members, one historical rate per person, and your own client and month totals to reconcile against.
+
+New agencies default to USD. The manifest must declare the package's actual currency, and it must match the agency currency saved during setup. An AUD package is refused by a USD agency with a reason such as “Harvest package uses AUD; agency uses USD.” Gauge performs no currency conversion. Imported engagements, rates and time amounts retain the declared currency; existing historical records keep theirs.
 
 The repository's `MOVE-IN.md` gives every manifest field, and `tests/fixtures/harvest` holds a complete synthetic example.
 

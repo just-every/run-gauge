@@ -14,7 +14,7 @@ export function zone(value: unknown): string { const z = text(value, 'Work timez
 export function instant(value: unknown): number { const n = typeof value === 'number' ? value : Date.parse(String(value)); need(Number.isSafeInteger(n) && n > 0, 'Use an ISO timestamp with offset'); if (typeof value === 'string') need(/(?:Z|[+-]\d\d:\d\d)$/.test(value), 'Timestamp needs an explicit UTC offset'); return n }
 export function workDate(ms: number, timezone: string): string { return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms) }
 export const flag = (v: unknown) => v === true || v === 'true' || v === 'on'
-export const money = (v: unknown) => integer(v, 'Amount in AUD cents')
+export const money = (v: unknown) => integer(v, 'Amount in currency cents')
 export function charge(seconds: number, rate: number, rounding = 1): number { const rounded = Math.ceil(seconds / rounding) * rounding; const n = (BigInt(rounded) * BigInt(rate) + 1800n) / 3600n; need(n <= BigInt(Number.MAX_SAFE_INTEGER), 'Amount too large'); return Number(n) }
 export function sum(values:number[]):number { let total=0;for(const value of values){need(Number.isSafeInteger(value),'Non-integral quantity');total+=value;need(Number.isSafeInteger(total),'Aggregate exceeds exact integer range')}return total }
 export const uuid = () => crypto.randomUUID()

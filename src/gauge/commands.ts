@@ -10,7 +10,6 @@ import { importCommand } from './imports'
 import { proposalCommand } from './proposals'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
- need(input.currency===undefined||input.currency==='AUD','Gauge phase 1 accepts AUD only; no implicit FX')
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
  if(action.startsWith('import:'))return importCommand(env,a,action,input)

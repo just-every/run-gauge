@@ -1,7 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { capacity } from './reports'
 import { type Actor, finance } from './store'
-import { type Row } from './model'
+import { type Row, charge } from './model'
 import { canDecide } from './proposals'
 import { escape as e, input as i, check, form } from './ui-forms'
 import { localValue } from './form-input'
@@ -19,7 +19,7 @@ function staffingEffect(report: Report, a: Actor, alternative: any) {
  let cost = ''
  if (finance(a)) {
   const rate = d.rates.filter(r => r.value.personId === alternative.personId && r.value.service === '*' && r.value.effective <= alternative.from).sort((x, y) => y.value.effective.localeCompare(x.value.effective))[0]
-  cost = rate ? `<p class="g-note">At the rate from ${e(period(rate.value.effective, rate.value.effective))}: cost ${rate.value.costMinor === null ? 'unknown' : money(Math.round(demand * rate.value.costMinor / 3600))}, billable value ${money(Math.round(demand * rate.value.billMinor / 3600))}. An operational estimate, not revenue.</p>` : '<p class="g-note">No effective rate for all services: cost and margin unknown.</p>'
+  cost = rate ? `<p class="g-note">At the rate from ${e(period(rate.value.effective, rate.value.effective))}: cost ${rate.value.costMinor === null ? 'unknown' : money(charge(demand, rate.value.costMinor), rate.value.currency)}, billable value ${money(charge(demand, rate.value.billMinor), rate.value.currency)}. An operational estimate, not revenue.</p>` : '<p class="g-note">No effective rate for all services: cost and margin unknown.</p>'
  }
  return `<p class="g-note">If committed: adds ${hours(demand)} over ${days} ${days === 1 ? 'date' : 'dates'}. Remaining capacity ${hours(before.remainingSeconds)} → ${hours(after.remainingSeconds)}; conflict dates ${before.conflicts.length} → ${after.conflicts.length}${after.missingCalendarDays ? `; ${after.missingCalendarDays} dates have no calendar` : ''}.</p>${cost}`
 }
@@ -30,7 +30,7 @@ function planDetails(report: Report, a: Actor, p: Row) {
  if (p.value.kind === 'time') return `<p class="g-summary">${[nameOf(d.people, x.personId), nameOf(d.tasks, x.taskId), x.service, interval(x.start, x.end, x.timezone), x.billable ? 'Billable' : 'Not billable'].map(e).join(' · ')}</p>${x.notes ? `<p class="g-note">Notes: ${e(x.notes)}</p>` : ''}${x.ambiguity ? `<p class="g-note">Ambiguity: ${e(x.ambiguity)}</p>` : ''}`
  if (p.value.kind === 'staffing') return `<ol class="g-alternatives">${x.alternatives.map((alt: any) => `<li><p class="g-summary">${e(nameOf(d.people, alt.personId))} · ${e(period(alt.from, alt.to))} · ${hours(alt.dailySeconds)} per date (tentative)</p><p class="g-note">${e(alt.rationale)}</p>${staffingEffect(report, a, alt)}</li>`).join('')}</ol>`
  if (p.value.kind === 'billing') return `<p class="g-summary">${e(x.title)} · ${x.sources.length} source ${x.sources.length === 1 ? 'line' : 'lines'}</p><ul class="g-lines">${x.sources.map((s: string) => `<li>${e(describeSource(d, s).text)}</li>`).join('')}</ul><p class="g-note">Approval drafts the packet with exact amounts; approve that packet on Billing before export.</p>`
- const amount = x.amountMinor === undefined ? [] : [money(x.amountMinor)]
+ const amount = x.amountMinor === undefined ? [] : [money(x.amountMinor, x.currency ?? d.engagements.find(r => r.id === p.value.engagementId)?.value.currency ?? report.agency.currency)]
  return `<p class="g-summary">${[x.mode === 'fixed' ? 'Fixed fee' : 'Hourly', ...amount, `${hours(x.effortSeconds)} effort`, `rounded to ${hours(x.roundingSeconds)}`].map(e).join(' · ')}</p><p class="g-note">${e(x.brief)}</p><p class="g-note">Approval drafts the change order; approve its terms on Engagements.</p>`
 }
 
@@ -54,7 +54,7 @@ export async function proposalSection(env: Bindings, a: Actor, report: Report) {
    : a.role === 'agent' ? form('proposal:withdraw', 'Withdraw', '', p, 'Withdraw proposal', 'g-bare') : '<p class="g-note">Awaiting the person, lead or finance this proposal needs.</p>'
   cards.push(`<article class="g-card g-proposal" id="${e(p.id)}"><h3>${e(proposalLabels[p.value.kind])} · ${e(nameOf(report.data.engagements, p.value.engagementId))}</h3>${planDetails(report, a, p)}<p class="g-evidence">${p.value.evidence.map((x: any) => `Evidence: ${e(x.source)} · ${e(x.summary)}`).join('<br>')}</p><p class="g-note">${e(p.value.assumptions)}</p>${actions}</article>`)
  }
- const timeZone = (p: Row) => report.data.engagements.find(r => r.id === p.value.engagementId)?.value.timezone
+ const timeZone = (p: Row) => report.data.engagements.find(r => r.id === p.value.engagementId)?.value.timezone ?? report.agency.timezone
  const history = decided.length ? `<div class="g-table"><table><thead><tr><th scope="col">Proposal</th><th scope="col">Status</th><th scope="col">Decided</th><th scope="col">Effect</th></tr></thead><tbody>${decided.map(p => `<tr id="${e(p.id)}"><td data-label="Proposal">${e(proposalLabels[p.value.kind])} · ${e(nameOf(report.data.engagements, p.value.engagementId))}</td><td data-label="Status" class="g-decision">${chip(p.value.status)}${p.value.reason ? ` <span class="g-note">${e(p.value.reason)}</span>` : ''}</td><td data-label="Decided" class="g-num">${e(when(p.value.decidedAt, timeZone(p)))}</td><td data-label="Effect">${effectLink(p.value.effect)}</td></tr>`).join('')}</tbody></table></div>` : ''
  return `<section class="g-block"><h2>Agent proposals</h2><p class="g-lede">An agent prepared these from cited evidence. Nothing changes until the right person approves the exact revision.</p>${cards.join('') || '<p class="g-empty">No open proposals.</p>'}${history ? `<h3 class="g-subhead">Decided</h3><div class="g-card g-card--table">${history}</div>` : ''}</section>`
 }

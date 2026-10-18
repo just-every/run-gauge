@@ -8,7 +8,7 @@ export function importContext(env: Bindings,a: Actor,namespace:string):D1ImportC
 export async function importCommand(env: Bindings,a: Actor,action:string,input:Value) {
  need(finance(a),'Finance access required',403)
  if(action==='import:preview'||action==='import:create') {
-  const source=input.package as HarvestInput;need(source?.files,'Upload a Harvest package');const parsed=harvest(source),ctx=importContext(env,a,parsed.namespace),plan=await planD1Import(parsed.bundle,parsed.mapping,ctx)
+  const source=input.package as HarvestInput;need(source?.files,'Upload a Harvest package');const parsed=harvest(source,a.currency),ctx=importContext(env,a,parsed.namespace),plan=await planD1Import(parsed.bundle,parsed.mapping,ctx)
   need(plan.counts.rejected===0,'Resolve rejected source rows')
   if(action==='import:preview')return {fingerprint:plan.fingerprint,counts:plan.counts,totals:parsed.totals,memberships:parsed.memberships,omissions:parsed.omissions,package:source}
   need(input.fingerprint===plan.fingerprint,'Preview changed; review it again',409)

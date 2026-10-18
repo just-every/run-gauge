@@ -1,6 +1,6 @@
 import { createDependencies } from './modules/dependencies/index.mjs'
 import { createIdpOwnerClaimHandler, createOwnerClaimHandler } from './modules/owner-claim/index.mjs'
-import { firstRunResponse } from './base/setup'
+import { agencySetupResponse as firstRunResponse } from './gauge/setup'
 import { fontHead } from './base/font-head'
 import { fontDocumentResponse } from './base/font-response'
 import { themeFrame } from './base/theme-frame'

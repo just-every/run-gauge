@@ -411,7 +411,7 @@ No desk-built `CLAIMS.md` was present for Gauge on 17 October 2026. The existing
 
 ## Status
 
-Original baseline: commit `2d227a48623b4270f608fee6b9b672383093b379` (17 October 2026). Currency implementation update: 19 October 2026, tested by `tests/gauge-currency.mjs`; the affected target rows remain partial. This covers setup defaults and saved choices, native same-currency amounts and billing packets, Harvest mismatch refusal, and historical currency preservation, not invoice issuance or FX consolidation.
+Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe791c` (19 October 2026); currency implementation update: 19 October 2026, tested by `tests/gauge-currency.mjs`; the affected target rows remain partial. This covers setup defaults and saved choices, native same-currency amounts and billing packets, Harvest mismatch refusal, and historical currency preservation, not invoice issuance or FX consolidation.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |

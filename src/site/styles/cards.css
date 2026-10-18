@@ -374,6 +374,19 @@
   .tl-list .tl-row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
   .tl-list .tl-row p { margin: 0; }
 }
+/* the ledger stacks each row while its five columns would not fit the card */
+@media (max-width: 819px) {
+  .lg-table, .lg-table thead { display: block; }
+  .lg-table thead { display: none; }
+  .lg-table tbody, .lg-table tr { display: grid; }
+  .lg-table tr { grid-template-columns: minmax(0, 1fr) auto; padding: 12px 0; border-bottom: 1px solid var(--g-hair); }
+  .lg-table td { padding: 2px 8px; border: 0; }
+  .lg-table td:first-child { grid-column: 1 / -1; width: auto; }
+  .lg-table td:nth-child(2) { min-width: 0; }
+  .lg-table td:nth-child(2) { grid-column: 1 / -1; padding-left: 44px; }
+  .lg-table td.num { grid-column: auto; text-align: left; padding-left: 44px; font-size: 15px; }
+  .lg-table td.num + td.num { text-align: right; padding-left: 8px; }
+}
 @media (max-width: 759px) {
   .card { padding: 20px 18px; font-size: 15.5px; }
   .card-title { font-size: 19px; }
@@ -413,16 +426,6 @@
   .inv-lines tfoot th { padding-right: 16px; }
   .inv-status { grid-template-columns: 1fr 1fr; justify-content: stretch; }
   .side-sub { margin-left: 0; }
-  .lg-table, .lg-table thead { display: block; }
-  .lg-table thead { display: none; }
-  .lg-table tbody, .lg-table tr { display: grid; }
-  .lg-table tr { grid-template-columns: minmax(0, 1fr) auto; padding: 12px 0; border-bottom: 1px solid var(--g-hair); }
-  .lg-table td { padding: 2px 8px; border: 0; }
-  .lg-table td:first-child { grid-column: 1 / -1; width: auto; }
-  .lg-table td:nth-child(2) { min-width: 0; }
-  .lg-table td:nth-child(2) { grid-column: 1 / -1; padding-left: 44px; }
-  .lg-table td.num { grid-column: auto; text-align: left; padding-left: 44px; font-size: 15px; }
-  .lg-table td.num + td.num { text-align: right; padding-left: 8px; }
   .packet-rows li { grid-template-columns: 28px minmax(0, 1fr); gap: 4px 12px; font-size: 15.5px; }
   .packet-v { grid-column: 2; }
   .fc-rows li { grid-template-columns: 38px minmax(0, 1fr); gap: 8px 12px; }
@@ -432,4 +435,9 @@
   .term pre { padding: 14px 16px 18px; font-size: 14.5px; }
   .imp-rows li { font-size: 15px; }
   .agent-line--row { flex-direction: column; gap: 2px; }
+}
+/* the narrowest phones: the estimate table keeps its three columns inside the card */
+@media (max-width: 379px) {
+  .est-table { font-size: 14px; }
+  .est-table th, .est-table td { padding: 10px 6px; }
 }

@@ -43,7 +43,8 @@ export function alternativeEffect(report: Report, a: Actor, p: Row, alt: any) {
  if (!before || !after || !person) return { title: 'Capacity unknown', rows: [] as [string, string, Tone][] }
  const demand = after.days.length * alt.dailySeconds, rows: [string, string, Tone][] = [['Hours', `${figure(demand)} hrs · ${alt.from === alt.to ? dayName(alt.from) : `${dayName(alt.from)} – ${dayName(alt.to)}`}`, '']]
  if (finance(a)) {
-  const rate = (personId: string) => d.rates.filter(r => r.value.personId === personId && r.value.service === '*' && r.value.effective <= alt.from).sort((x, y) => y.value.effective.localeCompare(x.value.effective))[0]?.value.costMinor ?? null
+  const latest = (personId: string) => d.rates.filter(r => r.value.personId === personId && r.value.service === '*' && r.value.effective <= alt.from).sort((x, y) => y.value.effective.localeCompare(x.value.effective))[0]
+  const rate = (personId: string): number | null => latest(personId)?.value.costMinor ?? null
   // The person the alternative covers for: on leave in its window with committed hours on this engagement.
   const covered = d.people.filter(x => x.id !== alt.personId).map(x => {
    let seconds = 0
@@ -52,7 +53,7 @@ export function alternativeEffect(report: Report, a: Actor, p: Row, alt: any) {
   }).filter(x => x.seconds > 0)
   const own = rate(alt.personId), known = own !== null && covered.every(x => x.rate !== null)
   const cost = known ? Math.round(demand * own! / 3600) - covered.reduce((n, x) => n + Math.round(Math.min(x.seconds, demand) * x.rate! / 3600), 0) : null
-  rows.push([covered.length ? 'Additional cost' : 'Cost', cost === null ? 'Unknown: no cost rate' : `${cost > 0 && covered.length ? '+' : ''}${money(cost)}`, ''])
+  rows.push([covered.length ? 'Additional cost' : 'Cost', cost === null ? 'Unknown: no cost rate' : `${cost > 0 && covered.length ? '+' : ''}${money(cost, latest(alt.personId)?.value.currency ?? report.agency.currency)}`, ''])
  }
  const first = person.value.name.split(' ')[0]
  rows.push([`${first}’s open hours`, before.remainingSeconds === null || after.remainingSeconds === null ? 'Unknown' : `${figure(before.remainingSeconds)} → ${figure(after.remainingSeconds)}`, after.remainingSeconds !== null && after.remainingSeconds < 0 ? 'risk' : ''])

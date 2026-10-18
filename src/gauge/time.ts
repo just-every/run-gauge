@@ -2,15 +2,18 @@ import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, instant, zone, flag, workDate, charge, integer, date } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
 export async function snapshotRates(env: Bindings,tx: Transaction,row: Row) {
+ const engagement = await get(env,'engagements',row.value.engagementId); tx.observe('engagements',engagement)
  const v = row.value, observedRates = await all(env,'rates'), rates = observedRates.filter(r => (r.value.personId === v.personId || (!r.value.personId && r.value.service === v.service)) && (r.value.service === '*' || r.value.service === v.service) && r.value.effective <= v.workDate).sort((x,y) => (Number(y.value.personId !== null)*2+Number(y.value.service===v.service))-(Number(x.value.personId !== null)*2+Number(x.value.service===v.service)) || y.value.effective.localeCompare(x.value.effective))
  const rate = rates[0]; if (rate) tx.observe('rates',rate)
  const budgets = (await all(env,'budgets')).filter(b=> b.value.engagementId === v.engagementId && b.value.status === 'approved').sort((x,y)=>y.value.approvedAt-x.value.approvedAt)
  need(budgets[0],'Approve engagement terms first'); tx.observe('budgets',budgets[0]);tx.guard("(SELECT COUNT(*) FROM g_budgets WHERE engagement_id=? AND status='approved')=?",v.engagementId,budgets.length)
+ need(budgets[0].value.currency === engagement.value.currency, 'Terms currency differs from engagement; no implicit FX')
+ need(!rate || rate.value.currency === engagement.value.currency, 'Rate currency differs from engagement; no implicit FX')
  // Fence all candidate rates and terms: insertion during review cannot silently select a different version.
  for (const observed of observedRates) tx.observe('rates', observed)
  tx.guard('(SELECT COUNT(*) FROM g_rates)=?', observedRates.length)
  const seconds = v.durationSeconds ?? Math.round((v.end-v.start)/1000)
- return { rateId: rate?.id ?? null, budgetId: budgets[0].id, mode: budgets[0].value.mode, roundingSeconds:budgets[0].value.roundingSeconds, costMinor:rate?.value.costMinor == null ? null : charge(seconds,rate.value.costMinor), billRateMinor:rate?.value.billMinor??null,roundedBillingSeconds:Math.ceil(seconds/budgets[0].value.roundingSeconds)*budgets[0].value.roundingSeconds,billMinor:rate ? charge(seconds,rate.value.billMinor,budgets[0].value.roundingSeconds) : null, currency:'AUD' }
+ return { rateId: rate?.id ?? null, budgetId: budgets[0].id, mode: budgets[0].value.mode, roundingSeconds:budgets[0].value.roundingSeconds, costMinor:rate?.value.costMinor == null ? null : charge(seconds,rate.value.costMinor), billRateMinor:rate?.value.billMinor??null,roundedBillingSeconds:Math.ceil(seconds/budgets[0].value.roundingSeconds)*budgets[0].value.roundingSeconds,billMinor:rate ? charge(seconds,rate.value.billMinor,budgets[0].value.roundingSeconds) : null, currency:engagement.value.currency }
 }
 export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action: string,input: Value): Promise<Row | null> {
  if (!['time:save','timer:start','timer:stop','time:submit','time:return','time:approve','time:correct'].includes(action)) return null

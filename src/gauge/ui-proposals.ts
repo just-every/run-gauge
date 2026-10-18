@@ -13,7 +13,7 @@ function planDetails(report: Report, a: Actor, p: Row) {
  const d = report.data, x = p.value.plan
  if (p.value.kind === 'time') return `<p class="g-summary">${[nameOf(d.people, x.personId), nameOf(d.tasks, x.taskId), x.service, interval(x.start, x.end, x.timezone), x.billable ? 'Billable' : 'Not billable'].map(e).join(' · ')}</p>${x.notes ? `<p class="g-note">Notes: ${e(x.notes)}</p>` : ''}${x.ambiguity ? `<p class="g-note">Ambiguity: ${e(x.ambiguity)}</p>` : ''}`
  if (p.value.kind === 'billing') return `<p class="g-summary">${e(x.title)} · ${x.sources.length} source ${x.sources.length === 1 ? 'line' : 'lines'}</p><ul class="g-lines">${x.sources.map((s: string) => `<li>${e(describeSource(d, s).text)}</li>`).join('')}</ul><p class="g-note">Approval drafts the packet with exact amounts; approve that packet on Billing before export.</p>`
- const amount = x.amountMinor === undefined ? [] : [money(x.amountMinor)]
+ const amount = x.amountMinor === undefined ? [] : [money(x.amountMinor, x.currency ?? d.engagements.find(r => r.id === p.value.engagementId)?.value.currency ?? report.agency.currency)]
  return `<p class="g-summary">${[x.mode === 'fixed' ? 'Fixed fee' : 'Hourly', ...amount, `${hours(x.effortSeconds)} effort`, `rounded to ${hours(x.roundingSeconds)}`].map(e).join(' · ')}</p><p class="g-note">${e(x.brief)}</p><p class="g-note">Approval drafts the change order; approve its terms on Engagements.</p>`
 }
 
@@ -37,7 +37,7 @@ export async function proposalSection(env: Bindings, a: Actor, report: Report) {
    : a.role === 'agent' ? form('proposal:withdraw', 'Withdraw', '', p, 'Withdraw proposal', 'g-bare') : '<p class="g-note">Awaiting the person, lead or finance this proposal needs.</p>'
   cards.push(`<article class="g-card g-proposal" id="${e(p.id)}"><h3>${e(proposalLabels[p.value.kind])} · ${e(nameOf(report.data.engagements, p.value.engagementId))}</h3>${planDetails(report, a, p)}<p class="g-evidence">${p.value.evidence.map((x: any) => `Evidence: ${e(x.source)} · ${e(x.summary)}`).join('<br>')}</p><p class="g-note">${e(p.value.assumptions)}</p>${actions}</article>`)
  }
- const timeZone = (p: Row) => report.data.engagements.find(r => r.id === p.value.engagementId)?.value.timezone
+ const timeZone = (p: Row) => report.data.engagements.find(r => r.id === p.value.engagementId)?.value.timezone ?? report.agency.timezone
  const history = decided.length ? `<div class="g-table"><table><thead><tr><th scope="col">Proposal</th><th scope="col">Status</th><th scope="col">Decided</th><th scope="col">Effect</th></tr></thead><tbody>${decided.map(p => `<tr id="${e(p.id)}"><td data-label="Proposal">${e(proposalLabels[p.value.kind])} · ${e(nameOf(report.data.engagements, p.value.engagementId))}</td><td data-label="Status" class="g-decision">${chip(p.value.status)}${p.value.reason ? ` <span class="g-note">${e(p.value.reason)}</span>` : ''}</td><td data-label="Decided" class="g-num">${e(when(p.value.decidedAt, timeZone(p)))}</td><td data-label="Effect">${effectLink(p.value.effect)}</td></tr>`).join('')}</tbody></table></div>` : ''
  return `<section class="g-block"><h2>Agent proposals</h2><p class="g-lede">An agent prepared these from cited evidence. Nothing changes until the right person approves the exact revision.</p>${cards.join('') || '<p class="g-empty">No open proposals.</p>'}${history ? `<h3 class="g-subhead">Decided</h3><div class="g-card g-card--table">${history}</div>` : ''}</section>`
 }

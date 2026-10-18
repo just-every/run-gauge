@@ -99,10 +99,16 @@
   .closing-copy .display { font-size: clamp(48px, 5.7vw, 82px); }
   .closing-sub { font-size: clamp(18px, 1.8vw, 26px); }
 }
-@media (max-width: 1279px) {
+/* the ledger's five columns need the full width below 1400 px */
+@media (max-width: 1399px) {
   .cash-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
   .cash-grid > .lg { order: 2; margin-top: 0; }
   .cash-cards { grid-template-columns: 1fr 1fr; }
+}
+/* the five-week board needs 1100 px of card; narrower, it becomes the person-first stack */
+@media (max-width: 1279px) {
+  .sg-card { display: none; }
+  .sp-stack { display: block; margin-top: 28px; max-width: 640px; }
 }
 @media (max-width: 1199px) {
   .band { padding: 88px 0 96px; }
@@ -137,8 +143,6 @@
   .time-grid .queue { margin-top: 0; }
   .st-grid { grid-template-columns: minmax(0, 1fr); }
   .phone-wrap { justify-self: center; }
-  .sg-card { display: none; }
-  .sp-stack { display: block; margin-top: 28px; max-width: 640px; }
 }
 @media (max-width: 759px) {
   .band { padding: 64px 0 72px; }

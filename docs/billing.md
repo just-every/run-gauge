@@ -2,7 +2,7 @@ A billing packet is one clean list of approved work for your bookkeeper. Gauge m
 
 ## Prepare a packet
 
-On **Billing**, **Prepare packet** takes an engagement, a **Packet title** and the **Eligible source lines** to include: approved, unbilled hourly time, approved reimbursable expenses and approved fixed-fee milestones. A draft packet reserves its exact sources, so the same source cannot go into a second packet at the same time.
+On **Billing**, **Prepare packet** takes an engagement, a **Packet title** and the **Eligible source lines** to include: approved, unbilled hourly time, approved reimbursable expenses and approved fixed-fee milestones. A draft packet reserves its exact sources, so the same source cannot go into a second packet at the same time. Every source must match the engagement currency. The packet, its adjustments and the downloaded CSV retain that currency; Gauge refuses mixed currencies and performs no conversion.
 
 ## Approve and download
 

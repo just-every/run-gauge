@@ -1,10 +1,12 @@
 import { charge, type Kind, type Value } from './gauge/model'
 import { historicalInvoice } from './demo-archive'
+import { defaults } from './gauge/agency'
 import { people, calendars, projects, weeks, tomWeekZero } from './demo-world'
 
 export interface DemoRecord { kind: Kind; id: string; value: Value }
 
-const timezone = 'America/Los_Angeles'
+// The demo agency keeps Gauge's agency defaults (no setup row): USD money on US Pacific dates.
+const { currency, timezone } = defaults
 const short = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
 const named = (date: string) => short.format(new Date(`${date}T00:00:00Z`)).replace(',', '')
 
@@ -24,20 +26,20 @@ export function demoRecords(now: Date, ownerId: string, agentId: string): DemoRe
 
  for (const p of people) {
   add('people', p.id, { name: p.name, timezone, contractor: !!p.contractor })
-  add('rates', `rate-${p.id}`, { personId: `demo-${p.id}`, service: '*', effective: day(-91), costMinor: p.cost, billMinor: p.bill, currency: 'AUD' })
+  add('rates', `rate-${p.id}`, { personId: `demo-${p.id}`, service: '*', effective: day(-91), costMinor: p.cost, billMinor: p.bill, currency })
   for (const [n, [from, to, hours]] of (calendars[p.id] ?? [[-35, 70, p.dailyHours]]).entries())
    add('calendars', `calendar-${p.id}-${n}`, { personId: `demo-${p.id}`, from: day(from), to: day(to), dailySeconds: seconds(hours), weekdays: '1,2,3,4,5', timezone })
  }
  const staffed = (id: string) => [...new Set([...weeks.flat().filter(b => b[1] === id).map(b => b[0]), ...(id === 'cascade' ? ['tom'] : [])])]
  for (const p of projects) {
   add('clients', `client-${p.id}`, { name: p.client })
-  add('engagements', p.id, { clientId: `demo-client-${p.id}`, leadId: `demo-${p.lead}`, name: p.name, scope: p.scope, timezone, currency: 'AUD', members: staffed(p.id).filter(m => m !== p.lead).map(m => `demo-${m}`) })
-  add('budgets', `budget-${p.id}`, { engagementId: `demo-${p.id}`, mode: p.mode, amountMinor: p.fee, effortSeconds: seconds(p.effortHours), roundingSeconds: 900, reason: p.reason, currency: 'AUD', createdAt: at - 30 * 86400000, ...(p.approved ? { status: 'approved', approvedAt: at - 29 * 86400000, approvedBy: ownerId } : { status: 'draft' }) })
+  add('engagements', p.id, { clientId: `demo-client-${p.id}`, leadId: `demo-${p.lead}`, name: p.name, scope: p.scope, timezone, currency, members: staffed(p.id).filter(m => m !== p.lead).map(m => `demo-${m}`) })
+  add('budgets', `budget-${p.id}`, { engagementId: `demo-${p.id}`, mode: p.mode, amountMinor: p.fee, effortSeconds: seconds(p.effortHours), roundingSeconds: 900, reason: p.reason, currency, createdAt: at - 30 * 86400000, ...(p.approved ? { status: 'approved', approvedAt: at - 29 * 86400000, approvedBy: ownerId } : { status: 'draft' }) })
   p.tasks.forEach((name, i) => add('tasks', `${p.id}-task-${i}`, { engagementId: `demo-${p.id}`, name, remainingSeconds: (i + 2) * 28800 }))
  }
  // Launch milestones on their Fridays: Cascade Cider in week 3, Pacific Trail in week 4.
- add('milestones', 'cascade-launch', { engagementId: 'demo-cascade', name: 'Launch', due: day(25), amountMinor: 2880000, status: 'draft' })
- add('milestones', 'pacific-launch', { engagementId: 'demo-pacific', name: 'Launch', due: day(32), amountMinor: 2130000, status: 'draft' })
+ add('milestones', 'cascade-launch', { engagementId: 'demo-cascade', name: 'Launch', due: day(25), amountMinor: 2880000, currency, status: 'draft' })
+ add('milestones', 'pacific-launch', { engagementId: 'demo-pacific', name: 'Launch', due: day(32), amountMinor: 2130000, currency, status: 'draft' })
 
  // One Mon–Fri allocation per person, engagement and week; tentative work is pipeline (Capitol Grain, Rose City).
  weeks.forEach((bookings, w) => bookings.forEach(([person, engagement, hours, tentative], n) => add('staffing', `staffing-${w}-${n}`, { personId: `demo-${person}`, engagementId: `demo-${engagement}`, from: day(w * 7), to: day(w * 7 + 4), dailySeconds: seconds(hours / 5), commitment: tentative ? 'tentative' : 'committed' })))
@@ -53,14 +55,14 @@ export function demoRecords(now: Date, ownerId: string, agentId: string): DemoRe
  entries.forEach(([who, id, task, offsetDays, hours, status, startsAt = '09:00'], i) => {
   const p = project(id), person = people.find(x => x.id === who)!, workDate = day(offsetDays), start = clock(workDate, startsAt), durationSeconds = seconds(hours)
   add('time', `time-${i}`, { personId: `demo-${who}`, engagementId: `demo-${id}`, taskId: `demo-${id}-task-${task}`, service: p.services[task], notes: p.notes[task], billable: true, start, end: start + durationSeconds * 1000, durationSeconds, timezone, workDate, status, source: null,
-   ...(status === 'approved' ? { approvedBy: ownerId, approvedAt: at - 3600000, economics: { rateId: `demo-rate-${who}`, budgetId: `demo-budget-${id}`, mode: p.mode, roundingSeconds: 900, costMinor: charge(durationSeconds, person.cost), billRateMinor: person.bill, roundedBillingSeconds: durationSeconds, billMinor: charge(durationSeconds, person.bill, 900), currency: 'AUD' } } : {}) })
+   ...(status === 'approved' ? { approvedBy: ownerId, approvedAt: at - 3600000, economics: { rateId: `demo-rate-${who}`, budgetId: `demo-budget-${id}`, mode: p.mode, roundingSeconds: 900, costMinor: charge(durationSeconds, person.cost), billRateMinor: person.bill, roundedBillingSeconds: durationSeconds, billMinor: charge(durationSeconds, person.bill, 900), currency } } : {}) })
  })
  const expenses: [string, string, number, string, number, string][] = [['maya', 'cascade', -4, 'Client workshop materials', 8650, 'approved'], ['priya', 'pacific', -5, 'Usability test participant gift cards', 24000, 'approved'], ['maya', 'cascade', -3, 'Launch photo license', 12500, 'submitted']]
- expenses.forEach(([who, id, offsetDays, description, amountMinor, status], i) => add('expenses', `expense-${i}`, { engagementId: `demo-${id}`, personId: `demo-${who}`, date: day(offsetDays), description, amountMinor, currency: 'AUD', reimbursable: true, attachmentIds: i === 0 ? ['demo-receipt'] : [], status, ...(status === 'approved' ? { approvedBy: ownerId, approvedAt: at - 3600000 } : {}) }))
+ expenses.forEach(([who, id, offsetDays, description, amountMinor, status], i) => add('expenses', `expense-${i}`, { engagementId: `demo-${id}`, personId: `demo-${who}`, date: day(offsetDays), description, amountMinor, currency, reimbursable: true, attachmentIds: i === 0 ? ['demo-receipt'] : [], status, ...(status === 'approved' ? { approvedBy: ownerId, approvedAt: at - 3600000 } : {}) }))
 
  // A draft packet of Treasure Valley's approved hours, ready for finance to approve and download.
- const lines = ['demo-time-0', 'demo-time-1'].map(id => records.find(r => r.id === id)!).map(t => ({ kind: 'time', sourceId: t.id, sourceRevision: `${t.id}-v1`, description: t.value.notes, amountMinor: t.value.economics.billMinor, currency: 'AUD', durationSeconds: t.value.durationSeconds, billRateMinor: t.value.economics.billRateMinor, roundedBillingSeconds: t.value.durationSeconds, roundingSeconds: 900, roundingPolicy: 'ceil duration to increment; round amount half-up to cents', rateUnit: 'AUD cents per hour', rateId: t.value.economics.rateId, budgetId: t.value.economics.budgetId }))
- add('packets', 'packet-treasure', { engagementId: 'demo-treasure', title: 'Treasure Valley · last week’s hours', status: 'draft', currency: 'AUD', createdAt: at - 1800000, createdBy: ownerId, totalMinor: lines.reduce((n, l) => n + l.amountMinor, 0), lines })
+ const lines = ['demo-time-0', 'demo-time-1'].map(id => records.find(r => r.id === id)!).map(t => ({ kind: 'time', sourceId: t.id, sourceRevision: `${t.id}-v1`, description: t.value.notes, amountMinor: t.value.economics.billMinor, currency, durationSeconds: t.value.durationSeconds, billRateMinor: t.value.economics.billRateMinor, roundedBillingSeconds: t.value.durationSeconds, roundingSeconds: 900, roundingPolicy: 'ceil duration to increment; round amount half-up to cents', rateUnit: `${currency} cents per hour`, rateId: t.value.economics.rateId, budgetId: t.value.economics.budgetId }))
+ add('packets', 'packet-treasure', { engagementId: 'demo-treasure', title: 'Treasure Valley · last week’s hours', status: 'draft', currency, createdAt: at - 1800000, createdBy: ownerId, totalMinor: lines.reduce((n, l) => n + l.amountMinor, 0), lines })
 
  // The recovery agent's morning: Diego's sick days with two costed alternatives, a billing packet and Pacific Trail's
  // change order waiting, and last week's declined Treasure Valley request.
@@ -80,6 +82,6 @@ export function demoRecords(now: Date, ownerId: string, agentId: string): DemoRe
 
  const invoice = 'pacific-trail-invoice-1039.pdf'
  add('archives', 'archive-pacific-1039', { name: invoice, mediaType: 'application/pdf', semantics: 'Historical document only; no editable invoice or active authority', source: { namespace: 'harvest', externalId: invoice },
-  base64: historicalInvoice(['Invoice 1039 (Harvest)', 'Pacific Trail', `Issued ${named(day(-41))}, Net 30`, 'Checkout discovery and design · 95.0 h × $150.00 = $14,250.00', 'Total $14,250.00', 'Kept from Harvest as a historical document.']) })
+  base64: historicalInvoice(['Invoice 1039 (Harvest)', 'Pacific Trail', `Issued ${named(day(-41))}, Net 30`, 'Checkout discovery and design · 95.0 h × $150.00 = $14,250.00', 'Total $14,250.00 USD', 'Kept from Harvest as a historical document.']) })
  return records
 }

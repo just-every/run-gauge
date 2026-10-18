@@ -1,10 +1,11 @@
 import type { Bindings } from '../auth.server'
+import { agency } from './agency'
 import type { Session } from '../modules/operator-auth/index.mjs'
 import { decode, type Kind, type Row, type Value, need, uuid } from './model'
-export interface Actor { session: Session; role: string; personId: string | null; grantVersion: number | null }
+export interface Actor { session: Session; role: string; personId: string | null; grantVersion: number | null; currency: string; timezone: string }
 export async function actor(env: Bindings, session: Session): Promise<Actor> {
  const grant = await env.DB.prepare('SELECT * FROM g_grants WHERE operator_id=? AND enabled=1').bind(session.operator.id).first<{ role: string; person_id: string; version: number }>()
- return { session, role: session.operator.role === 'owner' ? 'owner' : grant?.role ?? 'none', personId: grant?.person_id ?? null, grantVersion: grant?.version ?? null }
+ return { ...await agency(env), session, role: session.operator.role === 'owner' ? 'owner' : grant?.role ?? 'none', personId: grant?.person_id ?? null, grantVersion: grant?.version ?? null }
 }
 export function authority(a: Actor, privileged = false) {
  const owner = a.role === 'owner'

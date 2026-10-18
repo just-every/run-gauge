@@ -20,7 +20,7 @@ stable source IDs and namespace. Hosted upload capacity is unproven.
 Supply a JSON manifest:
 
 - `namespace`: stable source account identity; `coverage`: `all-time`;
-  `currency`: `AUD`; `units`: `decimal-hours`; `timezone`: explicit IANA zone.
+  `currency`: the agency currency chosen at setup (`USD` by default); `units`: `decimal-hours`; `timezone`: explicit IANA zone.
 - `columns`: optional maps keyed `clients`, `people`, `projects`, `time`, mapping
   semantic names to exported headers. Defaults are shown in the synthetic fixture.
   Clients need `id,name`; people `id,name`; projects `id,clientId,name`; time
@@ -29,7 +29,7 @@ Supply a JSON manifest:
   project ID to explicitly reviewed source person IDs (omission grants no members).
   Imported people never create operator accounts or role grants. Linking a native
   operator later is a separate owner action.
-- `rates`: source person ID to `{effective,costMinor,billMinor}`. Rates are AUD cents
+- `rates`: source person ID to `{effective,costMinor,billMinor}`. Rates are cents in that currency
   per hour; cost may be explicitly null (unknown), bill must be resolved. A supplied
   rate must cover every source work date for that person. This first adapter accepts
   one supplied historical rate per person/package; split periods or normalize with

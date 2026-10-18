@@ -2687,7 +2687,7 @@
       "executable": false
     },
     "src/site/styles/cards.css": {
-      "sha256": "595ed46a2bab6c4b49740d1797102c6094ea000e123541854e7f6598b6c1711d",
+      "sha256": "2ee3523866e171e4a83dbb7c2e6ee085eec7b1245b31125a92548cc143d699bf",
       "executable": false
     },
     "src/site/styles/docs.css": {
@@ -2695,7 +2695,7 @@
       "executable": false
     },
     "src/site/styles/landing.css": {
-      "sha256": "ab9f32672dbe02a049fcf5ab98d407ebd47cee776bf049dde98ad0ac79757a61",
+      "sha256": "450cb6f47bac70e66c281444c7eea0dbed7a5030b3e50ee1d5ed470ce7948b75",
       "executable": false
     },
     "src/site/styles/site.css": {

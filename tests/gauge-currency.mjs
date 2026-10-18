@@ -100,3 +100,19 @@ try {
  assert.equal((await state()).data.packets.find(row => row.id === adjustment.id).value.totalMinor, -2)
  console.log('PASS USD setup → Harvest preview/apply → exact cents → approval → report → billing CSV and correction; mismatch refused')
 } finally { await browser?.close(); await h.dispose() }
+
+// Legacy milestones inherited currency from their engagement. Populate that old
+// storage shape as a fixture, then read it through the real page and history doors.
+const legacy = await harness()
+try {
+ const person = await legacy.cmd('save:people', { name: 'Agency lead', timezone: 'Australia/Brisbane' })
+ const client = await legacy.cmd('save:clients', { name: 'Existing Australian client' })
+ const engagement = await legacy.cmd('save:engagements', { name: 'Existing delivery', clientId: client.id, leadId: person.id, members: [person.id], scope: 'Previously agreed scope', timezone: 'Australia/Brisbane' })
+ const milestone = await legacy.cmd('save:milestones', { engagementId: engagement.id, name: 'Existing milestone', due: '2026-10-31', amountMinor: 1234 })
+ await legacy.db.prepare("UPDATE g_milestones SET data=json_remove(data,'$.currency') WHERE id=?").bind(milestone.id).run()
+ assert((await (await legacy.request('/app/review', legacy.owner)).text()).includes('A$12.34'))
+ await legacy.cmd('save:milestones', { ...milestone, engagementId: engagement.id, name: 'Reviewed milestone', due: '2026-10-31', amountMinor: 2234 })
+ const history = await legacy.request(`/api/gauge/history/milestones/${milestone.id}`, legacy.owner, { headers: { accept: 'text/html' } })
+ assert.equal(history.status, 200); assert((await history.text()).includes('A$12.34'))
+ console.log('PASS legacy AUD milestone summaries and immutable history retain engagement currency')
+} finally { await legacy.dispose() }

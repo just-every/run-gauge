@@ -45,7 +45,7 @@ try{
   const page=await(await request('/app/capacity?from=2026-11-09',lead.cookie)).text(),forms=[...page.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)].map(m=>m[1]).filter(f=>f.includes('value="proposal:approve"')&&f.includes(`name="id" value="${again.id}"`))
   assert.deepEqual(forms.map(f=>f.match(/name="choice" value="(\d)"/)?.[1]),['0','1'],'one approval form per alternative')
   const form=new FormData();for(const m of forms[1].matchAll(/<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"/g))form.set(m[1],m[2])
-  assert.equal((await request('/app/action',lead.cookie,{method:'POST',headers:{origin:h.origin},body:form})).status,303)
+  const posted=await request('/app/action',lead.cookie,{method:'POST',headers:{origin:h.origin},body:form});assert.equal(posted.status,303);assert.equal(posted.headers.get('location'),'/app/capacity?saved=1','the result shows on Staffing')
   const chosen=await proposal(again.id),placed=(await state()).data.staffing.find(r=>r.id===chosen.value.effect.id);assert.equal(chosen.value.choice,1);assert.equal(placed.value.personId,staffPerson.id);assert.equal(placed.value.commitment,'tentative')
  })
  await flow('AGENT-003 billing preparation: eligibility checked, finance approves the exact packet',async()=>{

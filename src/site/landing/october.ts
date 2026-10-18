@@ -1,11 +1,13 @@
 // 02 "Five clients, one October.": Northbound Studio's month on one true-scale axis, Thu Oct 1 to Mon Nov 2. Every
-// stop sits on its date; three claret exceptions each resolve in a check. Under 1100 px the axis turns vertical.
+// stop sits on its date; three claret exceptions each resolve in a check. Under 1280 px the axis turns vertical.
 import { chip, check, dot, to, nw, head, section, type Client } from './parts'
 
 const DAYS = 32 // Oct 1 → Nov 2
 const at = (day: number) => (day / DAYS) * 100
-interface Stop { day: number; date: string; rows: { client: Client; text: string }[]; side: 'up' | 'down'; slot: number; kind?: 'exception' | 'resolved'; align?: 'end'; max?: number }
+interface Stop { day: number; date: string; rows: { client: Client; text: string }[]; side: 'up' | 'down'; slot: number; kind?: 'exception' | 'resolved'; align?: 'end'; inset?: number; low?: true; max?: number }
 // slot: where the label starts, as a share of the axis (the label sits clear of its neighbours; a leader runs to the dot).
+// An end-aligned label ends `inset` short of the axis end. A `low` stop sits under the other labels below the axis, on
+// a straight leader from its date that passes beside the inset label above it.
 const stops: Stop[] = [
  { day: 0, date: 'Thu Oct 1', side: 'up', slot: -1, rows: [{ client: 'willamette', text: `Sep retainer${dot}invoice 1044${dot}${nw('$12,900.00')}` }] },
  { day: 1, date: 'Fri Oct 2', side: 'down', slot: 3.6, rows: [{ client: 'cascade', text: 'Milestone 2 accepted by Lena Ortiz' }] },
@@ -16,24 +18,27 @@ const stops: Stop[] = [
  { day: 20, date: 'Wed Oct 21', side: 'up', slot: 62.6, rows: [{ client: 'capitol', text: 'Proposal signed' }] },
  { day: 21, date: 'Thu Oct 22', side: 'down', slot: 65.4, kind: 'resolved', max: 220, rows: [{ client: 'pacific', text: `Change order ${nw('$6,300')} e-signed${dot}margin ${nw('22% → 29%')} ${check()}` }] },
  { day: 25, date: 'Mon Oct 26', side: 'up', slot: 79.6, max: 240, rows: [{ client: 'studio', text: '22 of 22 timesheets approved' }] },
- { day: 32, date: 'Mon Nov 2', side: 'down', slot: 100, align: 'end', max: 140, rows: [{ client: 'studio', text: `October closed${dot}locked 4:15 pm` }, { client: 'treasure', text: `Not-to-exceed reached${dot}50 min held` }] },
+ { day: 32, date: 'Mon Nov 2', side: 'down', slot: 100, align: 'end', inset: 1, max: 150, rows: [{ client: 'studio', text: `October closed${dot}locked 4:15 pm` }] },
+ { day: 32, date: 'Mon Nov 2', side: 'down', low: true, slot: 100, align: 'end', max: 360, rows: [{ client: 'treasure', text: `Not-to-exceed reached${dot}50 min held` }] },
 ]
+const LOW = 408, TRACK = 520 // the low labels' top and the track's height (px)
 const mondays = [[0, 'Oct 1'], [4, 'Oct 5'], [11, 'Oct 12'], [18, 'Oct 19'], [25, 'Oct 26'], [32, 'Nov 2']] as const
 
-const label = (s: Stop) => `<div class="tl-stop tl-stop--${s.side}${s.align ? ' tl-stop--end' : ''}" style="--slot:${s.slot}%${s.max ? `;--max:${s.max}px` : ''}"><p class="tl-date">${s.date}</p>`
+const label = (s: Stop) => `<div class="tl-stop tl-stop--${s.side}${s.low ? ' tl-stop--low' : ''}${s.align ? ' tl-stop--end' : ''}" style="--slot:${s.slot}%${s.inset ? `;--inset:${s.inset}%` : ''}${s.max ? `;--max:${s.max}px` : ''}"><p class="tl-date">${s.date}</p>`
  + s.rows.map(r => `<div class="tl-row">${chip(r.client)}<p>${r.text}</p></div>`).join('') + '</div>'
 
 function axis() {
  const ticks = Array.from({ length: DAYS + 1 }, (_, d) => `<line x1="${at(d)}%" x2="${at(d)}%" y1="${mondays.some(m => m[0] === d) ? 194 : 197}" y2="${mondays.some(m => m[0] === d) ? 206 : 203}" class="tl-tick"/>`).join('')
  // a leader: straight from the label's anchor, then an elbow to the dot on the axis
  const leaders = stops.map(s => {
-  const anchor = s.align === 'end' ? s.slot - 1.2 : s.slot + 1.6, x = at(s.day), up = s.side === 'up'
+  const anchor = s.align === 'end' ? s.slot - (s.inset ?? 0) - 1.2 : s.slot + 1.6, x = at(s.day), up = s.side === 'up'
   // a leader from below ends under its Monday label when the stop has one, else at the dot
   const labelled = mondays.some(m => m[0] === s.day), y0 = up ? 130 : 270, y1 = up ? 160 : 252, y2 = up ? 194 : labelled ? 236 : 206
+  if (s.low) return `<line x1="${x}%" x2="${x}%" y1="${LOW}" y2="${y2}"/>`
   return `<line x1="${anchor}%" x2="${anchor}%" y1="${y0}" y2="${y1}"/><line x1="${anchor}%" x2="${x}%" y1="${y1}" y2="${y2}"/>`
  }).join('')
  const dots = stops.map(s => `<circle cx="${at(s.day)}%" cy="200" r="7" class="tl-dot${s.kind === 'exception' ? ' tl-dot--exception' : ''}"/>`).join('')
- return `<svg class="tl-axis" width="100%" height="400" aria-hidden="true"><line x1="0" x2="100%" y1="200" y2="200" class="tl-base"/>${ticks}<g class="tl-leaders">${leaders}</g>${dots}</svg>`
+ return `<svg class="tl-axis" width="100%" height="${TRACK}" aria-hidden="true"><line x1="0" x2="100%" y1="200" y2="200" class="tl-base"/>${ticks}<g class="tl-leaders">${leaders}</g>${dots}</svg>`
   + mondays.map(([d, l]) => `<span class="tl-day" style="--at:${at(d)}%">${l}</span>`).join('')
 }
 

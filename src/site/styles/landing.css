@@ -24,7 +24,7 @@
 .hc .i-flag { flex: none; width: 19px; height: 19px; margin-top: 1px; color: var(--g-claret); }
 .hc .i-check { display: inline-block; width: 15px; height: 15px; vertical-align: -2px; color: var(--g-green); }
 .hero-copy { align-self: center; padding: 110px 44px 80px calc(var(--art-w) * .099); max-width: calc(var(--art-w) * .099 + 480px + 44px); }
-.hero h1 { font-size: 82px; line-height: 1.04; font-weight: 800; letter-spacing: -0.042em; word-spacing: 0.13em; font-variation-settings: 'opsz' 60; }
+.hero h1 { font-size: 82px; line-height: 1.04; font-weight: var(--g-headline-weight); letter-spacing: var(--g-headline-track); word-spacing: var(--g-headline-space); font-variation-settings: 'opsz' 60; }
 .hero-sub { margin-top: 26px; font-size: 22.5px; line-height: 1.5; color: var(--g-slate); }
 .hero-alt { margin-top: 24px; font-size: 21px; line-height: 1.45; color: var(--g-ink); }
 .hero-alt strong { font-weight: 700; }
@@ -81,7 +81,7 @@
 .tag--closing { left: 33.6%; top: 49.6%; width: max(17.6%, 272px); }
 .scene--closing { background: #DCEBF6; }
 .closing-copy { position: absolute; inset: 14.5% 0 auto; text-align: center; padding: 0 var(--gutter); }
-.closing-copy .display { font-size: 82px; letter-spacing: -0.042em; word-spacing: 0.13em; }
+.closing-copy .display { font-size: 82px; }
 .closing-sub { margin-top: 18px; font-size: 26px; color: var(--g-ink); }
 .closing-actions { margin-top: 30px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 36px; }
 
@@ -143,7 +143,7 @@
 @media (max-width: 759px) {
   .band { padding: 64px 0 72px; }
   .hero-copy { padding: 40px var(--gutter) 36px; }
-  .hero h1 { font-size: 46px; letter-spacing: -0.035em; }
+  .hero h1 { font-size: 46px; letter-spacing: -0.045em; word-spacing: 0.115em; }
   .hero-sub { margin-top: 18px; font-size: 17.5px; }
   .hero-alt { margin-top: 18px; font-size: 17px; }
   .hero-actions { margin-top: 26px; }

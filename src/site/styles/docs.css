@@ -2,7 +2,7 @@
    pale paper for the index, a quiet left menu, ink code cards with Copy, and turquoise for the current page. */
 .d-shell { width: min(100% - 2 * var(--gutter), 1276px); margin-inline: auto; padding: 64px 0 104px; }
 .d-intro { max-width: 760px; }
-.d-title { margin-top: 14px; font-size: 64px; line-height: 1.04; font-weight: 800; letter-spacing: -0.036em; word-spacing: .12em; font-variation-settings: 'opsz' 60; }
+.d-title { margin-top: 14px; font-size: 64px; line-height: 1.04; font-weight: var(--g-headline-weight); letter-spacing: var(--g-headline-track); word-spacing: var(--g-headline-space); font-variation-settings: 'opsz' 60; }
 .d-lede { margin-top: 18px; font-size: 21px; line-height: 1.5; color: var(--g-slate); text-wrap: pretty; }
 .d-group { margin-top: 56px; }
 .d-group > h2 { font: 700 15px/1.3 var(--rer-font-body); letter-spacing: .18em; text-transform: uppercase; color: var(--g-turquoise-deep); }
@@ -32,7 +32,7 @@
 .d-prose { margin-top: 36px; font-size: 18px; line-height: 1.68; color: #24313F; }
 .d-prose > * + * { margin-top: 18px; }
 .d-prose > :is(h2, h3) + * { margin-top: 12px; }
-.d-prose > h2 { margin-top: 52px; font: 800 32px/1.15 var(--rer-font-heading); letter-spacing: -0.028em; word-spacing: .12em; font-variation-settings: 'opsz' 48; color: var(--g-ink); }
+.d-prose > h2 { margin-top: 52px; font: var(--g-headline-weight) 32px/1.15 var(--rer-font-heading); letter-spacing: var(--g-subhead-track); word-spacing: .12em; font-variation-settings: 'opsz' 60; color: var(--g-ink); }
 .d-prose > h3 { margin-top: 34px; font: 700 21px/1.3 var(--rer-font-body); color: var(--g-ink); }
 .d-prose :is(ul, ol) { padding-left: 24px; }
 .d-prose ul { list-style: disc; }
@@ -73,7 +73,7 @@
 }
 @media (max-width: 759px) {
   .d-shell { padding: 36px 0 72px; }
-  .d-title, .d-article .d-title { font-size: 42px; letter-spacing: -0.03em; }
+  .d-title, .d-article .d-title { font-size: 42px; letter-spacing: -0.045em; word-spacing: 0.115em; }
   .d-lede { font-size: 17.5px; }
   .d-cards { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .d-cards a { padding: 20px; }

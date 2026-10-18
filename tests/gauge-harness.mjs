@@ -35,6 +35,6 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  const invite=async(name)=>{const response=await post('/auth/invite',{email:`${name}@example.test`,displayName:name,role:'member'},owner);assert.equal(response.status,202);const cookie=await confirmLatest(),session=await(await request('/auth/session',cookie)).json();return {cookie,id:session.operator.id}}
  const cmd=async(action,input={},cookie=owner,expected=200)=>{const response=await post('/api/gauge/command',{key:randomUUID(),action,...input},cookie),body=await response.json();assert.equal(response.status,expected,`${action}: ${JSON.stringify(body)}`);return body}
  const state=async(cookie=owner)=>{const r=await request('/api/gauge/state?from=2026-10-01&to=2026-10-31',cookie);assert.equal(r.status,200);return r.json()}
- return {directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();await rm(directory,{recursive:true,force:true})}}
+ return {db:await mf.getD1Database('DB'),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();await rm(directory,{recursive:true,force:true})}}
  }catch(error){await close();await rm(directory,{recursive:true,force:true});throw error}
 }

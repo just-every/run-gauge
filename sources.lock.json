@@ -817,7 +817,7 @@
       "executable": false
     },
     "src/gauge/ui-describe.ts": {
-      "sha256": "a0f789d6fca12af6ac63bbb8455a6589a2af78a7cc0467f5f308f4a29d15d3df",
+      "sha256": "e74cdfbfe7c0c247eacb320f87b1c9878579c265d376b11558047d251964825c",
       "executable": false
     },
     "src/gauge/ui-engagements.ts": {
@@ -853,7 +853,7 @@
       "executable": false
     },
     "src/gauge/ui.ts": {
-      "sha256": "942a690ff1259e3f4850726c4d7860f202a6d9c097a1f809889f8a010570c28c",
+      "sha256": "9cce1a3ec8dc649003eeaa557c9ff717449a3cc6383b7a8fd273187610f03ba1",
       "executable": false
     },
     "src/identity.ts": {
@@ -2529,7 +2529,7 @@
       "executable": false
     },
     "tests/gauge-currency.mjs": {
-      "sha256": "ccd92f0274d2456760ed9348dfe383c92e1eebf291ec4579a6b8f49f47a9bc56",
+      "sha256": "f600a07967a474a16d9379323879b0fb630a39fbd93d873f7a34a02c61db7d4a",
       "executable": false
     },
     "tests/gauge-forecast.mjs": {
@@ -2537,7 +2537,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "174ad9885e6e036309504c1523c8aba42831174369826a6afc67f22a3c6379bc",
+      "sha256": "c0862777a17f7b04731faee90fd5da8b1dc7c6f52ddb133f95987e98dd9e60f0",
       "executable": false
     },
     "tests/gauge-portability.mjs": {

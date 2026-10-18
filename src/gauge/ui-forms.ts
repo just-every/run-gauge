@@ -3,7 +3,12 @@ export const escape=(v:unknown)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp
 // Labels sit above their control; the control keeps its public field name.
 export const input=(name:string,label:string,value:unknown='',type='text',required=true)=>`<label class="g-field"><span>${escape(label)}</span><input name="${name}" type="${type}" value="${escape(value)}" ${required?'required':''}></label>`
 // People enter dollars, hours and minutes; form-input.ts turns the unit-named fields back into cents and seconds.
-export const amount=(name:string,label:string,minor:unknown,required=true)=>`<label class="g-field"><span>${escape(label)}</span><input name="${name}" type="text" inputmode="decimal" value="${minor==null||minor===''?'':escape((Number(minor)/100).toFixed(Number(minor)%100?2:0))}" ${required?'required':''}></label>`
+const amountValue=(minor:unknown)=>{
+ if(minor==null||minor==='')return ''
+ const value=BigInt(String(minor)),absolute=value<0n?-value:value
+ return `${value<0n?'-':''}${absolute/100n}.${String(absolute%100n).padStart(2,'0')}`
+}
+export const amount=(name:string,label:string,minor:unknown,required=true)=>`<label class="g-field"><span>${escape(label)}</span><input name="${name}" type="text" inputmode="decimal" value="${escape(amountValue(minor))}" ${required?'required':''}></label>`
 export const duration=(name:string,label:string,seconds:unknown,per=3600,step='0.25')=>`<label class="g-field"><span>${escape(label)}</span><input name="${name}" type="number" min="0" step="${step}" value="${seconds==null||seconds===''?'':Math.round(Number(seconds)/per*10000)/10000}" required></label>`
 export const area=(name:string,label:string,value:unknown='')=>`<label class="g-field g-field--wide"><span>${escape(label)}</span><textarea name="${name}" rows="3" required>${escape(value)}</textarea></label>`
 export const select=(name:string,label:string,rows:Row[],selected?:unknown,optional=false)=>`<label class="g-field"><span>${escape(label)}</span><select name="${name}" ${optional?'':'required'}>${optional?'<option value="">None</option>':''}${rows.map(r=>`<option value="${escape(r.id)}" ${selected===r.id?'selected':''}>${escape(r.value.name??r.value.title??r.id)}</option>`).join('')}</select></label>`

@@ -25,7 +25,7 @@ Gauge is MIT licensed and runs on your own computer. Every record stays in your 
 
 ## What Gauge does not do
 
-Billing packets are preparation for your bookkeeper, not invoices. Gauge does not send invoices, take payments, run payroll, work out tax or post to a ledger; your accounting tool keeps doing that. Margin in Gauge is an operational calculation from the rates and terms you entered, not audited profit. Money is in Australian dollars, and every person and engagement has an explicit work timezone.
+Billing packets are preparation for your bookkeeper, not invoices. Gauge does not send invoices, take payments, run payroll, work out tax or post to a ledger; your accounting tool keeps doing that. Margin in Gauge is an operational calculation from the rates and terms you entered, not audited profit. New agencies default to USD and choose their currency and IANA work timezone during setup. Rates use the agency currency; project amounts and billing packets retain their engagement currency, with mismatches refused and no conversion. Existing historical amounts keep their stored currency. Every person and engagement has an explicit work timezone.
 
 ## Next
 

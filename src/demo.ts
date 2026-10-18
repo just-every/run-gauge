@@ -7,7 +7,7 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
  const owner = await env.DB.prepare("SELECT id FROM oa_operators WHERE email=? AND role='owner' AND status='active'").bind(ownerEmail).first<{ id: string }>()
  if (!owner) throw new Error('Demo owner is not ready')
  const records = demoRecords(now, owner.id, demoAgentId)
- const receipt = new TextEncoder().encode('Workshop materials\nAUD 86.50\nSample receipt for Gauge Demo\n')
+ const receipt = new TextEncoder().encode('Workshop materials\nUSD 86.50\nSample receipt for Gauge Demo\n')
  await env.DB.batch([
   ...teamStatements(env.DB, owner.id, now.getTime()),
   ...records.map(({ kind, id, value }) => env.DB.prepare(`INSERT INTO g_${kind}(id,revision,data) VALUES(?,?,?) ON CONFLICT(id) DO NOTHING`).bind(id, `${id}-v1`, JSON.stringify(value))),

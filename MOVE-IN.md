@@ -20,7 +20,13 @@ stable source IDs and namespace. Hosted upload capacity is unproven.
 Supply a JSON manifest:
 
 - `namespace`: stable source account identity; `coverage`: `all-time`;
-  `currency`: `AUD`; `units`: `decimal-hours`; `timezone`: explicit IANA zone.
+  `currency`: the package's explicit three-letter ISO currency code, matching the
+  saved agency currency; `units`: `decimal-hours`; `timezone`: explicit IANA zone.
+  New agencies default to USD. The manifest is required: the importer never infers
+  currency from CSV amounts or defaults an omitted currency. For example, an AUD
+  package sent to a USD agency is refused with “Harvest package uses AUD; agency
+  uses USD.” No conversion is performed. Imported engagements, rates and time
+  amounts retain the manifest currency; existing historical records keep theirs.
 - `columns`: optional maps keyed `clients`, `people`, `projects`, `time`, mapping
   semantic names to exported headers. Defaults are shown in the synthetic fixture.
   Clients need `id,name`; people `id,name`; projects `id,clientId,name`; time
@@ -29,15 +35,16 @@ Supply a JSON manifest:
   project ID to explicitly reviewed source person IDs (omission grants no members).
   Imported people never create operator accounts or role grants. Linking a native
   operator later is a separate owner action.
-- `rates`: source person ID to `{effective,costMinor,billMinor}`. Rates are AUD cents
-  per hour; cost may be explicitly null (unknown), bill must be resolved. A supplied
+- `rates`: source person ID to `{effective,costMinor,billMinor}`. Rates are exact
+  minor units of the declared currency per hour (cents for USD or AUD); cost may
+  be explicitly null (unknown), bill must be resolved. A supplied
   rate must cover every source work date for that person. This first adapter accepts
   one supplied historical rate per person/package; split periods or normalize with
   review when historical rates vary. It does not infer past rates from today's rate.
 - `reconciliation`: independent totals keyed by `clientSourceId` and reporting
   month (`YYYY-MM`), each with
   `{count,seconds,amountMinor}`. Amount is billable value at supplied exact rates,
-  rounded once per entry to cents; source duration has no billing increment rounding.
+  rounded once per entry to minor units; source duration has no billing increment rounding.
   Gauge refuses disagreement before preview. Compare these independently with the
   source report, not by copying Gauge's calculated answer.
 - Optional `schedulePeople` maps Person labels to source person IDs;
@@ -102,4 +109,5 @@ new migrations remain forward-only after the first release.
 - More than one historical rate per person in a package, rate history inferred from today's rates, and per-project or per-task billable rates (supply one reviewed rate per person and period).
 - User accounts, roles, permissions and project managers beyond the reviewed `projectLeads` and `projectMembers` maps; no operator account or grant is created.
 - Timer start and stop clock instants when the export has only dates and hours; Forecast Team schedules, periods as rows, leave, time off and placeholders.
-- Currencies other than AUD, and any write back to Harvest or Forecast.
+- Packages whose declared currency differs from the saved agency currency,
+  currency conversion, and any write back to Harvest or Forecast.

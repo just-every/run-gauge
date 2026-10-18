@@ -9,7 +9,7 @@ rer dev --stop
 rer export --output exports/gauge.rer
 ```
 
-The archive holds every record, every revision history row, every receipt file and every import original, with an integrity receipt. It leaves out sign-in sessions, credentials and private settings. Keep it somewhere safe: it contains your rates and costs.
+The archive holds every record, the saved agency currency and timezone, every revision history row, every receipt file and every import original, with an integrity receipt. Restoring it preserves stored currencies and amounts; it does not convert them. It leaves out sign-in sessions, credentials and private settings. Keep it somewhere safe: it contains your rates and costs.
 
 ## Restore into an empty Gauge
 

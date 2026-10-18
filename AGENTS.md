@@ -116,7 +116,7 @@ Every Gauge handler checks the native session, operator and Gauge grant itself
 (`src/gauge/store.ts`), and every write repeats that check inside the D1 batch
 that commits it. Keep it that way for new commands; route guards alone are not
 authorization. Writes take a request key and bind exact record revisions.
-Money is integer AUD cents; durations are whole seconds. Start local data empty:
+Money is integer cents in the agency currency; durations are whole seconds. Start local data empty:
 no seeded records, fake providers, fallbacks or mock behavior.
 
 Agents prepare; people decide. An `agent` grant may only `proposal:prepare` and

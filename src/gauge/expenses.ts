@@ -9,10 +9,13 @@ export async function expenseCommand(env: Bindings,a: Actor,tx: Transaction,acti
   need(!old || ['draft','returned'].includes(old.value.status),'Return the expense before editing')
   const person = await get(env,'people',text(input.personId,'Person')); need(finance(a) || a.personId === person.id,'Only your own expense',403)
   const e = await access(env,a,text(input.engagementId,'Engagement')); tx.observe('engagements',e); tx.observe('people',person)
-  return tx.record('expenses',{engagementId:e.id,personId:person.id,date:date(input.date),description:text(input.description,'Description'),amountMinor:money(input.amountMinor),currency:'AUD',reimbursable:flag(input.reimbursable),attachmentIds:old?.value.attachmentIds??[],status:'draft'},old)
+  const currency = old ? old.value.currency : e.value.currency
+  need(currency === e.value.currency && (input.currency === undefined || input.currency === currency), 'Expense currency differs from engagement; no implicit FX')
+  return tx.record('expenses',{engagementId:e.id,personId:person.id,date:date(input.date),description:text(input.description,'Description'),amountMinor:money(input.amountMinor),currency,reimbursable:flag(input.reimbursable),attachmentIds:old?.value.attachmentIds??[],status:'draft'},old)
  }
  need(old,'Expense not found',404)
  const e = await access(env,a,old.value.engagementId,['expense:approve','expense:return'].includes(action)); tx.observe('engagements',e)
+ need(input.currency === undefined || input.currency === old.value.currency, 'Currency differs from expense; no implicit FX')
  if (action === 'expense:file') {
   need(finance(a) || a.personId === old.value.personId,'Only your own attachment',403); need(['draft','returned'].includes(old.value.status),'Attachments are fixed at submission')
   const file=input.file; need(file instanceof File && file.size>0 && file.size<=1024*1024,'Upload a receipt up to 1 MiB'); need(['application/pdf','image/jpeg','image/png','text/plain'].includes(file.type),'Use PDF, PNG, JPEG or text')
@@ -21,7 +24,7 @@ export async function expenseCommand(env: Bindings,a: Actor,tx: Transaction,acti
  }
  const v={...old.value}
  if (action === 'expense:submit') { need(finance(a) || a.personId === v.personId,'Only your own expense',403); need(['draft','returned'].includes(v.status),'Already submitted'); v.status='submitted' }
- else if (action === 'expense:approve') { need(v.status==='submitted','Approve submitted expenses'); v.status='approved'; v.approvedBy=a.session.operator.id; v.approvedAt=Date.now() }
+ else if (action === 'expense:approve') { need(v.status==='submitted','Approve submitted expenses'); need(v.currency === e.value.currency, 'Expense currency differs from engagement; no implicit FX'); v.status='approved'; v.approvedBy=a.session.operator.id; v.approvedAt=Date.now() }
  else if (action === 'expense:return') { need(v.status==='submitted','Return submitted expenses'); v.status='returned'; v.reviewNote=text(input.reason,'Return reason') }
  else need(false,'Unknown expense command')
  return tx.record('expenses',v,old,undefined,action)

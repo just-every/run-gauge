@@ -1,0 +1,18 @@
+/* The agency choice follows the native setup form's input sizing and tokens. */
+.g-agency-currency {
+ appearance: none;
+ box-sizing: border-box;
+ width: 100%;
+ min-height: 44px;
+ padding: 10px 40px 10px 14px;
+ border: 1px solid var(--g-input, var(--rer-border));
+ border-radius: var(--g-radius-input, 8px);
+ background-color: var(--rer-surface);
+ background-image: linear-gradient(45deg, transparent 50%, var(--rer-muted) 50%), linear-gradient(135deg, var(--rer-muted) 50%, transparent 50%);
+ background-position: right 18px center, right 14px center;
+ background-size: 4px 4px;
+ background-repeat: no-repeat;
+ color: var(--rer-text);
+ font: inherit;
+}
+.g-agency-currency:focus-visible { outline: 3px solid var(--rer-focus); outline-offset: 3px; }

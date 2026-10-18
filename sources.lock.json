@@ -547,11 +547,11 @@
       "executable": false
     },
     "public/rer-theme.css": {
-      "sha256": "96707a4a1ed7af5d7d09f938d68001d9c23acfb5f379bfcca32b9b3f15925a8b",
+      "sha256": "2548b0693227dd0660594794d97d58ac4e875fe798c7e2964c4fddb21e43407f",
       "executable": false
     },
     "public/site/band-1536.webp": {
-      "sha256": "2ed7e87ccefcec28adc1eda62cbff930594a3cddad08adfc321b9e15b61bcee7",
+      "sha256": "a6c87df7e26c448239d62093472e19dfd442e74f2ed1ba7088cfe40a41d92470",
       "executable": false
     },
     "public/site/closing-1152.avif": {
@@ -2607,7 +2607,7 @@
       "executable": false
     },
     "src/site/pages.ts": {
-      "sha256": "151450bd9955be5af2a8c9258bc6d342b22c8cfbefbe8733b1e3e368d0628ab0",
+      "sha256": "521b82229e2dd3563b8c846247f5a379a34b87757b77970c16eba8d2cf250e49",
       "executable": false
     },
     "src/site/run.json": {
@@ -2619,7 +2619,7 @@
       "executable": false
     },
     "src/site/styles/cards.css": {
-      "sha256": "65137e72abfdec2fcdf796d2ce4b3268e94dea297800fc31df470e828fb90383",
+      "sha256": "11731cb521394f161649c6f4476e4227517e6c4c5bda5e5edb0b988199a06b40",
       "executable": false
     },
     "src/site/styles/docs.css": {

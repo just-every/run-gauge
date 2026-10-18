@@ -50,7 +50,7 @@
 
 /* Base's no-JavaScript documents (sign-in, /setup, account): Gauge's white card on pale turquoise-grey paper with the
    promenade along the page bottom. These rules only restyle Base's frame; its markup is unchanged. */
-html.rer-themed body { padding-bottom: 188px; background: url('/site/band-1536.webp') center bottom / auto 170px repeat-x, var(--g-pale); font-size: 16px; }
+html.rer-themed body { padding-bottom: 300px; background: url('/site/band-1536.webp') center bottom / max(100%, 1100px) auto no-repeat, var(--g-pale); font-size: 16px; }
 html.rer-themed main { margin-top: 10vh; border: 1px solid var(--g-hair); box-shadow: var(--g-card-shadow); border-radius: var(--rer-radius); text-align: left; }
 html.rer-themed :is(.rer-brand, .brand) { justify-content: center; font-size: 26px; font-weight: 800; letter-spacing: var(--rer-wordmark-tracking); }
 html.rer-themed h1 { text-align: center; font-size: 34px; font-weight: 800; letter-spacing: -0.02em; word-spacing: .1em; }
@@ -60,7 +60,8 @@ html.rer-themed dt, html.rer-themed dd { padding: 12px 0; border-bottom: 1px sol
 html.rer-themed label { font-size: 14px; font-weight: 600; }
 html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 44px; border-color: var(--g-input); border-radius: var(--g-radius-input); }
 html.rer-themed button { border-radius: var(--rer-button-radius); min-height: 48px; font-weight: 600; }
-@media (max-width: 480px) { html.rer-themed body { padding-bottom: 130px; background-size: auto 120px, auto; } html.rer-themed main { margin-top: 4vh; } }
+@media (max-width: 760px) { html.rer-themed body { padding-bottom: 210px; background-size: 760px auto, auto; } }
+@media (max-width: 480px) { html.rer-themed main { margin-top: 4vh; } }
 
 /* Base's run-site documents (/run, /contract and the not-found page): the homepage's header, heavy serif headings,
    white step cards and ink code cards over the promenade band. These rules only restyle Base's frame; its markup is
@@ -76,14 +77,19 @@ body:has(> .art) .num { background: var(--g-ink); color: #fff; font-weight: 800;
 body:has(> .art) .step h2 { font-weight: 700; letter-spacing: -0.015em; word-spacing: .1em; }
 body:has(> .art) .code { background: var(--g-navy); color: #E8F1F2; border-radius: 10px; }
 body:has(> .art) .art { height: 200px; min-height: 0; }
-body:has(> .art) .art img { object-position: center 32%; }
+body:has(> .art) .art img { object-position: center 40%; }
 body:has(> .art) .art::before { content: ''; position: absolute; inset: 0 0 auto; height: 70px; background: linear-gradient(var(--rer-page), transparent); }
 body:has(> .art) main { padding-bottom: calc(200px + 56px); }
+/* Base's /contract page: its serif headings keep open word spaces at their tight tracking. */
+body:has(#g-done) :is(h1, h2, h3), body:has(#g-done) .big { word-spacing: .12em; }
+
 /* Base wraps its code cards only at 760 px and below; between that and 860 px the Copy button sat on the command. */
-@media (max-width: 860px) {
-  body:has(> .art) .code pre { padding: 46px 14px 14px; font-size: 13.5px; white-space: pre; overflow-x: auto; }
+@media (min-width: 761px) and (max-width: 860px) {
+  body:has(> .art) .code pre { padding: 46px 14px 14px; font-size: 14px; white-space: pre-wrap; }
   body:has(> .art) .copy { top: 8px; right: 8px; transform: none; }
 }
+body:has(> .art) .nw { white-space: nowrap; }
+@media (max-width: 400px) { body:has(> .art) .code pre { font-size: 12px; padding-inline: 12px; } }
 @media (max-width: 760px) {
   body:has(> .art) .bar { width: calc(100% - 32px); padding: 16px 0 12px; }
   body:has(> .art) .brand { font-size: 25px; gap: 9px; }

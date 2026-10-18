@@ -13,8 +13,10 @@ import { iconLinks, type SiteLinks } from './shell/frame'
 import { landingHtml } from './landing'
 import { docsArticleHtml, docsIndexHtml, docsPages } from './docs/pages'
 
-/** Base's shared pages link the full mark as their icon; the site gives them the pixel-fitted favicons instead. */
+/** Base's shared pages link the full mark as their icon; the site gives them the pixel-fitted favicons instead, and
+ * keeps a command's repository, folder and pipe from breaking mid-token. */
 const baseIcons = (html: string) => html.replace(`<link rel="icon" href="${identity.mark}">`, iconLinks)
+ .replace(/<code>([^<]*)<\/code>/g, (_, text: string) => `<code>${text.replace(/[^\s]*run-gauge\b/g, token => `<span class="nw">${token}</span>`).replace(/(\S+ \| sh)\b/g, '<span class="nw">$1</span>')}</code>`)
 
 export function sitePages({ styles, contract }: SiteContext): SiteBuild {
  const data: RunData = run

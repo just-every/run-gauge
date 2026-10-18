@@ -32,7 +32,7 @@
 .avatar--lilac { background: #ECE8F6; color: #5B4E8F; }
 .avatar--sun { background: #FBF0CF; color: #8A6A10; }
 .avatar--fog { background: var(--g-fill); color: var(--g-slate); }
-.avatar--n0, .avatar--n1, .avatar--n2, .avatar--n3 { width: 32px; height: 32px; font-size: 12.5px; }
+.avatar--n0, .avatar--n1, .avatar--n2, .avatar--n3 { width: 34px; height: 34px; font-size: 13px; }
 .avatar--n0 { background: #DCEFF1; color: #1C6E76; } .avatar--n1 { background: #DEE5EC; color: #3C5368; } .avatar--n2 { background: #E8ECE4; color: #55613F; } .avatar--n3 { background: #EFE7E1; color: #7A5638; }
 .radio { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #A9B5BC; background: #fff; }
 .is-picked .radio { border: 6px solid var(--g-turquoise); }
@@ -394,7 +394,7 @@
   .button-look--wide { min-width: 0; width: 100%; }
   .queue-head { grid-template-columns: minmax(0, 1fr) 72px; }
   .ring { width: 72px; height: 72px; }
-  .ring b { font-size: 12.5px; }
+  .ring b { font-size: 13px; }
   .queue-rows li { font-size: 15px; gap: 12px; }
   .queue-total { font-size: 17px; }
   .rc-alert { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: start; }

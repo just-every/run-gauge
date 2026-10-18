@@ -46,7 +46,7 @@
 
 /* Page title: the heavy serif, the page's own controls on the right. */
 .g-titlebar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-top: 4px; }
-.g-main h1 { font-family: var(--rer-font-heading); font-size: 46px; line-height: 1.05; font-weight: 800; letter-spacing: -0.035em; word-spacing: .08em; font-variation-settings: 'opsz' 60; }
+.g-main h1 { font-family: var(--rer-font-heading); font-size: 46px; line-height: 1.05; font-weight: var(--g-headline-weight); letter-spacing: var(--g-subhead-track); word-spacing: var(--g-headline-space); font-variation-settings: 'opsz' 60; }
 
 @media (max-width: 1180px) { :root { --g-rail: 76px; } .g-app .g-brand span, .g-menu a span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } .g-app .g-brand { padding-left: 24px; } .g-menu a { padding: 0 0 0 26px; } }
 /* Under 900 px the rail folds into a top bar; its links open from Menu. */

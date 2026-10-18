@@ -38,7 +38,12 @@ const lanes: Lane[] = [
   [['capitol', 12, 'tentative']] ] },
 ]
 const label = (b: Booking, lane: Lane, i: number) => lane.name === 'Tom Becker (1099)' && i === 1 ? '+ Diego’s 14' : `${b[0] === 'pacific' && lane.name === 'Priya Patel' ? 'Pacific Trail UX' : clientName[b[0]]} ${b[1]}`
-const bar = (b: Booking, lane: Lane, week: number, i: number) => `<span class="sb sb--${b[0]}${b[2] ? ` sb--${b[2]}` : ''}" style="--h:${week === 0 ? 88 : Math.round(58 + Math.min(b[1] / 28, 1) * 36)}%" title="${clientName[b[0]]} · ${b[1]} hrs${b[2] ? ` · ${b[2] === 'struck' ? 'out sick' : 'tentative'}` : ''}">${week === 0 ? `<span>${label(b, lane, i)}</span>` : ''}</span>`
+/** Later weeks are unlabelled, except the new Rose City retainer where it starts. */
+const later = (b: Booking) => b[0] === 'rose' ? `${clientName.rose}${dot}retainer` : ''
+const bar = (b: Booking, lane: Lane, week: number, i: number) => {
+ const text = week === 0 ? label(b, lane, i) : later(b)
+ return `<span class="sb sb--${b[0]}${b[2] ? ` sb--${b[2]}` : ''}${week > 0 && text ? ' sb--note' : ''}" style="--h:${text ? 88 : Math.round(58 + Math.min(b[1] / 28, 1) * 36)}%" title="${clientName[b[0]]} · ${b[1]} hrs${b[2] ? ` · ${b[2] === 'struck' ? 'out sick' : 'tentative'}` : ''}">${text ? `<span>${text}</span>` : ''}</span>`
+}
 
 function board() {
  const headRow = `<div class="sg-corner"></div>${weeks.map((w, i) => `<div class="sg-week"><span>${w}</span>${i === 3 ? `<em class="sg-launch">Cascade Cider launch&nbsp;· ${nw('Fri Nov 13')}</em>` : i === 4 ? `<em class="sg-launch">Pacific Trail launch&nbsp;· ${nw('Fri Nov 20')}</em>` : ''}</div>`).join('')}`

@@ -12,6 +12,9 @@
   --rer-wordmark-weight: 800;
   --rer-wordmark-tracking: -0.02em;
   --g-weight-body: 400; --g-weight-strong: 600;
+  /* the site's headlines: the black display cut (weight 900, optical size 60) set tight, with word spaces kept at
+     a quarter em or more; smaller serif headings track a little looser */
+  --g-headline-weight: 900; --g-headline-track: -0.055em; --g-headline-space: .125em; --g-subhead-track: -0.035em;
   /* colour: Base's names */
   --rer-page: #FFFFFF;
   --rer-surface: #FFFFFF;
@@ -47,7 +50,7 @@ html.rer-themed body { padding: 88px 32px 64px calc(var(--g-rail) + 32px); backg
 html.rer-themed body::before { content: ''; position: fixed; inset: 0 auto 0 0; width: var(--g-rail); background: var(--rer-logo) 26px 24px / 28px 28px no-repeat, var(--g-navy); }
 html.rer-themed main { max-width: 520px; padding: 32px 36px; border: 1px solid var(--g-hair); box-shadow: var(--g-card-shadow); border-radius: var(--g-radius-card); text-align: left; }
 html.rer-themed :is(.rer-brand, .brand) { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
-html.rer-themed h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.035em; word-spacing: .08em; font-variation-settings: 'opsz' 60; }
+html.rer-themed h1 { font-size: 34px; font-weight: var(--g-headline-weight); letter-spacing: var(--g-subhead-track); word-spacing: var(--g-headline-space); font-variation-settings: 'opsz' 60; }
 html.rer-themed dl { grid-template-columns: 7em minmax(0, 1fr); gap: 0; }
 html.rer-themed dt, html.rer-themed dd { padding: 11px 0; border-bottom: 1px solid var(--g-hair); }
 html.rer-themed label { color: var(--g-slate); font-size: 13px; font-weight: 500; }
@@ -69,10 +72,10 @@ body:has(> .art) .bar { width: min(100% - 96px, 1276px); max-width: none; paddin
 body:has(> .art) .brand { gap: 12px; font-size: 30px; font-weight: 800; letter-spacing: var(--rer-wordmark-tracking); font-variation-settings: 'opsz' 48; }
 body:has(> .art) .brand img { width: 32px; height: 32px; }
 body:has(> .art) .bar nav { gap: 44px; font-size: 18px; font-weight: 400; }
-body:has(> .art) h1 { font-weight: 800; letter-spacing: -0.03em; word-spacing: .12em; font-variation-settings: 'opsz' 60; }
+body:has(> .art) h1 { font-weight: var(--g-headline-weight); letter-spacing: var(--g-headline-track); word-spacing: var(--g-headline-space); font-variation-settings: 'opsz' 60; }
 body:has(> .art) .step { background: var(--rer-surface); border-color: var(--g-hair); box-shadow: var(--g-card-shadow); backdrop-filter: none; border-radius: 14px; }
 body:has(> .art) .num { background: var(--g-ink); color: #fff; font-weight: 800; }
-body:has(> .art) .step h2 { font-weight: 700; letter-spacing: -0.015em; word-spacing: .1em; }
+body:has(> .art) .step h2 { font-weight: var(--g-headline-weight); letter-spacing: var(--g-subhead-track); word-spacing: .12em; font-variation-settings: 'opsz' 60; }
 body:has(> .art) .code { background: var(--g-navy); color: #E8F1F2; border-radius: 10px; }
 body:has(> .art) .art { height: 200px; min-height: 0; }
 body:has(> .art) .art img { object-position: center 40%; }

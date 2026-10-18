@@ -47,7 +47,7 @@
 
 /* 02 the month on one axis */
 .tl { margin-top: 44px; padding: 40px 44px 28px; }
-.tl-track { position: relative; height: 480px; margin: 0 24px; }
+.tl-track { position: relative; height: 520px; margin: 0 24px; }
 .tl-axis { position: absolute; inset: 0; overflow: visible; }
 .tl-base { stroke: #C9D4D8; stroke-width: 1.5; }
 .tl-tick { stroke: #B5C1C6; stroke-width: 1; }
@@ -58,7 +58,8 @@
 .tl-stop { position: absolute; left: var(--slot); width: max-content; max-width: var(--max, 196px); }
 .tl-stop--up { top: 0; height: 130px; display: flex; flex-direction: column; justify-content: flex-end; }
 .tl-stop--down { top: 270px; }
-.tl-stop--end { left: auto; right: 0; text-align: right; align-items: flex-end; }
+.tl-stop--low { top: 408px; }
+.tl-stop--end { left: auto; right: var(--inset, 0); text-align: right; align-items: flex-end; }
 .tl-date { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
 .tl-row { margin-top: 8px; }
 .tl-row p { margin-top: 8px; color: var(--g-slate); font-size: 16px; line-height: 1.45; }
@@ -146,6 +147,9 @@
 .sg-cell--span { grid-column: span 2; }
 .sb { --tint: #DDEFF2; position: relative; display: flex; align-items: center; height: 26px; width: 100%; border-radius: 4px; color: #fff; font-size: 14px; font-weight: 500; white-space: nowrap; background: linear-gradient(90deg, var(--solid) 0 var(--h, 86%), var(--tint) var(--h, 86%)); }
 .sb > span { position: relative; padding: 0 10px; }
+/* a note bar (Rose City's retainer) wraps inside its solid part rather than running onto the open tint */
+.sb--note { height: auto; min-height: 26px; padding: 4px 0; font-size: 13px; line-height: 1.2; white-space: normal; }
+.sb--note > span { max-width: var(--h); }
 .sb--cascade { --solid: var(--c-cascade); --tint: #C9EEF1; } .sb--pacific { --solid: var(--c-pacific); --tint: #CFDDEB; } .sb--willamette { --solid: var(--c-willamette); --tint: #E0E6CF; }
 .sb--treasure { --solid: var(--c-treasure); --tint: #F2DCC9; } .sb--capitol { --solid: var(--c-capitol); --tint: #F6E8BF; color: var(--g-ink); } .sb--rose { --solid: var(--c-rose); --tint: #E4D9EA; }
 .sb--tentative { background: repeating-linear-gradient(135deg, #B9D9E6 0 3px, #EAF4F8 3px 7px); color: var(--g-ink); }

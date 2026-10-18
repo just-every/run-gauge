@@ -1,12 +1,18 @@
 // The page forms speak in people's units: dollars, hours, minutes, local wall-clock
 // times and weekday checkboxes. This turns a posted form into the command input the
-// API takes (AUD cents, seconds, instants with a UTC offset, "1,2,3,4,5"), so stored
+// API takes (currency minor units, seconds, instants with a UTC offset, "1,2,3,4,5"), so stored
 // fields and the command API never change. Field names carry their unit: amountDollars
 // becomes amountMinor, effortHours becomes effortSeconds, startLocal becomes start.
 import { type Value, need, zone } from './model'
 
 const lists = ['members', 'sources']
 const decimal = (raw: string, label: string) => { need(/^\d+(\.\d+)?$/.test(raw.trim()), `${label}: enter a number such as 7.5`); return Number(raw.trim()) }
+const cents = (raw: string) => {
+ need(/^\d+(\.\d+)?$/.test(raw.trim()), 'Amount: enter a number such as 7.5')
+ const [whole, fraction = ''] = raw.trim().split('.'), minor = BigInt(whole) * 100n + BigInt(fraction.slice(0, 2).padEnd(2, '0')) + (Number(fraction[2] ?? 0) >= 5 ? 1n : 0n)
+ need(minor <= BigInt(Number.MAX_SAFE_INTEGER), 'Amount is too large')
+ return Number(minor)
+}
 
 /** The UTC offset ("+10:00") a timezone has at one instant. */
 function offsetMinutes(ms: number, timeZone: string) {
@@ -36,7 +42,7 @@ export function formInput(form: FormData): Value {
  for (const key of Object.keys(input)) {
   const raw = input[key]; if (typeof raw !== 'string') continue
   const base = key.replace(/(Dollars|Hours|Minutes|Local)$/, '')
-  if (key.endsWith('Dollars')) input[`${base}Minor`] = raw.trim() === '' ? '' : Math.round(decimal(raw, 'Amount in dollars') * 100)
+  if (key.endsWith('Dollars')) input[`${base}Minor`] = raw.trim() === '' ? '' : cents(raw)
   else if (key.endsWith('Hours')) input[`${base}Seconds`] = Math.round(decimal(raw, 'Hours') * 3600)
   else if (key.endsWith('Minutes')) input[`${base}Seconds`] = Math.round(decimal(raw, 'Minutes') * 60)
   else if (key.endsWith('Local')) { if (raw === '') continue; input[base] = zonedInstant(raw, zone(input.timezone)) }

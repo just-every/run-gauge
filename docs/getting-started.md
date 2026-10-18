@@ -12,7 +12,9 @@ To stop Gauge, run `rer dev --stop`. Run `rer dev` again whenever you want to us
 
 ## Finish setup
 
-The first time you open Gauge it shows **Finish setup**. Check your name and email, tick **I confirm this owner account is ready to use.** and choose **Finish setup**. Gauge opens on **Review**, which is empty until you add work.
+The first time you open Gauge it shows **Finish setup**. Check your name and email, choose your **Agency currency** and **Work timezone**, tick **I confirm this owner account is ready to use.** and choose **Finish setup**. Gauge opens on **Review**, which is empty until you add work.
+
+New agencies default to USD and `America/Los_Angeles`. Setup also supports AUD, CAD, EUR, GBP, NZD, CHF and SGD. All supported currencies use two decimal places. New engagements and rates use the saved agency currency; existing records retain their stored currency. Gauge does not convert money.
 
 After setup, the address Gauge prints shows a small page with **Sign in**. Gauge itself lives at `/app`.
 
@@ -26,7 +28,7 @@ Gauge starts with no records; nothing is made up for you. As the owner you hold 
 4. Add the engagement's tasks under **Task and remaining effort**, and any fixed-fee milestones.
 5. On **Rates**, add cost and bill rates for each person, or for a service.
 
-Enter amounts in Australian dollars and durations in hours, the way Gauge shows them everywhere else.
+Enter amounts in the currency shown beside the field and durations in hours. Budgets, expenses and billing packets follow their engagement currency; a currency mismatch is refused.
 
 ## Bring in your team
 

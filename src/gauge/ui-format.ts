@@ -1,5 +1,5 @@
-// How Gauge shows stored values to people: whole seconds as hours, integer AUD
-// cents as dollars, YYYY-MM-DD dates and instants in the work timezone, record
+// How Gauge shows stored values to people: whole seconds as hours, integer minor
+// units in their stored currency, YYYY-MM-DD dates and instants in the work timezone, record
 // ids as the names they point to. Stored values never change here.
 import type { Row } from './model'
 import { escape as e } from './ui-forms'
@@ -7,10 +7,11 @@ import { escape as e } from './ui-forms'
 const number = (value: number, digits = 2) => value.toLocaleString('en-AU', { maximumFractionDigits: digits })
 // A no-break space keeps a number with its unit and a date in one piece when a line wraps.
 export const hours = (seconds: number | null | undefined) => seconds == null ? 'Unknown' : `${seconds < 0 ? '−' : ''}${number(Math.abs(seconds) / 3600)}\u00a0h`
-export function money(minor: number | null | undefined) {
+export function money(minor: number | null | undefined, currency = 'USD') {
  if (minor == null) return 'Unknown'
- const dollars = Math.abs(minor) / 100, digits = minor % 100 ? 2 : 0
- return `${minor < 0 ? '−' : ''}A$${dollars.toLocaleString('en-AU', { minimumFractionDigits: digits, maximumFractionDigits: 2 })}`
+ const cents = BigInt(Math.abs(minor)), fraction = String(cents % 100n).padStart(2, '0')
+ const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).formatToParts(cents / 100n).map(p => p.type === 'fraction' ? fraction : p.value).join('')
+ return `${minor < 0 ? '−' : ''}${amount}`
 }
 const calendar = new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 export const day = (date: string | null | undefined) => date ? calendar.format(new Date(`${date}T00:00:00Z`)).replace(/ /g, '\u00a0') : '—'
@@ -22,7 +23,7 @@ export function period(from: string, to: string) {
  return `${a.getUTCFullYear() === b.getUTCFullYear() ? day(from).replace(`\u00a0${a.getUTCFullYear()}`, "") : day(from)} – ${day(to)}`
 }
 /** An instant in a work timezone: "6 Oct 2026, 10:00". */
-export const when = (ms: number | null | undefined, timeZone = 'Australia/Brisbane') => ms == null ? '—' : new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone }).format(ms)
+export const when = (ms: number | null | undefined, timeZone = 'UTC') => ms == null ? '—' : new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone }).format(ms)
 const clock = (ms: number, timeZone: string) => new Intl.DateTimeFormat('en-AU', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone }).format(ms)
 /** A worked interval: "Tue 6 Oct, 09:00 → 11:00". */
 export function interval(start: string | number, end: string | number, timeZone: string) {

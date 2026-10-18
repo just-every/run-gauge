@@ -1,5 +1,5 @@
 import type { Bindings } from '../auth.server'
-import { type Value, type Kind, type Row, need, text, integer, money, date, zone, flag } from './model'
+import { type Value, type Kind, type Row, need, text, integer, money, date, zone, flag, sum } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
 export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | Value | null> {
  if (action === 'grant') {
@@ -27,18 +27,22 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  if (k === 'engagements') {
   const client = await get(env,'clients',text(input.clientId,'Client')), lead = await get(env,'people',text(input.leadId,'Lead'))
   tx.observe('clients',client); tx.observe('people',lead)
-  v.clientId = client.id; v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = 'AUD'; v.timezone = zone(input.timezone)
+  v.clientId = client.id; v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = previous ? previous.value.currency : a.currency; v.timezone = zone(input.timezone)
   v.members = Array.isArray(input.members) ? input.members : String(input.members ?? '').split(',').filter(Boolean)
   for (const id of v.members) tx.observe('people',await get(env,'people',id))
  }
  if (['budgets','tasks','milestones','staffing'].includes(k)) {
   const e = await access(env,a,text(input.engagementId,'Engagement'),true); tx.observe('engagements',e); v.engagementId = e.id
   if (previous) need(previous.value.engagementId === e.id, 'Cannot move a record between engagements')
+  if (k === 'budgets' || k === 'milestones') {
+   v.currency = previous?.value.currency ?? e.value.currency
+   need(v.currency === e.value.currency, 'Currency differs from engagement; no implicit FX')
+  }
  }
  if (k === 'budgets') {
   need(!previous, 'Budget versions are append-only; create a change order')
   need(['hourly','fixed'].includes(input.mode),'Choose hourly or fixed terms')
-  v.mode = input.mode; v.amountMinor = money(input.amountMinor); v.currency = 'AUD'; v.effortSeconds = integer(input.effortSeconds,'Estimated effort seconds'); v.roundingSeconds = integer(input.roundingSeconds,'Billing rounding seconds',1,3600); v.reason = text(input.reason,'Terms / change-order reason'); v.status = 'draft'; v.createdAt = Date.now()
+  v.mode = input.mode; v.amountMinor = money(input.amountMinor); v.effortSeconds = integer(input.effortSeconds,'Estimated effort seconds'); v.roundingSeconds = integer(input.roundingSeconds,'Billing rounding seconds',1,3600); v.reason = text(input.reason,'Terms / change-order reason'); v.status = 'draft'; v.createdAt = Date.now()
  }
  if (k === 'tasks') { v.name = text(input.name,'Task'); v.remainingSeconds = integer(input.remainingSeconds,'Remaining effort seconds') }
  if (k === 'milestones') { v.name = text(input.name,'Milestone'); v.due = date(input.due); v.amountMinor = money(input.amountMinor); v.status = 'draft'; need(!previous || previous.value.status === 'draft','Approved milestone needs a new milestone') }
@@ -46,7 +50,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   need(!previous, 'Rates are immutable; add an effective-dated version')
   v.personId = input.personId || null; v.service = text(input.service || '*','Service'); if (v.personId) tx.observe('people',await get(env,'people',v.personId))
   need(v.personId || v.service !== '*','Choose a person or named service')
-  v.effective = date(input.effective); v.costMinor = input.costMinor === '' || input.costMinor === null || input.costMinor === undefined ? null : money(input.costMinor); v.billMinor = money(input.billMinor); v.currency = 'AUD'
+  v.effective = date(input.effective); v.costMinor = input.costMinor === '' || input.costMinor === null || input.costMinor === undefined ? null : money(input.costMinor); v.billMinor = money(input.billMinor); v.currency = a.currency
   tx.guard("NOT EXISTS(SELECT 1 FROM g_rates WHERE COALESCE(json_extract(data,'$.personId'),'')=COALESCE(?,'') AND json_extract(data,'$.service')=? AND json_extract(data,'$.effective')=?)",v.personId,v.service,v.effective)
  }
  if (['calendars','leave','staffing'].includes(k)) {
@@ -57,19 +61,26 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   if (k === 'leave') { v.dailySeconds = integer(input.dailySeconds,'Leave seconds per day',0,86400); v.note = text(input.note,'Leave reason') }
   if (k === 'staffing') { v.dailySeconds = integer(input.dailySeconds,'Allocation seconds per day',0,86400); need(['tentative','committed'].includes(input.commitment),'Choose tentative or committed'); v.commitment = input.commitment }
  }
+ if (v.currency !== undefined) need(input.currency === undefined || input.currency === v.currency, 'Currency differs from record; no implicit FX')
  return tx.record(k,v,previous)
 }
 export async function approveTerms(env: Bindings,a: Actor,tx: Transaction, k: 'budgets'|'milestones', input: Value) {
  // Approval binds the revision the person reviewed: the guard observes this exact read, so a concurrent edit makes it fail.
  const row = await get(env,k,text(input.id,'Record')); need(row.revision === input.revision,'Revision changed',409); const e = await access(env,a,row.value.engagementId,true); tx.observe('engagements',e)
  need(row.value.status === 'draft','Already reviewed',409)
+ // Older milestones inherit their engagement's currency; saved historical rows are left intact.
+ need((row.value.currency ?? (k === 'milestones' ? e.value.currency : undefined)) === e.value.currency, 'Terms currency differs from engagement; no implicit FX')
+ need(input.currency === undefined || input.currency === e.value.currency, 'Currency differs from engagement; no implicit FX')
  const approval: Value = { status: 'approved', approvedBy: a.session.operator.id, approvedAt: Date.now() }
  if (k === 'milestones') {
   const budgets = (await all(env,'budgets')).filter(b => b.value.engagementId === e.id && b.value.status === 'approved').sort((x,y) => y.value.approvedAt-x.value.approvedAt)
   need(budgets[0]?.value.mode === 'fixed','Approve fixed-fee terms first'); tx.observe('budgets',budgets[0]); approval.budgetId = budgets[0].id
+  need(budgets[0].value.currency === e.value.currency, 'Budget currency differs from engagement; no implicit FX')
   const approved = (await all(env,'milestones')).filter(m => m.value.engagementId === e.id && m.value.status === 'approved')
-  need(approved.reduce((n,m)=>n+m.value.amountMinor,0)+row.value.amountMinor<=budgets[0].value.amountMinor,'Milestones exceed the agreed fixed fee')
-  tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM g_milestones WHERE engagement_id=? AND status='approved')=?",e.id,approved.reduce((n,m)=>n+m.value.amountMinor,0))
+  for (const milestone of approved) { need((milestone.value.currency ?? e.value.currency) === e.value.currency, 'Milestone currency differs from engagement; no implicit FX'); tx.observe('milestones',milestone) }
+  const approvedMinor = sum(approved.map(m=>m.value.amountMinor))
+  need(sum([approvedMinor,row.value.amountMinor])<=budgets[0].value.amountMinor,'Milestones exceed the agreed fixed fee')
+  tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM g_milestones WHERE engagement_id=? AND status='approved')=?",e.id,approvedMinor)
  }
  return tx.record(k,{...row.value,...approval},row,undefined,'approve')
 }

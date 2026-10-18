@@ -12,12 +12,12 @@ export function timeSection(a: Actor, report: Report, options: Value) {
  const own = finance(a) || t.personId === a.personId, editable = !row || (own && ['draft', 'returned'].includes(t.status))
  const people = finance(a) ? d.people : d.people.filter(p => p.id === a.personId)
  let body = '<h1>Time and approvals</h1><p class="g-lede">Record actual duration in an explicit work timezone. Approval fixes rates, rounding and the exact revision. Correct an approved entry with a reason before editing it.</p>'
- const zone = t.timezone ?? 'Australia/Brisbane'
+ const zone = t.timezone ?? report.agency.timezone
  // Start and End are wall-clock times in the Work timezone below; the server adds its UTC offset.
  const interval = t.source?.clockInstants === 'not-supplied' ? i('workDate', 'Work date', t.workDate, 'date') + duration('durationHours', 'Actual duration (hours)', t.durationSeconds) : i('startLocal', 'Start', localValue(t.start, zone), 'datetime-local') + i('endLocal', 'End', localValue(t.end, zone), 'datetime-local')
  const forms = []
  if (editable) forms.push(form('time:save', row ? 'Correct time entry' : 'Manual time', s('engagementId', 'Engagement', d.engagements, t.engagementId) + s('personId', 'Person', people, t.personId ?? a.personId) + s('taskId', 'Task', d.tasks, t.taskId) + i('service', 'Service', t.service ?? 'Delivery') + interval + i('timezone', 'Work timezone', zone) + area('notes', 'Work notes', t.notes) + check('billable', 'Billable', t.billable ?? true), row, 'Save', 'g-card--form'))
- forms.push(form('timer:start', 'Start persistent timer', s('engagementId', 'Engagement', d.engagements) + s('personId', 'Person', people, a.personId) + s('taskId', 'Task', d.tasks) + i('service', 'Service', 'Delivery') + i('timezone', 'Work timezone', 'Australia/Brisbane') + area('notes', 'Work notes') + check('billable', 'Billable', true), undefined, 'Save', 'g-card--form'))
+ forms.push(form('timer:start', 'Start persistent timer', s('engagementId', 'Engagement', d.engagements) + s('personId', 'Person', people, a.personId) + s('taskId', 'Task', d.tasks) + i('service', 'Service', 'Delivery') + i('timezone', 'Work timezone', report.agency.timezone) + area('notes', 'Work notes') + check('billable', 'Billable', true), undefined, 'Save', 'g-card--form'))
  body += forms.join('')
  // Entries waiting for a decision come first, as on Review.
  const recorded = [...d.time.filter(r => r.value.status === 'submitted'), ...d.time.filter(r => r.value.status !== 'submitted')]

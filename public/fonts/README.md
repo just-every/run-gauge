@@ -1,5 +1,16 @@
 # Fonts
 
+Gauge self-hosts three faces, each under the SIL Open Font License 1.1 with its licence beside the files:
+
+| Face | Use | Files | Source |
+| --- | --- | --- | --- |
+| Mona Sans | body, interface, numbers | `mona-sans/` | Mona Sans 2.0.27 (see below) |
+| Source Serif 4 | headings and the wordmark (optical size 8–60, weight 200–900) | `source-serif-4/` (Latin and Latin Extended) | `@fontsource-variable/source-serif-4` 5.3.1, the Google Fonts build (Adobe; `LICENSE.txt`) |
+| JetBrains Mono | commands and code | `jetbrains-mono/` (Latin) | `@fontsource-variable/jetbrains-mono` 5.3.0 (`LICENSE.txt`) |
+
+Source Serif 4 and JetBrains Mono are the unmodified Fontsource WOFF2 subsets. Their fallbacks are plain Georgia and
+the platform monospace, without metric overrides.
+
 Mona Sans is self-hosted under the SIL Open Font License 1.1 in
 `mona-sans/LICENSE.txt`. The two WOFF2 files are `MonaSansVF[opsz,wght].woff2`
 from the Mona Sans 2.0.27 webfonts release (https://github.com/github/mona-sans),

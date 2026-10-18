@@ -39,5 +39,5 @@
 .g-chip--warn { color: var(--g-warn); background: var(--g-warn-wash); border-color: color-mix(in srgb, var(--g-warn) 45%, transparent); }
 .g-sheet .g-chip { color: #fff; }
 
-.g-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--rer-text); text-decoration: none; font-family: var(--rer-font-heading); font-weight: 700; font-size: 22px; letter-spacing: var(--g-track-heading); }
-.g-brand img { display: block; width: 38px; height: 20px; }
+.g-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--rer-text); text-decoration: none; font-family: var(--rer-font-heading); font-weight: 800; font-size: 24px; letter-spacing: var(--g-track-heading); }
+.g-brand img { display: block; width: 26px; height: 26px; }

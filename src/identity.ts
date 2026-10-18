@@ -8,7 +8,7 @@ export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
   purpose: '{deployment} keeps agency engagements, time approval, capacity and billing preparation in your own workspace.',
-  tagline: 'Approve your team’s time, see next month’s capacity, and hand your bookkeeper one clean billing packet.',
+  tagline: 'Gauge carries each engagement from estimate and retainer through staffing, time and invoices to cash, and plans the recovery when a project drifts.',
   signInPath: '/signin',
   // The run site `rer deploy --site` publishes (deploy-site.json).
   runSite: `https://${site.domain}`,
@@ -16,7 +16,7 @@ export const identity: EditionIdentity = {
   installedHome: 'lobby',
   theme: '/rer-theme.css',
   mark: '/brand/mark.svg',
-  band: '/brand/band.svg',
+  band: '/site/band-1536.webp',
   fonts: '/fonts/fonts.css',
   accentColor: branding.primaryColor,
 }

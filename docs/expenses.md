@@ -2,7 +2,7 @@ Expenses record what a project actually cost, separately from what is reimbursed
 
 ## Add an expense
 
-On **Expenses**, add the engagement, the person, the **Expense date**, a description, the amount in Australian dollars and whether it is **Reimbursable**. Then **Add receipt** to upload the receipt file, and **Submit expense**.
+On **Expenses**, add the engagement, the person, the **Expense date**, a description, the amount in dollars and whether it is **Reimbursable**. Then **Add receipt** to upload the receipt file, and **Submit expense**.
 
 ## Approve or return
 

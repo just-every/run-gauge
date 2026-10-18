@@ -1,64 +1,94 @@
 /* Gauge's declared theme: every token the app, the run site, the Lobby, sign-in, /setup and the development outbox
    read, defined once. The --rer-* names are Base's; the --g-* names are Gauge's own. Faces come from /fonts/fonts.css.
-   Base's buttons keep the colour chosen at setup (src/branding.json primaryColor, #174F84 by default) because no
-   --rer-accent is declared here.
-   Colour lives in the cyanotype drawings; in the app the accent marks only the primary action, the current tab,
-   approved chips and scale markers. */
+   The look is the approved design desk's (18 Oct 2026): white and pale turquoise-grey paper, heavy ink-navy serif
+   headings, a slate neo-grotesk body, turquoise for the one action, mint and green for done, claret only for
+   exceptions, and one fixed colour per client. Base's buttons keep the colour chosen at setup (src/branding.json
+   primaryColor, the desk's turquoise by default) because no --rer-accent is declared here. */
 :root {
   /* type */
   --rer-font-body: 'Mona Sans', 'Mona Sans Fallback', 'Helvetica Neue', Arial, sans-serif;
-  --rer-font-heading: 'Mona Sans', 'Mona Sans Fallback', 'Helvetica Neue', Arial, sans-serif;
-  --rer-wordmark-weight: 700;
-  --rer-wordmark-tracking: -0.015em;
+  --rer-font-heading: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --rer-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --rer-wordmark-weight: 800;
+  --rer-wordmark-tracking: -0.02em;
   --g-weight-display: 800; --g-weight-heading: 700; --g-weight-body: 400; --g-weight-strong: 600;
   --g-track-display: -0.022em; --g-track-heading: -0.015em;
   --g-display: 72px; --g-h1-app: 32px; --g-h2: 40px; --g-h2-app: 20px;
   --g-body: 17px; --g-small: 14px; --g-micro: 12px;
-  /* colour */
-  --rer-page: #FDFCF7;
+  /* colour: Base's names */
+  --rer-page: #FFFFFF;
   --rer-surface: #FFFFFF;
-  --rer-text: #16181F;
-  --rer-muted: #4A4C53;
-  --rer-border: #DDD9CE;
-  --rer-focus: #174F84;
-  --rer-link: #174F84;
+  --rer-text: #0E1A2B;
+  --rer-muted: #4A5663;
+  --rer-border: #D9E3E6;
+  --rer-focus: #0A8A92;
+  --rer-link: #0A7F87;
+  /* colour: the desk's palette */
+  --g-ink: #0E1A2B; --g-slate: #4A5663; --g-quiet: #6B7682;
+  --g-turquoise: #01B2BD; --g-turquoise-deep: #0A8A92; --g-turquoise-wash: #E2F6F7;
+  --g-mint: #5CCDB0; --g-green: #2FB38F; --g-mint-wash: #E4F7F1;
+  --g-claret: #BB3536; --g-claret-wash: #FBEDEC;
+  --g-pale: #EFF7F7; --g-navy: #0F1D2B; --g-navy-line: #26384B;
+  --g-hair: #E1E9EB; --g-hair-strong: #CFDADD; --g-fill: #F4F8F9;
+  --g-card-shadow: 0 1px 2px rgba(14, 26, 43, .05), 0 12px 32px -14px rgba(14, 26, 43, .16);
+  /* one colour per client, the same on every screen */
+  --c-cascade: #13B5C1; --c-pacific: #2D6A9F; --c-willamette: #7D913C; --c-treasure: #C47B3F; --c-capitol: #D9A521; --c-rose: #7E5A8E; --c-studio: #E3E9EC;
+  /* the app's drawing colour (cyanotype screens, restyled in the app round) */
   --g-cyan: #174F84; --g-cyan-deep: #0B3C70; --g-cyan-wash: #E7EEF5;
   --g-pill: #1A1D29;
-  --g-input: #C9C5BA; --g-tick: #9A978F;
+  --g-input: #C9D3D6; --g-tick: #9AA4AB;
   --g-warn: #8A3B12; --g-warn-wash: #F6E9E1;
   /* space, radius, depth */
   --g-space: 4px;
-  --rer-radius: 12px; --g-radius-chip: 999px; --g-radius-input: 8px; --rer-button-radius: 999px;
-  --g-shadow: 0 1px 2px rgba(22, 24, 31, .06), 0 8px 24px rgba(22, 24, 31, .06);
+  --rer-radius: 12px; --g-radius-chip: 999px; --g-radius-input: 8px; --rer-button-radius: 10px;
+  --g-shadow: 0 1px 2px rgba(14, 26, 43, .06), 0 8px 24px rgba(14, 26, 43, .06);
   --rer-logo: url('/brand/mark.svg');
 }
 @media (max-width: 760px) {
   :root { --g-display: 40px; --g-h1-app: 26px; --g-h2: 28px; }
 }
 
-/* Base's no-JavaScript documents (sign-in, /setup, account): Gauge's card on paper with the cyanotype strip along
-   the page bottom. These rules only restyle Base's frame; its markup is unchanged. */
-html.rer-themed body { padding-bottom: 168px; background: url('/brand/band.svg') center bottom / 1440px 150px repeat-x, var(--rer-page); font-size: 16px; }
-html.rer-themed main { margin-top: 10vh; border: 1px solid var(--rer-border); box-shadow: var(--g-shadow); border-radius: var(--rer-radius); text-align: left; }
-html.rer-themed :is(.rer-brand, .brand) { justify-content: center; font-size: 24px; font-weight: 700; letter-spacing: var(--g-track-heading); }
-html.rer-themed h1 { text-align: center; font-size: 34px; font-weight: 700; letter-spacing: var(--g-track-heading); }
+/* Base's no-JavaScript documents (sign-in, /setup, account): Gauge's white card on pale turquoise-grey paper with the
+   promenade along the page bottom. These rules only restyle Base's frame; its markup is unchanged. */
+html.rer-themed body { padding-bottom: 188px; background: url('/site/band-1536.webp') center bottom / auto 170px repeat-x, var(--g-pale); font-size: 16px; }
+html.rer-themed main { margin-top: 10vh; border: 1px solid var(--g-hair); box-shadow: var(--g-card-shadow); border-radius: var(--rer-radius); text-align: left; }
+html.rer-themed :is(.rer-brand, .brand) { justify-content: center; font-size: 26px; font-weight: 800; letter-spacing: var(--rer-wordmark-tracking); }
+html.rer-themed h1 { text-align: center; font-size: 34px; font-weight: 800; letter-spacing: -0.02em; word-spacing: .1em; }
 html.rer-themed main > p:first-of-type { text-align: center; }
 html.rer-themed dl { grid-template-columns: 7em minmax(0, 1fr); gap: 0; }
-html.rer-themed dt, html.rer-themed dd { padding: 12px 0; border-bottom: 1px solid var(--rer-border); }
+html.rer-themed dt, html.rer-themed dd { padding: 12px 0; border-bottom: 1px solid var(--g-hair); }
 html.rer-themed label { font-size: 14px; font-weight: 600; }
 html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 44px; border-color: var(--g-input); border-radius: var(--g-radius-input); }
 html.rer-themed button { border-radius: var(--rer-button-radius); min-height: 48px; font-weight: 600; }
-@media (max-width: 480px) { html.rer-themed body { padding-bottom: 120px; background-size: 1440px 110px, auto; } html.rer-themed main { margin-top: 4vh; } }
+@media (max-width: 480px) { html.rer-themed body { padding-bottom: 130px; background-size: auto 120px, auto; } html.rer-themed main { margin-top: 4vh; } }
 
-/* Base's run-site documents (/run and the not-found page): the homepage's header, with its lockup size and rule, and
-   48 px of paper between the last line and the band. These rules only restyle Base's frame; its markup is unchanged. */
-body:has(> .art) .bar { width: min(100% - 96px, 1272px); max-width: none; padding: 26px 0 20px; border-bottom: 1px solid color-mix(in srgb, var(--rer-text) 30%, transparent); }
-body:has(> .art) .brand { gap: 10px; font-size: 22px; font-weight: 700; letter-spacing: var(--g-track-heading); }
-body:has(> .art) .brand img { width: 38px; height: 20px; }
-body:has(> .art) .bar nav { gap: 56px; font-size: 18px; font-weight: 400; }
-body:has(> .art) .art { height: 180px; min-height: 0; }
-body:has(> .art) main { padding-bottom: calc(180px + 48px); }
+/* Base's run-site documents (/run, /contract and the not-found page): the homepage's header, heavy serif headings,
+   white step cards and ink code cards over the promenade band. These rules only restyle Base's frame; its markup is
+   unchanged. */
+body:has(> .art) { background: var(--rer-page); }
+body:has(> .art) .bar { width: min(100% - 96px, 1276px); max-width: none; padding: 24px 0 18px; }
+body:has(> .art) .brand { gap: 12px; font-size: 30px; font-weight: 800; letter-spacing: var(--rer-wordmark-tracking); font-variation-settings: 'opsz' 48; }
+body:has(> .art) .brand img { width: 32px; height: 32px; }
+body:has(> .art) .bar nav { gap: 44px; font-size: 18px; font-weight: 400; }
+body:has(> .art) h1 { font-weight: 800; letter-spacing: -0.03em; word-spacing: .12em; font-variation-settings: 'opsz' 60; }
+body:has(> .art) .step { background: var(--rer-surface); border-color: var(--g-hair); box-shadow: var(--g-card-shadow); backdrop-filter: none; border-radius: 14px; }
+body:has(> .art) .num { background: var(--g-ink); color: #fff; font-weight: 800; }
+body:has(> .art) .step h2 { font-weight: 700; letter-spacing: -0.015em; word-spacing: .1em; }
+body:has(> .art) .code { background: var(--g-navy); color: #E8F1F2; border-radius: 10px; }
+body:has(> .art) .art { height: 200px; min-height: 0; }
+body:has(> .art) .art img { object-position: center 32%; }
+body:has(> .art) .art::before { content: ''; position: absolute; inset: 0 0 auto; height: 70px; background: linear-gradient(var(--rer-page), transparent); }
+body:has(> .art) main { padding-bottom: calc(200px + 56px); }
+/* Base wraps its code cards only at 760 px and below; between that and 860 px the Copy button sat on the command. */
+@media (max-width: 860px) {
+  body:has(> .art) .code pre { padding: 46px 14px 14px; font-size: 13.5px; white-space: pre; overflow-x: auto; }
+  body:has(> .art) .copy { top: 8px; right: 8px; transform: none; }
+}
 @media (max-width: 760px) {
-  body:has(> .art) .bar { width: calc(100% - 40px); padding: 18px 0 14px; }
-  body:has(> .art) .bar nav { gap: 28px; font-size: 16px; }
+  body:has(> .art) .bar { width: calc(100% - 32px); padding: 16px 0 12px; }
+  body:has(> .art) .brand { font-size: 25px; gap: 9px; }
+  body:has(> .art) .brand img { width: 26px; height: 26px; }
+  body:has(> .art) .bar nav { gap: 22px; font-size: 16px; }
+  body:has(> .art) .art { height: 150px; }
+  body:has(> .art) main { padding-bottom: calc(150px + 40px); }
 }

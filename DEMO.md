@@ -7,7 +7,7 @@ The fifty native records use fixed IDs and dates relative to the demo’s start.
 Ordinary installations still start empty.
 
 Open the weekly review, approve submitted work, then approve and download the
-Harbour Coffee billing packet. Invitations return success without delivery;
+Harbor Coffee billing packet. Invitations return success without delivery;
 there is no captured-mail UI. Gauge’s first-release workflow has no public
 internet probe, AI provider, accounting write or invoice-send integration.
 Native authentication mail is suppressed under `RER_DEMO`, and Base’s guard

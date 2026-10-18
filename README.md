@@ -1,14 +1,22 @@
+<p><img src="public/brand/mark.svg" width="56" height="56" alt="Gauge"></p>
+
 # Run it locally
 
 Gauge is an MIT-licensed agency operations seed for owner-led design, marketing and software agencies of about 5–40 people. It keeps engagements and agreed terms, effective-dated rates, capacity, time and expense approval, operational economics, weekly exceptions and deduplicated billing-preparation packets in your own workspace. An agent you already run can prepare time drafts, staffing alternatives, billing packets and change orders; the right person approves each one. [CONTRACT.md](CONTRACT.md) lists the seventeen first-release clauses and [ACCEPTANCE.md](ACCEPTANCE.md) records their proof. Source code: [just-every/run-gauge](https://github.com/just-every/run-gauge).
 
-One line installs the shared `rer` command, clones Gauge and starts it:
+Two lines, the same as [run-gauge.com/run](https://run-gauge.com/run). Install `rer` once (it brings its own Node if you have no Node 22 or later; if its last line puts `rer` on your PATH, run that line first):
 
 ```sh
-npx -y @runeditrun/rer dev just-every/run-gauge
+curl -fsSL https://runeditrun.com/install.sh | sh
 ```
 
-Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-gauge` does the same. To start it again later, run `cd run-gauge && rer dev`. To choose the owner yourself, run `npx -y @runeditrun/rer install just-every/run-gauge`, then from the checkout:
+Then start Gauge. `rer` clones it into `run-gauge`, installs everything, makes you the owner and starts it:
+
+```sh
+rer dev just-every/run-gauge
+```
+
+Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-gauge` does both steps in one line. To start it again later, run `cd run-gauge && rer dev`. To choose the owner yourself, run `npx -y @runeditrun/rer install just-every/run-gauge`, then from the checkout:
 
 ```sh
 rer setup

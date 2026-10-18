@@ -2,11 +2,19 @@ Gauge runs on your own computer with `rer`, the Run Edit Run command. It runs on
 
 ## Get Gauge and start it
 
+Install `rer` once. It installs `rer` for you alone, with its own Node if you have no Node 22 or later, and changes no shell settings: if its last line puts `rer` on your PATH, run that line before the next step.
+
 ```sh
-npx -y @runeditrun/rer dev just-every/run-gauge
+curl -fsSL https://runeditrun.com/install.sh | sh
 ```
 
-That one line installs `rer`, clones Gauge and starts it. Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-gauge` does the same. To start it again later, run `cd run-gauge && rer dev`. `rer dev` installs everything, makes you the owner and starts Gauge. A first start can take a few minutes. When it is ready it prints a `RER_OPEN` link: open it on this computer and Gauge opens signed in as you. Keep that link private, because it signs you in.
+Then start Gauge:
+
+```sh
+rer dev just-every/run-gauge
+```
+
+`rer` clones Gauge into a `run-gauge` folder, installs everything, makes you the owner and starts it. A first start can take a few minutes. When it is ready it prints a `RER_OPEN` link: open it on this computer and Gauge opens signed in as you. Keep that link private, because it signs you in. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-gauge` does both steps in one line. To start it again later, run `cd run-gauge && rer dev`.
 
 To stop Gauge, run `rer dev --stop`. Run `rer dev` again whenever you want to use it; your records stay where they were.
 
@@ -26,7 +34,7 @@ Gauge starts with no records; nothing is made up for you. As the owner you hold 
 4. Add the engagement's tasks under **Task and remaining effort**, and any fixed-fee milestones.
 5. On **Rates**, add cost and bill rates for each person, or for a service.
 
-Enter amounts in Australian dollars and durations in hours, the way Gauge shows them everywhere else.
+Enter amounts in dollars and durations in hours, the way Gauge shows them everywhere else.
 
 ## Bring in your team
 

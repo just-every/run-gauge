@@ -19,9 +19,9 @@ const fonts = '<link rel="preload" href="/fonts/mona-sans/mona-sans-latin-wght-n
 /** The app document: top bar, the cyanotype brand strip, the tab row (the current tab marked) and the page. */
 export function shell(a: Actor, section: string, title: string, body: string) {
  const tabs = tabsFor(a).map(t => `<a href="/app/${t}"${section === t ? ' aria-current="page"' : ''}>${tabLabels[t]}</a>`).join('')
- return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} · Gauge</title><link rel="icon" href="/brand/mark.svg">${fonts}<link rel="stylesheet" href="/rer-theme.css"><link rel="stylesheet" href="/cyanotype.css"><link rel="stylesheet" href="/gauge.css"></head>`
+ return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} · Gauge</title><link rel="icon" href="/favicon.ico" sizes="16x16 32x32"><link rel="apple-touch-icon" href="/apple-touch-icon.png">${fonts}<link rel="stylesheet" href="/rer-theme.css"><link rel="stylesheet" href="/cyanotype.css"><link rel="stylesheet" href="/gauge.css"></head>`
   + `<body class="g-app">${artDefs}<header class="g-top">${lockup('/app', 'Gauge').replace('<span>', '<span data-rer-name>')}<p class="g-who"><span>${e(a.session.operator.displayName)}<span class="g-who-role"> · ${e(a.role)}</span></span>${a.role === 'owner' ? '<a href="/auth/settings/identity">Account</a>' : ''}</p></header><div class="g-strip" aria-hidden="true"></div>`
-  + `<nav class="g-tabs" aria-label="Workspace">${tabs}</nav><main class="g-main">${body}</main><footer class="g-foot">Owner-run agency operations · AUD · Billing preparation only</footer></body></html>`
+  + `<nav class="g-tabs" aria-label="Workspace">${tabs}</nav><main class="g-main">${body}</main><footer class="g-foot">Owner-run agency operations · Billing preparation only</footer></body></html>`
 }
 
 // The workspace keeps one calendar: the first engagement's work timezone (else the first person's), UTC before either exists.

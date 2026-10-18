@@ -2,7 +2,7 @@ Rates are private to finance and the owner. Each rate is a version that takes ef
 
 ## Add a rate version
 
-On **Rates**, **Add rate version** sets the **Person** (or none, for a rate that applies to a service for everyone), the **Service** (**All services** covers every service that person records), the **Effective date**, the **Cost per hour** and the **Bill per hour**, in Australian dollars. Leave the cost blank when it is unknown.
+On **Rates**, **Add rate version** sets the **Person** (or none, for a rate that applies to a service for everyone), the **Service** (**All services** covers every service that person records), the **Effective date**, the **Cost per hour** and the **Bill per hour** in dollars. Leave the cost blank when it is unknown.
 
 ## Approved work keeps its rate
 

@@ -12,5 +12,5 @@ export const artDefs = '<svg class="g-defs" width="0" height="0" aria-hidden="tr
 /** A cyanotype sheet around real content; `scale` adds the long tick scale on its bottom construction line. */
 export const sheet = (content: string, className = '', scale = true, label = '') => `<div class="g-sheet${className ? ` ${className}` : ''}"${label ? ` role="img" aria-label="${label}"` : ''}>${content}${scale ? '<span class="g-scale" aria-hidden="true"></span>' : ''}</div>`
 
-/** The brand lockup: the ink half-disc mark with three ticks, and the name. */
-export const lockup = (href: string, name: string) => `<a class="g-brand" href="${href}"><img src="/brand/mark.svg" alt="" width="38" height="20"><span>${name}</span></a>`
+/** The brand lockup: the teal diamond holding a cream four-point star, and the serif name. */
+export const lockup = (href: string, name: string) => `<a class="g-brand" href="${href}"><img src="/brand/mark.svg" alt="" width="26" height="26"><span>${name}</span></a>`

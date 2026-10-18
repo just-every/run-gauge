@@ -2,7 +2,7 @@ An engagement is the work a client agreed to: who leads it, who works on it, the
 
 ## Clients and people
 
-Add each **Client** by name. Add each **Person** with their **Work timezone** (for example `Australia/Brisbane`) and tick **Contractor** for contractors. A person is a record of who does the work; giving them a sign-in is a separate step on **Access**.
+Add each **Client** by name. Add each **Person** with their **Work timezone** (for example `America/Los_Angeles`) and tick **Contractor** for contractors. A person is a record of who does the work; giving them a sign-in is a separate step on **Access**.
 
 ## Engagements
 

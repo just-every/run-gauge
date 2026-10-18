@@ -12,7 +12,7 @@ export function timeSection(a: Actor, report: Report, options: Value) {
  const own = finance(a) || t.personId === a.personId, editable = !row || (own && ['draft', 'returned'].includes(t.status))
  const people = finance(a) ? d.people : d.people.filter(p => p.id === a.personId)
  let body = '<h1>Time and approvals</h1><p class="g-lede">Record actual duration in an explicit work timezone. Approval fixes rates, rounding and the exact revision. Correct an approved entry with a reason before editing it.</p>'
- const zone = t.timezone ?? 'Australia/Brisbane'
+ const zone = t.timezone ?? 'America/Los_Angeles'
  // Start and End are wall-clock times in the Work timezone below; the server adds its UTC offset.
  const interval = t.source?.clockInstants === 'not-supplied' ? i('workDate', 'Work date', t.workDate, 'date') + duration('durationHours', 'Actual duration (hours)', t.durationSeconds) : i('startLocal', 'Start', localValue(t.start, zone), 'datetime-local') + i('endLocal', 'End', localValue(t.end, zone), 'datetime-local')
  const forms = []

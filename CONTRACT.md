@@ -389,25 +389,21 @@ The destination adapters accept the real source formats below; source permission
 
 ## Homepage claims
 
-No desk-built `CLAIMS.md` was present for Gauge on 17 October 2026. The existing homepage in `src/site/landing.ts` stays untouched; its material promises map below. This table records current homepage wording and does not substitute for the target obligations above.
+The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 2026) follows one agency through October and shows the product this contract describes, ahead of today's code where marked. The desk build's claims table counts 54 capability claims: 7 backed by code, 18 partly, 29 contract-only. By section:
 
-| Claim # | Claim text | Clause id(s) | Status |
+| Section | What the page claims | Clause id(s) | Status |
 | --- | --- | --- | --- |
-| 1 | Approve your team’s time, see next month’s capacity, and hand your bookkeeper one clean billing packet. | TIME-002; CAPACITY-001; BILLING-002 | done |
-| 2 | 100% free. Yours to run. | BASE-001 | partial |
-| 3 | Run it on your own computer, keep every record, and export it all whenever you like. | MOVE-001; BASE-001; BASE-002 | partial |
-| 4 | Your agent prepares. You approve. | AGENT-001; AGENT-002; AGENT-003; AGENT-004; ACCESS-001 | done |
-| 5 | See next month before it starts. Calendars, leave and staffing show each person’s remaining time, and flag any conflicts. | CAPACITY-001 | done |
-| 6 | Bill each hour once. A packet reserves its exact sources, and an approved packet downloads the same CSV every time. | BILLING-001; BILLING-002 | done |
-| 7 | Change rates. Keep the past. | RATE-001 | done |
-| 8 | Try it beside Harvest. Preview your Harvest export without changing anything, compare the totals, and keep Harvest until you’re sure. | MOVE-001; MIGRATE-010 | partial |
-| 9 | Fixed-fee milestones. Approve each delivered milestone. | ENGAGEMENT-001; BILLING-001 | done |
-| 10 | Change orders. Each one is a new version beside the terms. | BUDGET-001 | done |
-| 11 | Expenses. Receipts stay private to their owner and finance. | COST-001 | done |
-| 12 | Timer. A persistent timer that keeps running. | TIME-001 | done |
-| 13 | Roles. Staff, leads and finance each see their own part. | ACCESS-001 | done |
-| 14 | Export everything. Every record, history and receipt, in one archive. | MOVE-001; BASE-002 | partial |
-| 15 | Free and open source alternative to Harvest, Productive and Scoro. | BASE-001; MIGRATE-002; MIGRATE-005; MIGRATE-007 | partial |
+| Hero | Estimate and retainer through staffing, time and invoices to cash; recovery when a project drifts; capacity per person; utilization | SALES-002; RETAINER-001; RESOURCE-002; TIME-002; INVOICE-001; RECOVER-001; CAPACITY-001; REPORT-002 | partial |
+| Estimate | Estimate versions, proposal acceptance, HubSpot handoff, engagement from accepted work | SALES-002; SALES-003; SALES-004; CONNECT-011 | partial |
+| Retainer | Rollover and overage statement, overage invoice, client portal | RETAINER-001 through RETAINER-005; CLIENT-001; CLIENT-003 | missing |
+| Staffing | Five-week committed/tentative board, leave, agent staffing alternatives approved by a person, placeholders | RESOURCE-001 through RESOURCE-003; AGENT-002 | partial |
+| Time | Drafted missing hours, personal confirmation, return and approve queue, Slack nudge | AGENT-001; TIME-002; TIME-004; TIME-005; CONNECT-009 | partial |
+| Recovery | Costed options, change order versions, client e-signature, verified outcome, margin and cash effect | RECOVER-001 through RECOVER-003; BUDGET-001; SALES-005; CONNECT-018; FINANCE-001; FINANCE-002 | partial |
+| Invoice | Invoice from an accepted milestone, card/ACH link, QuickBooks, not-to-exceed cap | BILLING-001; INVOICE-001; INVOICE-003; PAYMENT-001; CONNECT-001; BUDGET-002 | partial |
+| Cash | ACH return reopens the invoice, fresh pay link, processor fee, QuickBooks rows | PAYMENT-001; PAYMENT-002; INVOICE-006; INVOICE-007; CONNECT-001 | missing |
+| Close | Loose ends listed, locked close packet, expected cash, utilization, backlog | REVIEW-001; FINANCE-004; FINANCE-007; REPORT-002; REPORT-003 | partial |
+| Moving in | Harvest and Forecast import with reconciliation and shadow run, cutover, other incumbents | MOVE-001; MIGRATE-002; MIGRATE-003; MIGRATE-004 through MIGRATE-010 | partial |
+| Start | `npx -y @runeditrun/rer dev just-every/run-gauge`; 100% free, MIT licensed | BASE-001 | partial |
 
 ## Status
 

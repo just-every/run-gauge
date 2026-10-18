@@ -11,7 +11,7 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
  await env.DB.batch([
   ...teamStatements(env.DB, owner.id, now.getTime()),
   ...records.map(({ kind, id, value }) => env.DB.prepare(`INSERT INTO g_${kind}(id,revision,data) VALUES(?,?,?) ON CONFLICT(id) DO NOTHING`).bind(id, `${id}-v1`, JSON.stringify(value))),
-  env.DB.prepare("INSERT INTO g_billing_sources(kind,source_id,packet_id,source_revision) VALUES('time','demo-time-0','demo-packet-harbour','demo-time-0-v1') ON CONFLICT DO NOTHING"),
+  ...['demo-time-0', 'demo-time-1'].map(id => env.DB.prepare("INSERT INTO g_billing_sources(kind,source_id,packet_id,source_revision) VALUES('time',?,'demo-packet-treasure',?) ON CONFLICT DO NOTHING").bind(id, `${id}-v1`)),
   env.DB.prepare('INSERT INTO g_files(id,expense_id,name,media_type,bytes,size,actor) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind('demo-receipt', 'demo-expense-0', 'workshop-receipt.txt', 'text/plain', receipt, receipt.byteLength, owner.id),
   env.DB.prepare('INSERT INTO oa_first_run(singleton,completed_by,completed_at) VALUES(1,?,?) ON CONFLICT(singleton) DO NOTHING').bind(owner.id, now.getTime()),
  ])

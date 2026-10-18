@@ -11,10 +11,7 @@
   --rer-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --rer-wordmark-weight: 800;
   --rer-wordmark-tracking: -0.02em;
-  --g-weight-display: 800; --g-weight-heading: 700; --g-weight-body: 400; --g-weight-strong: 600;
-  --g-track-display: -0.022em; --g-track-heading: -0.015em;
-  --g-display: 72px; --g-h1-app: 32px; --g-h2: 40px; --g-h2-app: 20px;
-  --g-body: 17px; --g-small: 14px; --g-micro: 12px;
+  --g-weight-body: 400; --g-weight-strong: 600;
   /* colour: Base's names */
   --rer-page: #FFFFFF;
   --rer-surface: #FFFFFF;
@@ -33,35 +30,36 @@
   --g-card-shadow: 0 1px 2px rgba(14, 26, 43, .05), 0 12px 32px -14px rgba(14, 26, 43, .16);
   /* one colour per client, the same on every screen */
   --c-cascade: #13B5C1; --c-pacific: #2D6A9F; --c-willamette: #7D913C; --c-treasure: #C47B3F; --c-capitol: #D9A521; --c-rose: #7E5A8E; --c-studio: #E3E9EC;
-  /* the app's drawing colour (cyanotype screens, restyled in the app round) */
-  --g-cyan: #174F84; --g-cyan-deep: #0B3C70; --g-cyan-wash: #E7EEF5;
-  --g-pill: #1A1D29;
-  --g-input: #C9D3D6; --g-tick: #9AA4AB;
-  --g-warn: #8A3B12; --g-warn-wash: #F6E9E1;
-  /* space, radius, depth */
-  --g-space: 4px;
-  --rer-radius: 12px; --g-radius-chip: 999px; --g-radius-input: 8px; --rer-button-radius: 10px;
-  --g-shadow: 0 1px 2px rgba(14, 26, 43, .06), 0 8px 24px rgba(14, 26, 43, .06);
+  --g-input: #CCD7DA;
+  /* leave and struck hours: a claret hatch on its wash */
+  --g-hatch: repeating-linear-gradient(135deg, var(--g-claret-wash) 0 6px, color-mix(in srgb, var(--g-claret) 40%, #fff) 6px 7px);
+  /* the app's frame (owner's pick J): rail, gutter, side panel and the board's people column */
+  --g-rail: 182px; --g-gutter: 20px; --g-panel: 330px; --g-people: 156px;
+  /* radius, depth */
+  --rer-radius: 12px; --g-radius-card: 8px; --g-radius-input: 8px; --rer-button-radius: 8px;
   --rer-logo: url('/brand/mark.svg');
 }
-@media (max-width: 760px) {
-  :root { --g-display: 40px; --g-h1-app: 26px; --g-h2: 28px; }
-}
 
-/* Base's no-JavaScript documents (sign-in, /setup, account): Gauge's white card on pale turquoise-grey paper with the
-   promenade along the page bottom. These rules only restyle Base's frame; its markup is unchanged. */
-html.rer-themed body { padding-bottom: 300px; background: url('/site/band-1536.webp') center bottom / max(100%, 1100px) auto no-repeat, var(--g-pale); font-size: 16px; }
-html.rer-themed main { margin-top: 10vh; border: 1px solid var(--g-hair); box-shadow: var(--g-card-shadow); border-radius: var(--rer-radius); text-align: left; }
-html.rer-themed :is(.rer-brand, .brand) { justify-content: center; font-size: 26px; font-weight: 800; letter-spacing: var(--rer-wordmark-tracking); }
-html.rer-themed h1 { text-align: center; font-size: 34px; font-weight: 800; letter-spacing: -0.02em; word-spacing: .1em; }
-html.rer-themed main > p:first-of-type { text-align: center; }
+/* Base's no-JavaScript documents (sign-in, /setup, account, the demo gate) wear the app's frame from the owner's pick:
+   the ink rail with the mark down the left, a white work surface and one white hairline card. These rules only
+   restyle Base's frame; its markup is unchanged. */
+html.rer-themed body { padding: 88px 32px 64px calc(var(--g-rail) + 32px); background: var(--rer-page); font-size: 15px; }
+html.rer-themed body::before { content: ''; position: fixed; inset: 0 auto 0 0; width: var(--g-rail); background: var(--rer-logo) 26px 24px / 28px 28px no-repeat, var(--g-navy); }
+html.rer-themed main { max-width: 520px; padding: 32px 36px; border: 1px solid var(--g-hair); box-shadow: var(--g-card-shadow); border-radius: var(--g-radius-card); text-align: left; }
+html.rer-themed :is(.rer-brand, .brand) { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+html.rer-themed h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.035em; word-spacing: .08em; font-variation-settings: 'opsz' 60; }
 html.rer-themed dl { grid-template-columns: 7em minmax(0, 1fr); gap: 0; }
-html.rer-themed dt, html.rer-themed dd { padding: 12px 0; border-bottom: 1px solid var(--g-hair); }
-html.rer-themed label { font-size: 14px; font-weight: 600; }
-html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 44px; border-color: var(--g-input); border-radius: var(--g-radius-input); }
-html.rer-themed button { border-radius: var(--rer-button-radius); min-height: 48px; font-weight: 600; }
-@media (max-width: 760px) { html.rer-themed body { padding-bottom: 210px; background-size: 760px auto, auto; } }
-@media (max-width: 480px) { html.rer-themed main { margin-top: 4vh; } }
+html.rer-themed dt, html.rer-themed dd { padding: 11px 0; border-bottom: 1px solid var(--g-hair); }
+html.rer-themed label { color: var(--g-slate); font-size: 13px; font-weight: 500; }
+html.rer-themed label:has(input[type=checkbox]) { color: var(--rer-text); font-size: 14px; }
+html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 42px; border-color: var(--g-input); border-radius: var(--g-radius-input); color: var(--rer-text); font-size: 15px; }
+html.rer-themed input:focus-visible { outline: 3px solid color-mix(in srgb, var(--g-turquoise) 35%, transparent); outline-offset: 0; border-color: var(--g-turquoise-deep); }
+html.rer-themed button { min-height: 44px; border-radius: var(--rer-button-radius); background: var(--g-turquoise-deep); color: #fff; font-weight: 600; }
+@media (max-width: 900px) {
+  html.rer-themed body { padding: 88px 16px 40px; }
+  html.rer-themed body::before { inset: 0 0 auto 0; width: auto; height: 56px; background-position: 16px center, 0 0; background-size: 26px 26px, auto; }
+}
+@media (max-width: 480px) { html.rer-themed main { padding: 24px 18px; } html.rer-themed h1 { font-size: 28px; } }
 
 /* Base's run-site documents (/run, /contract and the not-found page): the homepage's header, heavy serif headings,
    white step cards and ink code cards over the promenade band. These rules only restyle Base's frame; its markup is

@@ -11,7 +11,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
  const d=report.data,today=options.today,eng=s('engagementId','Engagement',d.engagements);let body=''
  if(section==='expenses'){
   const old=d.expenses.find(r=>r.id===options.edit),v=old?.value??{}
-  body='<h1>Expenses and receipts</h1><p class="g-lede">Keep actual project cost separate from reimbursement. Receipt files remain private and travel with the owned dataset.</p>'
+  body='<div class="g-titlebar"><h1>Expenses and receipts</h1></div><p class="g-lede">Keep actual project cost separate from reimbursement. Receipt files remain private and travel with the owned dataset.</p>'
   if(!old||['draft','returned'].includes(v.status))body+=form('expense:save',old?'Correct expense':'Expense',s('engagementId','Engagement',d.engagements,v.engagementId)+s('personId','Person',finance(a)?d.people:d.people.filter(p=>p.id===a.personId),v.personId??a.personId)+i('date','Expense date',v.date??today,'date')+i('description','Description',v.description)+amount('amountDollars','Amount ($)',v.amountMinor??'')+check('reimbursable','Reimbursable',v.reimbursable),old,'Save','g-card--form')
   body+=table('Expenses',d.expenses,[
    {label:'Date',size:'date',line:2,cell:r=>open('expenses',r,day(r.value.date))},
@@ -30,19 +30,19 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
  }
  // Services people already record time against, plus the default; a rate for "All services" covers the rest.
  const services=[{id:'*',revision:'',value:{name:'All services'}},...[...new Set(['Delivery',...d.time.map(r=>r.value.service),...d.rates.map(r=>r.value.service)])].filter(x=>x&&x!=='*').sort().map(x=>({id:x,revision:'',value:{name:x}}))]
- if(section==='rates')body='<h1>Effective-dated rates</h1><p class="g-lede">Private to finance. Rates are dollars per hour. A blank cost marks it unknown. New versions do not rewrite approved work.</p>'+form('save:rates','Add rate version',s('personId','Person',d.people,undefined,true)+s('service','Service',services)+i('effective','Effective date',today,'date')+amount('costDollars','Cost per hour ($, optional)','',false)+amount('billDollars','Bill per hour ($)',''),undefined,'Save','g-card--form')+table('Historical rates',d.rates,[
+ if(section==='rates')body='<div class="g-titlebar"><h1>Effective-dated rates</h1></div><p class="g-lede">Private to finance. Rates are dollars per hour. A blank cost marks it unknown. New versions do not rewrite approved work.</p>'+form('save:rates','Add rate version',s('personId','Person',d.people,undefined,true)+s('service','Service',services)+i('effective','Effective date',today,'date')+amount('costDollars','Cost per hour ($, optional)','',false)+amount('billDollars','Bill per hour ($)',''),undefined,'Save','g-card--form')+table('Historical rates',d.rates,[
   {label:'Person',cell:r=>e(r.value.personId?nameOf(d.people,r.value.personId):'Everyone')},
   {label:'Service',cell:r=>e(r.value.service==='*'?'All services':r.value.service)},
   {label:'Effective',cell:r=>e(day(r.value.effective))},
   {label:'Cost per hour',num:true,cell:r=>money(r.value.costMinor)},
   {label:'Bill per hour',num:true,cell:r=>money(r.value.billMinor)},
  ])
- if(section==='capacity')body=capacitySection(a,report,options,today)
+ if(section==='capacity')body=await capacitySection(env,a,report,options)
  if(section==='billing'){
   // Eligible lines sit under their engagement, so a packet's lines visibly come from the engagement it names.
   const eligible=report.exceptions.filter(x=>x.type==='unbilled approved work'),groups=new Map<string,any[]>()
   for(const x of eligible){const [k,id]=x.source.split(':'),engagementId=(d as any)[k].find((r:Row)=>r.id===id)?.value.engagementId??'';groups.set(engagementId,[...(groups.get(engagementId)??[]),x])}
-  body='<h1>Billing preparation packets</h1><p class="g-lede">Select approved unbilled sources from one engagement. Draft packets reserve sources. Approval fixes the exact downloadable artifact; cancelled drafts release their reservations.</p>'+form('packet:create','Prepare packet',eng+i('title','Packet title')+`<fieldset class="g-checklist"><legend>Eligible source lines</legend>${[...groups].map(([id,lines])=>`<div class="g-check-group" id="unbilled-${e(id)}"><p class="g-check-head">${e(nameOf(d.engagements,id,'Engagement'))}</p>${lines.map(x=>check('sources',describeSource(d,x.source).text,false,x.source)).join('')}</div>`).join('')||'<p class="g-empty">No eligible work yet.</p>'}</fieldset>`,undefined,'Save','g-card--form')
+  body='<div class="g-titlebar"><h1>Billing preparation packets</h1></div><p class="g-lede">Select approved unbilled sources from one engagement. Draft packets reserve sources. Approval fixes the exact downloadable artifact; cancelled drafts release their reservations.</p>'+form('packet:create','Prepare packet',eng+i('title','Packet title')+`<fieldset class="g-checklist"><legend>Eligible source lines</legend>${[...groups].map(([id,lines])=>`<div class="g-check-group" id="unbilled-${e(id)}"><p class="g-check-head">${e(nameOf(d.engagements,id,'Engagement'))}</p>${lines.map(x=>check('sources',describeSource(d,x.source).text,false,x.source)).join('')}</div>`).join('')||'<p class="g-empty">No eligible work yet.</p>'}</fieldset>`,undefined,'Save','g-card--form')
   const titleOf=(id:string)=>d.packets.find(p=>p.id===id)?.value.title??'Earlier packet'
   body+=table('Packets',d.packets,[
    {label:'Packet',wrap: true,line:1,cell:r=>`${e(r.value.title)}${r.value.correctsPacketId?`<span class="g-sub">Adjusts ${e(titleOf(r.value.correctsPacketId))}${r.value.reason?`: ${e(r.value.reason)}`:''}</span>`:''}`},
@@ -59,7 +59,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
   })
  }
  if(section==='imports'){
-  body='<h1>Harvest move-in</h1><p class="g-lede">Preview a Harvest export without changing anything; nothing is applied until you choose to. <a href="/move-in.html">Read the move-in guide</a>.</p>'
+  body='<div class="g-titlebar"><h1>Harvest move-in</h1></div><p class="g-lede">Preview a Harvest export without changing anything; nothing is applied until you choose to. <a href="/move-in.html">Read the move-in guide</a>.</p>'
   const preview=options.preview
   if(preview){
    const rows=(o:Record<string,unknown>)=>Object.entries(o??{}).map(([k,v])=>`<tr><th scope="row">${e(k)}</th><td class="g-num">${e(typeof v==='number'?v.toLocaleString('en-US'):Array.isArray(v)?v.length:v&&typeof v==='object'?Object.keys(v).length:v)}</td></tr>`).join('')
@@ -76,7 +76,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
  if(section==='access'){
   const operators=(await env.DB.prepare('SELECT id,email,display_name,role,status FROM oa_operators ORDER BY display_name').all<any>()).results
   const active=operators.filter(o=>o.status==='active')
-  body='<h1>People and access</h1><p class="g-lede">Invite an operator, let them accept, then connect the operator to a person and a Gauge role. A project lead approves only assigned engagements. An agent grant prepares proposals only and names no person. Revoke access by saving the grant with Enabled cleared.</p>'
+  body='<div class="g-titlebar"><h1>People and access</h1></div><p class="g-lede">Invite an operator, let them accept, then connect the operator to a person and a Gauge role. A project lead approves only assigned engagements. An agent grant prepares proposals only and names no person. Revoke access by saving the grant with Enabled cleared.</p>'
   body+=`<div class="g-pair g-pair--wide">${form('invite','Invite operator',i('email','Email','','email')+i('displayName','Display name'))}${form('grant','Assign or revoke Gauge access',s('operatorId','Active operator',active.map(o=>({id:o.id,revision:'',value:{name:active.filter(x=>x.display_name===o.display_name).length>1?`${o.display_name} (${o.email})`:o.display_name}})))+s('personId','Person (none for an agent)',d.people,undefined,true)+c('role','Gauge role',['staff','lead','finance','agent'])+check('enabled','Enabled',true))}</div>`
   const grants=(await env.DB.prepare('SELECT g.operator_id,g.person_id,g.role,g.enabled,o.display_name,o.email FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id ORDER BY o.display_name').all<any>()).results
   const rows:Row[]=grants.map(g=>({id:g.operator_id,revision:'',value:g}))

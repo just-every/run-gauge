@@ -18,9 +18,9 @@ const hidden=(action:string,row?:Row)=>`<input type="hidden" name="action" value
 /** A card holding one form: its title, its fields and one primary action. */
 export function form(action:string,title:string,fields:string,row?:Row,button='Save',className=''){return `<section class="g-card${className?` ${className}`:''}"><h2>${escape(title)}</h2><form class="g-form" method="post" action="/app/action" enctype="multipart/form-data">${hidden(action,row)}${fields}<div class="g-actions"><button class="g-btn g-btn--primary">${escape(button)}</button></div></form></section>`}
 /** One decision on one exact revision. A decision that needs a reason opens its Reason field inline. */
-export function decision(action:string,label:string,row:Row,reason=false,tone:'primary'|'secondary'|'quiet'='primary'){
+export function decision(action:string,label:string,row:Row,reason=false,tone:'primary'|'secondary'|'quiet'='primary',extra=''){
  const button=`<button class="g-btn g-btn--${reason&&tone==='primary'?'secondary':tone}">${escape(label)}</button>`
- if(!reason)return `<form class="g-decide" method="post" action="/app/action" enctype="multipart/form-data">${hidden(action,row)}${button}</form>`
+ if(!reason)return `<form class="g-decide" method="post" action="/app/action" enctype="multipart/form-data">${hidden(action,row)}${extra}${button}</form>`
  return `<details class="g-reveal"><summary class="g-btn g-btn--${tone==='primary'?'secondary':tone}">${escape(label)}</summary><form class="g-decide g-decide--reason" method="post" action="/app/action" enctype="multipart/form-data">${hidden(action,row)}${input('reason','Reason')}${button}</form></details>`
 }
 /**

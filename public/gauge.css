@@ -71,6 +71,25 @@
 .g-field > span { font-size: 14px; font-weight: var(--g-weight-strong); color: var(--rer-text); }
 .g-field--wide, .g-field:has(input[type=file]) { grid-column: 1 / -1; }
 .g-app :is(input:not([type=checkbox]):not([type=file]), select, textarea) { width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid var(--g-input); border-radius: var(--g-radius-input); background: var(--rer-surface); color: var(--rer-text); font: inherit; font-size: 16px; }
+/* Base #247's theme-aware chevron applies only to single-choice controls. */
+.g-app select:not([multiple],[size]:not([size="1"])) {
+  --rer-select-ink: var(--rer-muted);
+  -webkit-appearance: none;
+  appearance: none;
+  line-height: normal;
+  text-indent: 4px;
+  padding-inline-end: 40px;
+  text-overflow: ellipsis;
+  background-image:
+    linear-gradient(to top right, transparent calc(50% - 1.1px), var(--rer-select-ink) calc(50% - .55px), var(--rer-select-ink) calc(50% + .55px), transparent calc(50% + 1.1px)),
+    linear-gradient(to top left, transparent calc(50% - 1.1px), var(--rer-select-ink) calc(50% - .55px), var(--rer-select-ink) calc(50% + .55px), transparent calc(50% + 1.1px));
+  background-repeat: no-repeat;
+  background-position: right 20px center, right 14px center;
+  background-size: 6px 6px;
+}
+.g-app select:not([multiple],[size]:not([size="1"])):focus-visible { --rer-select-ink: var(--rer-text); }
+.g-app select:not([multiple],[size]:not([size="1"])):disabled { --rer-select-ink: color-mix(in srgb, var(--rer-muted) 55%, transparent); }
+
 .g-app select[multiple] { min-height: 96px; }
 .g-app textarea { min-height: 84px; resize: vertical; }
 .g-app input[type=file] { font: inherit; font-size: 15px; max-width: 100%; color: var(--rer-muted); }

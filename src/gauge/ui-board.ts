@@ -34,10 +34,10 @@ type Kind = 'booking' | 'tentative' | 'struck' | 'leave' | 'option'
 interface Allocation { engagementId: string; commitment: string; dailySeconds: number; ranges: [string, string][] }
 interface Segment { start: number; end: number; track: number; kind: Kind; tint: number; name: string; amount: string; when: string; title: string; note?: string; allocation?: Allocation }
 
-/** Allocated seconds and the weeks they fall in, over the dates of `ranges` inside [from, to]. */
-function load(a: Allocation, from: string, to: string) {
+/** Allocated seconds and the weeks they fall in, over the dates of `ranges` inside [from, to] that `counts` keeps. */
+function load(a: Allocation, from: string, to: string, counts: (date: string) => boolean = () => true) {
  let seconds = 0; const weeks = new Set<string>(), days: string[] = []
- for (const [f, t] of a.ranges) for (const d of dates(f > from ? f : from, t < to ? t : to)) { seconds += a.dailySeconds; weeks.add(mondayOf(shift(d, weekday(d) === 6 || weekday(d) === 0 ? -2 : 0))); days.push(d) }
+ for (const [f, t] of a.ranges) for (const d of dates(f > from ? f : from, t < to ? t : to)) { if (!counts(d)) continue; seconds += a.dailySeconds; weeks.add(mondayOf(shift(d, weekday(d) === 6 || weekday(d) === 0 ? -2 : 0))); days.push(d) }
  return { seconds, weeks: weeks.size, first: days[0], last: days.at(-1) }
 }
 const amount = (seconds: number, weeks: number) => weeks > 1 ? `${figure(seconds / weeks)} hrs/wk` : `${figure(seconds)} hrs`
@@ -63,6 +63,11 @@ function pack(items: Omit<Segment, 'track'>[]) {
  return items.map(s => { let t = ends.findIndex(end => end < s.start); if (t < 0) { t = ends.length; ends.push(-1) } ends[t] = s.end; return { ...s, track: t } as Segment })
 }
 
+/** The leave a person is on for a date: the committed hours booked that date are struck, not worked. */
+export const onLeave = (report: Report, personId: string, date: string) => report.data.leave.find(r => r.value.personId === personId && r.value.from <= date && r.value.to >= date)
+/** Committed hours that will be worked over `days`: a date on leave counts none of its committed hours. */
+export const workedCommitted = (report: Report, person: Report['capacity'][number], days: string[]) => person.days.filter(x => days.includes(x.date) && !onLeave(report, person.personId, x.date)).reduce((n, x) => n + x.committedSeconds, 0)
+
 export interface Lane { personId: string; name: string; contractor: boolean; load: string; detail: string; tone: 'ok' | 'alert' | 'unknown'; segments: Segment[] }
 
 export function lanes(report: Report, cols: Column[], tintOf: (clientId: string) => number, options: { proposal?: Row }): Lane[] {
@@ -72,17 +77,19 @@ export function lanes(report: Report, cols: Column[], tintOf: (clientId: string)
  return report.capacity.map(person => {
   const own = d.staffing.filter(r => r.value.personId === person.personId && r.value.from <= to && r.value.to >= from)
   const leave = d.leave.filter(r => r.value.personId === person.personId && r.value.from <= to && r.value.to >= from)
-  const leaveOn = (date: string) => leave.find(r => r.value.from <= date && r.value.to >= date)
+  const leaveOn = (date: string) => leave.find(r => r.value.from <= date && r.value.to >= date), working = (date: string) => !leaveOn(date)
   const bars: Omit<Segment, 'track'>[] = []
   for (const a of merge(own)) {
    const at = covered(cols, a.ranges[0]![0], a.ranges.at(-1)![1]); if (!at) continue
-   const total = load(a, from, to), name = label(a.engagementId)
+   const total = load(a, from, to, a.commitment === 'committed' ? working : undefined), name = label(a.engagementId)
    bars.push({ start: at[0], end: at[1], kind: a.commitment === 'committed' ? 'booking' : 'tentative', tint: tintOf(client(a.engagementId)), name, amount: amount(total.seconds, total.weeks), when: span(total.first, total.last), title: `${name} · ${nameOf(d.engagements, a.engagementId)} · ${a.commitment}`, allocation: a })
   }
   // Leave on a day column with nothing booked under it still shows, on its own.
   for (const r of leave) {
    const days = cols.map((c, i) => c.day && c.from >= r.value.from && c.from <= r.value.to && !own.some(s => s.value.commitment === 'committed' && s.value.from <= c.from && s.value.to >= c.from) ? i : -1).filter(i => i >= 0)
-   const weeks = cols.map((c, i) => !c.day && c.from <= r.value.to && c.to >= r.value.from ? i : -1).filter(i => i >= 0)
+   // A week column whose leave strikes committed hours shows them as their own struck block (below), not a second leave bar.
+   const strikes = (c: Column) => own.some(s => s.value.commitment === 'committed' && [s.value.from, r.value.from, c.from].sort().at(-1)! <= [s.value.to, r.value.to, c.to].sort()[0]!)
+   const weeks = cols.map((c, i) => !c.day && c.from <= r.value.to && c.to >= r.value.from && !strikes(c) ? i : -1).filter(i => i >= 0)
    for (const run of [days, weeks]) if (run.length) bars.push({ start: run[0]!, end: run.at(-1)!, kind: 'leave', tint: 0, name: r.value.note, amount: '', when: span(r.value.from, r.value.to), title: `Leave · ${r.value.note}` })
   }
   // The open proposal's alternatives: dashed options on the lanes of the people they name.
@@ -94,24 +101,35 @@ export function lanes(report: Report, cols: Column[], tintOf: (clientId: string)
   })
   const order: Kind[] = ['booking', 'tentative', 'leave', 'option']
   const placed = pack(bars.sort((x, y) => order.indexOf(x.kind) - order.indexOf(y.kind) || x.start - y.start || y.end - x.end))
-  // Committed bars split where leave cancels their day columns: the cancelled run is struck through.
-  const segments = placed.flatMap(s => {
+  // Committed bars split where leave cancels their day columns: the cancelled run is struck through, and reads as the
+  // leave and the hours it leaves uncovered ("Sick 14 hrs"). In a week column the cancelled hours become their own
+  // struck block beside the hours still worked.
+  const struckBlock = (s: Segment, start: number, end: number, a: Allocation): Segment | null => {
+   const lost = load(a, cols[start]!.from, cols[end]!.to, d => !working(d)); if (!lost.seconds) return null
+   const note = leaveOn(lost.first!)!.value.note
+   return { ...s, start, end, kind: 'struck', name: note, amount: `${figure(lost.seconds)} hrs`, when: span(lost.first, lost.last), note: undefined, title: `${s.name} · ${figure(lost.seconds)} committed hrs uncovered by leave (${note})` }
+  }
+  const segments: Segment[] = [], extra: Segment[] = []
+  for (const s of placed) {
    const a = s.allocation
-   if (s.kind !== 'booking' || !a) return [s]
+   if (s.kind !== 'booking' || !a) { segments.push(s); continue }
    const struck = (i: number) => cols[i]!.day && !!leaveOn(cols[i]!.from) && a.ranges.some(([f, t]) => f <= cols[i]!.from && t >= cols[i]!.from)
-   if (![...Array(s.end - s.start + 1).keys()].some(k => struck(s.start + k))) return [s]
    const runs: Segment[] = []
    for (let i = s.start; i <= s.end; i++) {
     const last = runs.at(-1), kind: Kind = struck(i) ? 'struck' : 'booking'
     if (last && last.kind === kind) last.end = i; else runs.push({ ...s, start: i, end: i, kind })
    }
-   return runs.map(run => {
-    const part = load(a, cols[run.start]!.from, cols[run.end]!.to), note = run.kind === 'struck' ? leaveOn(cols[run.start]!.from)!.value.note : undefined
-    return { ...run, amount: amount(part.seconds, part.weeks), when: span(part.first, part.last), note, title: run.kind === 'struck' ? `${run.name} · cancelled by leave (${note})` : run.title }
-   })
-  })
+   for (const run of runs) {
+    if (run.kind === 'struck') { const block = struckBlock(s, run.start, run.end, a); if (block) segments.push(block); continue }
+    const part = load(a, cols[run.start]!.from, cols[run.end]!.to, working)
+    segments.push({ ...run, amount: amount(part.seconds, part.weeks), when: span(part.first, part.last) })
+    for (let i = run.start; i <= run.end; i++) if (!cols[i]!.day) { const block = struckBlock(s, i, i, a); if (block) extra.push(block) }
+   }
+  }
+  // Each week-column struck block takes the lowest track free in its column.
+  for (const block of extra) { let track = 0; while (segments.some(x => x.track === track && x.start <= block.end && x.end >= block.start)) track++; segments.push({ ...block, track }) }
   const days = person.days.filter(x => week.includes(x.date)), known = days.every(x => x.availableSeconds !== null)
-  const committed = days.reduce((n, x) => n + x.committedSeconds, 0), available = days.reduce((n, x) => n + (x.availableSeconds ?? 0), 0), tentative = days.reduce((n, x) => n + x.tentativeSeconds, 0)
+  const committed = workedCommitted(report, person, week), available = days.reduce((n, x) => n + (x.availableSeconds ?? 0), 0), tentative = days.reduce((n, x) => n + x.tentativeSeconds, 0)
   const away = leave.filter(r => r.value.from <= week.at(-1)! && r.value.to >= week[0]!)
   const conflicts = person.conflicts.some(c => week.includes(c.date))
   const weekdays = (from: string, to: string) => from === to ? dayName(from).slice(0, 3) : `${dayName(from).slice(0, 3)}–${dayName(to).slice(0, 3)}`

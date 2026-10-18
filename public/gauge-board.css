@@ -100,6 +100,7 @@
 /* Worklog */
 .g-worklog { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 16px; padding: 16px 20px 6px; border: 1px solid var(--g-hair); border-radius: var(--g-radius-card); background: var(--rer-surface); }
 .g-worklog h2 { padding-top: 8px; font-size: 16px; font-weight: 700; }
+.g-worklog > .g-empty { margin: 0; padding: 8px 0 10px; text-align: left; line-height: 1.5; }
 .g-worklog ul { list-style: none; margin: 0; padding: 0; }
 .g-worklog li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 4px 14px; padding: 9px 0 10px; border-top: 1px solid var(--g-hair); }
 .g-worklog li:first-child { border-top: 0; }

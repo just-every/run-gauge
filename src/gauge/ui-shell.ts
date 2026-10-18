@@ -1,6 +1,6 @@
 // The app's frame from the owner's pick (desk-gauge/app, option J): the ink rail with the mark, the serif wordmark and
 // one labelled link per workspace page; the top bar with today's date in the workspace calendar, its timezone and the
-// signed-in person; and the agent strip, which names the agent and what waits for this person's decision.
+// signed-in person (no sync status: Gauge syncs nothing); and the agent strip, which names the agent and what waits for this person's decision.
 import type { Actor } from './store'
 import { escape as e } from './ui-forms'
 
@@ -38,7 +38,7 @@ export const dayName = (date: string) => weekdayDate.format(new Date(`${date}T00
 /** The top bar: today in the workspace calendar, the calendar's timezone and who is signed in. */
 export function topBar(a: Actor, today: string, zone: string) {
  const name = a.session.operator.displayName, role = a.role.charAt(0).toUpperCase() + a.role.slice(1)
- return `<header class="g-top"><p class="g-today"><span>Today</span> <b>${e(dayName(today))}</b></p><p class="g-zone"><span class="g-dot" aria-hidden="true"></span><span>Dates and times in ${e(zoneName(zone))}</span></p>`
+ return `<header class="g-top"><p class="g-today"><span>Today</span> <b>${e(dayName(today))}</b></p><p class="g-zone">${icon('time')}<span>Dates and times in ${e(zoneName(zone))}</span></p>`
   + `<p class="g-who"><span class="g-avatar" aria-hidden="true">${e(initials(name))}</span><span class="g-who-name">${e(name)}<span class="g-who-role">${e(role)}</span></span>${a.role === 'owner' ? '<a href="/auth/settings/identity">Account</a>' : ''}</p></header>`
 }
 

@@ -46,8 +46,9 @@
 /* Base's no-JavaScript documents (sign-in, /setup, account, the demo gate) wear the app's frame from the owner's pick:
    the ink rail with the mark down the left, a white work surface and one white hairline card. These rules only
    restyle Base's frame; its markup is unchanged. */
-html.rer-themed body { padding: 88px 32px 64px calc(var(--g-rail) + 32px); background: var(--rer-page); font-size: 15px; }
-html.rer-themed body::before { content: ''; position: fixed; inset: 0 auto 0 0; width: var(--g-rail); background: var(--rer-logo) 26px 24px / 28px 28px no-repeat, var(--g-navy); }
+html.rer-themed body { position: relative; padding: 88px 32px 64px calc(var(--g-rail) + 32px); background: var(--rer-page); font-size: 15px; }
+/* The rail runs the page's full height, however tall the card makes it. */
+html.rer-themed body::before { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--g-rail); background: var(--rer-logo) 26px 24px / 28px 28px no-repeat, var(--g-navy); }
 html.rer-themed main { max-width: 520px; padding: 32px 36px; border: 1px solid var(--g-hair); box-shadow: var(--g-card-shadow); border-radius: var(--g-radius-card); text-align: left; }
 html.rer-themed :is(.rer-brand, .brand) { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
 html.rer-themed h1 { font-size: 34px; font-weight: var(--g-headline-weight); letter-spacing: var(--g-subhead-track); word-spacing: var(--g-headline-space); font-variation-settings: 'opsz' 60; }
@@ -58,6 +59,12 @@ html.rer-themed label:has(input[type=checkbox]) { color: var(--rer-text); font-s
 html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 42px; border-color: var(--g-input); border-radius: var(--g-radius-input); color: var(--rer-text); font-size: 15px; }
 html.rer-themed input:focus-visible { outline: 3px solid color-mix(in srgb, var(--g-turquoise) 35%, transparent); outline-offset: 0; border-color: var(--g-turquoise-deep); }
 html.rer-themed button { min-height: 44px; border-radius: var(--rer-button-radius); font-weight: 600; }
+/* One-click sign-in: turquoise stays the one action (the first person, the owner); everyone else is a quiet row. */
+html.rer-themed .stack { display: flex; flex-direction: column; gap: 8px; }
+html.rer-themed .stack .action { margin: 0; }
+html.rer-themed .stack .action ~ .action { min-height: 0; padding: 9px 14px; border: 1px solid var(--g-hair); background: var(--rer-surface); color: var(--rer-text); font-weight: 500; text-align: left; box-shadow: none; }
+html.rer-themed .stack .action ~ .action:hover { border-color: var(--g-turquoise); background: var(--g-pale); }
+html.rer-themed .stack .action:first-child + .action { margin-top: 10px; }
 @media (max-width: 900px) {
   html.rer-themed body { padding: 88px 16px 40px; }
   html.rer-themed body::before { inset: 0 0 auto 0; width: auto; height: 56px; background-position: 16px center, 0 0; background-size: 26px 26px, auto; }

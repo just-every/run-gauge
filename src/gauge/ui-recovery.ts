@@ -11,7 +11,7 @@ import { escape as e, input as i, form, decision } from './ui-forms'
 import { money, nameOf } from './ui-format'
 import { type Report, proposalLabels } from './ui-describe'
 import { agentStrip, dayName } from './ui-shell'
-import { figure, shift } from './ui-board'
+import { figure, shift, workedCommitted } from './ui-board'
 
 const letter = (n: number) => String.fromCharCode(65 + n)
 const words = ['No', 'One', 'Two', 'Three', 'Four', 'Five']
@@ -101,7 +101,8 @@ export async function worklog(env: Bindings, report: Report, zone: string, today
   return `<li><span class="g-log-icon" aria-hidden="true"><img src="/brand/mark.svg" alt="" width="16" height="16"></span><p><b>${e(proposalLabels[v.kind])} · ${e(clientOf(d, v.engagementId))}</b><span>${e(outcome)}</span></p><time datetime="${new Date(v.preparedAt).toISOString()}">${e(stamp(v.preparedAt, zone, today))}</time></li>`
  })
  let committed = 0, available = 0, tentative = 0, people = 0
- for (const c of report.capacity) { const days = c.days.filter(x => week.includes(x.date) && x.availableSeconds !== null); if (!days.length) continue; people++; for (const x of days) { committed += x.committedSeconds; available += x.availableSeconds!; tentative += x.tentativeSeconds } }
+ // Committed hours on a date someone is on leave are struck on the board, so they are not counted as booked here either.
+ for (const c of report.capacity) { const days = c.days.filter(x => week.includes(x.date) && x.availableSeconds !== null); if (!days.length) continue; people++; committed += workedCommitted(report, c, days.map(x => x.date)); for (const x of days) { available += x.availableSeconds!; tentative += x.tentativeSeconds } }
  if (available) rows.push(`<li><span class="g-log-icon g-log-icon--plain" aria-hidden="true">%</span><p><b>Booked ${Math.round(committed / available * 100)}% of available hours</b><span>${figure(committed)} of ${figure(available)} hrs committed across ${people} ${people === 1 ? 'person' : 'people'}${tentative ? `; ${figure(tentative)} hrs tentative` : ''}</span></p><time>Week of ${e(dayName(week[0]!).slice(4))}</time></li>`)
  return `<section class="g-worklog" aria-labelledby="g-worklog-title"><h2 id="g-worklog-title">Worklog</h2>${rows.length ? `<ul role="list">${rows.join('')}</ul>` : '<p class="g-empty">No agent proposals yet.</p>'}</section>`
 }

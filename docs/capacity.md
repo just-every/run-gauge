@@ -3,7 +3,7 @@
 ## Reading the board
 
 - A solid bar is **committed** work; a dashed bar is **tentative** work (a deal not yet won, a placeholder).
-- **Leave** is a red hatch. Where leave falls on a day with committed work, those hours are struck through: they cannot happen as booked.
+- **Leave** is a red hatch. Where leave falls on a day with committed work, those hours are struck through and labelled with the leave and the hours left uncovered (for example **Sick 14 hrs**): they cannot happen as booked, so the lane's committed total leaves them out. In the 5-week view that week shows the hours still worked and the struck hours as two blocks.
 - A dashed outline marked **Option A** or **Option B** is an agent's proposed alternative, not yet approved.
 - A flag in a week's heading marks a milestone due that week, such as a launch.
 - A red dot beside a name means a conflict or leave this week; a grey dot means some dates have no calendar, so availability is unknown. Gauge does not count those dates as zero.

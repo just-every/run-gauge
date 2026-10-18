@@ -1,11 +1,10 @@
 import type { Bindings } from '../auth.server'
-import { capacity } from './reports'
-import { type Actor, finance } from './store'
+import type { Actor } from './store'
 import { type Row } from './model'
 import { canDecide } from './proposals'
 import { escape as e, input as i, check, form } from './ui-forms'
 import { localValue } from './form-input'
-import { hours, money, period, interval, when, chip, nameOf } from './ui-format'
+import { hours, money, interval, when, chip, nameOf } from './ui-format'
 import { type Report, describeSource, proposalLabels } from './ui-describe'
 import { alternativesPanel } from './ui-recovery'
 

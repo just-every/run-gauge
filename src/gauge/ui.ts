@@ -27,10 +27,10 @@ export function shell(a: Actor, section: string, title: string, body: string, ch
 // The workspace keeps one calendar: the first engagement's work timezone (else the first person's), US Pacific before either exists.
 export const workspaceZone=async(env:Bindings)=>(await all(env,'engagements'))[0]?.value.timezone??(await all(env,'people'))[0]?.value.timezone??'America/Los_Angeles'
 const shift=(date:string,days:number)=>new Date(Date.parse(`${date}T00:00:00Z`)+days*86400000).toISOString().slice(0,10)
-/** Today in the workspace timezone, its Monday–Sunday week and the next calendar month. */
+/** Today in the workspace timezone and its Monday–Sunday week. */
 export function periods(zone:string,now=Date.now()) {
- const today=workDate(now,zone),monday=shift(today,-((new Date(`${today}T00:00:00Z`).getUTCDay()+6)%7)),[y,m]=today.split('-').map(Number)
- return {today,week:[monday,shift(monday,6)],month:[new Date(Date.UTC(y,m,1)).toISOString().slice(0,10),new Date(Date.UTC(y,m+1,0)).toISOString().slice(0,10)]}
+ const today=workDate(now,zone),monday=shift(today,-((new Date(`${today}T00:00:00Z`).getUTCDay()+6)%7))
+ return {today,week:[monday,shift(monday,6)]}
 }
 
 export async function appPage(env:Bindings,a:Actor,section:string,options:Value={}) {

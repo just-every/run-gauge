@@ -34,7 +34,7 @@
   /* leave and struck hours: a claret hatch on its wash */
   --g-hatch: repeating-linear-gradient(135deg, var(--g-claret-wash) 0 6px, color-mix(in srgb, var(--g-claret) 40%, #fff) 6px 7px);
   /* the app's frame (owner's pick J): rail, gutter, side panel and the board's people column */
-  --g-rail: 182px; --g-gutter: 20px; --g-panel: 330px; --g-people: 156px;
+  --g-rail: 182px; --g-gutter: 20px; --g-panel: 310px; --g-people: 160px;
   /* radius, depth */
   --rer-radius: 12px; --g-radius-card: 8px; --g-radius-input: 8px; --rer-button-radius: 8px;
   --rer-logo: url('/brand/mark.svg');
@@ -54,7 +54,7 @@ html.rer-themed label { color: var(--g-slate); font-size: 13px; font-weight: 500
 html.rer-themed label:has(input[type=checkbox]) { color: var(--rer-text); font-size: 14px; }
 html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 42px; border-color: var(--g-input); border-radius: var(--g-radius-input); color: var(--rer-text); font-size: 15px; }
 html.rer-themed input:focus-visible { outline: 3px solid color-mix(in srgb, var(--g-turquoise) 35%, transparent); outline-offset: 0; border-color: var(--g-turquoise-deep); }
-html.rer-themed button { min-height: 44px; border-radius: var(--rer-button-radius); background: var(--g-turquoise-deep); color: #fff; font-weight: 600; }
+html.rer-themed button { min-height: 44px; border-radius: var(--rer-button-radius); font-weight: 600; }
 @media (max-width: 900px) {
   html.rer-themed body { padding: 88px 16px 40px; }
   html.rer-themed body::before { inset: 0 0 auto 0; width: auto; height: 56px; background-position: 16px center, 0 0; background-size: 26px 26px, auto; }

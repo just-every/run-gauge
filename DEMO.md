@@ -1,17 +1,24 @@
 # Gauge Demo
 
-Gauge’s demo is a disposable agency workspace: three clients, four people,
-three scoped engagements, approved rates and terms, staffing, leave, twelve
-time entries, three expenses with a receipt, and a draft billing packet.
-The fifty native records use fixed IDs and dates relative to the demo’s start.
-Ordinary installations still start empty.
+Gauge’s demo is Northbound Studio’s working month (a brand and web studio in
+Portland, Oregon), the same records as the homepage: Jess Alvarez signs in as
+the owner; Owen Park, Rachel Kim and Marcus Bell lead; six clients (Cascade
+Cider, Pacific Trail, Willamette CU, Treasure Valley, Capitol Grain and Rose
+City Running Co.), nine people including Tom Becker (1099) and a senior
+developer placeholder, five weeks of committed and tentative staffing, Diego
+Ramos’s sick days, launch milestones, last week’s time and expenses, a draft
+billing packet and the recovery agent’s proposals. Records use fixed IDs and
+dates relative to the demo’s start: week 0 is the Pacific work week the demo
+opens in. Ordinary installations still start empty.
 
-Open the weekly review, approve submitted work, then approve and download the
-Harbor Coffee billing packet. Invitations return success without delivery;
-there is no captured-mail UI. Gauge’s first-release workflow has no public
-internet probe, AI provider, accounting write or invoice-send integration.
-Native authentication mail is suppressed under `RER_DEMO`, and Base’s guard
-handles HTTP effects. No provider credentials are needed.
+Open Staffing: the recovery agent has prepared two costed alternatives for
+Diego’s 14 Cascade Cider hours. Approve A (Tom Becker) and the allocation
+appears on Tom’s lane. Then open Review to approve submitted work, and Billing
+to approve and download the Treasure Valley packet. Invitations return success
+without delivery; there is no captured-mail UI. Gauge’s first-release workflow
+has no public internet probe, AI provider, accounting write or invoice-send
+integration. Native authentication mail is suppressed under `RER_DEMO`, and
+Base’s guard handles HTTP effects. No provider credentials are needed.
 
 The `Run demo` workflow deploys the separate test host with `test_only`, removes
 it with `test_only` plus `remove`, and deploys production with neither input.

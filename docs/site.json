@@ -13,7 +13,7 @@
         { "slug": "week-in-review", "title": "Week in review", "file": "week-in-review.md", "summary": "The week's exceptions, agent proposals and engagement economics on one page." },
         { "slug": "time", "title": "Time and approvals", "file": "time.md", "summary": "Record time by hand or with a timer, then submit, return, approve and correct it." },
         { "slug": "expenses", "title": "Expenses and receipts", "file": "expenses.md", "summary": "Project expenses with private receipts, approved or returned by the lead." },
-        { "slug": "capacity", "title": "Next-month capacity", "file": "capacity.md", "summary": "Calendars, leave and staffing show each person's remaining time and flag conflicts." },
+        { "slug": "capacity", "title": "Staffing", "file": "capacity.md", "summary": "A five-week board of who is booked, who is free and who is out, with the agent's costed alternatives." },
         { "slug": "billing", "title": "Billing packets", "file": "billing.md", "summary": "Prepare, approve and download one packet of approved work, and correct it with adjustments." }
       ]
     },

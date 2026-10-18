@@ -16,7 +16,7 @@ import { figure, shift } from './ui-board'
 const letter = (n: number) => String.fromCharCode(65 + n)
 const words = ['No', 'One', 'Two', 'Three', 'Four', 'Five']
 const clientOf = (d: Report['data'], engagementId: string) => nameOf(d.clients, d.engagements.find(x => x.id === engagementId)?.value.clientId, nameOf(d.engagements, engagementId, 'Engagement'))
-const clock = (ms: number, zone: string) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: zone }).format(ms)
+const clock = (ms: number, zone: string) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: zone }).format(ms).replace(/\s(AM|PM)$/, '\u00a0$1')
 const local = (ms: number, zone: string) => new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(ms)
 /** "Today 7:46 AM" or "Fri Oct 16, 3:10 PM", in the workspace calendar. */
 export const stamp = (ms: number, zone: string, today: string) => local(ms, zone) === today ? `Today ${clock(ms, zone)}` : `${dayName(local(ms, zone))}, ${clock(ms, zone)}`

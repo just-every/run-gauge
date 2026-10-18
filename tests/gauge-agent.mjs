@@ -40,6 +40,13 @@ try{
   await cmd('proposal:approve',{...p,choice:0},lead.cookie);const decided=await proposal(p.id),allocation=(await state()).data.staffing.find(r=>r.id===decided.value.effect.id)
   assert.equal(allocation.value.personId,spare.id);assert.equal(allocation.value.commitment,'tentative');assert.equal(decided.value.choice,0)
   const week=await(await request('/api/gauge/state?from=2026-11-02&to=2026-11-06',lead.cookie)).json(),spareWeek=week.capacity.find(c=>c.personId===spare.id);assert.equal(spareWeek.tentativeSeconds,5*14400);assert.equal(spareWeek.committedSeconds,0)
+  // On Staffing each alternative approves itself through its own form; the lead picks B there.
+  const again=await prepare('staffing',{alternatives:[{personId:spare.id,from:'2026-11-09',to:'2026-11-10',dailySeconds:7200,rationale:'Contractor covers the review days'},{personId:staffPerson.id,from:'2026-11-09',to:'2026-11-10',dailySeconds:3600,rationale:'Assigned designer covers the review days'}]})
+  const page=await(await request('/app/capacity?from=2026-11-09',lead.cookie)).text(),forms=[...page.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)].map(m=>m[1]).filter(f=>f.includes('value="proposal:approve"')&&f.includes(`name="id" value="${again.id}"`))
+  assert.deepEqual(forms.map(f=>f.match(/name="choice" value="(\d)"/)?.[1]),['0','1'],'one approval form per alternative')
+  const form=new FormData();for(const m of forms[1].matchAll(/<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"/g))form.set(m[1],m[2])
+  assert.equal((await request('/app/action',lead.cookie,{method:'POST',headers:{origin:h.origin},body:form})).status,303)
+  const chosen=await proposal(again.id),placed=(await state()).data.staffing.find(r=>r.id===chosen.value.effect.id);assert.equal(chosen.value.choice,1);assert.equal(placed.value.personId,staffPerson.id);assert.equal(placed.value.commitment,'tentative')
  })
  await flow('AGENT-003 billing preparation: eligibility checked, finance approves the exact packet',async()=>{
   const work=await cmd('time:save',{personId:staffPerson.id,engagementId:eng.id,taskId:task.id,service:'Design',timezone:'Australia/Brisbane',notes:'Wireframes',billable:true,start:'2026-10-07T09:00:00+10:00',end:'2026-10-07T10:00:00+10:00'},staff.cookie)

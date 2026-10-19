@@ -3087,7 +3087,7 @@
       "executable": false
     },
     "tests/gauge-portability.mjs": {
-      "sha256": "1baf7301939d6f1002be5e1e8d44ef02f663e3d8c735daf5a9aec367171d17ec",
+      "sha256": "7065a98a592e300af7330666fa42d5e78b44ebe26b239b51a717da92aa95b7ac",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

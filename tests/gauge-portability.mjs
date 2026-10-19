@@ -25,7 +25,8 @@ export async function portability(source,{verifyRestored}={}){
   await service.imports.finalize(id,{contentHash:expected.at(-1).contentHash,archiveHash:expected.at(-1).archiveHash})
   for(const table of manifest.tables){const actual=await restored.env.DB.prepare(`SELECT COUNT(*) n FROM "${table.name}"`).first();assert.equal(actual.n,table.count,table.name)}
   assert.equal((await restored.env.DB.prepare('SELECT COUNT(*) n FROM g_api_keys').first()).n,0,'a restored installation holds no utilization key')
-  const file=await restored.env.DB.prepare('SELECT id,expense_id,bytes FROM g_files LIMIT 1').first();assert.equal(Buffer.from(file.bytes).toString(),'private receipt bytes')
+  // COST-001's receipt, chosen by its bytes: later journeys add other receipts and row order is not part of restore.
+  const file=await restored.env.DB.prepare("SELECT id,expense_id,bytes FROM g_files WHERE CAST(bytes AS TEXT)='private receipt bytes'").first();assert(file,'the COST-001 receipt is restored');assert.equal(Buffer.from(file.bytes).toString(),'private receipt bytes')
   const expense=await restored.env.DB.prepare('SELECT data FROM g_expenses WHERE id=?').bind(file.expense_id).first();assert.equal(JSON.parse(expense.data).status,'approved');assert(JSON.parse(expense.data).attachmentIds.includes(file.id),'restored approved expense retains its receipt link')
   const packets=(await restored.env.DB.prepare("SELECT data FROM g_packets WHERE status='approved'").all()).results;assert(packets.some(p=>JSON.parse(p.data).artifact.includes("'=SUM(1,2)")))
   const exportId=await service.exports.create();while((await service.exports.advance(exportId,{maxParts:16})).phase==='building'){}const after=[];for await(const r of readArchive(await service.exports.download(exportId)))after.push(r)

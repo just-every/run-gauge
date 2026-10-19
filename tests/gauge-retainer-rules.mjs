@@ -1,0 +1,77 @@
+import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
+
+// RETAINER-002: public commands, statement, draft/approve/download and immutable
+// versions. Called by the existing retainer journey, sharing its built app.
+export async function retainerRulesJourney(h,browser,{client,lead,worker,staff,manager}) {
+ const {cmd,state,request}=h,zone='America/New_York'
+ await cmd('save:rates',{personId:worker.id,service:'Design',effective:'2026-07-01',costMinor:9000,billMinor:15000})
+ const engagement=await cmd('save:engagements',{name:'Studio service subscription',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Ongoing design delivery',timezone:zone})
+ const budget=await cmd('save:budgets',{engagementId:engagement.id,mode:'hourly',amountMinor:9000000,effortSeconds:1000000,roundingSeconds:60,reason:'Separate ad hoc scope'});await cmd('budget:approve',budget)
+ const task=await cmd('save:tasks',{engagementId:engagement.id,name:'Subscription design',remainingSeconds:3600})
+ const terms={name:'40-hour monthly design',frequency:'monthly',unit:'hours',allowance:144000,services:['Design'],consumes:'billable',proration:'calendar',start:'2026-08-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:28800,carryPeriods:1,deficit:false,overage:'bill',overageRate:20000}}
+ const preview=(t,extra={})=>cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:t,...extra},manager.cookie)
+ const save=p=>cmd('retainer:approve',{...p.input,fingerprint:p.fingerprint,reason:'Agreed service subscription and rollover'},manager.cookie)
+ const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
+ const login=async cookie=>{await context.clearCookies();await context.addCookies(cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))}
+ const capture=async(name,target=page.locator('#retainers'))=>{if(!process.env.GAUGE_RETAINER_SHOTS)return;await mkdir(process.env.GAUGE_RETAINER_SHOTS,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);await target.scrollIntoViewIfNeeded();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);await page.screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/${name}-${width}.png`,fullPage:true});await page.screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/${name}-viewport-${width}.png`})}}
+ try{
+  await login(manager.cookie);await page.goto(h.origin+`/app/engagements?edit=${engagement.id}`);await page.getByText('Set up a retainer',{exact:true}).click()
+  const form=page.locator('form:visible').filter({has:page.locator('[name=operation][value=terms]')})
+  await form.getByLabel('Retainer name',{exact:true}).fill(terms.name);await form.getByLabel('Allowance type',{exact:true}).selectOption('hours');await form.getByLabel('Included hours',{exact:true}).fill('40');await form.getByLabel('Eligible services (one per line)',{exact:true}).fill('Design');await form.getByLabel('Retainer start date',{exact:true}).fill(terms.start)
+  await form.getByLabel('Hour carry-over cap',{exact:true}).fill('8');await form.getByLabel('Carry expiry (successor periods)',{exact:true}).fill('1');await form.getByLabel('Overage policy',{exact:true}).selectOption('bill');await form.getByLabel('Hour overage rate (USD/h)',{exact:true}).fill('200')
+  await capture('rules-editor',form);await capture('rules-rule-fields',form.locator('fieldset'));await form.getByRole('button',{name:'Preview retainer',exact:true}).click();await capture('rules-preview')
+  await page.getByLabel('Commercial approval reason',{exact:true}).fill('Approved 40 hours, eight-hour carry and $200 overage');await page.getByRole('button',{name:'Save retainer',exact:true}).click()
+  let data=await state();const retained=data.data.retainers.find(t=>t.value.engagementId===engagement.id)
+  assert.deepEqual(retained.value.terms.rules,terms.rules)
+  const open=await cmd('retainer:preview',{engagementId:engagement.id,operation:'periods',retainerId:retained.id,from:'2026-09-01',to:'2026-10-31'},manager.cookie);await save(open)
+  const periods=(await state()).data.retainerPeriods.filter(p=>p.value.rootId===retained.id).sort((a,b)=>a.value.periodStart.localeCompare(b.value.periodStart)),[aug,sep,oct]=periods
+  const actual=async(day,hours,engagementId=engagement.id,taskId=task.id)=>{let time=await cmd('time:save',{engagementId,taskId,personId:worker.id,service:'Design',timezone:zone,start:`${day}T06:00:00-04:00`,end:`${day}T${String(6+hours).padStart(2,'0')}:00:00-04:00`,billable:true,notes:'Subscription service delivery'},staff.cookie);time=await cmd('time:submit',time,staff.cookie);return cmd('time:approve',time,manager.cookie)}
+  for(const day of ['03','04','05','06'])await actual(`2026-08-${day}`,8)
+  const september=[];for(const day of ['01','02','03','04','07','08'])september.push(await actual(`2026-09-${day}`,8));september.push(await actual('2026-09-09',3))
+  data=await state();const balance=id=>data.retainerBalances.find(b=>b.periodId===id),b=balance(sep.id)
+  assert.equal(balance(aug.id).remaining,28800);assert.equal(b.rollover,28800);assert.equal(b.opening,172800);assert.equal(b.consumed,183600);assert.equal(b.remaining,-10800);assert.equal(b.overage,10800);assert.equal(b.overageMinor,60000)
+  assert.deepEqual(b.allocation.filter(x=>x.sourceId===september[0].id).map(x=>[x.allowancePeriodId,x.quantity]),[[aug.id,28800]],'Oldest eight hours consumed before the new 40-hour allowance')
+  assert.equal(balance(oct.id).rollover,0)
+  await login(h.owner);await page.goto(h.origin+`/app/engagements?edit=${engagement.id}`);const row=page.locator(`#retainers [id="${sep.id}"]`);await row.getByText('FIFO source allocation',{exact:true}).click();await capture('rules-fifo-overage',row)
+  const draftForm=row.locator('form').filter({has:page.locator('[name=action][value="packet:create"]')});await draftForm.getByRole('button',{name:'Draft overage packet',exact:true}).click()
+  data=await state();const packet=data.data.packets.find(p=>p.value.lines.some(l=>l.sourceId===sep.id));assert.equal(packet.value.totalMinor,60000);assert.equal(packet.value.lines[0].durationSeconds,10800)
+  await capture('rules-overage-draft',page.locator(`[id="${packet.id}"]`))
+  const approvedPacket=await cmd('packet:approve',{id:packet.id,revision:packet.revision});const artifact=await request(`/api/gauge/packets/${approvedPacket.id}`,h.owner);assert.equal(artifact.status,200);const bytes=await artifact.text();assert(bytes.includes('60000'));assert(bytes.includes('Not an invoice'));assert.equal(await(await request(`/api/gauge/packets/${approvedPacket.id}`,h.owner)).text(),bytes)
+  await cmd('packet:create',{engagementId:engagement.id,title:'Duplicate period charge',sources:[`retainerPeriods:${sep.id}`]},h.owner,409)
+  await cmd('packet:create',{engagementId:engagement.id,title:'Included time cannot be billed',sources:[`time:${september[0].id}`]},h.owner,409)
+  await page.goto(h.origin+'/app/billing');await capture('rules-overage-approved',page.locator(`[id="${packet.id}"]`))
+  const historical=structuredClone((await state()).retainerBalances.filter(b=>periods.some(p=>p.id===b.periodId)))
+  const version=await preview({...terms,start:'2026-11-01',rules:{...terms.rules,carryCap:7200,carryPeriods:2,overageRate:25000}},{previousId:retained.id});await save(version)
+  assert.deepEqual((await state()).retainerBalances.filter(b=>periods.some(p=>p.id===b.periodId)),historical,'Editing current rules leaves all earlier period calculations unchanged')
+  const latest=(await state()).data.retainers.find(t=>t.value.previousId===retained.id)
+  const year=await cmd('retainer:preview',{engagementId:engagement.id,operation:'periods',retainerId:latest.id,from:'2026-11-01',to:'2027-10-31'},manager.cookie);await save(year)
+  const following=await cmd('retainer:preview',{engagementId:engagement.id,operation:'periods',retainerId:latest.id,from:'2027-11-01',to:'2027-11-30'},manager.cookie);await save(following)
+  await cmd('retainer:preview',{engagementId:engagement.id,operation:'periods',retainerId:latest.id,from:'2028-01-01',to:'2028-01-31'},manager.cookie,400)
+  // Untouched carry expires with its original lot age, and cap drops newer excess.
+  const expiry=await save(await preview({...terms,name:'Expiry example',services:['Unused service'],rules:{carryCap:28800,carryPeriods:1,deficit:false,overage:'held',overageRate:0}},{from:'2026-08-01',to:'2026-10-31'}))
+  data=await state();const expiryOct=data.retainerBalances.find(b=>b.retainerId===expiry.id&&data.data.retainerPeriods.find(p=>p.id===b.periodId).value.periodStart==='2026-10-01')
+  assert.equal(expiryOct.rollover,28800);assert.equal(expiryOct.expired,28800);assert.equal(expiryOct.forfeited,115200)
+  // Declared deficits reduce the next entitlement and cannot also be billed.
+  const deficit=await save(await preview({...terms,name:'Deficit example',services:['Design'],allowance:3600,rules:{carryCap:0,carryPeriods:0,deficit:true,overage:'held',overageRate:0}},{from:'2026-08-01',to:'2026-09-30'}))
+  data=await state();const deficitSep=data.retainerBalances.find(b=>b.retainerId===deficit.id&&data.data.retainerPeriods.find(p=>p.id===b.periodId).value.periodStart==='2026-09-01')
+  assert.equal(deficitSep.deficitOpening,31*3600);assert.equal(deficitSep.opening,-30*3600);assert.equal(deficitSep.overageMinor,null)
+  await cmd('packet:create',{engagementId:engagement.id,title:'Disallowed deficit billing',sources:[`retainerPeriods:${deficitSep.periodId}`]},h.owner,409)
+  await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{...terms,rules:{...terms.rules,deficit:true}}},manager.cookie,400)
+  // Value-unit rollover and agreed percentage overage use frozen approval cents.
+  const value=await save(await preview({...terms,name:'Value example',unit:'value',allowance:100000,services:['Design'],rules:{carryCap:20000,carryPeriods:1,deficit:false,overage:'bill',overageRate:12500}},{from:'2026-08-01',to:'2026-09-30'}))
+  data=await state();const v=data.retainerBalances.find(b=>b.retainerId===value.id&&data.data.retainerPeriods.find(p=>p.id===b.periodId).value.periodStart==='2026-08-01')
+  assert.equal(v.consumed,480000);assert.equal(v.overage,380000);assert.equal(v.overageMinor,475000)
+  await cmd('packet:create',{engagementId:engagement.id,title:'Ambiguous source billing held',sources:[`retainerPeriods:${v.periodId}`]},h.owner,409)
+  // An overage draft is rechecked against later approved consumption before approval.
+  const fresh=await save(await preview({...terms,name:'Fresh design agreement',start:'2026-10-01',allowance:3600,services:['Strategy'],rules:{...terms.rules,carryCap:0,carryPeriods:0}},{from:'2026-10-01',to:'2026-10-31'}))
+  const strategy=await cmd('time:save',{engagementId:engagement.id,taskId:task.id,personId:worker.id,service:'Strategy',timezone:zone,start:'2026-10-01T06:00:00-04:00',end:'2026-10-01T09:00:00-04:00',billable:true,notes:'Strategy delivery'},staff.cookie);const sub=await cmd('time:submit',strategy,staff.cookie);await cmd('time:approve',sub,manager.cookie)
+  data=await state();const freshPeriod=data.data.retainerPeriods.find(p=>p.value.retainerId===fresh.id)
+  const stale=await cmd('packet:create',{engagementId:engagement.id,title:'Reviewed two-hour overage',sources:[`retainerPeriods:${freshPeriod.id}`]})
+  const next=await cmd('time:save',{engagementId:engagement.id,taskId:task.id,personId:worker.id,service:'Strategy',timezone:zone,start:'2026-10-02T06:00:00-04:00',end:'2026-10-02T07:00:00-04:00',billable:true,notes:'Further strategy delivery'},staff.cookie);const submitted=await cmd('time:submit',next,staff.cookie);await cmd('time:approve',submitted,manager.cookie)
+  await cmd('packet:approve',stale,h.owner,409);await cmd('packet:cancel',stale)
+  const refreshed=await cmd('packet:create',{engagementId:engagement.id,title:'Reviewed three-hour overage',sources:[`retainerPeriods:${freshPeriod.id}`]});await cmd('packet:approve',refreshed)
+  assert.equal((await state()).data.packets.find(p=>p.id===refreshed.id).value.totalMinor,60000)
+  console.log('PASS RETAINER-002: capped 8-of-40 hour FIFO rollover, original expiry, deficit carry, versioned hour/value overage rates, exact three-hour $600 packet, source reservation, repeated download and stale approval refusal')
+ }finally{await context.close()}
+}

@@ -18,6 +18,7 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  const family=rootId?rows('retainers').filter(r=>r.value.rootId===rootId):[]
  if(previous)need(family.at(-1)?.id===previous.id,'Retainer version changed; reload',409)
  const terms=operation==='terms'?normalizeRetainer(input.terms,engagement.value.currency):existing!.value.terms
+ if(previous)need(terms.unit===previous.value.terms.unit&&terms.frequency===previous.value.terms.frequency,'Keep the unit and calendar frequency within one retainer; create a separate retainer to change them')
  if(previous)need(terms.start>previous.value.terms.start,'A new commercial version starts after the previous version')
  const calendarRow=rows('agencyCalendars').at(-1)
  need(terms.proration!=='working'||(operation==='periods'?existing!.value.calendar:calendarRow),'The owner must save the agency workweek and holidays before working-day proration')
@@ -35,6 +36,13 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
   return {...period,existingId:null}
  })
  if(previous)need(saved.every(p=>terms.start>p.value.periodEnd),'New terms must start after every saved period',409)
+ if(terms.rules?.carryCap||terms.rules?.deficit){
+  const starts=[...new Set([...saved.filter(p=>p.value.retainerId===existing?.id).map(p=>p.value.periodStart),...calculated.map(p=>p.periodStart)])].sort()
+  const first=retainerPeriods(terms,terms.start,terms.start,calendar)[0].periodStart
+  const months=terms.frequency==='monthly'?1:terms.frequency==='quarterly'?3:12
+  need(starts[0]===first&&starts.every((start,index)=>{if(!index)return true;const next=new Date(starts[index-1]+'T00:00:00Z');next.setUTCMonth(next.getUTCMonth()+months);return next.toISOString().slice(0,10)===start}),'Open every intervening period before calculating rollover or deficits')
+  if(previous)need(saved.length&&new Date(Date.parse(saved.map(p=>p.value.periodEnd).sort().at(-1)!)+86400000).toISOString().slice(0,10)===terms.start,'Rollover versions must follow the last saved period without a gap')
+ }
  const normalized:Value={engagementId:engagement.id,operation,from,to,...(operation==='terms'?{previousId:previous?.id??null,terms}:{retainerId:existing!.id})}
  const fingerprint=sha256(canonicalJson({input:normalized,engagement,observed,operator:a.session.operator.id,role:a.role}))
  if(tx){tx.observe('engagements',engagement);for(const {kind,rows:records} of observed){for(const row of records)tx.observe(kind,row);tx.guard(`(SELECT COUNT(*) FROM g_${kind})=?`,records.length)}}

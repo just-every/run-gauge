@@ -1,8 +1,10 @@
 import { integer, need, text } from './model'
 import { currencies } from './agency'
+import { normalizeRetainerRules, type RetainerRules } from './retainer-rules'
 
 export interface RetainerTerms {
   name: string
+  rules: RetainerRules
   frequency: 'monthly' | 'quarterly' | 'annual'
   unit: 'value' | 'hours'
   /** Integer currency cents, or whole seconds divisible by sixty. */
@@ -62,6 +64,7 @@ export function normalizeRetainer(input: unknown, currency: string): RetainerTer
   need(end === null || end >= start, 'Retainer end must be on or after its start')
   need(value.renewal === 'automatic' || value.renewal === 'manual', 'Choose automatic or manual renewal')
   return {
+    rules: normalizeRetainerRules(value.rules, value.unit),
     name: text(value.name, 'Retainer name', 200), frequency: value.frequency, unit: value.unit, allowance,
     services, consumes: value.consumes, proration, start, end, renewal: value.renewal,
     noticeDays: integer(value.noticeDays ?? 0, 'Renewal notice days', 0, 365), currency,

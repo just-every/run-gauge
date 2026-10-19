@@ -2,6 +2,7 @@ import type { Bindings } from '../auth.server'
 import { type Value, type Kind, need, text, csv, money, sum } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
 import { assertAdHocTime } from './retainer-eligibility'
+import { retainerOverage } from './retainer-overages'
 import { correctionReview } from './billing-corrections'
 export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,action: string,input: Value) {
  if (!action.startsWith('packet:')) return null
@@ -14,8 +15,8 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
   need(selected.length>0 && selected.length<=100,'Select between 1 and 100 approved source lines')
   const lines: Value[]=[]
   for (const source of selected) {
-   const [k,id] = String(source).split(':'); need(['time','expenses','milestones'].includes(k),'Unknown source type')
-   const row=await get(env,k as Kind,id),v=row.value; need(v.engagementId===e.id && v.status==='approved','Only approved work for this engagement is eligible'); tx.observe(k as Kind,row)
+   const [k,id] = String(source).split(':'); need(['time','expenses','milestones','retainerPeriods'].includes(k),'Unknown source type')
+   const row=await get(env,k as Kind,id),v=row.value; if(k==='retainerPeriods'){need(v.engagementId===e.id,'Period belongs to another engagement');const line=await retainerOverage(env,tx,row);need(line.currency===e.value.currency,'Overage currency differs; no implicit FX');lines.push(line);continue} need(v.engagementId===e.id && v.status==='approved','Only approved work for this engagement is eligible'); tx.observe(k as Kind,row)
    // Legacy milestones were denominated by their engagement before carrying their own currency.
    const currency = k === 'time' ? v.economics?.currency : k === 'milestones' ? v.currency ?? e.value.currency : v.currency
    need(currency === e.value.currency, 'Source currency differs from engagement; no implicit FX')
@@ -55,7 +56,7 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
  need(input.currency === undefined || input.currency === row.value.currency, 'Currency differs from packet; no implicit FX')
  const e=await access(env,a,row.value.engagementId);tx.observe('engagements',e)
  need(e.value.currency === row.value.currency, 'Packet currency differs from engagement; no implicit FX')
- for (const l of row.value.lines) { const source=await get(env,l.kind,l.sourceId); if(l.kind==='time'&&!row.value.correctsPacketId)await assertAdHocTime(env,tx,source.value); need(source.revision===l.sourceRevision && source.value.status==='approved','Source revision changed',409); const currency=l.kind==='time'?source.value.economics?.currency:l.kind==='milestones'?source.value.currency??e.value.currency:source.value.currency; need(l.currency===row.value.currency && currency===row.value.currency, 'Packet source currencies differ; no implicit FX'); tx.observe(l.kind,source); tx.guard('EXISTS(SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=?)',l.kind,l.sourceId,l.sourceRevision) }
+ for (const l of row.value.lines) { const source=await get(env,l.kind,l.sourceId); if(l.kind==='retainerPeriods'){need(source.value.currency===row.value.currency&&source.revision===l.sourceRevision,'Retainer source changed',409);if(!row.value.correctsPacketId){const current=await retainerOverage(env,tx,source);need(current.retainerFingerprint===l.retainerFingerprint&&current.amountMinor===l.amountMinor,'Retainer consumption changed; cancel and review a fresh draft',409)}tx.observe('retainerPeriods',source);tx.guard('EXISTS(SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=?)',l.kind,l.sourceId,l.sourceRevision);continue} if(l.kind==='time'&&!row.value.correctsPacketId)await assertAdHocTime(env,tx,source.value); need(source.revision===l.sourceRevision && source.value.status==='approved','Source revision changed',409); const currency=l.kind==='time'?source.value.economics?.currency:l.kind==='milestones'?source.value.currency??e.value.currency:source.value.currency; need(l.currency===row.value.currency && currency===row.value.currency, 'Packet source currencies differ; no implicit FX'); tx.observe(l.kind,source); tx.guard('EXISTS(SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=?)',l.kind,l.sourceId,l.sourceRevision) }
  need(sum(row.value.lines.map((l:Value)=>l.amountMinor))===row.value.totalMinor, 'Packet total differs from its source lines')
  if(row.value.correctsPacketId){const original=await get(env,'packets',row.value.correctsPacketId);need(original.value.currency===row.value.currency,'Adjustment currency differs from original packet; no implicit FX');tx.observe('packets',original)}
  const artifact=csv([['Gauge billing preparation',row.value.currency,'Not an invoice'],['kind','source id','approved revision','description','actual duration seconds','amount minor','currency','rate id','budget id','bill rate minor per hour','rounded billing seconds','rounding increment seconds','rounding policy','corrected source total minor'],...row.value.lines.map((l:Value)=>[l.kind,l.sourceId,l.sourceRevision,l.description,l.durationSeconds,l.amountMinor,l.currency,l.rateId,l.budgetId,l.billRateMinor,l.roundedBillingSeconds,l.roundingSeconds,l.roundingPolicy,l.correctedAmountMinor??'']),['TOTAL','','','','',row.value.totalMinor,row.value.currency]])

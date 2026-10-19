@@ -16,7 +16,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  }
  if (!action.startsWith('save:')) return null
  const k = action.slice(5) as Kind
- need(['clients','people','engagements','budgets','tasks','milestones','rates','calendars','leave','staffing'].includes(k), 'Unsupported editor')
+ need(['clients','people','engagements','budgets','milestones','rates','calendars','leave','staffing'].includes(k), 'Unsupported editor')
  let previous: Row | undefined
  if (input.id) { previous = await get(env, k, input.id); need(previous.revision === input.revision, 'This record changed; reload before saving', 409) }
  const v: Value = {}
@@ -37,7 +37,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   v.members = Array.isArray(input.members) ? input.members : String(input.members ?? '').split(',').filter(Boolean)
   for (const id of v.members) tx.observe('people',await get(env,'people',id))
  }
- if (['budgets','tasks','milestones','staffing'].includes(k)) {
+ if (['budgets','milestones','staffing'].includes(k)) {
   const e = await access(env,a,text(input.engagementId,'Engagement'),true); tx.observe('engagements',e); v.engagementId = e.id
   if (previous) need(previous.value.engagementId === e.id, 'Cannot move a record between engagements')
   if (k === 'budgets' || k === 'milestones') {
@@ -51,7 +51,6 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   need(['hourly','fixed'].includes(input.mode),'Choose hourly or fixed terms')
   v.mode = input.mode; v.amountMinor = money(input.amountMinor); v.effortSeconds = integer(input.effortSeconds,'Estimated effort seconds'); v.roundingSeconds = integer(input.roundingSeconds,'Billing rounding seconds',1,3600); v.reason = text(input.reason,'Terms / change-order reason'); v.status = 'draft'; v.createdAt = Date.now()
  }
- if (k === 'tasks') { v.name = text(input.name,'Task'); v.remainingSeconds = integer(input.remainingSeconds,'Remaining effort seconds') }
  if (k === 'milestones') { v.name = text(input.name,'Milestone'); v.due = date(input.due); v.amountMinor = money(input.amountMinor); v.status = 'draft'; need(!previous || previous.value.status === 'draft','Approved milestone needs a new milestone') }
  if (k === 'rates') {
   need(!previous, 'Rates are immutable; add an effective-dated version')

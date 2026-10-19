@@ -11,7 +11,9 @@ export async function expenseCommand(env: Bindings,a: Actor,tx: Transaction,acti
   const e = await access(env,a,text(input.engagementId,'Engagement')); tx.observe('engagements',e); tx.observe('people',person)
   const currency = old ? old.value.currency : e.value.currency
   need(currency === e.value.currency && (input.currency === undefined || input.currency === currency), 'Expense currency differs from engagement; no implicit FX')
-  return tx.record('expenses',{engagementId:e.id,personId:person.id,date:date(input.date),description:text(input.description,'Description'),amountMinor:money(input.amountMinor),currency,reimbursable:flag(input.reimbursable),attachmentIds:old?.value.attachmentIds??[],status:'draft'},old)
+  const taskId=input.taskId===undefined?old?.value.taskId??null:input.taskId||null
+  if(taskId){const task=await get(env,'tasks',taskId);need(task.value.engagementId===e.id,'Task belongs to another engagement');tx.observe('tasks',task)}
+  return tx.record('expenses',{taskId,engagementId:e.id,personId:person.id,date:date(input.date),description:text(input.description,'Description'),amountMinor:money(input.amountMinor),currency,reimbursable:flag(input.reimbursable),attachmentIds:old?.value.attachmentIds??[],status:'draft'},old)
  }
  need(old,'Expense not found',404)
  const e = await access(env,a,old.value.engagementId,['expense:approve','expense:return'].includes(action)); tx.observe('engagements',e)

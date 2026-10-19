@@ -119,7 +119,7 @@ The seventeen released clause IDs remain intact. The original AUD pilot now supp
 
 ### Project delivery and client collaboration
 
-- **DELIVERY-001 — Task execution and views.** Teams assign tasks and subtasks with status, priority, dates, estimates, checklists, recurring work and billability; list, board and personal-work views filter by client and project. Time and expense records link to their delivery task. **Acceptance evidence:** Create and assign a recurring task with subtasks, move it through a board and log time against it; see the same status and total in project and personal views.
+- **DELIVERY-001 — Task execution and views.** Teams assign tasks and subtasks with status, priority, dates, estimates, checklists, recurring work and billability; list, board and personal-work views filter by client and project. Time and expense records link to their delivery task. Task estimates and remaining effort are whole seconds of each task’s own work; subtask effort is additional. Recurrence uses an integer number of calendar days: completing a recurring root atomically creates one next task tree, shifts its dates, resets status/checklists and restores each task’s estimate as remaining effort, stopping after the inclusive last recurring start date. Exact replay creates no additional occurrence. The assignee updates progress; the engagement lead or finance assigns and edits tasks, under the existing engagement grants. Nonbillable tasks refuse billable time. **Acceptance evidence:** Create and assign a recurring task with subtasks, move it through a board and log time against it; see the same status and total in project and personal views.
 
 - **DELIVERY-002 — Dependencies and Gantt schedules.** Plan phase, task and milestone dependencies with baselines, business-day durations, critical path and controlled rescheduling; show client date and capacity effects before changing commitments. **Acceptance evidence:** Delay an upstream task two days across Thanksgiving; inspect the dependent milestone and staffing conflicts, then approve one new baseline.
 
@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 6 | 45 | 70 | 121 |
-| All | 23 | 45 | 70 | 138 |
+| Target and push further | 7 | 44 | 70 | 121 |
+| All | 24 | 44 | 70 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -455,7 +455,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `RESOURCE-003` | Leave and holiday approvals | target | partial | `src/gauge/catalog.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` | Dated calendars and private leave exist; holiday calendars, leave approval, HRIS time-off sync and delivered conflict notifications do not. |
 | `RESOURCE-004` | Scheduled versus actual utilization | target | done | `src/gauge/utilization.ts`; `src/gauge/ui-utilization.ts`; `src/gauge/report-lineage-utilization.ts`; `tests/gauge-utilization.mjs` — RESOURCE-004 | Person/service/project/detail comparisons reconcile committed, tentative, recorded, pending and approved hours. Every ratio states numerator and denominator with holiday/leave/calendar explanations and scoped sources; internal client-free work raises total utilization only. |
 | `RESOURCE-005` | Resource demand forecast | target | partial | `src/gauge/reports.ts`; `src/gauge/proposals.ts` | Daily demand and tentative alternatives ship; weighted long-term demand, hiring and baseline scenarios are absent. |
-| `DELIVERY-001` | Task execution and views | target | partial | `src/gauge/catalog.ts`; `src/gauge/ui-engagements.ts`; `tests/gauge.mjs` | Tasks with remaining effort exist; assignment, statuses, subtasks, recurrence and alternate views do not. |
+| `DELIVERY-001` | Task execution and views | target | done | `src/gauge/tasks.ts`; `src/gauge/ui-tasks.ts`; `src/gauge/expenses.ts`; `tests/gauge-tasks.mjs` (DELIVERY-001); `tests/gauge-base-portability.mjs` | Assigned task trees, statuses, priority, dated own-effort estimates, checklists and billability; exact recurring completion; client/project-filtered list, board and personal work; linked time and expenses; scoped progress, history and portable recurring records. |
 | `DELIVERY-002` | Dependencies and Gantt schedules | target | missing |  | No dependencies, Gantt timeline, critical path or baseline rescheduling. |
 | `DELIVERY-003` | Reusable delivery templates | target | missing |  | No project or onboarding template system. |
 | `DELIVERY-004` | Project conversations and documents | target | partial | `src/gauge/catalog.ts`; `src/gauge/harvest.ts` | Scope text and imported historical files exist; task discussions, document versioning, proofing annotations, notification inbox/digests, file-store links and project file rights are absent. |

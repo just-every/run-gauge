@@ -31,7 +31,7 @@ export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action:
   const person = await get(env,'people',text(input.personId,'Person')); need(finance(a) || a.personId === person.id,'You can only record your own time',403); tx.observe('people',person)
   const e = await access(env,a,text(input.engagementId,'Engagement')); tx.observe('engagements',e)
   need(e.value.type !== 'internal' || !flag(input.billable),'Internal time cannot be billable')
-  const task = await get(env,'tasks',text(input.taskId,'Task')); need(task.value.engagementId === e.id,'Task belongs to another engagement'); tx.observe('tasks',task)
+  const task = await get(env,'tasks',text(input.taskId,'Task')); need(task.value.engagementId === e.id,'Task belongs to another engagement'); tx.observe('tasks',task); need(task.value.billable!==false||!flag(input.billable),'This task is nonbillable')
   const dateOnly=old?.value.source?.clockInstants==='not-supplied'; const start = dateOnly ? null : action === 'timer:start' ? Date.now() : instant(input.start), end = dateOnly ? null : action === 'timer:start' ? null : instant(input.end)
   need(end === null || end > start!,'End must follow start'); need(end === null || end <= Date.now()+60000,'Time cannot end in the future')
   const timezone = zone(input.timezone)

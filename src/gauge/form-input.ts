@@ -5,7 +5,7 @@
 // becomes amountMinor, effortHours becomes effortSeconds, startLocal becomes start.
 import { type Value, need, zone } from './model'
 
-const lists = ['members', 'sources']
+const lists = ['members', 'sources', 'completedItems']
 const decimal = (raw: string, label: string) => { need(/^\d+(\.\d+)?$/.test(raw.trim()), `${label}: enter a number such as 7.5`); return Number(raw.trim()) }
 const cents = (raw: string) => {
  need(/^\d+(\.\d+)?$/.test(raw.trim()), 'Amount: enter a number such as 7.5')
@@ -37,6 +37,7 @@ export function localValue(ms: number | string | null | undefined, timeZone: str
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
+ if(form.get('action')==='task:progress')input.completedItems=form.getAll('completedItems')
  for (const name of lists) if (form.getAll(name).length) input[name] = form.getAll(name)
  if (form.has('weekdays')) input.weekdays = form.getAll('weekdays').join(',')
  for (const key of Object.keys(input)) {

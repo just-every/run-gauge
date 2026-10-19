@@ -10,6 +10,7 @@ import { meter } from './ui-meter'
 import type { Report } from './ui-describe'
 import { economicsCard, estimateOf } from './ui-review'
 import { pipelineSection } from './ui-pipeline'
+import { taskEditor, tasksSection } from './ui-tasks'
 import { resourceProfileFields } from './ui-resource-profiles'
 
 const termsLine = (b: Row) => `${b.value.mode === 'fixed' ? 'Fixed fee' : 'Hourly'} · ${hours(b.value.effortSeconds)}${b.value.amountMinor === undefined ? '' : ` · ${money(b.value.amountMinor, b.value.currency)}`}`
@@ -20,8 +21,8 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
  // The detail view: an engagement, or the engagement of the task or milestone being edited.
  const focus = edit('engagements') ?? d.engagements.find(r => r.id === (edit('tasks') ?? edit('milestones'))?.value.engagementId)
  const terms = (engagementId?: string) => form('save:budgets', 'New terms / change order', s('engagementId', 'Engagement', managed, engagementId) + c('mode', 'Billing mode', ['hourly', 'fixed']) + amount('amountDollars', `Budget or fixed fee (${d.engagements.find(r => r.id === engagementId)?.value.currency ?? a.currency})`, '') + duration('effortHours', 'Estimated effort (hours)', '') + duration('roundingMinutes', 'Round billable time up to (minutes)', 60, 60, '1') + area('reason', 'Terms or change-order reason'))
- const t = v('tasks'), m = v('milestones')
- const taskForm = (engagementId?: string) => form('save:tasks', 'Task and remaining effort', s('engagementId', 'Engagement', managed, t.engagementId ?? engagementId) + i('name', 'Task name', t.name) + duration('remainingHours', 'Estimated remaining effort (hours)', t.remainingSeconds ?? ''), edit('tasks'))
+ const m = v('milestones')
+ const taskForm = (engagementId?: string) => taskEditor(a,report,edit('tasks'),engagementId)
  const milestoneForm = (engagementId?: string) => form('save:milestones', 'Fixed-fee milestone', s('engagementId', 'Engagement', managed, m.engagementId ?? engagementId) + i('name', 'Milestone name', m.name) + i('due', 'Due date', m.due ?? today, 'date') + amount('amountDollars', `Milestone fee (${m.currency ?? d.engagements.find(r => r.id === engagementId)?.value.currency ?? a.currency})`, m.amountMinor ?? ''), edit('milestones'))
  const x = focus?.value ?? v('engagements')
  const engagementForm = () => form('save:engagements', 'Engagement', i('name', 'Engagement name', x.name) + c('type','Engagement type',['client','internal'],x.type??'client') + c('internalCategory','Internal category',['admin','sales','training','PTO','other'],x.internalCategory??'other') + s('clientId', 'Client', d.clients, x.clientId, true) + s('leadId', 'Responsible lead', d.people, x.leadId) + checks('members', 'Assigned people', d.people, x.members) + area('scope', 'Agreed scope', x.scope) + i('timezone', 'Work timezone', x.timezone ?? report.agency.timezone), focus)
@@ -36,15 +37,15 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   const id = focus.id, own = <T extends Row>(rows: T[]) => rows.filter(r => r.value.engagementId === id)
   const facts = `<section class="g-card g-facts"><h2 class="g-hide">Facts</h2><dl><div><dt>Client</dt><dd>${e(x.type==='internal'?`Internal · ${x.internalCategory}`:nameOf(d.clients, x.clientId))}</dd></div><div><dt>Responsible lead</dt><dd>${e(nameOf(d.people, x.leadId))}</dd></div><div class="g-fact-people"><dt>Assigned people</dt><dd>${e((x.members ?? []).map((p: string) => nameOf(d.people, p)).join(', ') || '—')}</dd></div><div><dt>Work timezone</dt><dd>${e(x.timezone)}</dd></div></dl></section>`
   const scope = `<section class="g-card"><h2>Agreed scope</h2><p>${e(x.scope)}</p></section>`
-  const budgets = own(d.budgets), tasks = own(d.tasks), milestones = own(d.milestones)
+  const budgets = own(d.budgets), milestones = own(d.milestones)
   const budgetCard = manager ? `<section class="g-card"><h2>Budget versions</h2>${budgets.length ? `<ul class="g-versions">${budgets.map(b => `<li id="${e(b.id)}"><p class="g-summary">${e(termsLine(b))} · ${chip(b.value.status)}</p><p class="g-note">${e(b.value.reason)}</p>${b.value.status === 'draft' ? decision('budget:approve', 'Approve terms', b) : '<p class="g-note">Immutable approved version</p>'}</li>`).join('')}</ul>` : '<p class="g-empty">No records yet.</p>'}</section>` : ''
-  const taskCard = `<section class="g-card"><h2>Tasks</h2>${tasks.length ? `<ul class="g-rows">${tasks.map(r => `<li id="${e(r.id)}">${manager ? open('engagements', r, r.value.name) : e(r.value.name)}<span class="g-num">${hours(r.value.remainingSeconds)} remaining</span></li>`).join('')}</ul>` : '<p class="g-empty">No records yet.</p>'}</section>`
+  const taskCard = tasksSection(a,report,options,id)
   const milestoneCard = manager ? `<section class="g-card"><h2>Milestones</h2>${milestones.length ? `<ul class="g-rows">${milestones.map(r => `<li id="${e(r.id)}">${open('engagements', r, r.value.name)}<span class="g-num">due ${e(day(r.value.due))} · ${money(r.value.amountMinor, r.value.currency ?? focus?.value.currency ?? a.currency)} · ${chip(r.value.status)}</span>${r.value.status === 'draft' ? decision('milestone:approve', 'Approve delivered milestone', r) : ''}</li>`).join('')}</ul>` : '<p class="g-empty">No records yet.</p>'}</section>` : ''
   const econ = report.economics.find(r => r.engagementId === id)
   const economics = econ ? `<section class="g-card g-card--strong"><h2>Engagement economics</h2><div class="g-econ-detail">${economicsCard(report, a, econ, false)}<p class="g-big"><span>Remaining effort</span><strong class="g-num">${hours(econ.remainingSeconds)}</strong></p></div></section>` : ''
   const forms = (finance(a) ? engagementForm() : '') + (manager ? (x.type==='internal'?taskForm(id):terms(id) + taskForm(id) + milestoneForm(id)) : '')
   return `<nav class="g-crumbs" aria-label="Breadcrumb"><a href="/app/engagements">Engagements</a><span aria-hidden="true">/</span><span aria-current="page">${e(x.name)}</span></nav><div class="g-titlebar"><h1>${e(x.name)}</h1></div>`
-   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}<div class="g-pair">${taskCard}${milestoneCard}</div>${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
+   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${taskCard}${milestoneCard}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
  }
  let body = '<div class="g-titlebar"><h1>Engagements and agreed work</h1></div>'
  body += table('Engagements', d.engagements, [
@@ -58,5 +59,5 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   body += `<div class="g-pair">${table('Clients', d.clients, [{ label: 'Client', cell: r => open('engagements', r, r.value.name) }])}${table('People', d.people, [{ label: 'Name', cell: r => open('engagements', r, r.value.name) }, { label: 'Work timezone', cell: r => e(r.value.timezone) }, { label: 'Contractor', cell: r => yesNo(r.value.contractor) }])}</div>`
   body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${engagementForm()}${form('save:clients', 'Client', i('name', 'Client name', v('clients').name), edit('clients'))}${form('save:people', 'Person', i('name', 'Name', p.name) + i('timezone', 'Work timezone', p.timezone ?? report.agency.timezone) + resourceProfileFields(p), edit('people'))}${terms()}${taskForm()}${milestoneForm()}</div>`
  } else if (manager) body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${terms()}${taskForm()}${milestoneForm()}</div>`
- return body + pipelineSection(a, report, options.opportunity)
+ return body + tasksSection(a,report,options) + pipelineSection(a, report, options.opportunity)
 }

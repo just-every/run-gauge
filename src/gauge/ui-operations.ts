@@ -12,10 +12,10 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
  if(section==='expenses'){
   const old=d.expenses.find(r=>r.id===options.edit),v=old?.value??{}
   body='<div class="g-titlebar"><h1>Expenses and receipts</h1></div><p class="g-lede">Keep actual project cost separate from reimbursement. Receipt files remain private and travel with the owned dataset.</p>'
-  if(!old||['draft','returned'].includes(v.status))body+=form('expense:save',old?'Correct expense':'Expense',s('engagementId','Engagement',d.engagements,v.engagementId)+s('personId','Person',finance(a)?d.people:d.people.filter(p=>p.id===a.personId),v.personId??a.personId)+i('date','Expense date',v.date??today,'date')+i('description','Description',v.description)+amount('amountDollars',`Amount (${v.currency??a.currency})`,v.amountMinor??'')+check('reimbursable','Reimbursable',v.reimbursable),old,'Save','g-card--form')
+  if(!old||['draft','returned'].includes(v.status))body+=form('expense:save',old?'Correct expense':'Expense',s('engagementId','Engagement',d.engagements,v.engagementId)+s('taskId','Delivery task (optional)',d.tasks,v.taskId,true)+s('personId','Person',finance(a)?d.people:d.people.filter(p=>p.id===a.personId),v.personId??a.personId)+i('date','Expense date',v.date??today,'date')+i('description','Description',v.description)+amount('amountDollars',`Amount (${v.currency??a.currency})`,v.amountMinor??'')+check('reimbursable','Reimbursable',v.reimbursable),old,'Save','g-card--form')
   body+=table('Expenses',d.expenses,[
    {label:'Date',size:'date',line:2,cell:r=>open('expenses',r,day(r.value.date))},
-   {label:'Description',wrap: true,line:3,cell:r=>e(r.value.description)},
+   {label:'Description',wrap: true,line:3,cell:r=>e(r.value.description)+(r.value.taskId?`<span class="g-sub">${e(nameOf(d.tasks,r.value.taskId))}</span>`:'')},
    {label:'Person',size:'name',line:1,cell:r=>e(nameOf(d.people,r.value.personId))},
    {label:'Engagement',line:1,cell:r=>e(nameOf(d.engagements,r.value.engagementId))},
    {label:'Amount',num:true,size:'num',line:2,cell:r=>`${money(r.value.amountMinor,r.value.currency)}${r.value.reimbursable?' <span class="g-tag">reimbursable</span>':''}`},

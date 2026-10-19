@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "gauge-local/edition",
-  "manifest": "c4981951757cf4553766d8e17e4b10fb182817427d97aba2ca6fdfeb880ca809",
+  "manifest": "f9112c0c7fce54d25735a054b49aeca19f4a5fb8d6beaf6738aaf365f4fa4b61",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -37,7 +37,8 @@
           "migrations/core/0025_gauge_retainers.sql",
           "migrations/core/0026_gauge_delivery_templates.sql",
           "migrations/core/0027_gauge_time_delegations.sql",
-          "migrations/core/0028_gauge_specialist_handoffs.sql"
+          "migrations/core/0028_gauge_specialist_handoffs.sql",
+          "migrations/core/0029_gauge_api_keys.sql"
         ]
       },
       "baseline": null
@@ -354,7 +355,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "c4981951757cf4553766d8e17e4b10fb182817427d97aba2ca6fdfeb880ca809",
+      "sha256": "f9112c0c7fce54d25735a054b49aeca19f4a5fb8d6beaf6738aaf365f4fa4b61",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -475,6 +476,10 @@
     },
     "migrations/core/0028_gauge_specialist_handoffs.sql": {
       "sha256": "adde106a07e1148944a986f2ae0b6345bd2826c9780325a760196022b8de6ac6",
+      "executable": false
+    },
+    "migrations/core/0029_gauge_api_keys.sql": {
+      "sha256": "7320be2a9e4bbb693d8cc2f5e5bd06d3e7df8f4eb64703608d53b6d1e4c5d4b4",
       "executable": false
     },
     "MOVE-IN.md": {
@@ -961,6 +966,10 @@
       "sha256": "6f713830b2b19b2d442a69782e2bd7d72d25ef86b7d25136a3e581ecd836687f",
       "executable": false
     },
+    "src/gauge/api-keys.ts": {
+      "sha256": "27070288003f95844df3e1181999a0de05216c324f328ac0bd5b75700c903388",
+      "executable": false
+    },
     "src/gauge/billing-corrections.ts": {
       "sha256": "3bb40127322b9f925be96dbc8ac254df27da985a70c4eb8f3b7b3e7cc8e8f027",
       "executable": false
@@ -1171,6 +1180,10 @@
     },
     "src/gauge/timesheets.ts": {
       "sha256": "e1a3f773865d27f97fbc33cc4d023e0bf37f2be7aac78216860b92cc6410de3f",
+      "executable": false
+    },
+    "src/gauge/ui-api-keys.ts": {
+      "sha256": "bd4563adc10fcd4eb1885475b936c639a1b8aa0644a6942297f3d9b445815c2a",
       "executable": false
     },
     "src/gauge/ui-board.ts": {

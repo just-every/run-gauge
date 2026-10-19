@@ -8,7 +8,14 @@ test('Forecast move-in preserves source hours on reviewed working dates, with re
  const report=async()=>{
   const response=await h.request('/api/gauge/state?from=2026-11-02&to=2026-11-08',h.owner)
   assert.equal(response.status,200)
-  return response.json()
+  const state=await response.json(),{asOf,...snapshot}=state
+  assert(Number.isFinite(Date.parse(asOf)),'report carries a read timestamp')
+  // Reading again changes only observation time. Every business value, source
+  // revision, formula and the snapshot fingerprint must remain identical.
+  return {...snapshot,lineage:snapshot.lineage.map(({asOf:figureAsOf,...figure})=>{
+   assert.equal(figureAsOf,asOf,'figures share the report observation time')
+   return figure
+  })}
  }
  const finish=async(job)=>{
   for(let n=0;n<20&&['queued','applying','undoing'].includes(job.state);n++)job=await h.cmd('import:resume',{id:job.id})

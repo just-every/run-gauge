@@ -2826,7 +2826,7 @@
       "executable": false
     },
     "tests/gauge-forecast.mjs": {
-      "sha256": "b501584326e4c056be3fd8a5a34374baf93c132bbad71e17a40469d4a7e2bd29",
+      "sha256": "cfa52a9323bb2b6a941d21bb45ae994fbc688209781e909a06b4e39067618577",
       "executable": false
     },
     "tests/gauge-harness.mjs": {

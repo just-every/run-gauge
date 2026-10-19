@@ -6,6 +6,7 @@ import { reportFingerprint } from './report-export'
 import { type Actor, finance, all, fence } from './store'
 import { correctionReviews } from './billing-corrections'
 import { canDecide } from './proposals'
+import { utilization } from './utilization'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 const amounts = ['amountMinor','budgetMinor','totalMinor','costMinor','billMinor']
@@ -48,15 +49,17 @@ export function capacity(data: Awaited<ReturnType<typeof visible>>,from: string,
    const day=new Date(ms).toISOString().slice(0,10),weekday=String(new Date(ms).getUTCDay())
    const c=data.calendars.find(r=>r.value.personId===person.id && r.value.from<=day && r.value.to>=day)
    const workingDay=c?c.value.weekdays.split(',').includes(weekday):null
+   const holiday=!!c?.value.holidays?.includes(day)
    const base=c?(workingDay?c.value.dailySeconds:0):null
+   const holidaySeconds=holiday?(base??0):0
    const leave=data.leave.filter(r=>r.value.personId===person.id && r.value.from<=day && r.value.to>=day)
-   const leaveSeconds=leave.reduce((n,r)=>n+r.value.dailySeconds,0),free=base===null?null:Math.max(0,base-leaveSeconds)
+   const leaveSeconds=leave.reduce((n,r)=>n+r.value.dailySeconds,0),free=base===null?null:Math.max(0,base-holidaySeconds-leaveSeconds)
    const allocations=data.staffing.filter(r=>r.value.personId===person.id && r.value.from<=day && r.value.to>=day)
    const confirmed=allocations.filter(r=>r.value.commitment==='committed'),pending=allocations.filter(r=>r.value.commitment==='tentative')
    const confirmedSeconds=sum(confirmed.map(r=>r.value.dailySeconds)),pendingSeconds=sum(pending.map(r=>r.value.dailySeconds))
    committed+=confirmedSeconds;tentative+=pendingSeconds
    if(free===null)missingCalendarDays++;else{available+=free;knownCommitted+=confirmedSeconds;if(confirmedSeconds>free)conflicts.push({date:day,seconds:confirmedSeconds-free,sources:confirmed.map(r=>r.id)})}
-   days.push({date:day,calendarId:c?.id??null,timezone:c?.value.timezone??person.value.timezone,workingDay,baseSeconds:base,leaveSeconds,leaveSources:leave.map(r=>r.id),availableSeconds:free,committedSeconds:confirmedSeconds,tentativeSeconds:pendingSeconds,remainingSeconds:free===null?null:free-confirmedSeconds,committedSources:confirmed.map(r=>r.id),tentativeSources:pending.map(r=>r.id)})
+   days.push({date:day,calendarId:c?.id??null,timezone:c?.value.timezone??person.value.timezone,workingDay,holiday,holidaySeconds,baseSeconds:base,leaveSeconds,leaveSources:leave.map(r=>r.id),availableSeconds:free,committedSeconds:confirmedSeconds,tentativeSeconds:pendingSeconds,remainingSeconds:free===null?null:free-confirmedSeconds,committedSources:confirmed.map(r=>r.id),tentativeSources:pending.map(r=>r.id)})
   }
   return {personId:person.id,name:person.value.name,contractor:!!person.value.contractor,availableSeconds:missingCalendarDays?null:available,knownAvailableSeconds:available,committedSeconds:committed,tentativeSeconds:tentative,remainingSeconds:missingCalendarDays?null:available-committed,knownRemainingSeconds:available-knownCommitted,missingCalendarDays,days,conflicts}
  })
@@ -88,6 +91,6 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string) {
   if(r.value.status==='submitted'||((k==='milestones'||k==='budgets')&&r.value.status==='draft'))exceptions.push({type:'decision due',source:`${k}:${r.id}`})
   if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
- const report={agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
+ const report={agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,utilization:utilization(data,cap,from,to),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

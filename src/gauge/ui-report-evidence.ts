@@ -11,7 +11,7 @@ export function reportEvidence(report: Report, selected?: string) {
  }
  const base = new URLSearchParams({ from: report.from, to: report.to })
  const download = new URLSearchParams({ ...Object.fromEntries(base), fingerprint: report.fingerprint })
- const display = (f: Report['lineage'][number], value = f.value) => value === null ? 'Unknown / incomplete' : f.unit === 'minor' ? money(value, f.currency ?? report.agency.currency) : f.unit === 'seconds' ? hours(value) : String(value)
+ const display = (f: Report['lineage'][number], value = f.value) => value === null ? 'Unknown / incomplete' : f.unit === 'minor' ? money(value, f.currency ?? report.agency.currency) : f.unit === 'seconds' ? hours(value) : f.unit === 'percent' ? `${value.toFixed(2)}%` : String(value)
  const figures = selected ? report.lineage.filter(f => f.id === selected) : []
  const rows = figures.map(f => {
   const links = f.sources.map(s => { const source = describeSource(report.data, `${s.kind}:${s.id}`); return `<li><a href="${e(source.href)}">${e(source.text)}</a> · <a href="/api/gauge/history/${e(s.kind)}/${e(s.id)}">Revision history</a><span class="g-sub">Revision ${e(s.revision)}${s.value.approvedAt ? ` · approved ${e(new Date(s.value.approvedAt).toISOString())}` : ''}${s.value.economics?.rateId ? ` · frozen rate ${e(s.value.economics.rateId)}` : ''}</span></li>` }).join('')

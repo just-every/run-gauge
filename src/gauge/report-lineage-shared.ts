@@ -6,7 +6,7 @@ export interface LineageFigure {
  label: string
  value: number | null
  knownValue?: number
- unit: 'minor' | 'seconds' | 'count'
+ unit: 'minor' | 'seconds' | 'count' | 'percent'
  currency: string | null
  formula: string
  complete: boolean
@@ -26,6 +26,7 @@ export interface ReportLineageInput {
  pipeline: Value[]
  exceptions: Value[]
  correctionReviews?: Value[]
+ utilization?: {byPerson: Value[]; byService: Value[]; byProject: Value[]; details: Value[]}
 }
 
 export interface Evidence { sources: LineageSource[]; unknown: string[] }

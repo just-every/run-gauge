@@ -38,7 +38,7 @@ try {
  assert.equal(unknownCalendar.value, null); assert.equal(unknownCalendar.complete, false)
  const csvPath = d => '/api/gauge/report.csv?' + new URLSearchParams({ from: d.from, to: d.to, fingerprint: d.fingerprint })
  const response = await request(csvPath(data), owner); assert.equal(response.status, 200)
- const rows = JSON.parse(execFileSync('python3', ['-c', 'import csv,json,sys; print(json.dumps(list(csv.DictReader(sys.stdin))))'], { input: await response.text(), encoding: 'utf8' }))
+ const rows = JSON.parse(execFileSync('python3', ['-c', 'import csv,json,sys; print(json.dumps(list(csv.DictReader(sys.stdin))))'], { input: await response.text(), encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }))
  for (const figure of data.lineage) {
   const exported=rows.find(row=>row.row==='figure'&&row.figure===figure.id)
   assert(exported, 'Every visible report figure is exported')

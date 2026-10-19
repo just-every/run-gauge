@@ -3,6 +3,7 @@ import { economicLineage } from './report-lineage-economics'
 import { exceptionLineage } from './report-lineage-exceptions'
 import { correctionLineage, pipelineLineage } from './report-lineage-pipeline'
 import { Lineage, type ReportLineageInput } from './report-lineage-shared'
+import { utilizationLineage } from './report-lineage-utilization'
 
 export type { LineageFigure, LineageSource, ReportLineageInput } from './report-lineage-shared'
 
@@ -11,6 +12,7 @@ export function buildLineage(report: ReportLineageInput) {
  const c = new Lineage(report)
  economicLineage(c)
  capacityLineage(c)
+ utilizationLineage(c)
  pipelineLineage(c)
  exceptionLineage(c)
  correctionLineage(c)

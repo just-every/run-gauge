@@ -3,11 +3,13 @@
 import type { Bindings } from '../auth.server'
 import { type Actor, finance, all } from './store'
 import type { Value } from './model'
-import { escape as e, input as i, duration, weekdayChecks, select as s, choices as c, form, table, open } from './ui-forms'
+import { escape as e, input as i, duration, weekdayChecks, select as s, choices as c, check, form, table, open } from './ui-forms'
 import { hours, period, weekdays, chip, nameOf } from './ui-format'
 import type { Report } from './ui-describe'
 import { columns, lanes, board, mondayOf, shift } from './ui-board'
 import { recoveryPanel, worklog } from './ui-recovery'
+import { reports } from './reports'
+import { utilizationSection } from './ui-utilization'
 
 export async function capacitySection(env: Bindings, a: Actor, report: Report, options: Value) {
  const d = report.data, today: string = options.today, zone: string = options.zone, weeks = options.view === 'weeks', monday = report.from
@@ -23,13 +25,15 @@ export async function capacitySection(env: Bindings, a: Actor, report: Report, o
  const week = [0, 1, 2, 3, 4, 5, 6].map(n => shift(monday, n))
  const grid = rows.length ? board(report, cols, rows, today) : '<div class="g-card g-empty-state"><img src="/brand/mark.svg" alt="" width="40" height="40"><h2>No people yet.</h2><p>Add people and their working calendars to see who is booked, who is free and who is out.</p>' + (finance(a) ? '<p><a class="g-btn g-btn--primary" href="/app/engagements">Add people on Engagements</a></p>' : '') + '</div>'
  body += `<div class="g-workspace"><section class="g-board-wrap" aria-label="Staffing board">${grid}</section>${await recoveryPanel(env, a, report, zone, today)}</div>${await worklog(env, report, zone, today, week)}`
+ const utilizationFrom=options.utilizationFrom??monday,utilizationTo=options.utilizationTo??shift(utilizationFrom,6)
+ body += utilizationSection(await reports(env,a,utilizationFrom,utilizationTo),options)
 
  const calendar = d.calendars.find(r => r.id === options.edit), leave = d.leave.find(r => r.id === options.edit), staffing = d.staffing.find(r => r.id === options.edit)
  const fields = (row: any, people = d.people, label = 'Hours per date') => s('personId', 'Person', people, row?.value.personId ?? a.personId) + i('from', 'From', row?.value.from ?? today, 'date') + i('to', 'Through', row?.value.to ?? today, 'date') + duration('dailyHours', label, row?.value.dailySeconds ?? 28800)
  const forms = []
- if (finance(a)) forms.push(form('save:calendars', 'Working calendar / contractor availability', fields(calendar, d.people, 'Available hours per working day') + weekdayChecks(calendar?.value.weekdays) + i('timezone', 'Work timezone', calendar?.value.timezone ?? report.agency.timezone), calendar))
+ if (finance(a)) forms.push(form('save:calendars', 'Working calendar / contractor availability', fields(calendar, d.people, 'Available hours per working day') + weekdayChecks(calendar?.value.weekdays) + i('timezone', 'Work timezone', calendar?.value.timezone ?? report.agency.timezone) + i('holidays','Holiday dates (comma-separated)',calendar?.value.holidays?.join(', ')??'','text',false), calendar))
  forms.push(form('save:leave', 'Leave', fields(leave, finance(a) ? d.people : d.people.filter(p => p.id === a.personId)) + i('note', 'Reason', leave?.value.note), leave))
- if (finance(a) || a.role === 'lead') forms.push(form('save:staffing', 'Staff allocation', s('engagementId', 'Engagement', d.engagements.filter(x => finance(a) || x.value.leadId === a.personId), staffing?.value.engagementId) + fields(staffing) + c('commitment', 'Commitment', ['tentative', 'committed'], staffing?.value.commitment), staffing))
+ if (finance(a) || a.role === 'lead') forms.push(form('save:staffing', 'Staff allocation', s('engagementId', 'Engagement', d.engagements.filter(x => finance(a) || x.value.leadId === a.personId), staffing?.value.engagementId) + fields(staffing) + i('service','Service',staffing?.value.service??'Unspecified') + `<input type="hidden" name="billable" value="false">` + check('billable','Billable allocation',staffing?.value.billable??false) + c('commitment', 'Commitment', ['tentative', 'committed'], staffing?.value.commitment), staffing))
  body += `<h2 class="g-subhead">Calendars, leave and staffing</h2><p class="g-lede">Calendar dates belong to each person’s stated work timezone. Allocations apply to every date in their range, including non-working days. Contractor calendars represent explicitly supplied availability; missing calendars leave availability unknown.</p><div class="g-forms">${forms.join('')}</div>`
  const person = { label: 'Person', size: 'name' as const, line: 1 as const, cell: (r: any) => open('capacity', r, nameOf(d.people, r.value.personId)) }, range = { label: 'Dates', line: 2 as const, cell: (r: any) => e(period(r.value.from, r.value.to)) }
  const inWindow = (r: any) => r.value.from <= report.to && r.value.to >= report.from

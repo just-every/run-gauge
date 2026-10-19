@@ -29,7 +29,8 @@
           "migrations/core/0018_owner_signin.sql",
           "migrations/core/0019_gauge_agency.sql",
           "migrations/core/0020_gauge_pipeline.sql",
-          "public/gauge-setup.css"
+          "public/gauge-setup.css",
+          "migrations/core/0021_gauge_internal_engagements.sql"
         ]
       }
     },

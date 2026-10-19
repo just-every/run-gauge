@@ -18,8 +18,20 @@ When an agent prepares staffing alternatives (for example, cover for someone out
 
 Finance adds a **Working calendar / contractor availability** for each person: the dates it covers, the available hours per working day, the working weekdays (Monday to Friday are ticked to start) and the timezone. A contractor's calendar records the availability they told you about.
 
+Enter **Holiday dates (comma-separated)** within that calendar's dates. Listed holidays remove that day's working hours before leave; Gauge does not assume federal, regional or agency holidays that you have not entered.
+
 Anyone can add their own **Leave**; finance can add leave for anyone. Other people see that leave was taken, not the reason.
 
 ## Allocations
 
 A lead (or finance) adds a **Staff allocation**: the engagement, the person, the dates, the hours per date and whether it is **tentative** or **committed**. Allocations apply to every date in their range, so book working weeks Monday to Friday. Open **Staffing, leave and calendar records** to edit one.
+
+Set the allocation's service and billability to compare it with actual work. Earlier allocations without a service appear as **Unspecified**. Internal engagements have no client and their allocations and time cannot be billable. Finance creates them on Engagements with the **Internal** type and an admin, sales, training, PTO or other category.
+
+## Scheduled versus actual utilization
+
+Choose dates and group by person, service, project or the person/project/service detail. Scheduled means committed hours, with tentative hours shown separately. Recorded includes all stopped time; submitted is awaiting approval, and approved is final. Variance is recorded minus committed scheduled hours.
+
+Every percentage shows its numerator and denominator. Billable and total hours divide by net calendar capacity after holidays and leave. Approved billable hours also divide by the committed schedule, with a separate ratio that includes tentative hours. Each participant's calendar counts once within a group, even across multiple services or projects. Missing calendars and zero capacity show an unknown percentage. Reports cover only work you can see.
+
+Open **Source records** to follow staffing and each time status to its record, or inspect the calendar, holiday and leave deductions date by date. **Download utilization calculations CSV** exports the same dated figures, formulas and permitted source revisions; changed inputs require a refreshed download.

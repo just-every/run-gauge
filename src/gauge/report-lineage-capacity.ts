@@ -19,7 +19,7 @@ export function capacityLineage(c: Lineage) {
  for (const person of c.report.capacity) {
   const prefix = `capacity:${person.personId}:`, days: Value[] = person.days
   const evidence = (fields: ('calendar' | 'leave' | 'committed' | 'tentative')[], unknown = false, selected = days) => capacityEvidence(c, person.personId, selected, fields, unknown)
-  c.add(prefix + 'availableSeconds', 'Available capacity', person.availableSeconds, 'seconds', 'SUM(each day: max(0, calendar working-day seconds − SUM(leave.dailySeconds))). Any missing calendar makes total unknown; knownValue sums known-calendar days only.', evidence(['calendar', 'leave'], true), null, person.knownAvailableSeconds)
+  c.add(prefix + 'availableSeconds', 'Available capacity', person.availableSeconds, 'seconds', 'SUM(each day: max(0, calendar working-day seconds − holiday seconds − SUM(leave.dailySeconds))). Any missing calendar makes total unknown; knownValue sums known-calendar days only.', evidence(['calendar', 'leave'], true), null, person.knownAvailableSeconds)
   c.add(prefix + 'committedSeconds', 'Committed staffing', person.committedSeconds, 'seconds', 'SUM(dailySeconds of committed staffing on each inclusive date); independent of calendar availability.', evidence(['committed']))
   c.add(prefix + 'tentativeSeconds', 'Tentative staffing', person.tentativeSeconds, 'seconds', 'SUM(dailySeconds of tentative staffing on each inclusive date); not deducted from remaining capacity.', evidence(['tentative']))
   c.add(prefix + 'remainingSeconds', 'Remaining capacity after commitments', person.remainingSeconds, 'seconds', 'Available seconds − committed seconds. Any missing calendar makes total unknown; knownValue sums (available − committed) on known-calendar days only.', evidence(['calendar', 'leave', 'committed'], true), null, person.knownRemainingSeconds)
@@ -30,8 +30,9 @@ export function capacityLineage(c: Lineage) {
    const id = prefix + day.date + ':'
    const e = (fields: ('calendar' | 'leave' | 'committed' | 'tentative')[], unknown = false) => evidence(fields, unknown, [day])
    c.add(id + 'baseSeconds', 'Calendar working seconds', day.baseSeconds, 'seconds', 'calendar.dailySeconds if UTC weekday of report date is in calendar.weekdays; otherwise 0. Missing calendar is unknown.', e(['calendar'], true))
+   c.add(id + 'holidaySeconds', 'Holiday seconds', day.holidaySeconds, 'seconds', 'Calendar working seconds when the calendar explicitly lists this date as a holiday, otherwise 0.', e(['calendar']))
    c.add(id + 'leaveSeconds', 'Leave seconds', day.leaveSeconds, 'seconds', 'SUM(leave.dailySeconds for records covering this date and person).', e(['leave']))
-   c.add(id + 'availableSeconds', 'Available seconds', day.availableSeconds, 'seconds', 'max(0, baseSeconds − leaveSeconds); null when calendar is missing.', e(['calendar', 'leave'], true))
+   c.add(id + 'availableSeconds', 'Available seconds', day.availableSeconds, 'seconds', 'max(0, baseSeconds − holidaySeconds − leaveSeconds); null when calendar is missing.', e(['calendar', 'leave'], true))
    c.add(id + 'committedSeconds', 'Committed seconds', day.committedSeconds, 'seconds', 'SUM(staffing.dailySeconds where commitment = committed and staffing covers date).', e(['committed']))
    c.add(id + 'tentativeSeconds', 'Tentative seconds', day.tentativeSeconds, 'seconds', 'SUM(staffing.dailySeconds where commitment = tentative and staffing covers date).', e(['tentative']))
    c.add(id + 'remainingSeconds', 'Remaining seconds', day.remainingSeconds, 'seconds', 'availableSeconds − committedSeconds; tentative demand remains separate. Missing availability is unknown.', e(['calendar', 'leave', 'committed'], true))

@@ -7,6 +7,7 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
  need(finance(a),'Finance access required',403)
  if (action === 'packet:create') {
   const e = await access(env,a,text(input.engagementId,'Engagement')); tx.observe('engagements',e)
+  need(e.value.type!=='internal','Internal work cannot be billed')
   need(input.currency === undefined || input.currency === e.value.currency, 'Packet currency differs from engagement; no implicit FX')
   const selected = Array.isArray(input.sources) ? input.sources : String(input.sources ?? '').split(',').filter(Boolean)
   need(selected.length>0 && selected.length<=100,'Select between 1 and 100 approved source lines')

@@ -34,6 +34,7 @@ export async function canDecide(env: Bindings, a: Actor, p: Row) {
 async function plan(env: Bindings, tx: Transaction, kind: string, engagement: Row, input: Value) {
  const p = input.plan ?? {}
  if (kind === 'time') {
+  need(engagement.value.type!=='internal'||!flag(p.billable),'Internal time cannot be billable')
   const person = await get(env, 'people', text(p.personId, 'Person')); tx.observe('people', person)
   need(engagement.value.leadId === person.id || (engagement.value.members ?? []).includes(person.id), 'That person is not assigned to this engagement')
   const task = await get(env, 'tasks', text(p.taskId, 'Task')); need(task.value.engagementId === engagement.id, 'Task belongs to another engagement'); tx.observe('tasks', task)
@@ -53,6 +54,7 @@ async function plan(env: Bindings, tx: Transaction, kind: string, engagement: Ro
   return { alternatives, commitment: 'tentative' }
  }
  if (kind === 'billing') {
+  need(engagement.value.type!=='internal','Internal work cannot be billed')
   // Check eligibility now so an agent learns about missing rates or repeated
   // allocations before finance reviews; amounts stay private to finance.
   const sources = sourceList(p.sources)
@@ -66,6 +68,7 @@ async function plan(env: Bindings, tx: Transaction, kind: string, engagement: Ro
   }
   return { title: text(p.title, 'Packet title', 200), sources }
  }
+ need(engagement.value.type!=='internal','Internal work has no commercial terms')
  need(['hourly', 'fixed'].includes(p.mode), 'Choose hourly or fixed terms')
  return { mode: p.mode, amountMinor: money(p.amountMinor), effortSeconds: integer(p.effortSeconds, 'Estimated effort seconds'), roundingSeconds: integer(p.roundingSeconds, 'Billing rounding seconds', 1, 3600), brief: text(p.brief, 'Change-order brief') }
 }

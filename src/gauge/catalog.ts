@@ -25,9 +25,14 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   if (k === 'people') { v.timezone = zone(input.timezone); v.contractor = flag(input.contractor) }
  }
  if (k === 'engagements') {
-  const client = await get(env,'clients',text(input.clientId,'Client')), lead = await get(env,'people',text(input.leadId,'Lead'))
-  tx.observe('clients',client); tx.observe('people',lead)
-  v.clientId = client.id; v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = previous ? previous.value.currency : a.currency; v.timezone = zone(input.timezone)
+  v.type = input.type ?? previous?.value.type ?? 'client'
+  need(['client','internal'].includes(v.type),'Choose client or internal work')
+  need(!previous || v.type === (previous.value.type ?? 'client'),'Engagement type cannot change; create a separate engagement')
+  v.clientId = null
+  if (v.type === 'client') { const client = await get(env,'clients',text(input.clientId,'Client')); tx.observe('clients',client); v.clientId=client.id }
+  else { need(!input.clientId,'Internal work has no client'); need(['admin','sales','training','PTO','other'].includes(input.internalCategory),'Choose an internal category'); v.internalCategory=input.internalCategory }
+  const lead = await get(env,'people',text(input.leadId,'Lead')); tx.observe('people',lead)
+  v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = previous ? previous.value.currency : a.currency; v.timezone = zone(input.timezone)
   v.members = Array.isArray(input.members) ? input.members : String(input.members ?? '').split(',').filter(Boolean)
   for (const id of v.members) tx.observe('people',await get(env,'people',id))
  }
@@ -35,6 +40,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   const e = await access(env,a,text(input.engagementId,'Engagement'),true); tx.observe('engagements',e); v.engagementId = e.id
   if (previous) need(previous.value.engagementId === e.id, 'Cannot move a record between engagements')
   if (k === 'budgets' || k === 'milestones') {
+   need(e.value.type !== 'internal','Internal work has no commercial terms or milestones')
    v.currency = previous?.value.currency ?? e.value.currency
    need(v.currency === e.value.currency, 'Currency differs from engagement; no implicit FX')
   }
@@ -57,9 +63,19 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   const p = await get(env,'people',text(input.personId,'Person')); tx.observe('people',p); v.personId = p.id
   if (k === 'leave') {need(finance(a) || a.personId === p.id,'Only your own leave may be changed',403);if(previous)need(finance(a)||previous.value.personId===a.personId,'Only your own leave may be changed',403)}
   v.from = date(input.from); v.to = date(input.to); need(v.to >= v.from,'End date is before start date'); need((Date.parse(v.to)-Date.parse(v.from))/86400000 <= 366,'Use a period of at most one year')
-  if (k === 'calendars') { v.dailySeconds = integer(input.dailySeconds,'Available seconds per working day',0,86400); v.weekdays = text(input.weekdays,'Weekdays (0 Sunday to 6 Saturday)'); need(/^[0-6](,[0-6])*$/.test(v.weekdays),'Use comma-separated weekday numbers'); v.timezone = zone(input.timezone); tx.guard("NOT EXISTS(SELECT 1 FROM g_calendars WHERE person_id=? AND id<>? AND json_extract(data,'$.from')<=? AND json_extract(data,'$.to')>=?)",p.id,previous?.id ?? '',v.to,v.from) }
+  if (k === 'calendars') { v.dailySeconds = integer(input.dailySeconds,'Available seconds per working day',0,86400); v.weekdays = text(input.weekdays,'Weekdays (0 Sunday to 6 Saturday)'); need(/^[0-6](,[0-6])*$/.test(v.weekdays),'Use comma-separated weekday numbers'); v.timezone = zone(input.timezone)
+   const holidays = input.holidays ?? previous?.value.holidays ?? []
+   need(Array.isArray(holidays) || typeof holidays==='string','Use holiday dates')
+   v.holidays = [...new Set((Array.isArray(holidays)?holidays:holidays.split(',').map((s:string)=>s.trim()).filter(Boolean)).map(date))].sort()
+   need(v.holidays.every((day:string)=>day>=v.from&&day<=v.to),'Holiday dates must be inside the calendar period')
+   tx.guard("NOT EXISTS(SELECT 1 FROM g_calendars WHERE person_id=? AND id<>? AND json_extract(data,'$.from')<=? AND json_extract(data,'$.to')>=?)",p.id,previous?.id ?? '',v.to,v.from) }
   if (k === 'leave') { v.dailySeconds = integer(input.dailySeconds,'Leave seconds per day',0,86400); v.note = text(input.note,'Leave reason') }
-  if (k === 'staffing') { v.dailySeconds = integer(input.dailySeconds,'Allocation seconds per day',0,86400); need(['tentative','committed'].includes(input.commitment),'Choose tentative or committed'); v.commitment = input.commitment }
+  if (k === 'staffing') { v.dailySeconds = integer(input.dailySeconds,'Allocation seconds per day',0,86400); need(['tentative','committed'].includes(input.commitment),'Choose tentative or committed'); v.commitment = input.commitment
+   const engagement = await get(env,'engagements',v.engagementId)
+   v.service = text(input.service ?? previous?.value.service ?? 'Unspecified','Service',200)
+   v.billable = input.billable === undefined ? previous?.value.billable ?? engagement.value.type!=='internal' : flag(input.billable)
+   need(engagement.value.type!=='internal'||!v.billable,'Internal allocations cannot be billable')
+  }
  }
  if (v.currency !== undefined) need(input.currency === undefined || input.currency === v.currency, 'Currency differs from record; no implicit FX')
  return tx.record(k,v,previous)

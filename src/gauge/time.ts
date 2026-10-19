@@ -5,6 +5,14 @@ export async function snapshotRates(env: Bindings,tx: Transaction,row: Row) {
  const engagement = await get(env,'engagements',row.value.engagementId); tx.observe('engagements',engagement)
  const v = row.value, observedRates = await all(env,'rates'), rates = observedRates.filter(r => (r.value.personId === v.personId || (!r.value.personId && r.value.service === v.service)) && (r.value.service === '*' || r.value.service === v.service) && r.value.effective <= v.workDate).sort((x,y) => (Number(y.value.personId !== null)*2+Number(y.value.service===v.service))-(Number(x.value.personId !== null)*2+Number(x.value.service===v.service)) || y.value.effective.localeCompare(x.value.effective))
  const rate = rates[0]; if (rate) tx.observe('rates',rate)
+ // Internal approvals freeze declared labor cost without inventing client terms.
+ if (engagement.value.type === 'internal') {
+  need(!v.billable,'Internal time cannot be billable')
+  need(!rate || rate.value.currency === engagement.value.currency,'Cost currency differs; no implicit FX')
+  for (const observed of observedRates) tx.observe('rates',observed)
+  tx.guard('(SELECT COUNT(*) FROM g_rates)=?',observedRates.length)
+  return {rateId:rate?.id??null,budgetId:null,mode:'internal',roundingSeconds:1,costMinor:rate?.value.costMinor==null?null:charge(v.durationSeconds,rate.value.costMinor),billRateMinor:0,roundedBillingSeconds:v.durationSeconds,billMinor:0,currency:engagement.value.currency}
+ }
  const budgets = (await all(env,'budgets')).filter(b=> b.value.engagementId === v.engagementId && b.value.status === 'approved').sort((x,y)=>y.value.approvedAt-x.value.approvedAt)
  need(budgets[0],'Approve engagement terms first'); tx.observe('budgets',budgets[0]);tx.guard("(SELECT COUNT(*) FROM g_budgets WHERE engagement_id=? AND status='approved')=?",v.engagementId,budgets.length)
  need(budgets[0].value.currency === engagement.value.currency, 'Terms currency differs from engagement; no implicit FX')
@@ -22,6 +30,7 @@ export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action:
   if (old) { need(finance(a) || a.personId === old.value.personId, 'Only your own entry', 403); const original = await access(env,a,old.value.engagementId); tx.observe('engagements',original); need(old.value.personId === input.personId && old.value.engagementId === input.engagementId,'Cannot move an existing entry'); need(old.revision === input.revision,'Entry changed; reload',409); need(['draft','returned'].includes(old.value.status),'Submitted or approved entries require return/correction',409) }
   const person = await get(env,'people',text(input.personId,'Person')); need(finance(a) || a.personId === person.id,'You can only record your own time',403); tx.observe('people',person)
   const e = await access(env,a,text(input.engagementId,'Engagement')); tx.observe('engagements',e)
+  need(e.value.type !== 'internal' || !flag(input.billable),'Internal time cannot be billable')
   const task = await get(env,'tasks',text(input.taskId,'Task')); need(task.value.engagementId === e.id,'Task belongs to another engagement'); tx.observe('tasks',task)
   const dateOnly=old?.value.source?.clockInstants==='not-supplied'; const start = dateOnly ? null : action === 'timer:start' ? Date.now() : instant(input.start), end = dateOnly ? null : action === 'timer:start' ? null : instant(input.end)
   need(end === null || end > start!,'End must follow start'); need(end === null || end <= Date.now()+60000,'Time cannot end in the future')

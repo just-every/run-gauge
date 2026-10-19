@@ -4,6 +4,7 @@ import type { Row, Value } from './model'
 import { escape as e, input as i, amount, area, select as s, choices as c, check, form, decision, table, open } from './ui-forms'
 import { hours, money, day, chip, nameOf } from './ui-format'
 import { type Report, describeSource } from './ui-describe'
+import { specialistHandoffSection } from './ui-specialist-handoff'
 import { capacitySection } from './ui-capacity'
 
 const humanState = (state: string) => state.replace(/_/g, ' ')
@@ -58,6 +59,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    return `<a class="g-btn g-btn--secondary" href="/api/gauge/packets/${e(r.id)}">Download approved CSV</a>${adjust}`
   })
  }
+ if(section==='billing')body+=specialistHandoffSection(a,report)
  if(section==='imports'){
   body='<div class="g-titlebar"><h1>Harvest move-in</h1></div><p class="g-lede">Preview a Harvest export without changing anything; nothing is applied until you choose to. <a href="/move-in.html">Read the move-in guide</a>.</p>'
   const preview=options.preview

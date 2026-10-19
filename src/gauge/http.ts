@@ -1,3 +1,4 @@
+import { handoffDownload } from './specialist-handoff'
 import { Buffer } from 'node:buffer'
 import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
 import { type Actor, actor, access, finance, fence, get, Transaction } from './store'
@@ -10,7 +11,7 @@ import { formInput } from './form-input'
 import { reportCsv } from './report-export'
 import { resourceCandidates } from './resource-candidates'
 // The page an /app/action form belongs to: its result (or refusal) shows there.
-const sectionFor=(action:string)=>action.startsWith('staffing:')||action.startsWith('resource:')||action==='save:resourceRequests'?'capacity':action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('packet:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'?'access':action==='save:rates'?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
+const sectionFor=(action:string)=>action.startsWith('staffing:')||action.startsWith('resource:')||action==='save:resourceRequests'?'capacity':action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('packet:')||action.startsWith('handoff:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'?'access':action==='save:rates'?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
 const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-content-type-options':'nosniff','x-robots-tag':'noindex','content-security-policy':"default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
@@ -18,7 +19,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  const mutation=path==='/api/gauge/command'||path==='/app/action'
  const historyRoute=path.match(/^\/api\/gauge\/history\/([^/%]+)\/([^/%]+)$/)
  const resourceRoute=path.match(/^\/api\/gauge\/resources\/([^/%]+)$/)
- const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports)\/([^/%]+)$/)
+ const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports|handoffs)\/([^/%]+)$/)
  const page=path==='/app'?'review':path.match(/^\/app\/(review|engagements|time|expenses|capacity|rates|billing|imports|access)$/)?.[1]
  if((!mutation&&!historyRoute&&!resourceRoute&&!download&&!['/api/gauge/state','/api/gauge/report.csv'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
  const env=runtimeBindings(original)
@@ -51,6 +52,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
   }
   if(resourceRoute)return Response.json(await resourceCandidates(env,a,await get(env,'resourceRequests',resourceRoute[1])),{headers})
   if(historyRoute){const k=kind(historyRoute[1]),id=historyRoute[2];await get(env,k,id);const data=await visible(env,a);need(data[k].some(r=>r.id===id),'This record is not visible to you',403);const history=(await env.DB.prepare('SELECT revision,data,actor,action,at FROM g_history WHERE kind=? AND record_id=? ORDER BY id').bind(k,id).all<any>()).results.map(h=>({revision:h.revision,value:redact(a,k,JSON.parse(h.data)),actor:h.actor,action:h.action,at:h.at}));await fence(env,a);if(request.headers.get('accept')?.includes('text/html'))return new Response(await historyPage(env,a,k,id,data,history),{headers:{...headers,'content-type':'text/html; charset=utf-8',vary:'accept'}});return Response.json({id,kind:k,history},{headers:{...headers,vary:'accept'}})}
+  if(download?.[1]==='handoffs')return await handoffDownload(env,a,download[2])
   if(download?.[1]==='files'){const id=download[2];const file=await env.DB.prepare('SELECT *,hex(bytes) AS bytes_hex FROM g_files WHERE id=?').bind(id).first<any>();need(file,'Attachment not found',404);const expense=await get(env,'expenses',file.expense_id);await access(env,a,expense.value.engagementId);need(finance(a)||a.personId===expense.value.personId,'Attachment access requires finance or ownership',403);await fence(env,a);return new Response(Buffer.from(file.bytes_hex,'hex'),{headers:{...headers,'content-type':'application/octet-stream','content-disposition':`attachment; filename="receipt-${id}"`}})}
   if(download?.[1]==='packets'){need(finance(a),'Finance access required',403);const packet=await get(env,'packets',download[2]);need(packet.value.status==='approved','Approve the exact packet before downloading',409);const tx=new Transaction(env,a);tx.observe('packets',packet);tx.sql('INSERT INTO g_exports(packet_id,actor,exported_at) VALUES(?,?,?) ON CONFLICT(packet_id) DO NOTHING',packet.id,a.session.operator.id,Date.now());await tx.commit();return new Response(packet.value.artifact,{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="gauge-${packet.id}.csv"`}})}
   if(download?.[1]==='archives'){need(finance(a),'Finance access required',403);const archive=await get(env,'archives',download[2]);await fence(env,a);return new Response(Buffer.from(archive.value.base64,'base64'),{headers:{...headers,'content-type':'application/octet-stream','content-disposition':'attachment; filename=historical-document.pdf'}})}

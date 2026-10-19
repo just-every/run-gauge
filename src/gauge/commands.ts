@@ -3,6 +3,7 @@ import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Value, need, text } from './model'
 import { type Actor, Transaction, fence, get } from './store'
 import { catalog, approveTerms } from './catalog'
+import { specialistHandoffCommand } from './specialist-handoff'
 import { timeCommand } from './time'
 import { expenseCommand } from './expenses'
 import { billingCommand } from './billing'
@@ -37,6 +38,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await scheduleCommand(env,a,tx,action,input)
  if(!result)result=await resourceCommand(env,a,tx,action,input)
  if(!result)result=await opportunityCommand(env,a,tx,action,input)
+ if(!result)result=await specialistHandoffCommand(env,a,tx,action,input)
  if(!result)result=await delegationCommand(env,a,tx,action,input)
  if(!result)result=await timePolicyCommand(env,a,tx,action,input)
  if(!result)result=await timesheetCommand(env,a,tx,action,input)

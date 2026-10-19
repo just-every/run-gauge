@@ -73,6 +73,11 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('time:delegate',{engagementId:engagement.id,delegateId:person.id,from:'2026-10-01',to:'2026-12-31',reason:'Portable review cover'},portableLead.cookie)
  const portablePolicy=(await state()).data.timePolicies[0]
  await cmd('time:policy',{...portablePolicy,review:{dueWeekday:5,dueTime:'16:30',minimumNotes:8,maxEntrySeconds:28800,maxDaySeconds:43200,reviewLevels:2,separation:true,serviceBillability:{Research:false}},reason:'Portable independent review policy'})
+ // BOUNDARY-001 / BASE-002: exact prepared inputs, receiver acknowledgement, artifact and history survive restore.
+ const handoffState=await state(),handoffSources=['time','expenses','packets'].flatMap(kind=>handoffState.data[kind].filter(r=>r.value.status==='approved').map(r=>({kind,id:r.id,revision:r.revision})))
+ const handoff=await cmd('handoff:prepare',{recipient:'Portable accountant',purpose:'accounting',reason:'Approved inputs retained with their receiver reconciliation',sources:handoffSources})
+ const prepared=(await state()).data.specialistHandoffs.find(r=>r.id===handoff.id)
+ await cmd('handoff:record-result',{...handoff,result:{handoffId:handoff.id,artifactHash:prepared.value.artifactHash,lines:prepared.value.lines.map((l,i)=>({id:l.id,status:i?'accepted':'rejected',...(i?{}:{reason:'Portable receiver requested supporting evidence'}),currency:l.currency,amountMinor:l.amountMinor,durationSeconds:l.durationSeconds}))}})
  const before=await state()
  assert(before.data.archives.some(r=>r.value.base64===historicalBytes.toString('base64')),'native historical document is available before export')
  assert.equal(before.data.time.find(r=>r.id===time.id).value.economics.costMinor,6500)
@@ -87,7 +92,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  assert(before.data.resourceRequests.some(r=>r.value.status==='filled'))
  assert(before.data.resourceRequests.some(r=>r.value.status==='open'))
  assert.equal(before.capacity.find(p=>p.personId===person.id).days.find(d=>d.date==='2026-10-05').holiday,true)
- const downloads=[]
+ const downloads=before.data.specialistHandoffs.map(r=>`/api/gauge/handoffs/${r.id}`)
  for(const packet of before.data.packets.filter(r=>r.value.status==='approved'))downloads.push(`/api/gauge/packets/${packet.id}`)
  for(const expense of before.data.expenses)for(const file of expense.value.attachmentIds??[])downloads.push(`/api/gauge/files/${file}`)
  for(const archive of before.data.archives)downloads.push(`/api/gauge/archives/${archive.id}`)

@@ -36,7 +36,8 @@
           "migrations/core/0024_gauge_delivery_plans.sql",
           "migrations/core/0025_gauge_retainers.sql",
           "migrations/core/0026_gauge_delivery_templates.sql",
-          "migrations/core/0027_gauge_time_delegations.sql"
+          "migrations/core/0027_gauge_time_delegations.sql",
+          "migrations/core/0028_gauge_specialist_handoffs.sql"
         ]
       }
     },

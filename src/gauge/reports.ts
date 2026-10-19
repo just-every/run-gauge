@@ -19,11 +19,12 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role === 'agent' && k !== 'proposals') for (const key of amounts) delete v[key]
  return v
 }
-export async function visible(env: Bindings,a: Actor) {
+export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
  // An agent reads every engagement it may prepare for, approved work only, and no amounts.
  const agent = a.role==='agent', ids = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
+ data.timeFavorites=data.timeFavorites.filter(r=>ids.has(r.value.engagementId)&&r.value.personId===(a.role==='owner'&&favoritePersonId?favoritePersonId:a.personId))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
  for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
@@ -79,9 +80,9 @@ export function economics(data: Awaited<ReturnType<typeof visible>>,a: Actor) {
   return {...base,costMinor:missingCostSources.length?null:knownCostMinor,knownCostMinor,missingCostSources,billableMinor:missingBillRateSources.length?null:knownBillableMinor,knownBillableMinor,missingBillRateSources}
  })
 }
-export async function reports(env: Bindings,a: Actor,from: string,to: string) {
+export async function reports(env: Bindings,a: Actor,from: string,to: string,favoritePersonId?:string) {
  const asOf=new Date().toISOString()
- const data=await visible(env,a),cap=capacity(data,from,to),econ=economics(data,a),exceptions:any[]=[]
+ const data=await visible(env,a,favoritePersonId),cap=capacity(data,from,to),econ=economics(data,a),exceptions:any[]=[]
  for(const c of cap){ for(const conflict of c.conflicts)exceptions.push({type:'capacity conflict',personId:c.personId,...conflict});if(c.missingCalendarDays)exceptions.push({type:'availability missing',personId:c.personId,days:c.missingCalendarDays,demand:c.days.filter(d=>d.calendarId===null&&(d.committedSeconds>0||d.tentativeSeconds>0))}) }
  for(const e of econ) { if('costMinor' in e && e.budgetMinor!==null && e.knownCostMinor>e.budgetMinor)exceptions.push({type:'overspend',source:`engagements:${e.engagementId}`,amountMinor:e.knownCostMinor-e.budgetMinor,currency:e.currency,incomplete:e.missingCostSources.length>0}); }
  // Recorded time is a per-person total over every entry, not just those this viewer may open, so every viewer reads the same number; no record is exposed.

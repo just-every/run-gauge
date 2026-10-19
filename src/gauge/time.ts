@@ -1,5 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, instant, zone, flag, workDate, charge, integer, date } from './model'
+import { assertTimeUnlocked } from './time-policy'
 import { type Actor, Transaction, finance, access, get, all } from './store'
 export async function snapshotRates(env: Bindings,tx: Transaction,row: Row) {
  const engagement = await get(env,'engagements',row.value.engagementId); tx.observe('engagements',engagement)
@@ -28,6 +29,7 @@ export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action:
  if (action === 'time:save' || action === 'timer:start') {
   const old = input.id ? await get(env,'time',input.id) : undefined
   if (old) { need(finance(a) || a.personId === old.value.personId, 'Only your own entry', 403); const original = await access(env,a,old.value.engagementId); tx.observe('engagements',original); need(old.value.personId === input.personId && old.value.engagementId === input.engagementId,'Cannot move an existing entry'); need(old.revision === input.revision,'Entry changed; reload',409); need(['draft','returned'].includes(old.value.status),'Submitted or approved entries require return/correction',409) }
+  if(old)await assertTimeUnlocked(env,tx,[old.value.workDate])
   const person = await get(env,'people',text(input.personId,'Person')); need(finance(a) || a.personId === person.id,'You can only record your own time',403); tx.observe('people',person)
   const e = await access(env,a,text(input.engagementId,'Engagement')); tx.observe('engagements',e)
   need(e.value.type !== 'internal' || !flag(input.billable),'Internal time cannot be billable')
@@ -35,9 +37,11 @@ export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action:
   const dateOnly=old?.value.source?.clockInstants==='not-supplied'; const start = dateOnly ? null : action === 'timer:start' ? Date.now() : instant(input.start), end = dateOnly ? null : action === 'timer:start' ? null : instant(input.end)
   need(end === null || end > start!,'End must follow start'); need(end === null || end <= Date.now()+60000,'Time cannot end in the future')
   const timezone = zone(input.timezone)
+  await assertTimeUnlocked(env,tx,[dateOnly?date(input.workDate):workDate(start!,timezone)])
   return tx.record('time',{engagementId:e.id,personId:person.id,taskId:task.id,service:text(input.service,'Service'),notes:String(input.notes ?? '').slice(0,4000),billable:flag(input.billable),start,end,durationSeconds:dateOnly ? integer(input.durationSeconds,'Actual duration seconds',1,86400) : end === null ? null : Math.round((end-start!)/1000),timezone,workDate:dateOnly ? date(input.workDate) : workDate(start!,timezone),status:'draft',source:old?.value.source ?? null},old)
  }
  const row = await get(env,'time',text(input.id,'Entry')); need(row.revision === input.revision,'Entry changed; reload',409)
+ await assertTimeUnlocked(env,tx,[row.value.workDate])
  const v = {...row.value}; const manage = ['time:approve','time:return','time:correct'].includes(action)
  const e = await access(env,a,v.engagementId,manage); tx.observe('engagements',e)
  if (!manage) need(finance(a) || a.personId === v.personId,'Only your own entry',403)

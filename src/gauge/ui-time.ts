@@ -5,6 +5,7 @@ import type { Value } from './model'
 import { escape as e, input as i, duration, area, select as s, check, form, decision, table, open } from './ui-forms'
 import { localValue } from './form-input'
 import { hours, day, chip, nameOf } from './ui-format'
+import { timesheetSection } from './ui-timesheets'
 import type { Report } from './ui-describe'
 
 export function timeSection(a: Actor, report: Report, options: Value) {
@@ -18,7 +19,7 @@ export function timeSection(a: Actor, report: Report, options: Value) {
  const forms = []
  if (editable) forms.push(form('time:save', row ? 'Correct time entry' : 'Manual time', s('engagementId', 'Engagement', d.engagements, t.engagementId) + s('personId', 'Person', people, t.personId ?? a.personId) + s('taskId', 'Task', d.tasks, t.taskId) + i('service', 'Service', t.service ?? 'Delivery') + interval + i('timezone', 'Work timezone', zone) + area('notes', 'Work notes', t.notes) + check('billable', 'Billable', t.billable ?? true), row, 'Save', 'g-card--form'))
  forms.push(form('timer:start', 'Start persistent timer', s('engagementId', 'Engagement', d.engagements) + s('personId', 'Person', people, a.personId) + s('taskId', 'Task', d.tasks) + i('service', 'Service', 'Delivery') + i('timezone', 'Work timezone', report.agency.timezone) + area('notes', 'Work notes') + check('billable', 'Billable', true), undefined, 'Save', 'g-card--form'))
- body += forms.join('')
+ body += timesheetSection(a,report,options) + forms.join('')
  // Entries waiting for a decision come first, as on Review.
  const recorded = [...d.time.filter(r => r.value.status === 'submitted'), ...d.time.filter(r => r.value.status !== 'submitted')]
  body += table('Recorded work', recorded, [
@@ -36,5 +37,7 @@ export function timeSection(a: Actor, report: Report, options: Value) {
   if (lead && r.value.status === 'approved') buttons += decision('time:correct', 'Reopen with audited correction', r, true, 'quiet')
   return buttons + `<a class="g-link" href="/api/gauge/history/time/${e(r.id)}">Review revision history</a>`
  })
+ const policy=d.timePolicies[0]
+ body+=`<section class="g-card" id="timesheet-policy"><h2>Timesheet period policy</h2><p>${policy?.value.lockThrough?`Locked through ${e(policy.value.lockThrough)} (inclusive).`:'No period is locked.'}</p>${policy?`<p>${e(policy.value.reason)}</p>`:''}${finance(a)?form('time:policy','Lock or reopen periods',i('lockThrough','Locked through (blank reopens all)',policy?.value.lockThrough??'','date',false)+area('reason','Policy change or reopening reason'),policy,'Save policy','g-bare'):''}</section>`
  return body
 }

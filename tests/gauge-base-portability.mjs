@@ -27,6 +27,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('expense:save',{engagementId:internal.id,personId:person.id,taskId:subtask.id,date:'2026-10-08',description:'Research workshop materials',amountMinor:1250,reimbursable:false})
  await cmd('task:progress',{...subtask,status:'done',remainingSeconds:0,completedItems:['notes']})
  await cmd('task:progress',{...task,status:'done',remainingSeconds:0,completedItems:['review']})
+ const favoriteUser=await h.invite('portability-timesheet-person');await cmd('grant',{operatorId:favoriteUser.id,personId:person.id,role:'staff',enabled:true})
+ const favorite=await cmd('time:favorite',{personId:person.id,taskId:task.id,name:'Research training',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
+ await cmd('time:favorite',{...favorite,personId:person.id,taskId:task.id,name:'Research workshop',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
+ await cmd('time:policy',{lockThrough:'2020-12-31',reason:'Historical migration cutoff; current work remains open'})
  await cmd('save:staffing',{personId:person.id,engagementId:internal.id,from:'2026-10-09',to:'2026-10-09',dailySeconds:3600,commitment:'tentative',service:'Research',billable:false})
  const agent=await h.invite('portability-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true})
  const proposal=await cmd('proposal:prepare',{kind:'staffing',engagementId:engagement.id,assumptions:'Research capacity reviewed by the lead',evidence:[{source:'Agency planning meeting',summary:'A researcher is needed for the next delivery period'}],plan:{alternatives:[{personId:person.id,from:'2026-10-12',to:'2026-10-12',dailySeconds:3600,rationale:'Qualified researcher with declared availability'}]}},agent.cookie)
@@ -69,12 +73,13 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const stable=report=>({agency:report.agency,data:Object.fromEntries(Object.entries(report.data).map(([kind,rows])=>[kind,[...rows].sort((a,b)=>a.id.localeCompare(b.id))])),...Object.fromEntries(['capacity','economics','pipeline','resourceDemand','utilization','correctionReviews'].map(key=>[key,unordered(report[key])]))})
  return async persistenceDirectory=>{
   const restored=await harness({persistenceDirectory,beforeLogin:async({request,post})=>{
-   for(const cookie of [owner,agent.cookie]){
+   for(const cookie of [owner,agent.cookie,favoriteUser.cookie]){
     assert.equal((await request('/api/gauge/state',cookie)).status,401,'old session cannot read restored business data')
     assert.equal((await post('/api/gauge/command',{key:'restored-stale-session',action:'save:clients',name:'Unapproved restored write'},cookie)).status,401,'old session cannot write restored business data')
    }
   }})
   try{
+   const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
    assert.notEqual(restored.vars.SESSION_SECRET,h.vars.SESSION_SECRET,'restore uses fresh private settings')
    assert.deepEqual(stable(await restored.state()),stable(before),'fresh native login sees the same current records, money and capacity')
    const restoredBytes=await Promise.all(downloads.map(path=>getBytes(restored,path)))

@@ -11,6 +11,9 @@ import { proposalCommand } from './proposals'
 import { opportunityCommand } from './pipeline'
 import { resourceCommand } from './resources'
 import { scheduleCommand } from './schedule'
+import { timePolicyCommand } from './time-policy'
+import { timesheetCommand } from './timesheets'
+import { favoriteCommand } from './time-favorites'
 import { taskCommand } from './tasks'
 import { schedulePreview } from './schedule-preview'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
@@ -25,6 +28,9 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  let result:Value|null=await scheduleCommand(env,a,tx,action,input)
  if(!result)result=await resourceCommand(env,a,tx,action,input)
  if(!result)result=await opportunityCommand(env,a,tx,action,input)
+ if(!result)result=await timePolicyCommand(env,a,tx,action,input)
+ if(!result)result=await timesheetCommand(env,a,tx,action,input)
+ if(!result)result=await favoriteCommand(env,a,tx,action,input)
  if(!result)result=await taskCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)
  if(!result&&['budget:approve','milestone:approve'].includes(action))result=await approveTerms(env,a,tx,action==='budget:approve'?'budgets':'milestones',input)

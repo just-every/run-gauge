@@ -134,7 +134,7 @@ The seventeen released clause IDs remain intact. The original AUD pilot now supp
 
 ### Time capture and expense operations
 
-- **TIME-003 — Daily and weekly timesheets.** Workers enter day/week grids, copy recent tasks and favorites, bulk submit and see missing hours and approval status. Lock periods by policy; a historical correction preserves the original approver and exact duration before billing rounding. **Acceptance evidence:** Fill a week using a favorite and manual interval, return one day, correct it and resubmit; a locked period refuses an unapproved edit.
+- **TIME-003 — Daily and weekly timesheets.** Workers enter day/week grids, copy recent tasks and favorites, bulk submit and see missing hours and approval status. Lock periods by policy; a historical correction preserves the original approver and exact duration before billing rounding. Grid entries require confirmed clock intervals in an explicit IANA work timezone; recent-task and favorite reuse copies only task/service/billability/timezone defaults, never approval or actual time. Favorites are private to their person; the owner may act for that person only through finance time entry, leads receive no other person’s favorites in state/history/report exports, and BASE-002 includes them in the installation archive (ct, 19 October). Daily missing hours are max(0, net calendar availability minus stopped actual seconds); missing calendars remain unknown and approval statuses are separate. Bulk submission binds every selected revision and commits all or none. Finance sets an inclusive locked-through work date; all native, agent-confirmation and import writes/removals honor it, without a role bypass. Finance must record an audited reason to reopen before correction, and cannot lock an affected running timer. The start date in the entry’s work timezone determines its work period. **Acceptance evidence:** Fill a week using a favorite and manual interval, return one day, correct it and resubmit; a locked period refuses an unapproved edit.
 
 - **TIME-004 — Timesheet policies and reviewer queues.** Set due dates, required notes, maximum hours, billability and multi-level review policies; route work to a delegate when the lead is absent and show policy failures and approver ageing. A worker cannot self-approve when separation is required. **Acceptance evidence:** Submit short-note and excessive-hours entries, resolve the flags, delegate review during leave and verify the original worker cannot bypass the policy.
 
@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 7 | 44 | 70 | 121 |
-| All | 24 | 44 | 70 | 138 |
+| Target and push further | 8 | 43 | 70 | 121 |
+| All | 25 | 43 | 70 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -461,7 +461,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `DELIVERY-004` | Project conversations and documents | target | partial | `src/gauge/catalog.ts`; `src/gauge/harvest.ts` | Scope text and imported historical files exist; task discussions, document versioning, proofing annotations, notification inbox/digests, file-store links and project file rights are absent. |
 | `DELIVERY-005` | Milestone acceptance and risks | target | partial | `src/gauge/catalog.ts`; `src/gauge/billing.ts`; `tests/gauge.mjs` | Internal fixed-milestone approval exists; risks, client dependencies and client acceptance are missing. |
 | `DELIVERY-006` | Client intake and follow-through | target | missing |  | No external intake forms, requested-file workflow or client reminders. |
-| `TIME-003` | Daily and weekly timesheets | target | partial | `src/gauge/time.ts`; `src/gauge/ui-time.ts`; `tests/gauge.mjs` | Manual intervals and revision approval ship; weekly grid, favorites, bulk submission and period locking do not. |
+| `TIME-003` | Daily and weekly timesheets | target | done | `src/gauge/timesheets.ts`; `src/gauge/time-favorites.ts`; `src/gauge/time-policy.ts`; `src/gauge/ui-timesheets.ts`; `src/gauge/import-targets.ts`; `tests/gauge-timesheets.mjs` (TIME-003); `tests/gauge-base-portability.mjs` | Day/week interval grids; private favorites and recent-task defaults; atomic exact-revision bulk submission; daily net missing hours and approval status; fenced finance cutoff/reopening across native, agent-confirmation and import doors; original approval/duration/rounding history and portable preferences/policy. |
 | `TIME-004` | Timesheet policies and reviewer queues | target | partial | `src/gauge/time.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` | Lead return/approval exists; configurable policies, delegation and multi-level separation are absent. |
 | `TIME-005` | Consented evidence inbox | target | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` | Manually cited time proposals and personal confirmation exist; live collection, consent management and evidence inbox are absent. |
 | `TIME-006` | Timer continuity and idle recovery | target | partial | `src/gauge/time.ts`; `tests/gauge.mjs` | Persistent web timer and parallel exclusion ship; cross-device clients, offline reconciliation and idle recovery do not. |

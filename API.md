@@ -57,6 +57,10 @@ Leads manage their own opportunities; finance manages all. `save:opportunities` 
 
 `pipeline` groups totals by explicit currency. Open weighted value rounds each opportunity’s amount × probability half-up to cents; open demand remains tentative whole seconds outside signed staffing. Booked backlog is agreed value before billing: the latest approved engagement budget, or its linked won value when no budget is approved, plus unlinked wins. Linked opportunity and approved terms count once. Lost opportunities contribute neither; no invoice or cash completion is implied.
 
+## Won work becomes an engagement (SALES-004)
+
+Finance or the owner sends `opportunity:convert` with a won opportunity's `id` and `revision`. One batch creates a client engagement (the opportunity's name and client, its owner as lead, agency currency and zone, `opportunityId`), a draft `fixed` budget whose `amountMinor` is the won value and `effortSeconds` the won demand (approve it with `budget:approve`), and one open resource request per comma-listed service over the inclusive won dates; it sets the opportunity's `engagementId` and `conversion: {engagementId, budgetId, resourceRequestIds, unplacedSeconds, convertedAt, convertedBy}`. Demand splits evenly by service and then by date in whole seconds rounded down; `unplacedSeconds` is what did not divide. Converting again returns the same engagement. Other roles get 403; an opportunity that is not won gets 409.
+
 ## Report calculations and exports (REPORT-005)
 
 State responses include `asOf` (ISO timestamp), `fingerprint` and `lineage`. Each calculation carries its numeric value (exact cents or seconds), currency, formula, contributing source IDs/revisions and already-permitted source values including frozen rates and approvals. Missing rates or calendars produce an incomplete `null` total and an explicit known subtotal, never a zero total. Finance economics also exposes `knownCostMinor` and `knownBillableMinor`; `costMinor` and `billableMinor` are null while their sources are incomplete. Source visibility follows the caller; restricted global time is not disclosed in lineage.

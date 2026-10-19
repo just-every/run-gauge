@@ -37,6 +37,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = previous ? previous.value.currency : a.currency; v.timezone = zone(input.timezone)
   v.members = Array.isArray(input.members) ? input.members : String(input.members ?? '').split(',').filter(Boolean)
   for (const id of v.members) tx.observe('people',await get(env,'people',id))
+  if (previous?.value.opportunityId) v.opportunityId = previous.value.opportunityId
  }
  if (['budgets','milestones','staffing'].includes(k)) {
   const e = await access(env,a,text(input.engagementId,'Engagement'),true); tx.observe('engagements',e); v.engagementId = e.id

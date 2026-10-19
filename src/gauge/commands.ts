@@ -22,6 +22,7 @@ import { deliveryPreview, deliveryCommand } from './delivery-schedule'
 import { schedulePreview } from './schedule-preview'
 import { templateCommand } from './delivery-templates'
 import { rateCommand } from './rate-cards'
+import { conversionCommand } from './sales-conversion'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
@@ -39,6 +40,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await scheduleCommand(env,a,tx,action,input)
  if(!result)result=await resourceCommand(env,a,tx,action,input)
  if(!result)result=await opportunityCommand(env,a,tx,action,input)
+ if(!result)result=await conversionCommand(env,a,tx,action,input)
  if(!result)result=await specialistHandoffCommand(env,a,tx,action,input)
  if(!result)result=await delegationCommand(env,a,tx,action,input)
  if(!result)result=await timePolicyCommand(env,a,tx,action,input)

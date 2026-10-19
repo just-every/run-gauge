@@ -16,7 +16,7 @@ export async function resourceCommand(env:Bindings,a:Actor,tx:Transaction,action
   const employmentType=input.employmentType??'';need(['','employee','contractor'].includes(employmentType),'Choose employee, contractor or either')
   const billable=input.billable===undefined?engagement.value.type!=='internal':flag(input.billable)
   need(engagement.value.type!=='internal'||!billable,'Internal requests cannot be billable')
-  return tx.record('resourceRequests',{engagementId:engagement.id,role:text(input.role,'Role needed',200),skill:text(input.skill,'Required skill',100),minProficiency:integer(input.minProficiency,'Minimum proficiency',1,5),from,to,dailySeconds:integer(input.dailySeconds,'Requested seconds per date',1,86400),service:text(input.service,'Service',200),billable,team:input.team?text(input.team,'Team filter',200):'',location:input.location?text(input.location,'Location filter',200):'',employmentType,status:'open'},previous)
+  return tx.record('resourceRequests',{engagementId:engagement.id,role:text(input.role,'Role needed',200),skill:text(input.skill,'Required skill',100),minProficiency:integer(input.minProficiency,'Minimum proficiency',1,5),from,to,dailySeconds:integer(input.dailySeconds,'Requested seconds per date',1,86400),service:text(input.service,'Service',200),billable,team:input.team?text(input.team,'Team filter',200):'',location:input.location?text(input.location,'Location filter',200):'',employmentType,status:'open',...(previous?.value.opportunityId?{opportunityId:previous.value.opportunityId}:{})},previous)
  }
  need(previous,'Choose an open request')
  const found=await resourceCandidates(env,a,previous,tx)

@@ -1,5 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, instant, zone, flag, workDate, charge, integer, date } from './model'
+import { assertRetainerSourceEditable } from './retainer-source-lock'
 import { assertTimeUnlocked } from './time-policy'
 import { type Actor, Transaction, finance, access, get, all } from './store'
 export async function snapshotRates(env: Bindings,tx: Transaction,row: Row) {
@@ -29,6 +30,7 @@ export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action:
  if (action === 'time:save' || action === 'timer:start') {
   const old = input.id ? await get(env,'time',input.id) : undefined
   if (old) { need(finance(a) || a.personId === old.value.personId, 'Only your own entry', 403); const original = await access(env,a,old.value.engagementId); tx.observe('engagements',original); need(old.value.personId === input.personId && old.value.engagementId === input.engagementId,'Cannot move an existing entry'); need(old.revision === input.revision,'Entry changed; reload',409); need(['draft','returned'].includes(old.value.status),'Submitted or approved entries require return/correction',409) }
+  if(old)await assertRetainerSourceEditable(env,tx,old)
   if(old)await assertTimeUnlocked(env,tx,[old.value.workDate])
   const person = await get(env,'people',text(input.personId,'Person')); need(finance(a) || a.personId === person.id,'You can only record your own time',403); tx.observe('people',person)
   const e = await access(env,a,text(input.engagementId,'Engagement')); tx.observe('engagements',e)
@@ -49,6 +51,6 @@ export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action:
  if (action === 'time:submit') { need(v.durationSeconds > 0 && ['draft','returned'].includes(v.status),'Stop the timer and save a draft first'); v.status='submitted' }
  if (action === 'time:return') { need(v.status === 'submitted','Only submitted time can be returned'); v.status='returned'; v.reviewNote=text(input.reason,'Return reason') }
  if (action === 'time:approve') { need(v.status === 'submitted','Approve the exact submitted revision'); v.economics=await snapshotRates(env,tx,row); v.status='approved'; v.approvedBy=a.session.operator.id; v.approvedAt=Date.now() }
- if (action === 'time:correct') { need(v.status === 'approved','Only approved entries need audited correction'); v.status='returned'; v.reviewNote=text(input.reason,'Correction reason'); delete v.economics; delete v.approvedBy; delete v.approvedAt }
+ if (action === 'time:correct') { await assertRetainerSourceEditable(env,tx,row); need(v.status === 'approved','Only approved entries need audited correction'); v.status='returned'; v.reviewNote=text(input.reason,'Correction reason'); delete v.economics; delete v.approvedBy; delete v.approvedAt }
  return tx.record('time',v,row,undefined,action)
 }

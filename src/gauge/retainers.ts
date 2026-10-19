@@ -2,6 +2,7 @@ import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Value, type Row, type Kind, need, text, date, integer } from './model'
 import { type Actor, type Transaction, access, all, fence } from './store'
+import { allocateRetainer } from './retainer-allocation'
 import { normalizeRetainer, retainerPeriods } from './retainer-periods'
 
 export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Transaction) {
@@ -50,6 +51,7 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  return {input:normalized,engagementId:engagement.id,rootId,number:(previous?.value.number??0)+1,terms,calendar,calendarId:operation==='periods'?existing!.value.calendarId:calendarRow?.id??null,periods,fingerprint}
 }
 export async function retainerCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null> {
+ if(action==='retainer:allocate')return allocateRetainer(env,a,tx,input)
  if(action==='agency:calendar'){
   need(a.role==='owner','Only the owner sets the agency workweek and holidays',403)
   const calendars=await all(env,'agencyCalendars');need((input.previousId||null)===(calendars.at(-1)?.id??null),'Agency calendar changed; reload',409)

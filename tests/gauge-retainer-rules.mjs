@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 
-// RETAINER-002: public commands, statement, draft/approve/download and immutable
+// RETAINER-002 / RETAINER-003: public commands, statement, draft/approve/download and immutable
 // versions. Called by the existing retainer journey, sharing its built app.
 export async function retainerRulesJourney(h,browser,{client,lead,worker,staff,manager}) {
  const {cmd,state,request}=h,zone='America/New_York'
@@ -26,7 +26,7 @@ export async function retainerRulesJourney(h,browser,{client,lead,worker,staff,m
   assert.deepEqual(retained.value.terms.rules,terms.rules)
   const open=await cmd('retainer:preview',{engagementId:engagement.id,operation:'periods',retainerId:retained.id,from:'2026-09-01',to:'2026-10-31'},manager.cookie);await save(open)
   const periods=(await state()).data.retainerPeriods.filter(p=>p.value.rootId===retained.id).sort((a,b)=>a.value.periodStart.localeCompare(b.value.periodStart)),[aug,sep,oct]=periods
-  const actual=async(day,hours,engagementId=engagement.id,taskId=task.id)=>{let time=await cmd('time:save',{engagementId,taskId,personId:worker.id,service:'Design',timezone:zone,start:`${day}T06:00:00-04:00`,end:`${day}T${String(6+hours).padStart(2,'0')}:00:00-04:00`,billable:true,notes:'Subscription service delivery'},staff.cookie);time=await cmd('time:submit',time,staff.cookie);return cmd('time:approve',time,manager.cookie)}
+  const actual=async(day,hours,engagementId=engagement.id,taskId=task.id,service='Design')=>{let time=await cmd('time:save',{engagementId,taskId,personId:worker.id,service,timezone:zone,start:`${day}T06:00:00-04:00`,end:`${day}T${String(6+hours).padStart(2,'0')}:00:00-04:00`,billable:true,notes:'Subscription service delivery'},staff.cookie);time=await cmd('time:submit',time,staff.cookie);return cmd('time:approve',time,manager.cookie)}
   for(const day of ['03','04','05','06'])await actual(`2026-08-${day}`,8)
   const september=[];for(const day of ['01','02','03','04','07','08'])september.push(await actual(`2026-09-${day}`,8));september.push(await actual('2026-09-09',3))
   data=await state();const balance=id=>data.retainerBalances.find(b=>b.periodId===id),b=balance(sep.id)
@@ -53,15 +53,19 @@ export async function retainerRulesJourney(h,browser,{client,lead,worker,staff,m
   data=await state();const expiryOct=data.retainerBalances.find(b=>b.retainerId===expiry.id&&data.data.retainerPeriods.find(p=>p.id===b.periodId).value.periodStart==='2026-10-01')
   assert.equal(expiryOct.rollover,28800);assert.equal(expiryOct.expired,28800);assert.equal(expiryOct.forfeited,115200)
   // Declared deficits reduce the next entitlement and cannot also be billed.
-  const deficit=await save(await preview({...terms,name:'Deficit example',services:['Design'],allowance:3600,rules:{carryCap:0,carryPeriods:0,deficit:true,overage:'held',overageRate:0}},{from:'2026-08-01',to:'2026-09-30'}))
+  const deficit=await save(await preview({...terms,name:'Deficit example',services:['Deficit service'],allowance:3600,rules:{carryCap:0,carryPeriods:0,deficit:true,overage:'held',overageRate:0}},{from:'2026-08-01',to:'2026-09-30'}))
+  for(const day of ['10','11','12','13'])await actual(`2026-08-${day}`,8,engagement.id,task.id,'Deficit service')
   data=await state();const deficitSep=data.retainerBalances.find(b=>b.retainerId===deficit.id&&data.data.retainerPeriods.find(p=>p.id===b.periodId).value.periodStart==='2026-09-01')
   assert.equal(deficitSep.deficitOpening,31*3600);assert.equal(deficitSep.opening,-30*3600);assert.equal(deficitSep.overageMinor,null)
   await cmd('packet:create',{engagementId:engagement.id,title:'Disallowed deficit billing',sources:[`retainerPeriods:${deficitSep.periodId}`]},h.owner,409)
   await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{...terms,rules:{...terms.rules,deficit:true}}},manager.cookie,400)
   // Value-unit rollover and agreed percentage overage use frozen approval cents.
-  const value=await save(await preview({...terms,name:'Value example',unit:'value',allowance:100000,services:['Design'],rules:{carryCap:20000,carryPeriods:1,deficit:false,overage:'bill',overageRate:12500}},{from:'2026-08-01',to:'2026-09-30'}))
+  const value=await save(await preview({...terms,name:'Value example',unit:'value',allowance:100000,services:['Value design'],rules:{carryCap:20000,carryPeriods:1,deficit:false,overage:'bill',overageRate:12500}},{from:'2026-08-01',to:'2026-09-30'}))
+  await cmd('save:rates',{personId:worker.id,service:'Value design',effective:'2026-01-01',costMinor:9000,billMinor:15000})
+  for(const day of ['17','18','19','20'])await actual(`2026-08-${day}`,8,engagement.id,task.id,'Value design')
   data=await state();const v=data.retainerBalances.find(b=>b.retainerId===value.id&&data.data.retainerPeriods.find(p=>p.id===b.periodId).value.periodStart==='2026-08-01')
   assert.equal(v.consumed,480000);assert.equal(v.overage,380000);assert.equal(v.overageMinor,475000)
+  await save(await preview({...terms,name:'Overlapping value design hours',services:['Value design']},{from:'2026-08-01',to:'2026-09-30'}))
   await cmd('packet:create',{engagementId:engagement.id,title:'Ambiguous source billing held',sources:[`retainerPeriods:${v.periodId}`]},h.owner,409)
   // An overage draft is rechecked against later approved consumption before approval.
   const fresh=await save(await preview({...terms,name:'Fresh design agreement',start:'2026-10-01',allowance:3600,services:['Strategy'],rules:{...terms.rules,carryCap:0,carryPeriods:0}},{from:'2026-10-01',to:'2026-10-31'}))

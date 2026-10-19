@@ -1,0 +1,18 @@
+import type { Bindings } from '../auth.server'
+import { type Row, need } from './model'
+import { type Transaction, all } from './store'
+import { retainerCandidates } from './retainer-sources'
+
+/** An overage review binds prior carry inputs too. Source edits/allocations may
+ * not invalidate a reserved or approved period anywhere later in that family. */
+export async function assertRetainerSourceEditable(env:Bindings,tx:Transaction,time:Row) {
+ const [retainers,retainerPeriods]=await Promise.all([all(env,'retainers'),all(env,'retainerPeriods')])
+ const roots=new Set(retainerCandidates({retainers,retainerPeriods},time.value).map(p=>p.value.rootId))
+ if(time.value.retainerRootId)roots.add(time.value.retainerRootId)
+ const dependencies=retainerPeriods.filter(p=>roots.has(p.value.rootId)&&p.value.periodEnd>=time.value.workDate)
+ for(const period of dependencies){
+  need(!await env.DB.prepare("SELECT 1 FROM g_billing_sources WHERE kind='retainerPeriods' AND source_id=?").bind(period.id).first(),'Reserved or approved retainer overage depends on this source; use the correction workflow',409)
+  tx.guard("NOT EXISTS(SELECT 1 FROM g_billing_sources WHERE kind='retainerPeriods' AND source_id=?)",period.id)
+ }
+ for(const [kind,rows] of [['retainers',retainers],['retainerPeriods',retainerPeriods]] as const){for(const row of rows)tx.observe(kind,row);tx.guard(`(SELECT COUNT(*) FROM g_${kind})=?`,rows.length)}
+}

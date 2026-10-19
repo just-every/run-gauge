@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
+import { retainerStatementsJourney } from './gauge-retainer-statements.mjs'
 import { retainerRulesJourney } from './gauge-retainer-rules.mjs'
 import { harness } from './gauge-harness.mjs'
 
@@ -110,7 +111,13 @@ try{
  const hourlyOnly=await preview({...terms,name:'Only billable design',unit:'hours',allowance:144000,services:['Design'],consumes:'billable'})
  const hourTerms=await save(hourlyOnly)
  const nonbillableOnly=await save(await preview({...terms,name:'Nonbillable support',unit:'hours',allowance:144000,services:['Design'],consumes:'nonbillable'}))
+ data=await state();assert.equal(data.retainerBalances.find(b=>b.retainerId===hourTerms.id).consumed,0);assert.equal(data.retainerBalances.find(b=>b.retainerId===hourTerms.id).unallocatedSeconds,5400)
+ const nonbillableWork=data.data.time.find(t=>t.value.engagementId===project.id&&t.value.service==='Design'&&!t.value.billable&&t.value.status==='approved')
+ const billableAssignment=await cmd('retainer:allocate',{...approved,revision:data.data.time.find(t=>t.id===approved.id).revision,retainerRootId:hourTerms.id,reason:'Apply agreed billable-hours allowance'},manager.cookie)
+ const nonbillableAssignment=await cmd('retainer:allocate',{id:nonbillableWork.id,revision:nonbillableWork.revision,retainerRootId:nonbillableOnly.id,reason:'Apply agreed nonbillable allowance'},manager.cookie)
  data=await state();assert.equal(data.retainerBalances.find(b=>b.retainerId===hourTerms.id).consumed,3600);assert.equal(data.retainerBalances.find(b=>b.retainerId===nonbillableOnly.id).consumed,1800)
+ await cmd('retainer:allocate',{...billableAssignment,retainerRootId:first.id,reason:'Original value agreement governs this source'},manager.cookie)
+ await cmd('retainer:allocate',{...nonbillableAssignment,retainerRootId:first.id,reason:'Original value agreement governs this source'},manager.cookie)
  await cmd('save:rates',{personId:worker.id,service:'Design',effective:'2026-02-01',costMinor:10000,billMinor:30000})
  assert.equal((await state()).retainerBalances.find(b=>b.periodId===firstPeriod.id).consumed,26250,'Frozen approved value does not change with a later rate')
  await page.goto(url);await capture('retainer-saved-versions');await capture('retainer-saved-period',page.locator(`#retainers [id="${firstPeriod.id}"]`))
@@ -144,7 +151,7 @@ try{
  await cmd('packet:approve',priorDraft,h.owner,409)
  assert.equal((await state()).data.packets.find(p=>p.id===priorDraft.id).value.status,'draft')
  await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{...terms,currency:'CAD'}},manager.cookie,400)
- for(const user of [staff,agent]){await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms},user.cookie,403);const view=await state(user.cookie);assert.equal(view.data.retainers.length,0);assert.equal(view.data.retainerPeriods.length,0);assert.equal(view.retainerBalances.length,0);assert.equal((await request(`/api/gauge/history/retainers/${first.id}`,user.cookie)).status,403)}
+ for(const user of [staff,agent]){await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms},user.cookie,403);const view=await state(user.cookie);if(user===staff){assert(view.data.retainers.some(t=>t.id===hourTerms.id));assert(view.data.retainers.every(t=>t.value.terms.unit==='hours'));assert(!view.data.retainers.some(t=>t.id===first.id));assert(view.data.retainerPeriods.every(p=>p.value.unit==='hours'))}else{assert.equal(view.data.retainers.length,0);assert.equal(view.data.retainerPeriods.length,0);assert.equal(view.retainerBalances.length,0)};assert.equal((await request(`/api/gauge/history/retainers/${first.id}`,user.cookie)).status,403)}
  // Moving out an import cannot erase an engagement with later native terms.
  const fixture=new URL('./fixtures/harvest/',import.meta.url),files={}
  for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,fixture),'utf8')
@@ -161,6 +168,7 @@ try{
  assert(refused,'Later native retainer terms prevent destructive imported project undo')
  assert((await state()).data.engagements.some(e=>e.id===imported.id));assert((await state()).data.retainers.some(t=>t.id===retainedTerms.id))
  await retainerRulesJourney(h,browser,{client,lead,worker,staff,manager})
+ await retainerStatementsJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:false});await cmd('retainer:preview',open.input,manager.cookie,403)
  console.log('PASS RETAINER-001: native USD value/hours terms, monthly/quarterly/annual periods, exact calendar/working proration, inclusive ends and renewal, immutable commercial versions/calendar snapshots, eligible approved-work policy, lineage and scoped authority')
 }finally{await browser?.close();await h.dispose()}

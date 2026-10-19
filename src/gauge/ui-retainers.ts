@@ -4,6 +4,8 @@ import type { Value } from './model'
 import type { Report } from './ui-describe'
 import { escape as e, input as i, amount, duration, form, weekdayChecks, table } from './ui-forms'
 import { retainerRuleFields, describeRetainerRules } from './ui-retainer-rules'
+import { retainerAllocationForms } from './ui-retainer-allocation'
+import { retainerStatementSection, retainerEvidence } from './ui-retainer-statement'
 import { money } from './ui-format'
 
 const area=(name:string,label:string,value='')=>`<label class="g-field g-field--wide"><span>${e(label)}</span><textarea name="${e(name)}" aria-label="${e(label)}" rows="3" required>${e(value)}</textarea></label>`
@@ -13,6 +15,7 @@ const quantity=(unit:string,n:number|null,currency:string)=>n===null?'Unknown':u
 const nextDay=(day:string)=>new Date(Date.parse(day)+86400000).toISOString().slice(0,10)
 export function retainerSection(a:Actor,report:Report,engagementId:string,options:Value){
  const engagement=report.data.engagements.find(r=>r.id===engagementId)
+ if(a.role==='staff')return retainerStatementSection(report,engagementId)
  if(!engagement||engagement.value.type==='internal'||(!finance(a)&&(a.role!=='lead'||engagement.value.leadId!==a.personId)))return ''
  const terms=report.data.retainers.filter(r=>r.value.engagementId===engagementId),periods=report.data.retainerPeriods.filter(r=>r.value.engagementId===engagementId),preview=options.retainerPreview
  let body='<section id="retainers" class="g-card"><h2>Recurring retainers</h2><p>Commercial versions and period entitlements stay separate from project budgets. Calendar-day proration is the default; working-day proration uses the saved agency workweek and holidays. Values round half up to cents; hours round to whole minutes.</p>'
@@ -28,7 +31,7 @@ export function retainerSection(a:Actor,report:Report,engagementId:string,option
   ])
   body+=`<p>${describeRetainerRules(t)}</p>`
   body+=form('retainer:approve','Save reviewed retainer',hidden('retainerInput',JSON.stringify(preview.input))+hidden('fingerprint',preview.fingerprint)+area('reason','Commercial approval reason'),undefined,'Save retainer')
-  return body+'</section>'
+  return body+retainerAllocationForms(report,engagementId)+retainerEvidence(report,engagementId)+'</section>'
  }
  const latest=terms.filter(t=>!terms.some(n=>n.value.previousId===t.id))
  if(a.role==='owner'){
@@ -46,10 +49,11 @@ export function retainerSection(a:Actor,report:Report,engagementId:string,option
   {label:'Retainer',line:1,cell:r=>e(terms.find(t=>t.id===r.value.retainerId)?.value.terms.name)},
   {label:'Period',size:'date',line:2,cell:r=>e(`${r.value.periodStart} → ${r.value.periodEnd}`)},
   {label:'Entitlement',line:3,cell:r=>`Included ${e(quantity(r.value.unit,r.value.allowance,r.value.currency))} · ${r.value.numeratorDays}/${r.value.denominatorDays} days`},
-  {label:'Opening balance',line:3,cell:r=>{const b=report.retainerBalances.find(b=>b.periodId===r.id)!;return `Opening ${e(quantity(r.value.unit,b.opening,r.value.currency))} · rollover ${e(quantity(r.value.unit,b.rollover,r.value.currency))} · deficit ${e(quantity(r.value.unit,b.deficitOpening,r.value.currency))} · expired ${e(quantity(r.value.unit,b.expired,r.value.currency))} · cap forfeiture ${e(quantity(r.value.unit,b.forfeited,r.value.currency))}`}},
+  {label:'Opening balance',line:3,cell:r=>{const b=report.retainerBalances.find(b=>b.periodId===r.id)!;return `Opening ${e(quantity(r.value.unit,b.opening,r.value.currency))} · rollover ${e(quantity(r.value.unit,b.rollover,r.value.currency))} · deficit ${e(quantity(r.value.unit,b.deficitOpening,r.value.currency))} · adjustments ${e(quantity(r.value.unit,b.adjustments,r.value.currency))} · expired ${e(quantity(r.value.unit,b.expired,r.value.currency))} · cap forfeiture ${e(quantity(r.value.unit,b.forfeited,r.value.currency))}`}},
   {label:'Approved consumption',line:3,cell:r=>{const b=report.retainerBalances.find(b=>b.periodId===r.id)!;return `Consumed ${e(quantity(r.value.unit,b.consumed,r.value.currency))} · remaining ${e(quantity(r.value.unit,b.remaining,r.value.currency))}${b.unknownSources.length?' · Approved bill value unknown or restricted':''}`}},
+  {label:'Pending projection',line:3,cell:r=>{const b=report.retainerBalances.find(b=>b.periodId===r.id)!;return `Pending ${e(quantity(r.value.unit,b.pending,r.value.currency))} · projected remaining ${e(quantity(r.value.unit,b.projectedRemaining,r.value.currency))} · unallocated ${e(quantity('hours',b.unallocatedSeconds,r.value.currency))} · ${b.provisional?'Provisional; not posted consumption':'No pending stopped work'}`}},
   {label:'Renewal',line:3,cell:r=>`Renewal ${e(r.value.renewalDate??'ends')} · notice ${e(r.value.noticeDate??'none')}`},
- ],r=>{const b=report.retainerBalances.find(b=>b.periodId===r.id)!;return `<a href="/app/engagements?edit=${e(engagementId)}&calculation=${e(encodeURIComponent(`retainer:${r.id}:allowance`))}#report-evidence">Calculation and sources</a>${finance(a)&&b.overageMinor>0?form('packet:create','Review retainer overage',hidden('engagementId',engagementId)+hidden('sources',`retainerPeriods:${r.id}`)+i('title','Overage packet title',`Retainer overage ${r.value.periodStart}`)+`<p>${e(quantity(r.value.unit,b.overage,r.value.currency))} excess · ${e(money(b.overageMinor,r.value.currency))}. Creates a draft; finance reviews it before approval.</p>`,undefined,'Draft overage packet'):''}<details><summary>FIFO source allocation</summary><ul>${b.allocation.map((x:Value)=>`<li><a href="/app/time?edit=${e(x.sourceId)}">Source time</a> · ${e(quantity(r.value.unit,x.quantity,r.value.currency))} · ${x.allowancePeriodId?e(periods.find(p=>p.id===x.allowancePeriodId)?.value.periodStart??'Earlier allowance'):'Overage'}</li>`).join('')}</ul></details>`})
+ ],r=>{const b=report.retainerBalances.find(b=>b.periodId===r.id)!;return `<a href="/app/engagements?edit=${e(engagementId)}&calculation=${e(encodeURIComponent(`retainer:${r.id}:allowance`))}#report-evidence">Calculation and sources</a>${finance(a)&&b.overageMinor>0?form('packet:create','Review retainer overage',hidden('engagementId',engagementId)+hidden('sources',`retainerPeriods:${r.id}`)+i('title','Overage packet title',`Retainer overage ${r.value.periodStart}`)+`<p>${e(quantity(r.value.unit,b.overage,r.value.currency))} excess · ${e(money(b.overageMinor,r.value.currency))}. Creates a draft; finance reviews it before approval.</p>`,undefined,'Draft overage packet'):''}<details><summary>FIFO source allocation</summary><ul>${b.allocation.map((x:Value)=>`<li><a href="/app/time?edit=${e(x.sourceId)}">Source time</a> · ${e(quantity(r.value.unit,x.quantity,r.value.currency))} · ${x.allowancePeriodId?e(periods.find(p=>p.id===x.allowancePeriodId)?.value.periodStart??'Earlier allowance'):'Overage'}</li>`).join('')}</ul></details>${b.pendingSources.length?`<details><summary>Provisional pending sources</summary><ul>${b.pendingSources.map((id:string)=>`<li><a href="/app/time?edit=${e(id)}">Pending time</a></li>`).join('')}</ul></details>`:''}`})
  if(terms.length)body+=`<details><summary>Commercial version history</summary><ul>${terms.map(t=>`<li>${e(t.value.terms.name)} · version ${t.value.number} · ${e(t.value.reason)} · starts ${e(t.value.terms.start)}</li>`).join('')}</ul></details>`
- return body+'</section>'
+ return body+retainerAllocationForms(report,engagementId)+retainerEvidence(report,engagementId)+'</section>'
 }

@@ -1,4 +1,5 @@
 import { type Row, type Value, sum } from './model'
+import { retainerCandidates, retainerSourceMatches } from './retainer-sources'
 import { normalizeRetainerRules, overageCharge, retainerMatches } from './retainer-rules'
 
 interface Bucket { periodId:string; remaining:number; expires:number }
@@ -25,9 +26,11 @@ export function retainerConsumption(data:{retainers:Row[],retainerPeriods:Row[],
    const current={periodId:period.id,remaining:Math.max(0,period.value.allowance-deficitOpening),expires:index+rules.carryPeriods}
    let debt=Math.max(0,deficitOpening-period.value.allowance)
    const buckets=[...carried,current],sources=data.time.filter(r=>r.value.engagementId===period.value.engagementId&&r.value.status==='approved'&&r.value.workDate>=period.value.activeStart&&r.value.workDate<=period.value.activeEnd&&retainerMatches(terms,r.value)).sort((a,b)=>a.value.workDate.localeCompare(b.value.workDate)||(a.value.start??0)-(b.value.start??0)||a.id.localeCompare(b.id))
-   const unknown=sources.filter(r=>terms.unit==='value'&&r.value.economics?.billMinor==null).map(r=>r.id)
-   const allocation:Value[]=[],known=sum(sources.map(r=>terms.unit==='hours'?r.value.durationSeconds:r.value.economics?.billMinor??0))
-   for(const row of sources){
+   const unallocated=sources.filter(r=>!r.value.retainerRootId&&retainerCandidates(data,r.value).length>1)
+   const eligible=sources.filter(r=>retainerSourceMatches(data,period,r))
+   const unknown=eligible.filter(r=>terms.unit==='value'&&r.value.economics?.billMinor==null).map(r=>r.id)
+   const allocation:Value[]=[],known=sum(eligible.map(r=>terms.unit==='hours'?r.value.durationSeconds:r.value.economics?.billMinor??0))
+   for(const row of eligible){
     let remaining=terms.unit==='hours'?row.value.durationSeconds:row.value.economics?.billMinor??0
     for(const bucket of buckets){const used=Math.min(bucket.remaining,remaining);if(used)allocation.push({sourceId:row.id,allowancePeriodId:bucket.periodId,quantity:used});bucket.remaining-=used;remaining-=used}
     if(remaining)allocation.push({sourceId:row.id,allowancePeriodId:null,quantity:remaining})
@@ -36,7 +39,7 @@ export function retainerConsumption(data:{retainers:Row[],retainerPeriods:Row[],
    const complete:boolean=!unknown.length&&!priorUnknown
    const remaining=opening-known
    const overage=complete?Math.max(0,-remaining):null
-   balances.push({periodId:period.id,retainerId:period.value.retainerId,engagementId:period.value.engagementId,unit:terms.unit,currency:terms.currency,allowance:period.value.allowance,rollover:priorUnknown?null:rollover,deficitOpening:priorUnknown?null:deficitOpening,opening:priorUnknown?null:opening,expired,forfeited,consumed:complete?known:null,knownConsumed:known,remaining:complete?remaining:null,overage,overageMinor:complete&&rules.overage==='bill'?overageCharge(overage!,terms.unit,rules.overageRate):null,overagePolicy:rules.overage,allocation,sources:sources.map(r=>r.id),unknownSources:unknown,priorPeriodIds:periods.slice(0,index).map(p=>p.id),priorUnknown})
+   balances.push({periodId:period.id,retainerId:period.value.retainerId,engagementId:period.value.engagementId,unit:terms.unit,currency:terms.currency,allowance:period.value.allowance,rollover:priorUnknown?null:rollover,deficitOpening:priorUnknown?null:deficitOpening,opening:priorUnknown?null:opening,expired,forfeited,consumed:complete?known:null,knownConsumed:known,remaining:complete?remaining:null,overage,overageMinor:complete&&!unallocated.length&&rules.overage==='bill'?overageCharge(overage!,terms.unit,rules.overageRate):null,overagePolicy:rules.overage,allocation,sources:eligible.map(r=>r.id),unallocatedSources:unallocated.map(r=>r.id),unallocatedSeconds:sum(unallocated.map(r=>r.value.durationSeconds)),unknownSources:unknown,priorPeriodIds:periods.slice(0,index).map(p=>p.id),priorUnknown})
    carried=buckets.filter(b=>b.remaining>0)
    deficit=rules.deficit?debt:0
    priorUnknown=!complete&&(rules.carryCap>0||rules.deficit)

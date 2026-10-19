@@ -3,6 +3,7 @@ import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Kind, type Row, type Value, charge, sum, need } from './model'
 import { type Actor, type Transaction, access, all, finance, fence } from './store'
 import { capacity } from './reports'
+import { explain, costCurrencyOf } from './rate-cards'
 
 const same=(a:string,b:string)=>a.trim().toLowerCase()===b.trim().toLowerCase()
 export async function resourceCandidates(env:Bindings,a:Actor,request:Row,tx?:Transaction) {
@@ -29,14 +30,16 @@ export async function resourceCandidates(env:Bindings,a:Actor,request:Row,tx?:Tr
   const days=available.days.map(d=>({date:d.date,availableSeconds:d.availableSeconds,committedSeconds:d.committedSeconds,remainingSeconds:d.remainingSeconds}))
   const candidate:Value={personId:person.id,name:p.name,profile:{skills:p.skills,team:p.team??'',location:p.location??'',role:p.role??'',employmentType},days,totalSeconds:sum(days.map(()=>dailySeconds))}
   if(finance(a)){
-   const missingRateDates:string[]=[],costRates:Value[]=[],amounts:number[]=[]
+   const missingRateDates:string[]=[],costRates:Value[]=[],amounts:number[]=[],currencies=new Set<string>()
    for(const day of days){
-    const rates=rows('rates').filter(r=>(r.value.personId===person.id||(!r.value.personId&&r.value.service===request.value.service))&&(r.value.service==='*'||r.value.service===request.value.service)&&r.value.effective<=day.date).sort((x,y)=>(Number(y.value.personId!==null)*2+Number(y.value.service===request.value.service))-(Number(x.value.personId!==null)*2+Number(x.value.service===request.value.service))||y.value.effective.localeCompare(x.value.effective))
-    const rate=rates[0]
-    if(rate?.value.costMinor==null||rate.value.currency!==a.currency){missingRateDates.push(day.date);continue}
-    amounts.push(charge(dailySeconds,rate.value.costMinor));costRates.push({date:day.date,id:rate.id,revision:rate.revision,effective:rate.value.effective,costMinor:rate.value.costMinor})
+    // RATE-002 cost precedence; the engagement only matters for bill rates, so none is needed here.
+    const rate=explain(rows('rates'),person,{id:'',revision:'',value:{type:'internal'}},request.value.service,day.date).cost?.chosen
+    if(rate?.value.costMinor==null){missingRateDates.push(day.date);continue}
+    currencies.add(costCurrencyOf(rate));amounts.push(charge(dailySeconds,rate.value.costMinor));costRates.push({date:day.date,id:rate.id,revision:rate.revision,effective:rate.value.effective,costMinor:rate.value.costMinor,currency:costCurrencyOf(rate)})
    }
-   Object.assign(candidate,{costMinor:missingRateDates.length?null:sum(amounts),currency:a.currency,missingRateDates,costRates})
+   // Declared costs keep their currency; a total across currencies is refused without SETUP-003 rates.
+   const currency=currencies.size===1?[...currencies][0]:currencies.size?null:a.currency
+   Object.assign(candidate,{costMinor:missingRateDates.length||currency===null?null:sum(amounts),currency,costCurrencies:[...currencies].sort(),missingRateDates,costRates})
   }
   candidates.push(candidate)
  }

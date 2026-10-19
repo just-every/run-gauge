@@ -59,7 +59,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('proposal:approve',proposal)
  const fixture=new URL('./fixtures/harvest/',import.meta.url),files={}
  for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,fixture),'utf8')
- const manifest=JSON.parse(await readFile(new URL('manifest.json',fixture),'utf8'));manifest.namespace='portability-historical-document'
+ const manifest=JSON.parse(await readFile(new URL('manifest.json',fixture),'utf8'));manifest.namespace='portability-historical-document';manifest.currency=(await state()).agency.currency
  const historicalBytes=Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n')
  const sourcePackage={manifest,files,archives:[{name:'historical-invoice.pdf',mediaType:'application/pdf',base64:historicalBytes.toString('base64')}]}
  const preview=await cmd('import:preview',{package:sourcePackage})

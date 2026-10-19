@@ -6,6 +6,7 @@ import { hours, money, day, chip, nameOf } from './ui-format'
 import { type Report, describeSource } from './ui-describe'
 import { specialistHandoffSection } from './ui-specialist-handoff'
 import { capacitySection } from './ui-capacity'
+import { rateCardsSection } from './ui-rate-cards'
 
 const humanState = (state: string) => state.replace(/_/g, ' ')
 export async function operations(env:Bindings,a:Actor,section:string,options:Value,report:Report) {
@@ -29,15 +30,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    return out+`<a class="g-link" href="/api/gauge/history/expenses/${e(r.id)}">Review revision history</a>`
   })
  }
- // Services people already record time against, plus the default; a rate for "All services" covers the rest.
- const services=[{id:'*',revision:'',value:{name:'All services'}},...[...new Set(['Delivery',...d.time.map(r=>r.value.service),...d.rates.map(r=>r.value.service)])].filter(x=>x&&x!=='*').sort().map(x=>({id:x,revision:'',value:{name:x}}))]
- if(section==='rates')body=`<div class="g-titlebar"><h1>Effective-dated rates</h1></div><p class="g-lede">Private to finance. Rates are ${e(a.currency)} per hour. A blank cost marks it unknown. New versions do not rewrite approved work.</p>`+form('save:rates','Add rate version',s('personId','Person',d.people,undefined,true)+s('service','Service',services)+i('effective','Effective date',today,'date')+amount('costDollars',`Cost per hour (${a.currency}, optional)`,'',false)+amount('billDollars',`Bill per hour (${a.currency})`,''),undefined,'Save','g-card--form')+table('Historical rates',d.rates,[
-  {label:'Person',cell:r=>e(r.value.personId?nameOf(d.people,r.value.personId):'Everyone')},
-  {label:'Service',cell:r=>e(r.value.service==='*'?'All services':r.value.service)},
-  {label:'Effective',cell:r=>e(day(r.value.effective))},
-  {label:'Cost per hour',num:true,cell:r=>money(r.value.costMinor,r.value.currency)},
-  {label:'Bill per hour',num:true,cell:r=>money(r.value.billMinor,r.value.currency)},
- ])
+ if(section==='rates')body=await rateCardsSection(env,a,report,options,today)
  if(section==='capacity')body=await capacitySection(env,a,report,options)
  if(section==='billing'){
   // Eligible lines sit under their engagement, so a packet's lines visibly come from the engagement it names.

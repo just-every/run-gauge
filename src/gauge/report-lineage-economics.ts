@@ -18,14 +18,22 @@ export function economicLineage(c: Lineage) {
   const remaining = base(); tasks.forEach(r => c.row(remaining, 'tasks', r.id))
   c.add(prefix + 'remainingSeconds', 'Remaining task effort', figure.remainingSeconds, 'seconds', 'SUM(tasks.remainingSeconds) for this engagement.', remaining)
   if ('costMinor' in figure) {
+   // Declared costs keep their own currency: only the engagement-currency bucket is summed here; other buckets are reported apart.
+   const own = (r: any) => (r.value.economics.costCurrency ?? r.value.economics.currency) === figure.currency
+   const known = time.filter(r => r.value.economics?.costMinor != null), same = known.filter(own), other = known.filter(r => !own(r))
    const e = base(); time.forEach(r => c.timeEvidence(e, r)); expenses.forEach(r => c.row(e, 'expenses', r.id))
    time.filter(r => r.value.economics?.costMinor == null).forEach(r => e.unknown.push(`time:${r.id}: frozen costMinor unknown`))
    for (const id of figure.missingCostSources ?? []) { c.row(e, 'time', id); e.unknown.push(`time:${id}: frozen costMinor unknown`) }
-   const known = sum([...time.filter(r => r.value.economics?.costMinor != null).map(r => r.value.economics.costMinor), ...expenses.map(r => r.value.amountMinor)])
-   c.add(prefix + 'costMinor', 'Approved actual cost', known, 'minor', 'SUM(approved time.economics.costMinor) + SUM(approved expenses.amountMinor). Time cost is frozen at approval: round-half-up(durationSeconds × approved rate.costMinor / 3600), per entry; no billing increment. Unknown cost is excluded from knownValue only.', e, figure.currency, known)
+   other.forEach(r => e.unknown.push(`time:${r.id}: cost declared in ${r.value.economics.costCurrency}; not summed with ${figure.currency} without SETUP-003 exchange rates`))
+   const total = sum([...same.map(r => r.value.economics.costMinor), ...expenses.map(r => r.value.amountMinor)])
+   c.add(prefix + 'costMinor', 'Approved actual cost', total, 'minor', 'SUM(approved time.economics.costMinor in the engagement currency) + SUM(approved expenses.amountMinor). Time cost is frozen at approval: round-half-up(durationSeconds × the declared cost rate chosen by RATE-002 precedence / 3600), per entry; no billing increment. Costs declared in another currency stay in their own bucket and make the total unknown; unknown cost is excluded from knownValue only.', e, figure.currency, total)
    if ('knownCostMinor' in figure) {
-    const subtotal = base(); time.filter(r => r.value.economics?.costMinor != null).forEach(r => c.timeEvidence(subtotal, r)); expenses.forEach(r => c.row(subtotal, 'expenses', r.id))
-    c.add(prefix + 'knownCostMinor', 'Known approved cost subtotal', known, 'minor', 'SUM(known frozen time costMinor) + SUM(approved expense amounts); excludes unknown costs and does not establish total cost.', subtotal, figure.currency, known)
+    const subtotal = base(); same.forEach(r => c.timeEvidence(subtotal, r)); expenses.forEach(r => c.row(subtotal, 'expenses', r.id))
+    c.add(prefix + 'knownCostMinor', 'Known approved cost subtotal', total, 'minor', 'SUM(known frozen time costMinor in the engagement currency) + SUM(approved expense amounts); excludes unknown and other-currency costs and does not establish total cost.', subtotal, figure.currency, total)
+   }
+   for (const currency of figure.otherCostCurrencies ?? []) {
+    const bucket = base(), rows = other.filter(r => r.value.economics.costCurrency === currency); rows.forEach(r => c.timeEvidence(bucket, r))
+    c.add(prefix + `costByCurrency:${currency}`, `Approved declared cost in ${currency}`, sum(rows.map(r => r.value.economics.costMinor)), 'minor', `SUM(approved time.economics.costMinor declared in ${currency}); a separate bucket, never converted.`, bucket, currency)
    }
    const missing = base(); time.filter(r => r.value.economics?.costMinor == null).forEach(r => c.row(missing, 'time', r.id))
    c.add(prefix + 'missingCostSources', 'Approved time entries with unknown cost', time.filter(r => r.value.economics?.costMinor == null).length, 'count', 'COUNT(approved time where frozen economics.costMinor is null or absent).', missing)

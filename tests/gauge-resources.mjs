@@ -111,7 +111,7 @@ try {
  const employeeResult = found.candidates.find(p => p.personId === employee.id)
  assert.equal(employeeResult.costMinor, 130000, 'Requested hours use the cost rate effective on each work date')
  assert.equal(employeeResult.totalSeconds, 20 * hour)
- assert.equal(employeeResult.currency, 'AUD')
+ assert.equal(employeeResult.currency, 'USD', 'Declared costs are USD (RATE-002) in an AUD agency')
  assert.deepEqual(employeeResult.days.map(d => [d.date, d.availableSeconds, d.committedSeconds, d.remainingSeconds]), ['05', '06', '07', '08', '09'].map(day => [`2026-10-${day}`, 8 * hour, 0, 8 * hour]))
  assert.equal(employeeResult.profile.team, 'Product'); assert.equal(employeeResult.profile.role, 'UX designer')
  const incompleteCost = found.candidates.find(p => p.personId === contractor.id)

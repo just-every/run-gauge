@@ -5,7 +5,8 @@ import {randomUUID} from 'node:crypto'
 import {portability} from './gauge-portability.mjs'
 import {prepareCurrentPortability} from './gauge-base-portability.mjs'
 import {harness} from './gauge-harness.mjs'
-const h=await harness(),{cmd,state,request,post,owner}=h
+// A USD agency: RATE-002 declares new costs in USD, so cost totals sum with USD expenses (AUD buckets: gauge-currency.mjs).
+const h=await harness({currency:'USD'}),{cmd,state,request,post,owner}=h
 let count=0
 async function flow(name,fn){await fn();console.log(`PASS ${name}`);count++}
 try{
@@ -108,7 +109,7 @@ try{
  })
  await flow('REVIEW-001 grounded decisions, missing time and capacity exceptions',async()=>{const r=await state();assert(r.exceptions.some(x=>x.type==='missing time'));assert(r.exceptions.some(x=>x.type==='capacity conflict'&&x.sources.length));for(const section of ['review','engagements','time','expenses','capacity','rates','billing','imports','access']){const page=await request(`/app/${section}`,owner);assert.equal(page.status,200,section);assert(!(await page.text()).includes(h.vars.SESSION_SECRET))}})
  await flow('MOVE-001 Harvest preview, partial rollback, native reconciliation, idempotence and untouched undo',async()=>{
-  const root=new URL('./fixtures/harvest/',import.meta.url),files={};for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,root),'utf8');const pack={manifest:JSON.parse(await readFile(new URL('manifest.json',root),'utf8')),files}
+  const root=new URL('./fixtures/harvest/',import.meta.url),files={};for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,root),'utf8');const pack={manifest:{...JSON.parse(await readFile(new URL('manifest.json',root),'utf8')),currency:'USD'},files}
   const before=(await state()).data.time.length,preview=await cmd('import:preview',{package:pack});assert.equal((await state()).data.time.length,before);assert.equal(preview.totals['c-1/2026-09'].seconds,43200)
   let job=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});assert.equal(job.state,'applying');job=await cmd('import:rollback',{id:job.id});while(job.state==='rolling_back')job=await cmd('import:resume',{id:job.id});assert.equal((await state()).data.time.length,before)
   job=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});while(job.state==='applying'||job.state==='queued')job=await cmd('import:resume',{id:job.id});assert.equal(job.state,'completed');assert.equal((await state()).data.time.length,before+12)

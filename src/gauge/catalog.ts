@@ -2,6 +2,7 @@ import type { Bindings } from '../auth.server'
 import { type Value, type Kind, type Row, need, text, integer, money, date, zone, flag, sum } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
 import { resourceProfile } from './resource-profiles'
+import { rateCard } from './rate-cards'
 export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | Value | null> {
  if (action === 'grant') {
   need(a.role === 'owner', 'Only the owner assigns access', 403)
@@ -57,13 +58,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   if(latest){tx.observe('deliveryPlans',latest);tx.guard('(SELECT COUNT(*) FROM g_deliveryPlans)=?',plans.length)}
   need(!latest?.value.schedule.nodes.some((n:Value)=>n.kind==='milestone'&&n.sourceId===previous.id),'This milestone belongs to the approved delivery baseline; preview schedule changes first',409)
  }
- if (k === 'rates') {
-  need(!previous, 'Rates are immutable; add an effective-dated version')
-  v.personId = input.personId || null; v.service = text(input.service || '*','Service'); if (v.personId) tx.observe('people',await get(env,'people',v.personId))
-  need(v.personId || v.service !== '*','Choose a person or named service')
-  v.effective = date(input.effective); v.costMinor = input.costMinor === '' || input.costMinor === null || input.costMinor === undefined ? null : money(input.costMinor); v.billMinor = money(input.billMinor); v.currency = a.currency
-  tx.guard("NOT EXISTS(SELECT 1 FROM g_rates WHERE COALESCE(json_extract(data,'$.personId'),'')=COALESCE(?,'') AND json_extract(data,'$.service')=? AND json_extract(data,'$.effective')=?)",v.personId,v.service,v.effective)
- }
+ if (k === 'rates') Object.assign(v, await rateCard(env, a, tx, input, previous))
  if (['calendars','leave','staffing'].includes(k)) {
   const p = await get(env,'people',text(input.personId,'Person')); tx.observe('people',p); v.personId = p.id
   if (k === 'leave') {need(finance(a) || a.personId === p.id,'Only your own leave may be changed',403);if(previous)need(finance(a)||previous.value.personId===a.personId,'Only your own leave may be changed',403)}

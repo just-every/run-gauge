@@ -58,7 +58,7 @@ export function formInput(form: FormData): Value {
   const raw = input[key]; if (typeof raw !== 'string') continue
   const base = key.replace(/(Dollars|Hours|Minutes|Local)$/, '')
   if (key.endsWith('Dollars')) input[`${base}Minor`] = raw.trim() === '' ? '' : cents(raw)
-  else if (key.endsWith('Hours')) input[`${base}Seconds`] = Math.round(decimal(raw, 'Hours') * 3600)
+  else if (key.endsWith('Hours')) input[`${base}Seconds`] = raw.trim() === '' ? '' : Math.round(decimal(raw, 'Hours') * 3600)
   else if (key.endsWith('Minutes')) input[`${base}Seconds`] = Math.round(decimal(raw, 'Minutes') * 60)
   else if (key.endsWith('Local')) { if (raw === '') continue; input[base] = zonedInstant(raw, zone(input.timezone)) }
   else continue

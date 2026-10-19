@@ -21,7 +21,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(a.role==='staff'&&k==='retainerPeriods'){const {reason,openedBy,openedAt,...period}=value;return period}
  const v: Value = { ...value }
  if(a.role==='staff'&&k==='time'){delete v.retainerRootId;delete v.retainerAllocation}
- delete v.economics; if (v.source) { v.source = { ...v.source }; delete v.source.costMinor; delete v.source.billMinor }
+ delete v.economics; delete v.rateOverride; if (v.source) { v.source = { ...v.source }; delete v.source.costMinor; delete v.source.billMinor }
  if (k === 'leave' && v.personId !== a.personId) v.note = 'Private leave'
  if (a.role === 'agent' && k !== 'proposals') for (const key of amounts) delete v[key]
  return v
@@ -91,16 +91,19 @@ export function economics(data: Awaited<ReturnType<typeof visible>>,a: Actor) {
   const base={engagementId:e.id,name:e.value.name,currency:e.value.currency,budgetId:terms?.id ?? null,budgetMinor:terms?.value.amountMinor ?? null,approvedSeconds:sum(time.map(r=>r.value.durationSeconds)),remainingSeconds:sum(data.tasks.filter(r=>r.value.engagementId===e.id).map(r=>r.value.remainingSeconds))}
   if(!finance(a)){const view:Record<string,unknown>={...base,privateCosts:'Restricted to finance'};if(a.role==='agent')delete view.budgetMinor;return view as typeof base & {privateCosts:string}}
   need(time.every(r=>!r.value.economics || r.value.economics.currency===e.value.currency) && expenses.every(r=>r.value.currency===e.value.currency), 'Report source currencies differ from engagement; no implicit FX')
-  const knownCostMinor=sum([...time.map(r=>r.value.economics?.costMinor??0),...expenses.map(r=>r.value.amountMinor)]),knownBillableMinor=sum(time.filter(r=>r.value.billable).map(r=>r.value.economics?.billMinor??0))
+  // Declared costs keep their own currency (RATE-002): each currency is its own bucket and a total across currencies is refused without SETUP-003 rates.
+  const costs=time.filter(r=>r.value.economics?.costMinor!=null),costCurrency=(r:Row)=>r.value.economics.costCurrency??r.value.economics.currency
+  const costByCurrency:Record<string,number>={};for(const [currency,minor] of [...costs.map(r=>[costCurrency(r),r.value.economics.costMinor]),...expenses.map(r=>[r.value.currency,r.value.amountMinor])] as [string,number][])costByCurrency[currency]=sum([costByCurrency[currency]??0,minor])
+  const otherCostCurrencies=Object.keys(costByCurrency).filter(c=>c!==e.value.currency).sort(),knownCostMinor=costByCurrency[e.value.currency]??0,knownBillableMinor=sum(time.filter(r=>r.value.billable).map(r=>r.value.economics?.billMinor??0))
   const missingCostSources=time.filter(r=>r.value.economics?.costMinor==null).map(r=>r.id),missingBillRateSources=time.filter(r=>r.value.billable && r.value.economics?.billMinor==null).map(r=>r.id)
-  return {...base,costMinor:missingCostSources.length?null:knownCostMinor,knownCostMinor,missingCostSources,billableMinor:missingBillRateSources.length?null:knownBillableMinor,knownBillableMinor,missingBillRateSources}
+  return {...base,costMinor:missingCostSources.length||otherCostCurrencies.length?null:knownCostMinor,knownCostMinor,missingCostSources,costByCurrency,otherCostCurrencies,billableMinor:missingBillRateSources.length?null:knownBillableMinor,knownBillableMinor,missingBillRateSources}
  })
 }
 export async function reports(env: Bindings,a: Actor,from: string,to: string,favoritePersonId?:string) {
  const asOf=new Date().toISOString()
  const data=await visible(env,a,favoritePersonId),cap=capacity(data,from,to),econ=economics(data,a),exceptions:any[]=[]
  for(const c of cap){ for(const conflict of c.conflicts)exceptions.push({type:'capacity conflict',personId:c.personId,...conflict});if(c.missingCalendarDays)exceptions.push({type:'availability missing',personId:c.personId,days:c.missingCalendarDays,demand:c.days.filter(d=>d.calendarId===null&&(d.committedSeconds>0||d.tentativeSeconds>0))}) }
- for(const e of econ) { if('costMinor' in e && e.budgetMinor!==null && e.knownCostMinor>e.budgetMinor)exceptions.push({type:'overspend',source:`engagements:${e.engagementId}`,amountMinor:e.knownCostMinor-e.budgetMinor,currency:e.currency,incomplete:e.missingCostSources.length>0}); }
+ for(const e of econ) { if('costMinor' in e && e.budgetMinor!==null && e.knownCostMinor>e.budgetMinor)exceptions.push({type:'overspend',source:`engagements:${e.engagementId}`,amountMinor:e.knownCostMinor-e.budgetMinor,currency:e.currency,incomplete:e.missingCostSources.length>0||e.otherCostCurrencies.length>0}); }
  // Recorded time is a per-person total over every entry, not just those this viewer may open, so every viewer reads the same number; no record is exposed.
  const allTime=await all(env,'time')
  for(const p of data.people){const expected=cap.find(c=>c.personId===p.id)?.knownAvailableSeconds ?? 0;const recorded=allTime.filter(r=>r.value.personId===p.id && r.value.workDate>=from && r.value.workDate<=to).reduce((n,r)=>n+(r.value.durationSeconds??0),0);if(recorded<expected)exceptions.push({type:'missing time',personId:p.id,expectedSeconds:expected,recordedSeconds:recorded,sources:data.calendars.filter(r=>r.value.personId===p.id).map(r=>r.id)})}

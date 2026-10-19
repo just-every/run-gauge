@@ -58,6 +58,7 @@ export class Lineage {
   const frozen = row.value.economics
   if (frozen) {
    this.row(e, 'rates', frozen.rateId)
+   if (frozen.costRateId && frozen.costRateId !== frozen.rateId) this.row(e, 'rates', frozen.costRateId)
    this.row(e, 'budgets', frozen.budgetId)
   }
  }

@@ -289,7 +289,7 @@ The seventeen released clause IDs remain intact. The original AUD pilot (histori
 
 - **GOVERN-001 — Owner and finance rights.** Owner alone manages grants, identity/connector custody and installation policy; finance manages rates, private costs, billing, accounting sync, monetary corrections and close. Define approval thresholds and two-person review for sensitive changes; audit every grant and decision. **Acceptance evidence:** Try a cost export and credit as staff and as finance, then attempt an above-limit credit by its preparer; only an independent authorized approver can proceed.
 
-- **GOVERN-002 — Leads staff and contractors rights.** Leads manage delivery/staffing and approve assigned projects; staff and 1099 contractors record only their own assigned work and see permitted delivery context; no worker sees private rates, salary or leave reasons. Delegation is dated, scoped and revocable across UI/API/files. **Acceptance evidence:** Give a contractor two projects and a lead one project, directly call unauthorized approval/file routes and revoke a dated delegate; all requests enforce the resulting rights.
+- **GOVERN-002 — Leads staff and contractors rights.** Leads manage delivery/staffing and approve assigned projects; staff and 1099 contractors record only their own assigned work and see permitted delivery context; no worker sees private rates, salary or leave reasons. Delegation is dated, scoped and revocable across UI/API/files. The exact rules: a 1099 contractor is a person whose `employmentType` is `contractor` holding the ordinary staff grant, with exactly a staff member's rights (no wider role exists for them); a worker records time and expenses only for their own person on engagements that list them as a member, sees those engagements and their tasks, only their own time, no rate or cost record or amount, and other people's leave as "Private leave"; a lead plans, staffs and approves only engagements they lead. Delegation today is TIME-004 time-review delegation: a lead hands one engagement they lead to an active lead or finance person for inclusive dates covering both the review day and the work date; it grants time review only (never staffing, planning, receipts, packets, archives or rates), and revocation takes effect on the next request on every door (API command, page form, state, revision history and file downloads). This is done when every role and door that exists today conforms; GOVERN-003 (new roles), CLIENT-001 (client identities) and any future delegation kind inherit these rights before they ship. **Acceptance evidence:** Give a contractor two projects and a lead one project, directly call unauthorized approval/file routes and revoke a dated delegate; all requests enforce the resulting rights.
 
 - **GOVERN-003 — Resource manager accountant and client rights.** Resource managers plan capacity and permitted skill/cost views without invoice authority; read-only accountants inspect financial exports and close evidence; client sponsors approve scope/deliverables and view shared finances, collaborators see only delivery. Custom role grants cannot bypass finance separation. **Acceptance evidence:** Exercise each role through direct APIs and downloads; a resource manager cannot issue invoices, an accountant cannot edit time and a client collaborator cannot read private billing.
 
@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 16 | 41 | 64 | 121 |
-| All | 33 | 41 | 64 | 138 |
+| Target and push further | 17 | 40 | 64 | 121 |
+| All | 34 | 40 | 64 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -528,7 +528,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `MIGRATE-009` | Float move-in | target | missing |  | No Float importer, rate/capacity history or deletion-feed reconciliation. |
 | `MIGRATE-010` | Shadow run cutover and continuation | target | partial | `src/gauge/harvest.ts`; `src/gauge/imports.ts`; `tests/gauge.mjs` | Stable import identities, billed flags and native reconciliation exist; complete parallel-run comparison and invoice/retainer ownership cutover do not. |
 | `GOVERN-001` | Owner and finance rights | target | partial | `src/gauge/store.ts`; `src/gauge/catalog.ts`; `tests/gauge.mjs` | Owner/finance access exists; amount thresholds and independent two-person controls are absent. |
-| `GOVERN-002` | Leads staff and contractors rights | target | partial | `src/gauge/store.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` | Assigned staff/lead scope and private data checks ship; contractor-specific grants and dated delegation are absent. |
+| `GOVERN-002` | Leads staff and contractors rights | target | done | `src/gauge/store.ts`; `src/gauge/reports.ts`; `src/gauge/time-review.ts`; `tests/gauge.mjs` — GOVERN-002 |  |
 | `GOVERN-003` | Resource manager accountant and client rights | target | missing |  | No resource-manager, accountant, client or configurable role grants. |
 | `GOVERN-004` | Enterprise identity and lifecycle | target | missing |  | Native Base operator sessions exist; no enterprise SSO, MFA/passkey policy or SCIM integration. |
 | `GOVERN-005` | Searchable business audit | target | partial | `src/gauge/store.ts`; `src/gauge/proposals.ts`; `tests/gauge.mjs` | Record history and proposal decisions exist; comprehensive searchable/exportable external-action audit and integrity checks are absent. |

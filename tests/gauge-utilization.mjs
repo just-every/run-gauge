@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises'
 import { createHash, randomUUID } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { realizationJourney } from './gauge-realization.mjs'
 
 // RESOURCE-004: one journey through real commands, the emitted Worker and its forms.
 const h = await harness(), from = '2026-10-05', to = '2026-10-11', hour = 3600
@@ -246,5 +247,6 @@ try {
  assert(await page.getByRole('row').filter({ hasText: 'Read utilization' }).count() >= 2, 'The owner sees each keyed read')
  await capture('utilization-key-revoked')
  console.log('PASS CONNECT-020 utilization key: owner-only create shown once, SHA-256 at rest, aggregate-only participant/available/approved-billable figures equal to the owner report, read-only scope, audited reads, revocation')
+ await realizationJourney(h, browser)
  console.log('PASS RESOURCE-004 scheduled/recorded/pending/approved utilization, 30/32 billable capacity, internal training, holiday and leave denominators, zero and missing capacity, service/project/detail grouping, scoped sources, CSV fingerprint and browser drills')
 } finally { await browser?.close(); await h.dispose() }

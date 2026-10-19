@@ -23,6 +23,7 @@ import { schedulePreview } from './schedule-preview'
 import { templateCommand } from './delivery-templates'
 import { rateCommand } from './rate-cards'
 import { conversionCommand } from './sales-conversion'
+import { targetCommand } from './billability'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
@@ -48,6 +49,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await favoriteCommand(env,a,tx,action,input)
  if(!result)result=await taskCommand(env,a,tx,action,input)
  if(!result)result=await rateCommand(env,a,tx,action,input)
+ if(!result)result=await targetCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)
  if(!result&&['budget:approve','milestone:approve'].includes(action))result=await approveTerms(env,a,tx,action==='budget:approve'?'budgets':'milestones',input)
  if(!result)result=await timeCommand(env,a,tx,action,input)

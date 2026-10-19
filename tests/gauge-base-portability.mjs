@@ -52,6 +52,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const favoriteUser=await h.invite('portability-timesheet-person');await cmd('grant',{operatorId:favoriteUser.id,personId:person.id,role:'staff',enabled:true})
  const favorite=await cmd('time:favorite',{personId:person.id,taskId:task.id,name:'Research training',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
  await cmd('time:favorite',{...favorite,personId:person.id,taskId:task.id,name:'Research workshop',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
+ // REPORT-002 / BASE-002: billability targets travel as business records.
+ await cmd('target:set',{scope:'person',personId:person.id,percent:'72.5',effectiveFrom:'2026-10-01'})
  // CONNECT-020 / BASE-002: a live utilization key is installation authority and never travels.
  assert.match((await cmd('apikey:create',{label:'Portability source key'})).token,/^gauge_util_/)
  await cmd('time:policy',{lockThrough:'2020-12-31',reason:'Historical migration cutoff; current work remains open'})

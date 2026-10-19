@@ -10,6 +10,7 @@ import { columns, lanes, board, mondayOf, shift } from './ui-board'
 import { recoveryPanel, worklog } from './ui-recovery'
 import { reports, capacity } from './reports'
 import { utilizationSection } from './ui-utilization'
+import { performanceSection } from './ui-performance'
 import { resourcesSection } from './ui-resources'
 import { schedulePeople, scheduleSearch, scheduleSection } from './ui-schedule'
 
@@ -34,7 +35,9 @@ export async function capacitySection(env: Bindings, a: Actor, report: Report, o
  body += scheduleSearch(report, options)
  body += `<div class="g-workspace"><section class="g-board-wrap" aria-label="Staffing board">${grid}</section>${await recoveryPanel(env, a, report, zone, today)}</div>${await worklog(env, report, zone, today, week)}`
  const utilizationFrom=options.utilizationFrom??monday,utilizationTo=options.utilizationTo??shift(utilizationFrom,6)
- body += utilizationSection(await reports(env,a,utilizationFrom,utilizationTo),options)
+ const utilizationReport=await reports(env,a,utilizationFrom,utilizationTo)
+ body += utilizationSection(utilizationReport,options)
+ body += performanceSection(utilizationReport,options,finance(a))
  body += await resourcesSection(env,a,report,options)
  body += scheduleSection(a,boardReport,options,matchingPeople)
 

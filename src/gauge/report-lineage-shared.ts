@@ -27,6 +27,7 @@ export interface ReportLineageInput {
  exceptions: Value[]
  correctionReviews?: Value[]
  utilization?: {byPerson: Value[]; byService: Value[]; byProject: Value[]; details: Value[]}
+ performance?: {asOf: string; byPerson: Value[]; byRole: Value[]; byClient: Value[]; byPeriod: Value[]}
  retainerBalances?: Value[]
  resourceDemand?: Value[]
 }

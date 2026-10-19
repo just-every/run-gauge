@@ -9,6 +9,7 @@ import { type Actor, finance, all, fence } from './store'
 import { correctionReviews } from './billing-corrections'
 import { canDecide } from './proposals'
 import { utilization } from './utilization'
+import { targetPerformance } from './billability'
 import { retainerCovers } from './retainer-eligibility'
 import { retainerStatements } from './retainer-statements'
 import { resourceDemand } from './resource-demand'
@@ -55,6 +56,8 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   const staffed=new Set([...data.staffing.map(r=>r.value.personId),...data.proposals.flatMap(r=>r.value.kind==='staffing'?r.value.plan.alternatives.map((x:any)=>x.personId):[])])
   data.people=data.people.filter(r=>r.id===a.personId || staffed.has(r.id) || data.engagements.some(e=>e.value.leadId===r.id || e.value.members?.includes(r.id)))
   const personIds=new Set(data.people.map(r=>r.id)); data.calendars=data.calendars.filter(r=>personIds.has(r.value.personId)); data.leave=data.leave.filter(r=>personIds.has(r.value.personId))
+  // Billability targets are planning goals, not pay: a viewer sees those for the people and roles they can already see.
+  data.billabilityTargets=agent?[]:data.billabilityTargets.filter(r=>r.value.scope==='person'?personIds.has(r.value.personId):data.people.some(p=>String(p.value.role??'').trim()===r.value.role))
   for (const k of Object.keys(data) as Kind[]) data[k]=data[k].map(r=>({...r,value:redact(a,k,r.value)}))
  }
  const clientIds=new Set([...data.engagements,...data.opportunities].map(r=>r.value.clientId)); if(!finance(a))data.clients=data.clients.filter(r=>clientIds.has(r.id))
@@ -118,6 +121,6 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const timeReview=reviewQueue(data,a.timezone,allTime)
  const reviewerIds=a.role==='lead'?(await env.DB.prepare("SELECT DISTINCT g.person_id FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id WHERE g.enabled=1 AND g.role IN ('lead','finance') AND o.status='active'").all<{person_id:string}>()).results.map(r=>r.person_id):[]
  const timeReviewers=(await all(env,'people')).filter(p=>reviewerIds.includes(p.id)).map(p=>({...p,value:{name:p.value.name}}))
- const report={timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
+ const report={timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

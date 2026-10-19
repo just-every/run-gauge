@@ -53,6 +53,8 @@ export async function timeReviewJourney(h,{page,signIn,capture,worker,lead,staff
  // The lead records absence; their own dated delegation routes only eligible work.
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(Date.now())
  await cmd('save:leave',{personId:lead.id,from:today,to:today,dailySeconds:8*hour,note:'Lead away'},manager.cookie)
+ const booking=await cmd('save:staffing',{engagementId:project.id,personId:worker.id,from:'2026-10-12',to:'2026-10-12',dailySeconds:3600,commitment:'tentative',service:'Design',billable:true},manager.cookie)
+ const unrelatedTask=await cmd('save:tasks',{engagementId:project.id,name:'Separate delivery planning',remainingSeconds:3600},manager.cookie)
  await signIn(manager.cookie);await page.goto(h.origin+'/app/time')
  const delegationForm=page.locator('form').filter({has:page.locator('[name=action][value="time:delegate"]')})
  await delegationForm.locator('[name=engagementId]').selectOption(project.id);await delegationForm.locator('[name=delegateId]').selectOption(reviewer.id)
@@ -63,6 +65,9 @@ export async function timeReviewJourney(h,{page,signIn,capture,worker,lead,staff
  await cmd('time:delegate',{engagementId:ownProject.id,delegateId:accountant.id,from:'2026-10-01',to:'2026-12-31',reason:'Unrelated engagement'},manager.cookie,403)
  const delegatedReport=await state(delegate.cookie)
  assert(delegatedReport.data.time.some(t=>t.id===current.id),'Eligible submitted work reaches delegate queue')
+ assert(!delegatedReport.data.staffing.some(s=>s.id===booking.id),'A time-only delegate receives no project staffing records')
+ assert(!delegatedReport.data.tasks.some(t=>t.id===unrelatedTask.id),'A time-only delegate receives only tasks supporting their review entries')
+ assert.equal((await request(`/api/gauge/history/staffing/${booking.id}`,delegate.cookie)).status,403)
  assert(!delegatedReport.data.time.some(t=>t.id===own.id),'Unrelated time remains out of scope')
  assert.equal((await request(`/api/gauge/history/time/${own.id}`,delegate.cookie)).status,403)
  await signIn(delegate.cookie);await page.goto(h.origin+'/app/review');await capture('TIME-004-review-queue',page.locator('#time-review-queue'))

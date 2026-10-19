@@ -253,7 +253,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "7b33f95dd780b60b805a6caa74a0f341a86d1692bbbc553272132d6838be3816",
+      "sha256": "4e96c56df632a5843d0abd4bcf4b798ce6da518c84235bc7ff7049f96bf69f49",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -1061,7 +1061,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "7717c6cc72aeb2ad091230d26b38aae2a61e451c936609d81befa71f5dc054b1",
+      "sha256": "77ae0148f25f93fdef212f523c8256565cbbc605e52918fbb0e449af9d103bd5",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -3077,7 +3077,7 @@
       "executable": false
     },
     "tests/gauge-time-review.mjs": {
-      "sha256": "f4a3d1606455dc3c91ed01a8b72cd4879e6e42c14f3464c0222a43ddee0df280",
+      "sha256": "a3b27308f48b77f4d7fcdd159f8e14e94c7a8b3396825fd380af08d00d8b58c7",
       "executable": false
     },
     "tests/gauge-timesheets.mjs": {

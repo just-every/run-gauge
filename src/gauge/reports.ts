@@ -32,7 +32,8 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  // An agent reads every engagement it may prepare for, approved work only, and no amounts.
  const today=workDate(Date.now(),a.timezone),delegatedIds=new Set(data.engagements.filter(e=>data.timeDelegations.some(d=>activeDelegation(d,e,a,today))).map(e=>e.id))
  data.timeDelegations=data.timeDelegations.filter(d=>finance(a)||d.value.leadId===a.personId||d.value.delegateId===a.personId)
- const agent = a.role==='agent', ids = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)||delegatedIds.has(e.id)).map(e=>e.id))
+ const agent = a.role==='agent', ordinaryIds = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
+ const ids=new Set([...ordinaryIds,...delegatedIds])
  data.timeFavorites=data.timeFavorites.filter(r=>ids.has(r.value.engagementId)&&r.value.personId===(a.role==='owner'&&favoritePersonId?favoritePersonId:a.personId))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
  for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
@@ -44,6 +45,9 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   // Agents see what they prepared; leads see staffing, time and change orders on their engagements; everyone sees time drafted for them. Billing proposals are finance's.
   data.proposals=data.proposals.filter(r=>agent ? r.value.preparedBy===a.session.operator.id : (leadIds.has(r.value.engagementId) && r.value.kind!=='billing') || (r.value.kind==='time' && r.value.plan.personId===a.personId))
   for (const k of ['time','expenses'] as Kind[]) data[k]=data[k].filter(r=>agent ? r.value.status==='approved' : r.value.personId===a.personId || leadIds.has(r.value.engagementId) || (k==='time'&&delegatedIds.has(r.value.engagementId)&&data.timeDelegations.some(d=>activeDelegation(d,data.engagements.find(e=>e.id===r.value.engagementId)!,a,today,r.value.workDate))))
+  // Time delegation supplies review context, never project planning authority.
+  for(const k of ['staffing','deliveryPlans'] as const)data[k]=data[k].filter(r=>ordinaryIds.has(r.value.engagementId))
+  data.tasks=data.tasks.filter(r=>ordinaryIds.has(r.value.engagementId)||data.time.some(t=>t.value.taskId===r.id))
   data.agencyCalendars=[];data.retainers=agent?[]:data.retainers.filter(r=>leadIds.has(r.value.engagementId)||(a.role==='staff'&&r.value.terms.unit==='hours'));data.retainerPeriods=agent?[]:data.retainerPeriods.filter(r=>data.retainers.some(t=>t.id===r.value.retainerId))
   data.budgets=data.budgets.filter(r=>leadIds.has(r.value.engagementId)); data.milestones=data.milestones.filter(r=>leadIds.has(r.value.engagementId))
   data.resourceRequests=data.resourceRequests.filter(r=>a.role==='lead'&&leadIds.has(r.value.engagementId))

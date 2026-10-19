@@ -8,9 +8,10 @@ import { hours, period, weekdays, chip, nameOf } from './ui-format'
 import type { Report } from './ui-describe'
 import { columns, lanes, board, mondayOf, shift } from './ui-board'
 import { recoveryPanel, worklog } from './ui-recovery'
-import { reports } from './reports'
+import { reports, capacity } from './reports'
 import { utilizationSection } from './ui-utilization'
 import { resourcesSection } from './ui-resources'
+import { schedulePeople, scheduleSearch, scheduleSection } from './ui-schedule'
 
 export async function capacitySection(env: Bindings, a: Actor, report: Report, options: Value) {
  const d = report.data, today: string = options.today, zone: string = options.zone, weeks = options.view === 'weeks', monday = report.from
@@ -21,14 +22,21 @@ export async function capacitySection(env: Bindings, a: Actor, report: Report, o
  let body = `<div class="g-titlebar"><h1>Staffing</h1>${tools}${legend}</div>`
  const proposal = d.proposals.filter(p => p.value.kind === 'staffing' && p.value.status === 'proposed').sort((x, y) => y.value.preparedAt - x.value.preparedAt)[0]
  // Client tints follow the order clients were added, so a client keeps its colour for every viewer.
- const order = (await all(env, 'clients')).map(r => r.id), tintOf = (id: string) => order.includes(id) ? order.indexOf(id) % 6 + 1 : 0
- const cols = columns(monday, weeks), rows = lanes(report, cols, tintOf, { proposal })
+ const manager = finance(a) || a.role === 'lead'
+ const [clients, roster] = await Promise.all([all(env, 'clients'), manager ? Promise.all([all(env, 'people'), all(env, 'calendars'), all(env, 'leave'), all(env, 'staffing')]) : undefined])
+ const order = clients.map(r => r.id), tintOf = (id: string) => order.includes(id) ? order.indexOf(id) % 6 + 1 : 0
+ // Global capacity exposes totals only. Bars and records still use the viewer's permitted source data.
+ const boardReport = roster ? { ...report, data: { ...d, people: roster[0]! }, capacity: capacity({ people: roster[0]!, calendars: roster[1]!, leave: roster[2]!, staffing: roster[3]! }, report.from, report.to) } : report
+ const matchingPeople = schedulePeople(boardReport, options)
+ const cols = columns(monday, weeks), rows = lanes(boardReport, cols, tintOf, { proposal }).filter(r => matchingPeople.has(r.personId))
  const week = [0, 1, 2, 3, 4, 5, 6].map(n => shift(monday, n))
- const grid = rows.length ? board(report, cols, rows, today) : '<div class="g-card g-empty-state"><img src="/brand/mark.svg" alt="" width="40" height="40"><h2>No people yet.</h2><p>Add people and their working calendars to see who is booked, who is free and who is out.</p>' + (finance(a) ? '<p><a class="g-btn g-btn--primary" href="/app/engagements">Add people on Engagements</a></p>' : '') + '</div>'
+ const grid = rows.length ? board(boardReport, cols, rows, today) : boardReport.data.people.length ? '<div class="g-card"><p class="g-empty">No people match this calendar search.</p></div>' : '<div class="g-card g-empty-state"><img src="/brand/mark.svg" alt="" width="40" height="40"><h2>No people yet.</h2><p>Add people and their working calendars to see who is booked, who is free and who is out.</p>' + (finance(a) ? '<p><a class="g-btn g-btn--primary" href="/app/engagements">Add people on Engagements</a></p>' : '') + '</div>'
+ body += scheduleSearch(report, options)
  body += `<div class="g-workspace"><section class="g-board-wrap" aria-label="Staffing board">${grid}</section>${await recoveryPanel(env, a, report, zone, today)}</div>${await worklog(env, report, zone, today, week)}`
  const utilizationFrom=options.utilizationFrom??monday,utilizationTo=options.utilizationTo??shift(utilizationFrom,6)
  body += utilizationSection(await reports(env,a,utilizationFrom,utilizationTo),options)
  body += await resourcesSection(env,a,report,options)
+ body += scheduleSection(a,boardReport,options,matchingPeople)
 
  const calendar = d.calendars.find(r => r.id === options.edit), leave = d.leave.find(r => r.id === options.edit), staffing = d.staffing.find(r => r.id === options.edit)
  const fields = (row: any, people = d.people, label = 'Hours per date') => s('personId', 'Person', people, row?.value.personId ?? a.personId) + i('from', 'From', row?.value.from ?? today, 'date') + i('to', 'Through', row?.value.to ?? today, 'date') + duration('dailyHours', label, row?.value.dailySeconds ?? 28800)
@@ -38,9 +46,9 @@ export async function capacitySection(env: Bindings, a: Actor, report: Report, o
  if (finance(a) || a.role === 'lead') forms.push(form('save:staffing', 'Staff allocation', s('engagementId', 'Engagement', d.engagements.filter(x => finance(a) || x.value.leadId === a.personId), staffing?.value.engagementId) + fields(staffing) + i('service','Service',staffing?.value.service??'Unspecified') + `<input type="hidden" name="billable" value="false">` + check('billable','Billable allocation',staffing?.value.billable??false) + c('commitment', 'Commitment', ['tentative', 'committed'], staffing?.value.commitment), staffing))
  body += `<h2 class="g-subhead">Calendars, leave and staffing</h2><p class="g-lede">Calendar dates belong to each person’s stated work timezone. Allocations apply to every date in their range, including non-working days. Contractor calendars represent explicitly supplied availability; missing calendars leave availability unknown.</p><div class="g-forms">${forms.join('')}</div>`
  const person = { label: 'Person', size: 'name' as const, line: 1 as const, cell: (r: any) => open('capacity', r, nameOf(d.people, r.value.personId)) }, range = { label: 'Dates', line: 2 as const, cell: (r: any) => e(period(r.value.from, r.value.to)) }
- const inWindow = (r: any) => r.value.from <= report.to && r.value.to >= report.from
+ const inWindow = (r: any) => matchingPeople.has(r.value.personId) && r.value.from <= report.to && r.value.to >= report.from
  body += `<details class="g-records"><summary>Staffing, leave and calendar records</summary>${table('Staffing', d.staffing.filter(inWindow), [person, { label: 'Engagement', line: 1, cell: r => e(nameOf(d.engagements, r.value.engagementId)) }, range, { label: 'Per date', num: true, size: 'num', line: 2, cell: r => hours(r.value.dailySeconds) }, { label: 'Commitment', size: 'status', line: 2, cell: r => chip(r.value.commitment) }], undefined, 'No allocations in these five weeks.')}`
- body += table('Leave', d.leave, [person, range, { label: 'Per day', num: true, size: 'num', line: 2, cell: r => hours(r.value.dailySeconds) }, { label: 'Reason', wrap: true, line: 3, cell: r => e(r.value.note) }])
- body += table('Calendars', d.calendars, [person, range, { label: 'Per working day', num: true, size: 'num', line: 2, cell: r => hours(r.value.dailySeconds) }, { label: 'Working weekdays', line: 3, cell: r => e(weekdays(r.value.weekdays)) }, { label: 'Timezone', line: 3, cell: r => e(r.value.timezone) }]) + '</details>'
+ body += table('Leave', d.leave.filter(r => matchingPeople.has(r.value.personId)), [person, range, { label: 'Per day', num: true, size: 'num', line: 2, cell: r => hours(r.value.dailySeconds) }, { label: 'Reason', wrap: true, line: 3, cell: r => e(r.value.note) }])
+ body += table('Calendars', d.calendars.filter(r => matchingPeople.has(r.value.personId)), [person, range, { label: 'Per working day', num: true, size: 'num', line: 2, cell: r => hours(r.value.dailySeconds) }, { label: 'Working weekdays', line: 3, cell: r => e(weekdays(r.value.weekdays)) }, { label: 'Timezone', line: 3, cell: r => e(r.value.timezone) }]) + '</details>'
  return body
 }

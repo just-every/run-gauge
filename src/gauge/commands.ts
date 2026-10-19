@@ -10,15 +10,19 @@ import { importCommand } from './imports'
 import { proposalCommand } from './proposals'
 import { opportunityCommand } from './pipeline'
 import { resourceCommand } from './resources'
+import { scheduleCommand } from './schedule'
+import { schedulePreview } from './schedule-preview'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
+ if(action==='staffing:preview')return schedulePreview(env,a,input)
  if(action.startsWith('import:'))return importCommand(env,a,action,input)
  const key=text(input.key,'Unique request key',200),digest=sha256(canonicalJson({...input,file:input.file instanceof File?{name:input.file.name,size:input.file.size,hash:sha256(new Uint8Array(await input.file.arrayBuffer()))}:null,action})),previous=await env.DB.prepare('SELECT actor,digest,result FROM g_receipts WHERE key=?').bind(key).first<{actor:string;digest:string;result:string}>()
  if(previous){need(previous.actor===a.session.operator.id && previous.digest===digest,'Request key already used for different work',409);await fence(env,a);return JSON.parse(previous.result)}
  const tx=new Transaction(env,a)
- let result:Value|null=await resourceCommand(env,a,tx,action,input)
+ let result:Value|null=await scheduleCommand(env,a,tx,action,input)
+ if(!result)result=await resourceCommand(env,a,tx,action,input)
  if(!result)result=await opportunityCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)
  if(!result&&['budget:approve','milestone:approve'].includes(action))result=await approveTerms(env,a,tx,action==='budget:approve'?'budgets':'milestones',input)

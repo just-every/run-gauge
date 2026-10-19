@@ -32,7 +32,8 @@
           "public/gauge-setup.css",
           "migrations/core/0021_gauge_internal_engagements.sql",
           "migrations/core/0022_gauge_resource_requests.sql",
-          "migrations/core/0023_gauge_timesheets.sql"
+          "migrations/core/0023_gauge_timesheets.sql",
+          "migrations/core/0024_gauge_delivery_plans.sql"
         ]
       }
     },

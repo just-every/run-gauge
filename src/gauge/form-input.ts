@@ -37,6 +37,12 @@ export function localValue(ms: number | string | null | undefined, timeZone: str
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
+ if(form.has('deliveryInput'))Object.assign(input,JSON.parse(String(form.get('deliveryInput'))))
+ if(input.action==='delivery:preview'&&input.operation==='baseline') {
+  input.previousId=input.previousId||null
+  input.plan={calendar:{weekdays:form.getAll('weekdays').map(Number),holidays:String(form.get('deliveryHolidays')??'').split(',').map(s=>s.trim()).filter(Boolean)},nodes:form.getAll('nodeId').map(String).filter(id=>form.has(`include:${id}`)).map(id=>({id,kind:form.get(`nodeKind:${id}`),sourceId:form.get(`nodeSource:${id}`)||null,name:form.get(`nodeName:${id}`),start:form.get(`start:${id}`),durationDays:Number(form.get(`duration:${id}`)),predecessors:form.getAll(`predecessors:${id}`).map(String),staffingIds:form.getAll(`staffing:${id}`).map(String)}))}
+ }
+
  if(input.gridDate){input.startLocal=`${input.gridDate}T${input.startClock}`;input.endLocal=`${input.gridDate}T${input.endClock}`;delete input.startClock;delete input.endClock;delete input.gridDate}
  if(form.get('action')==='task:progress')input.completedItems=form.getAll('completedItems')
  for (const name of lists) if (form.getAll(name).length) input[name] = form.getAll(name)

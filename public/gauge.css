@@ -254,3 +254,10 @@
   .g-app .g-table--rows .g-brief { display: inline; }
   .g-app .g-table--rows td .g-tag { display: inline; }
 }
+
+/* Delivery schedules retain their date scale; the table supplies a phone reading. */
+.g-delivery-timeline { max-width: 100%; overflow-x: auto; }
+.g-delivery-timeline svg { display: block; }
+#delivery-schedule .g-form { display: grid; align-items: start; }
+#delivery-schedule .g-delivery-node { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 10px 12px; }
+#delivery-schedule .g-delivery-node > .g-check { grid-column: 1 / -1; }

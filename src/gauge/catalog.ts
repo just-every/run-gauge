@@ -52,6 +52,11 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   v.mode = input.mode; v.amountMinor = money(input.amountMinor); v.effortSeconds = integer(input.effortSeconds,'Estimated effort seconds'); v.roundingSeconds = integer(input.roundingSeconds,'Billing rounding seconds',1,3600); v.reason = text(input.reason,'Terms / change-order reason'); v.status = 'draft'; v.createdAt = Date.now()
  }
  if (k === 'milestones') { v.name = text(input.name,'Milestone'); v.due = date(input.due); v.amountMinor = money(input.amountMinor); v.status = 'draft'; need(!previous || previous.value.status === 'draft','Approved milestone needs a new milestone') }
+ if(k==='milestones'&&previous&&v.due!==previous.value.due){
+  const plans=await all(env,'deliveryPlans'),latest=plans.filter(p=>p.value.engagementId===v.engagementId).at(-1)
+  if(latest){tx.observe('deliveryPlans',latest);tx.guard('(SELECT COUNT(*) FROM g_deliveryPlans)=?',plans.length)}
+  need(!latest?.value.schedule.nodes.some((n:Value)=>n.kind==='milestone'&&n.sourceId===previous.id),'This milestone belongs to the approved delivery baseline; preview schedule changes first',409)
+ }
  if (k === 'rates') {
   need(!previous, 'Rates are immutable; add an effective-dated version')
   v.personId = input.personId || null; v.service = text(input.service || '*','Service'); if (v.personId) tx.observe('people',await get(env,'people',v.personId))
@@ -78,6 +83,11 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
    v.billable = input.billable === undefined ? previous?.value.billable ?? engagement.value.type!=='internal' : flag(input.billable)
    need(engagement.value.type!=='internal'||!v.billable,'Internal allocations cannot be billable')
   }
+ }
+ if(k==='staffing'&&previous&&(v.from!==previous.value.from||v.to!==previous.value.to)){
+  const plans=await all(env,'deliveryPlans'),latest=plans.filter(p=>p.value.engagementId===v.engagementId).at(-1)
+  if(latest){tx.observe('deliveryPlans',latest);tx.guard('(SELECT COUNT(*) FROM g_deliveryPlans)=?',plans.length)}
+  need(!latest?.value.schedule.nodes.some((n:Value)=>n.staffingIds.includes(previous.id)),'This booking belongs to the approved delivery baseline; preview schedule changes first',409)
  }
  if (v.currency !== undefined) need(input.currency === undefined || input.currency === v.currency, 'Currency differs from record; no implicit FX')
  return tx.record(k,v,previous)

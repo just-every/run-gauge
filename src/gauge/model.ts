@@ -1,4 +1,4 @@
-export const kinds = ['clients', 'people', 'engagements', 'budgets', 'tasks', 'milestones', 'rates', 'calendars', 'leave', 'staffing', 'time', 'expenses', 'packets', 'archives', 'proposals', 'opportunities', 'resourceRequests', 'timeFavorites', 'timePolicies'] as const
+export const kinds = ['clients', 'people', 'engagements', 'budgets', 'tasks', 'milestones', 'rates', 'calendars', 'leave', 'staffing', 'time', 'expenses', 'packets', 'archives', 'proposals', 'opportunities', 'resourceRequests', 'timeFavorites', 'timePolicies', 'deliveryPlans'] as const
 export type Kind = typeof kinds[number]
 export type Value = Record<string, any>
 export interface RecordRow { id: string; revision: string; data: string }

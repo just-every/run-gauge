@@ -66,6 +66,11 @@ export async function taskCommand(env: Bindings,a: Actor,tx: Transaction,action:
   need(completed.every(id=>v.checklist?.some((item:Value)=>item.id===id)),'Unknown checklist item')
   v.checklist=(v.checklist??[]).map((item:Value)=>({...item,done:completed.includes(item.id)}))
  }
+ if(old&&!progress&&(v.from!==old.value.from||v.to!==old.value.to)) {
+  const plans=await all(env,'deliveryPlans'),latest=plans.filter(p=>p.value.engagementId===engagement.id).at(-1)
+  if(latest){tx.observe('deliveryPlans',latest);tx.guard('(SELECT COUNT(*) FROM g_deliveryPlans)=?',plans.length)}
+  need(!latest?.value.schedule.nodes.some((n:Value)=>n.kind==='task'&&n.sourceId===old.id),'This task belongs to the approved delivery baseline; preview schedule changes first',409)
+ }
  need(['low','normal','high','urgent'].includes(v.priority),'Choose task priority')
  need(!v.from||!v.to||v.to>=v.from,'Task end is before start')
  need(engagement.value.type!=='internal'||!v.billable,'Internal tasks cannot be billable')

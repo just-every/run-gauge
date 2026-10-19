@@ -49,6 +49,13 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const overagePacket=await cmd('packet:create',{engagementId:engagement.id,title:'Reviewed retainer overage',sources:[`retainerPeriods:${reviewPeriod.id}`]});await cmd('packet:approve',overagePacket)
  await cmd('time:save',{personId:person.id,engagementId:engagement.id,taskId:reviewTask.id,service:'Retained review',timezone:zone,start:'2026-10-18T11:00:00+10:00',end:'2026-10-18T12:00:00+10:00',notes:'Pending review service',billable:true})
  const reviewBalance=(await state()).retainerBalances.find(b=>b.periodId===reviewPeriod.id);assert.equal(reviewBalance.overageMinor,18000);assert.equal(reviewBalance.pending,3600);assert.equal(reviewBalance.projectedRemaining,-7200)
+ // RETAINER-004 / BASE-002: an immutable close and approved linked adjustment survive restore.
+ const closeTerms=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',from:'2026-08-01',to:'2026-09-30',terms:{...overageTerms.terms,name:'Portable closed allowance',services:['Portable close'],start:'2026-08-01'}})
+ const closeRetainer=await cmd('retainer:approve',{...closeTerms.input,fingerprint:closeTerms.fingerprint,reason:'Portable completed periods'})
+ const closePeriod=(await state()).data.retainerPeriods.find(p=>p.value.retainerId===closeRetainer.id&&p.value.periodStart==='2026-08-01')
+ await cmd('retainer:close',{...closePeriod,reason:'Portable immutable August statement'})
+ const adjustment=await cmd('retainer:adjust-prepare',{...closePeriod,kind:'refund',amountMinor:2500,reason:'Externally recorded refund for portable closed service'})
+ await cmd('retainer:adjust-approve',adjustment)
  const favoriteUser=await h.invite('portability-timesheet-person');await cmd('grant',{operatorId:favoriteUser.id,personId:person.id,role:'staff',enabled:true})
  const favorite=await cmd('time:favorite',{personId:person.id,taskId:task.id,name:'Research training',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
  await cmd('time:favorite',{...favorite,personId:person.id,taskId:task.id,name:'Research workshop',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)

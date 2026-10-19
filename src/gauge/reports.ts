@@ -11,6 +11,7 @@ import { canDecide } from './proposals'
 import { utilization } from './utilization'
 import { targetPerformance } from './billability'
 import { retainerCovers } from './retainer-eligibility'
+import { correctionValue, correctionBalance } from './retainer-privacy'
 import { retainerStatements } from './retainer-statements'
 import { resourceDemand } from './resource-demand'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
@@ -18,6 +19,7 @@ import { resourceDemand } from './resource-demand'
 const amounts = ['amountMinor','budgetMinor','totalMinor','costMinor','billMinor']
 export function redact(a: Actor, k: Kind, value: Value): Value {
  if (finance(a)) return value
+ if(k==='retainerCloses'||k==='retainerAdjustments')return correctionValue(a,k,value)
  if(a.role==='staff'&&k==='retainers'){const t=value.terms,r=t.rules??{};return {engagementId:value.engagementId,rootId:value.rootId,number:value.number,previousId:value.previousId,terms:{name:t.name,frequency:t.frequency,unit:t.unit,allowance:t.allowance,services:t.services,consumes:t.consumes,proration:t.proration,start:t.start,end:t.end,renewal:t.renewal,noticeDays:t.noticeDays,currency:t.currency,rules:{carryCap:r.carryCap??0,carryPeriods:r.carryPeriods??0,deficit:r.deficit??false}}}}
  if(a.role==='staff'&&k==='retainerPeriods'){const {reason,openedBy,openedAt,...period}=value;return period}
  const v: Value = { ...value }
@@ -37,7 +39,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const ids=new Set([...ordinaryIds,...delegatedIds])
  data.timeFavorites=data.timeFavorites.filter(r=>ids.has(r.value.engagementId)&&r.value.personId===(a.role==='owner'&&favoritePersonId?favoritePersonId:a.personId))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
- for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
+ for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
   data.rates=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
   // Agency delivery templates are planning configuration for those who start projects.
@@ -50,6 +52,8 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   for(const k of ['staffing','deliveryPlans'] as const)data[k]=data[k].filter(r=>ordinaryIds.has(r.value.engagementId))
   data.tasks=data.tasks.filter(r=>ordinaryIds.has(r.value.engagementId)||data.time.some(t=>t.value.taskId===r.id))
   data.agencyCalendars=[];data.retainers=agent?[]:data.retainers.filter(r=>leadIds.has(r.value.engagementId)||(a.role==='staff'&&r.value.terms.unit==='hours'));data.retainerPeriods=agent?[]:data.retainerPeriods.filter(r=>data.retainers.some(t=>t.id===r.value.retainerId))
+  const hourPeriods=new Set(data.retainerPeriods.filter(p=>p.value.unit==='hours').map(p=>p.id))
+  data.retainerCloses=data.retainerCloses.filter(r=>hourPeriods.has(r.value.periodId));data.retainerAdjustments=data.retainerAdjustments.filter(r=>hourPeriods.has(r.value.periodId))
   data.budgets=data.budgets.filter(r=>leadIds.has(r.value.engagementId)); data.milestones=data.milestones.filter(r=>leadIds.has(r.value.engagementId))
   data.resourceRequests=data.resourceRequests.filter(r=>a.role==='lead'&&leadIds.has(r.value.engagementId))
   // People staffed or proposed for staffing on visible engagements are visible too, so a lead can weigh their capacity.
@@ -117,7 +121,8 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
   if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&retainerCovers(data.retainers,r.value)?'retainer billing held':k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
  const retainerEligibility=a.role==='staff'?Object.fromEntries(await Promise.all((['retainers','retainerPeriods'] as const).map(async kind=>[kind,await all(env,kind)]))) as Pick<typeof data,'retainers'|'retainerPeriods'>:data
- const retainerBalances=a.role==='agent'?[]:retainerStatements(data,allTime,a.role==='staff'?a.personId??undefined:undefined,{...retainerEligibility,time:allTime}).map(b=>a.role==='lead'&&b.unit==='value'?{...b,restrictedEconomics:true}:b)
+ const correctionData={retainerCloses:await all(env,'retainerCloses'),retainerAdjustments:await all(env,'retainerAdjustments')}
+ const retainerBalances=a.role==='agent'?[]:retainerStatements(data,allTime,a.role==='staff'?a.personId??undefined:undefined,{...retainerEligibility,...correctionData,time:allTime}).map(b=>a.role==='lead'&&b.unit==='value'?{...correctionBalance(a,b,new Set(data.time.map(t=>t.id))),restrictedEconomics:true}:correctionBalance(a,b,new Set(data.time.map(t=>t.id))))
  const timeReview=reviewQueue(data,a.timezone,allTime)
  const reviewerIds=a.role==='lead'?(await env.DB.prepare("SELECT DISTINCT g.person_id FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id WHERE g.enabled=1 AND g.role IN ('lead','finance') AND o.status='active'").all<{person_id:string}>()).results.map(r=>r.person_id):[]
  const timeReviewers=(await all(env,'people')).filter(p=>reviewerIds.includes(p.id)).map(p=>({...p,value:{name:p.value.name}}))

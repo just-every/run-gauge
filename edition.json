@@ -40,7 +40,8 @@
           "migrations/core/0028_gauge_specialist_handoffs.sql",
           "migrations/core/0029_gauge_api_keys.sql",
           "migrations/core/0030_gauge_billability_targets.sql",
-          "migrations/core/0031_gauge_approval_policy.sql"
+          "migrations/core/0031_gauge_approval_policy.sql",
+          "migrations/core/0032_gauge_retainer_close.sql"
         ]
       }
     },

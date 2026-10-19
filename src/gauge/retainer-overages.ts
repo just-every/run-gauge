@@ -8,7 +8,7 @@ import { retainerConsumption } from './retainer-consumption'
 /** A whole-period overage is one reserved billing source, bound to all inputs.
  * Included work stays held; later corrections use a linked reviewed adjustment. */
 export async function retainerOverage(env:Bindings,tx:Transaction,period:Row) {
- const kinds:Kind[]=['retainers','retainerPeriods','time']
+ const kinds:Kind[]=['retainers','retainerPeriods','time','retainerCloses','retainerAdjustments']
  const groups=await Promise.all(kinds.map(async kind=>({kind,rows:await all(env,kind)})))
  const data=Object.fromEntries(groups.map(g=>[g.kind,g.rows])) as {retainers:Row[],retainerPeriods:Row[],time:Row[]}
  for(const {kind,rows} of groups){for(const row of rows)tx.observe(kind,row);tx.guard(`(SELECT COUNT(*) FROM g_${kind})=?`,rows.length)}

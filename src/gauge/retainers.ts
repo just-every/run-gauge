@@ -3,12 +3,14 @@ import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Value, type Row, type Kind, need, text, date, integer } from './model'
 import { type Actor, type Transaction, access, all, fence } from './store'
 import { allocateRetainer } from './retainer-allocation'
+import { closeRetainer } from './retainer-close'
+import { adjustmentCommand } from './retainer-adjustments'
 import { normalizeRetainer, retainerPeriods } from './retainer-periods'
 
 export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Transaction) {
  const engagement=await access(env,a,text(input.engagementId,'Engagement'),true)
  need(engagement.value.type!=='internal','Internal work has no commercial retainers')
- const observed=await Promise.all((['retainers','retainerPeriods','agencyCalendars'] as Kind[]).map(async kind=>({kind,rows:await all(env,kind)})))
+ const observed=await Promise.all((['retainers','retainerPeriods','agencyCalendars','retainerCloses','retainerAdjustments'] as Kind[]).map(async kind=>({kind,rows:await all(env,kind)})))
  const rows=(kind:Kind)=>observed.find(o=>o.kind===kind)!.rows
  const operation=input.operation??'terms';need(['terms','periods'].includes(operation),'Choose terms or periods')
  const previous=input.previousId?rows('retainers').find(r=>r.id===input.previousId):undefined
@@ -33,6 +35,9 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  const periods=calculated.map(period=>{
   const old=saved.find(p=>p.value.periodStart===period.periodStart)
   if(old){need(operation==='periods'&&old.value.retainerId===existing!.id,'A saved period cannot be replaced by new terms',409);return {...period,existingId:old.id}}
+  need(!rows('retainerCloses').some(c=>c.value.rootId===rootId&&period.periodStart<=c.value.period.value.periodEnd),'Cannot open another period inside closed history',409)
+  const lifecycle=rows('retainerAdjustments').filter(r=>r.value.rootId===rootId&&r.value.status==='approved'&&['cancellation','renewal'].includes(r.value.kind)).sort((a,b)=>a.value.approvedAt-b.value.approvedAt).at(-1)
+  need(lifecycle?.value.kind!=='cancellation','This retainer is cancelled; approve a renewal before opening later periods',409)
   need(saved.every(p=>period.periodStart>p.value.periodEnd||period.periodEnd<p.value.periodStart),'Commercial periods cannot overlap an already saved period',409)
   return {...period,existingId:null}
  })
@@ -51,6 +56,8 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  return {input:normalized,engagementId:engagement.id,rootId,number:(previous?.value.number??0)+1,terms,calendar,calendarId:operation==='periods'?existing!.value.calendarId:calendarRow?.id??null,periods,fingerprint}
 }
 export async function retainerCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null> {
+ if(action==='retainer:close')return closeRetainer(env,a,tx,input)
+ const adjusted=await adjustmentCommand(env,a,tx,action,input);if(adjusted)return adjusted
  if(action==='retainer:allocate')return allocateRetainer(env,a,tx,input)
  if(action==='agency:calendar'){
   need(a.role==='owner','Only the owner sets the agency workweek and holidays',403)

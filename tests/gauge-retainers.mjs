@@ -5,6 +5,7 @@ import { mkdir, readFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { retainerStatementsJourney } from './gauge-retainer-statements.mjs'
 import { retainerRulesJourney } from './gauge-retainer-rules.mjs'
+import { retainerCloseJourney } from './gauge-retainer-close.mjs'
 import { harness } from './gauge-harness.mjs'
 
 // RETAINER-001: native commercial terms and separate immutable periods, with the
@@ -169,6 +170,7 @@ try{
  assert((await state()).data.engagements.some(e=>e.id===imported.id));assert((await state()).data.retainers.some(t=>t.id===retainedTerms.id))
  await retainerRulesJourney(h,browser,{client,lead,worker,staff,manager})
  await retainerStatementsJourney(h,browser,{client,lead,worker,staff,manager,agent})
+ await retainerCloseJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:false});await cmd('retainer:preview',open.input,manager.cookie,403)
  console.log('PASS RETAINER-001: native USD value/hours terms, monthly/quarterly/annual periods, exact calendar/working proration, inclusive ends and renewal, immutable commercial versions/calendar snapshots, eligible approved-work policy, lineage and scoped authority')
 }finally{await browser?.close();await h.dispose()}

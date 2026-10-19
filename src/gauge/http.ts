@@ -64,7 +64,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    if(action==='import:preview')return new Response(await appPage(env,a,'imports',{preview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='template:apply')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(input.engagementId)}&saved=1#delivery-schedule`}})
    if(action==='target:set')return new Response(null,{status:303,headers:{...headers,location:`/app/capacity?${new URLSearchParams({saved:'1',from:String(input.utilizationFrom??''),utilizationFrom:String(input.utilizationFrom??''),utilizationTo:String(input.utilizationTo??'')})}#performance`}})
-   if(['retainer:approve','retainer:allocate','agency:calendar'].includes(action)&&input.engagementId)return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(input.engagementId)}&saved=1#retainers`}})
+   if((action.startsWith('retainer:')||action==='agency:calendar')&&input.engagementId)return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(input.engagementId)}&saved=1#retainers`}})
    // A form may name the page it sits on (the Staffing panel's approvals): the result shows there.
    const back=typeof input.page==='string'&&tabsFor(a).includes(input.page)?input.page:sectionFor(action)
    return new Response(null,{status:303,headers:{...headers,location:`/app/${back}?saved=1`}})

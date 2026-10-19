@@ -14,15 +14,25 @@ export async function approvalCommand(env: Bindings, a: Actor, tx: Transaction, 
  return tx.record('approvalPolicies', value, current, undefined, action)
 }
 
-/** Whether an adjustment packet needs an independent approver: strictly above the limit, or in another currency than the limit. */
-export function needsIndependentApprover(policy: Row | undefined, packet: Value) {
- const limit = policy?.value.reviewAboveMinor
- return !!packet.correctsPacketId && limit != null && (packet.currency !== policy!.value.currency || Math.abs(packet.totalMinor) > limit)
+export interface MonetaryReview { amountMinor:number;currency:string;unpriced?:boolean }
+export function needsIndependentReview(policy:Row|undefined,review:MonetaryReview) {
+ const limit=policy?.value.reviewAboveMinor
+ return limit!=null&&(review.unpriced||review.currency!==policy!.value.currency||Math.abs(review.amountMinor)>limit)
 }
-
-export async function assertIndependentApproval(env: Bindings, a: Actor, tx: Transaction, packet: Row) {
- const [policy] = await all(env, 'approvalPolicies')
- if (policy) tx.observe('approvalPolicies', policy)
+/** Adjustment packets and retainer adjustments share the owner's review limit. */
+export function needsIndependentApprover(policy:Row|undefined,packet:Value) {
+ return !!packet.correctsPacketId&&needsIndependentReview(policy,{amountMinor:packet.totalMinor,currency:packet.currency})
+}
+async function observedApprovalPolicy(env:Bindings,tx:Transaction) {
+ const [policy]=await all(env,'approvalPolicies')
+ if(policy)tx.observe('approvalPolicies',policy)
  else tx.guard('NOT EXISTS(SELECT 1 FROM g_approvalPolicies)')
- if (needsIndependentApprover(policy, packet.value)) need(packet.value.createdBy !== a.session.operator.id, 'This adjustment is above the two-person review limit: another owner or finance person must approve it', 403)
+ return policy
+}
+const independent=(a:Actor,createdBy:string)=>need(createdBy!==a.session.operator.id,'This adjustment needs two-person review: another owner or finance person must approve it',403)
+export async function assertIndependentReview(env:Bindings,a:Actor,tx:Transaction,review:MonetaryReview&{createdBy:string}) {
+ if(needsIndependentReview(await observedApprovalPolicy(env,tx),review))independent(a,review.createdBy)
+}
+export async function assertIndependentApproval(env:Bindings,a:Actor,tx:Transaction,packet:Row) {
+ if(needsIndependentApprover(await observedApprovalPolicy(env,tx),packet.value))independent(a,packet.value.createdBy)
 }

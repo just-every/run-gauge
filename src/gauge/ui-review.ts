@@ -15,9 +15,9 @@ export function economicsCard(report: Report, a: Actor, x: Report['economics'][n
  const estimate = estimateOf(report, x.budgetId), label = estimate === null ? `${hours(x.approvedSeconds)} approved` : `${hours(x.approvedSeconds)} approved of ${hours(estimate)}`
  // On fixed-fee terms the client pays the fee, so hours at bill rates are a comparison, not what is billable.
  const fixed = report.data.budgets.find(b => b.id === x.budgetId)?.value.mode === 'fixed'
- const billable = finance(a) && 'billableMinor' in x ? `<p class="g-aside g-num">${fixed ? 'Time at bill rates' : 'Billable'} ${money(x.billableMinor as number, 'currency' in x ? x.currency as string : report.agency.currency)}</p>` : ''
+ const billable = finance(a) && 'billableMinor' in x ? `<p class="g-aside g-num">${fixed ? 'Time at bill rates' : 'Billable'} ${x.billableMinor===null?`Unknown · known subtotal ${money(x.knownBillableMinor, x.currency)}`:money(x.billableMinor as number, x.currency)}</p>` : ''
  const scale = estimate === null ? '' : meter(x.approvedSeconds, estimate, label)
- return `<article class="g-card g-econ">${title ? `<header class="g-card-head"><h3><a href="/app/engagements?edit=${e(x.engagementId)}">${e(x.name)}</a></h3>${billable}</header>` : billable}<p class="g-reading-line g-num">${e(label)}</p>${scale}</article>`
+ return `<article class="g-card g-econ">${title ? `<header class="g-card-head"><h3><a href="/app/engagements?edit=${e(x.engagementId)}">${e(x.name)}</a></h3>${billable}</header>` : billable}<p class="g-reading-line g-num">${e(label)}</p>${scale}<a class="g-link" href="/app/engagements?edit=${e(x.engagementId)}&amp;calculation=${e(`economics:${x.engagementId}:${finance(a)?'costMinor':'approvedSeconds'}`)}#report-evidence">Calculation and sources</a></article>`
 }
 
 export async function reviewSection(env: Bindings, a: Actor, report: Report) {

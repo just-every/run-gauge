@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 1 | 49 | 71 | 121 |
-| All | 18 | 49 | 71 | 138 |
+| Target and push further | 2 | 48 | 71 | 121 |
+| All | 19 | 48 | 71 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -489,7 +489,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `REPORT-002` | Utilization and realization dashboard | target | missing |  | No utilization/realization dashboard or billed-versus-standard measures. |
 | `REPORT-003` | Revenue cash and backlog dashboard | target | missing |  | No linked pipeline-to-cash dashboard or financial buckets. |
 | `REPORT-004` | Custom reports and scheduled delivery | target | missing |  | No report builder, saved reporting or scheduled report exports. |
-| `REPORT-005` | Trace every reported amount | target | partial | `src/gauge/reports.ts`; `src/gauge/billing.ts`; `tests/gauge.mjs` | Source IDs and frozen billing calculations exist; common report lineage, formulas and consistent export reconciliation are missing. |
+| `REPORT-005` | Trace every reported amount | target | done | `src/gauge/report-lineage.ts`; `src/gauge/report-export.ts`; `src/gauge/ui-report-evidence.ts`; `tests/gauge-report-lineage.mjs` — REPORT-005 | Current economics, capacity, pipeline, correction and exception figures expose formulas, source revisions, frozen rates, currency, approvals and as-of time. CSV export binds the visible input fingerprint; unknown totals retain labelled known subtotals and private sources stay restricted. |
 | `CLIENT-001` | Scoped client portal | target | missing |  | No external client identities, project portal or client-specific rights. |
 | `CLIENT-002` | Client status and budget reports | target | missing |  | No publishable client reports, client replies or budget-sharing policy. |
 | `CLIENT-003` | Client financial self-service | target | missing |  | No client invoice/statement/retainer self-service or payment/dispute portal. |

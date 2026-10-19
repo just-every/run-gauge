@@ -13,6 +13,7 @@ import { reviewSection } from './ui-review'
 import { engagementsSection } from './ui-engagements'
 import { timeSection } from './ui-time'
 import { boardWindow } from './ui-board'
+import { reportEvidence } from './ui-report-evidence'
 
 export const tabsFor = (a: Actor) => a.role === 'agent' ? ['review'] : ['review', 'engagements', 'capacity', 'time', 'expenses', ...(finance(a) ? ['billing', 'rates', 'imports'] : []), ...(a.role === 'owner' ? ['access'] : [])]
 const fonts = '<link rel="preload" href="/fonts/mona-sans/mona-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="preload" href="/fonts/source-serif-4/source-serif-4-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="stylesheet" href="/fonts/fonts.css">'
@@ -44,6 +45,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
  if(section==='time')body+=timeSection(a,report,options)
  body+=await operations(env,a,section,{...options,today,zone},report)
+ if(['review','engagements','capacity','billing'].includes(section))body+=reportEvidence(report,options.calculation)
  const notice=await agentNotice(env,a,report,zone,today)
  await fence(env,a)
  return shell(a,section,tabLabels[section],body,{today,zone,notice,currency:report.agency.currency})

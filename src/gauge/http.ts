@@ -7,6 +7,7 @@ import { redact, reports, visible } from './reports'
 import { appPage, historyPage, tabsFor } from './ui'
 import { importCommand } from './imports'
 import { formInput } from './form-input'
+import { reportCsv } from './report-export'
 // The page an /app/action form belongs to: its result (or refusal) shows there.
 const sectionFor=(action:string)=>action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('packet:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'?'access':action==='save:rates'?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
 const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-content-type-options':'nosniff','x-robots-tag':'noindex','content-security-policy':"default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}
@@ -17,7 +18,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  const historyRoute=path.match(/^\/api\/gauge\/history\/([^/%]+)\/([^/%]+)$/)
  const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports)\/([^/%]+)$/)
  const page=path==='/app'?'review':path.match(/^\/app\/(review|engagements|time|expenses|capacity|rates|billing|imports|access)$/)?.[1]
- if((!mutation&&!historyRoute&&!download&&path!=='/api/gauge/state'&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
+ if((!mutation&&!historyRoute&&!download&&!['/api/gauge/state','/api/gauge/report.csv'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
  const env=runtimeBindings(original)
  // A refused page form shows its reason on the page it came from; programs keep the JSON answer.
  let refused:{a:Actor,action:string}|undefined
@@ -47,7 +48,12 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
   if(download?.[1]==='archives'){need(finance(a),'Finance access required',403);const archive=await get(env,'archives',download[2]);await fence(env,a);return new Response(Buffer.from(archive.value.base64,'base64'),{headers:{...headers,'content-type':'application/octet-stream','content-disposition':'attachment; filename=historical-document.pdf'}})}
   if(download?.[1]==='imports')return Response.json(await importCommand(env,a,'import:originals',{id:download[2]}),{headers:{...headers,'content-disposition':`attachment; filename="gauge-import-${download[2]}.json"`}})
   if(path==='/api/gauge/state'){const now=new Date(),from=url.searchParams.get('from')??now.toISOString().slice(0,10),to=url.searchParams.get('to')??from;return Response.json(await reports(env,a,from,to),{headers})}
-  if(page)return new Response(await appPage(env,a,page,{from:url.searchParams.get('from'),to:url.searchParams.get('to'),edit:url.searchParams.get('edit'),opportunity:url.searchParams.get('opportunity'),view:url.searchParams.get('view'),saved:url.searchParams.get('saved')==='1'}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
+  if(path==='/api/gauge/report.csv'){
+   const report=await reports(env,a,url.searchParams.get('from')??'',url.searchParams.get('to')??'')
+   need(url.searchParams.get('fingerprint')===report.fingerprint,'Report inputs changed; refresh the report before exporting',409)
+   await fence(env,a);return new Response(reportCsv(report),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="gauge-report-calculations.csv"'}})
+  }
+  if(page)return new Response(await appPage(env,a,page,{from:url.searchParams.get('from'),to:url.searchParams.get('to'),edit:url.searchParams.get('edit'),opportunity:url.searchParams.get('opportunity'),calculation:url.searchParams.get('calculation'),view:url.searchParams.get('view'),saved:url.searchParams.get('saved')==='1'}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
   return new Response('Not found',{status:404,headers})
  }catch(error){
   const message=error instanceof Fault?error.message:error instanceof Error&&/IMPORT_|NATIVE_EDIT|SOURCE_|PLAN_|RECONCIL|CONFLICT/.test(error.message)?error.message:'Operation refused: data changed, overlaps, dependencies or unavailable storage. Reload and review before retrying.',status=error instanceof Fault?error.status:409

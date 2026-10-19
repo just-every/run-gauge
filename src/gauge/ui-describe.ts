@@ -32,7 +32,7 @@ export function describeException(report: Report, x: any): { type: string; text:
  if (x.type === 'capacity conflict') return { type: x.type, text: `${person()} · ${day(x.date)} · ${hours(x.seconds)} over`, href: `/app/capacity?from=${report.from}&to=${report.to}` }
  if (x.type === 'availability missing') return { type: x.type, text: `${person()} · ${x.days} ${x.days === 1 ? 'day' : 'days'} without a calendar`, href: `/app/capacity?from=${report.from}&to=${report.to}` }
  const source = describeSource(d, x.source)
- if (x.type === 'overspend') return { type: x.type, text: `${source.text} · ${money(x.amountMinor, x.currency ?? d.engagements.find(r => r.id === x.source.split(':')[1])?.value.currency ?? report.agency.currency)} over budget`, href: source.href }
+ if (x.type === 'overspend') return { type: x.type, text: `${source.text} · ${x.incomplete?'at least ':''}${money(x.amountMinor, x.currency ?? d.engagements.find(r => r.id === x.source.split(':')[1])?.value.currency ?? report.agency.currency)} over budget`, href: source.href }
  return { type: x.type, text: source.text, href: source.href }
 }
 

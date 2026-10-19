@@ -1,6 +1,8 @@
 import type { Bindings } from '../auth.server'
 import { type Row, type Kind, type Value, need, date, sum, kinds } from './model'
 import { pipeline } from './pipeline'
+import { buildLineage } from './report-lineage'
+import { reportFingerprint } from './report-export'
 import { type Actor, finance, all, fence } from './store'
 import { correctionReviews } from './billing-corrections'
 import { canDecide } from './proposals'
@@ -67,13 +69,16 @@ export function economics(data: Awaited<ReturnType<typeof visible>>,a: Actor) {
   const base={engagementId:e.id,name:e.value.name,currency:e.value.currency,budgetId:terms?.id ?? null,budgetMinor:terms?.value.amountMinor ?? null,approvedSeconds:sum(time.map(r=>r.value.durationSeconds)),remainingSeconds:sum(data.tasks.filter(r=>r.value.engagementId===e.id).map(r=>r.value.remainingSeconds))}
   if(!finance(a)){const view:Record<string,unknown>={...base,privateCosts:'Restricted to finance'};if(a.role==='agent')delete view.budgetMinor;return view as typeof base & {privateCosts:string}}
   need(time.every(r=>!r.value.economics || r.value.economics.currency===e.value.currency) && expenses.every(r=>r.value.currency===e.value.currency), 'Report source currencies differ from engagement; no implicit FX')
-  return {...base,costMinor:sum([...time.map(r=>r.value.economics?.costMinor??0),...expenses.map(r=>r.value.amountMinor)]),missingCostSources:time.filter(r=>r.value.economics?.costMinor==null).map(r=>r.id),billableMinor:sum(time.filter(r=>r.value.billable).map(r=>r.value.economics?.billMinor??0)),missingBillRateSources:time.filter(r=>r.value.billable && r.value.economics?.billMinor==null).map(r=>r.id)}
+  const knownCostMinor=sum([...time.map(r=>r.value.economics?.costMinor??0),...expenses.map(r=>r.value.amountMinor)]),knownBillableMinor=sum(time.filter(r=>r.value.billable).map(r=>r.value.economics?.billMinor??0))
+  const missingCostSources=time.filter(r=>r.value.economics?.costMinor==null).map(r=>r.id),missingBillRateSources=time.filter(r=>r.value.billable && r.value.economics?.billMinor==null).map(r=>r.id)
+  return {...base,costMinor:missingCostSources.length?null:knownCostMinor,knownCostMinor,missingCostSources,billableMinor:missingBillRateSources.length?null:knownBillableMinor,knownBillableMinor,missingBillRateSources}
  })
 }
 export async function reports(env: Bindings,a: Actor,from: string,to: string) {
+ const asOf=new Date().toISOString()
  const data=await visible(env,a),cap=capacity(data,from,to),econ=economics(data,a),exceptions:any[]=[]
  for(const c of cap){ for(const conflict of c.conflicts)exceptions.push({type:'capacity conflict',personId:c.personId,...conflict});if(c.missingCalendarDays)exceptions.push({type:'availability missing',personId:c.personId,days:c.missingCalendarDays,demand:c.days.filter(d=>d.calendarId===null&&(d.committedSeconds>0||d.tentativeSeconds>0))}) }
- for(const e of econ) { if('costMinor' in e && e.budgetMinor!==null && e.costMinor!>e.budgetMinor)exceptions.push({type:'overspend',source:`engagements:${e.engagementId}`,amountMinor:e.costMinor!-e.budgetMinor,currency:e.currency}); }
+ for(const e of econ) { if('costMinor' in e && e.budgetMinor!==null && e.knownCostMinor>e.budgetMinor)exceptions.push({type:'overspend',source:`engagements:${e.engagementId}`,amountMinor:e.knownCostMinor-e.budgetMinor,currency:e.currency,incomplete:e.missingCostSources.length>0}); }
  // Recorded time is a per-person total over every entry, not just those this viewer may open, so every viewer reads the same number; no record is exposed.
  const allTime=await all(env,'time')
  for(const p of data.people){const expected=cap.find(c=>c.personId===p.id)?.knownAvailableSeconds ?? 0;const recorded=allTime.filter(r=>r.value.personId===p.id && r.value.workDate>=from && r.value.workDate<=to).reduce((n,r)=>n+(r.value.durationSeconds??0),0);if(recorded<expected)exceptions.push({type:'missing time',personId:p.id,expectedSeconds:expected,recordedSeconds:recorded,sources:data.calendars.filter(r=>r.value.personId===p.id).map(r=>r.id)})}
@@ -83,5 +88,6 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string) {
   if(r.value.status==='submitted'||((k==='milestones'||k==='budgets')&&r.value.status==='draft'))exceptions.push({type:'decision due',source:`${k}:${r.id}`})
   if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
- await fence(env,a);return {agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to}
+ const report={agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
+ await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

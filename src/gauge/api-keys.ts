@@ -75,3 +75,13 @@ export async function utilizationKeyRead(env: Bindings, token: string, from: str
  } catch { need(false, 'Invalid or revoked API key', 401) }
  return result
 }
+
+/** CONNECT-020: RFC 7009 style self-revocation, without disclosing whether the key existed. */
+export async function revokePresentedKey(env: Bindings, token: string) {
+ const hash = sha256(token), at = Date.now()
+ // INSERT ... SELECT and UPDATE share one transaction: concurrent calls audit the first revoke only.
+ await env.DB.batch([
+  env.DB.prepare("INSERT INTO g_api_key_audit(key_id,label,action,actor,detail,at) SELECT id,label,'revoke','key:' || label,'{}',? FROM g_api_keys WHERE hash=? AND scope=? AND revoked_at IS NULL").bind(at, hash, keyScope),
+  env.DB.prepare("UPDATE g_api_keys SET revoked_by='key:' || label,revoked_at=? WHERE hash=? AND scope=? AND revoked_at IS NULL").bind(at, hash, keyScope),
+ ])
+}

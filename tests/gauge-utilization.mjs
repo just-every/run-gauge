@@ -247,6 +247,25 @@ try {
  assert(await page.getByRole('row').filter({ hasText: 'Read utilization' }).count() >= 2, 'The owner sees each keyed read')
  await capture('utilization-key-revoked')
  console.log('PASS CONNECT-020 utilization key: owner-only create shown once, SHA-256 at rest, aggregate-only participant/available/approved-billable figures equal to the owner report, read-only scope, audited reads, revocation')
+ // CONNECT-020 self-revoke: the authenticated credential is the only revocation target.
+ const survivor = await cmd('apikey:create', { label: 'Independent integration' })
+ const revoke = (key, options = {}) => keyed(key, '/api/gauge/keys/revoke', { method: 'POST', ...options })
+ assert.equal((await keyed(firstBody.token, '/api/gauge/keys/revoke')).status, 405)
+ assert.equal((await request('/api/gauge/keys/revoke', owner, { method: 'POST' })).status, 401, 'A session cannot select a key through the self-revoke door')
+ const outcomes = await Promise.all([revoke(firstBody.token, { headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: survivor.id, token: survivor.token }) }), revoke(firstBody.token)])
+ for (const response of [...outcomes, await revoke(firstBody.token), await revoke('gauge_util_' + 'z'.repeat(43)), await revoke(token)]) {
+  assert.equal(response.status, 200, 'Unknown, revoked and active keys receive the same answer')
+  assert.equal(await response.text(), '')
+ }
+ assert.equal((await keyed(firstBody.token)).status, 401, 'Self-revoke ends the presented key on the next request')
+ assert.equal((await keyed(survivor.token)).status, 200, 'A body naming a different key cannot revoke it')
+ const selfAudit = (await h.db.prepare("SELECT actor FROM g_api_key_audit WHERE key_id=? AND action='revoke'").bind(firstBody.id).all()).results
+ assert.deepEqual(selfAudit, [{ actor: 'key:' + firstBody.label }], 'One successful self-revocation is audited as key:<label>')
+ await page.goto(h.origin + '/app/access')
+ assert(/revoked/i.test(await page.locator(`tr[id="${firstBody.id}"]`).innerText()))
+ assert(/active/i.test(await page.locator(`tr[id="${survivor.id}"]`).innerText()))
+ await capture('utilization-key-self-revoked')
+ console.log('PASS CONNECT-020 self-revoke: presented-key-only, idempotent and unknown-key 200, concurrent single audit, other keys unaffected, immediate read refusal')
  await realizationJourney(h, browser)
  console.log('PASS RESOURCE-004 scheduled/recorded/pending/approved utilization, 30/32 billable capacity, internal training, holiday and leave denominators, zero and missing capacity, service/project/detail grouping, scoped sources, CSV fingerprint and browser drills')
 } finally { await browser?.close(); await h.dispose() }

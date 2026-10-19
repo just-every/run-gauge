@@ -11,7 +11,7 @@ import { formInput } from './form-input'
 import { reportCsv } from './report-export'
 import { resourceCandidates } from './resource-candidates'
 import { explainRate } from './rate-cards'
-import { apiKeyCommand, utilizationKeyRead } from './api-keys'
+import { apiKeyCommand, utilizationKeyRead, revokePresentedKey } from './api-keys'
 // The page an /app/action form belongs to: its result (or refusal) shows there.
 const sectionFor=(action:string)=>action.startsWith('staffing:')||action.startsWith('resource:')||action==='save:resourceRequests'?'capacity':action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('packet:')||action.startsWith('handoff:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'||action.startsWith('apikey:')||action.startsWith('approval:')?'access':action==='save:rates'||action==='rate:entry'?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
 const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-content-type-options':'nosniff','x-robots-tag':'noindex','content-security-policy':"default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}
@@ -23,14 +23,20 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  const resourceRoute=path.match(/^\/api\/gauge\/resources\/([^/%]+)$/)
  const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports|handoffs)\/([^/%]+)$/)
  const page=path==='/app'?'review':path.match(/^\/app\/(review|engagements|time|expenses|capacity|rates|billing|imports|access)$/)?.[1]
- if((!mutation&&!historyRoute&&!resourceRoute&&!download&&!['/api/gauge/state','/api/gauge/report.csv','/api/gauge/rates/explain'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
+ if((!mutation&&!historyRoute&&!resourceRoute&&!download&&!['/api/gauge/state','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
  const env=runtimeBindings(original)
  // A refused page form shows its reason on the page it came from; programs keep the JSON answer.
  let refused:{a:Actor,action:string}|undefined
  try{
   need(url.origin===env.AUTH_ORIGIN&&(!request.headers.has('host')||request.headers.get('host')===url.host),'Invalid host',403)
-  // An owner-created utilization key (CONNECT-020) reads only the aggregate state answer; it never writes or opens another route.
+  // CONNECT-020: a scoped key can read aggregate state and revoke only itself.
   const bearer=request.headers.get('authorization')
+  if(path==='/api/gauge/keys/revoke'){
+   if(request.method!=='POST')return new Response(null,{status:405,headers:{...headers,allow:'POST'}})
+   const token=bearer?.match(/^Bearer (\S{1,200})$/)?.[1];need(token,'Send Authorization: Bearer <key>',401)
+   await revokePresentedKey(env,token)
+   return new Response(null,{status:200,headers})
+  }
   if(bearer!==null){
    need(path==='/api/gauge/state','API keys read only /api/gauge/state',403)
    if(!['GET','HEAD'].includes(request.method))return Response.json({error:'Method not allowed'},{status:405,headers:{...headers,allow:'GET, HEAD'}})

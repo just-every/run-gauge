@@ -1,5 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { type Row, type Kind, type Value, need, date, sum, kinds } from './model'
+import { activeDelegation, reviewQueue } from './time-review'
+import { workDate } from './model'
 import { pipeline } from './pipeline'
 import { buildLineage } from './report-lineage'
 import { reportFingerprint } from './report-export'
@@ -28,7 +30,9 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
  // An agent reads every engagement it may prepare for, approved work only, and no amounts.
- const agent = a.role==='agent', ids = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
+ const today=workDate(Date.now(),a.timezone),delegatedIds=new Set(data.engagements.filter(e=>data.timeDelegations.some(d=>activeDelegation(d,e,a,today))).map(e=>e.id))
+ data.timeDelegations=data.timeDelegations.filter(d=>finance(a)||d.value.leadId===a.personId||d.value.delegateId===a.personId)
+ const agent = a.role==='agent', ids = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)||delegatedIds.has(e.id)).map(e=>e.id))
  data.timeFavorites=data.timeFavorites.filter(r=>ids.has(r.value.engagementId)&&r.value.personId===(a.role==='owner'&&favoritePersonId?favoritePersonId:a.personId))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
  for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
@@ -39,7 +43,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   const leadIds=new Set(data.engagements.filter(e=>agent || (a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
   // Agents see what they prepared; leads see staffing, time and change orders on their engagements; everyone sees time drafted for them. Billing proposals are finance's.
   data.proposals=data.proposals.filter(r=>agent ? r.value.preparedBy===a.session.operator.id : (leadIds.has(r.value.engagementId) && r.value.kind!=='billing') || (r.value.kind==='time' && r.value.plan.personId===a.personId))
-  for (const k of ['time','expenses'] as Kind[]) data[k]=data[k].filter(r=>agent ? r.value.status==='approved' : r.value.personId===a.personId || leadIds.has(r.value.engagementId))
+  for (const k of ['time','expenses'] as Kind[]) data[k]=data[k].filter(r=>agent ? r.value.status==='approved' : r.value.personId===a.personId || leadIds.has(r.value.engagementId) || (k==='time'&&delegatedIds.has(r.value.engagementId)&&data.timeDelegations.some(d=>activeDelegation(d,data.engagements.find(e=>e.id===r.value.engagementId)!,a,today,r.value.workDate))))
   data.agencyCalendars=[];data.retainers=agent?[]:data.retainers.filter(r=>leadIds.has(r.value.engagementId)||(a.role==='staff'&&r.value.terms.unit==='hours'));data.retainerPeriods=agent?[]:data.retainerPeriods.filter(r=>data.retainers.some(t=>t.id===r.value.retainerId))
   data.budgets=data.budgets.filter(r=>leadIds.has(r.value.engagementId)); data.milestones=data.milestones.filter(r=>leadIds.has(r.value.engagementId))
   data.resourceRequests=data.resourceRequests.filter(r=>a.role==='lead'&&leadIds.has(r.value.engagementId))
@@ -104,6 +108,9 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  }
  const retainerEligibility=a.role==='staff'?Object.fromEntries(await Promise.all((['retainers','retainerPeriods'] as const).map(async kind=>[kind,await all(env,kind)]))) as Pick<typeof data,'retainers'|'retainerPeriods'>:data
  const retainerBalances=a.role==='agent'?[]:retainerStatements(data,allTime,a.role==='staff'?a.personId??undefined:undefined,{...retainerEligibility,time:allTime}).map(b=>a.role==='lead'&&b.unit==='value'?{...b,restrictedEconomics:true}:b)
- const report={retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
+ const timeReview=reviewQueue(data,a.timezone,allTime)
+ const reviewerIds=a.role==='lead'?(await env.DB.prepare("SELECT DISTINCT g.person_id FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id WHERE g.enabled=1 AND g.role IN ('lead','finance') AND o.status='active'").all<{person_id:string}>()).results.map(r=>r.person_id):[]
+ const timeReviewers=(await all(env,'people')).filter(p=>reviewerIds.includes(p.id)).map(p=>({...p,value:{name:p.value.name}}))
+ const report={timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

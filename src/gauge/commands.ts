@@ -11,6 +11,7 @@ import { proposalCommand } from './proposals'
 import { opportunityCommand } from './pipeline'
 import { resourceCommand } from './resources'
 import { scheduleCommand } from './schedule'
+import { delegationCommand } from './time-review'
 import { timePolicyCommand } from './time-policy'
 import { timesheetCommand } from './timesheets'
 import { favoriteCommand } from './time-favorites'
@@ -36,6 +37,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await scheduleCommand(env,a,tx,action,input)
  if(!result)result=await resourceCommand(env,a,tx,action,input)
  if(!result)result=await opportunityCommand(env,a,tx,action,input)
+ if(!result)result=await delegationCommand(env,a,tx,action,input)
  if(!result)result=await timePolicyCommand(env,a,tx,action,input)
  if(!result)result=await timesheetCommand(env,a,tx,action,input)
  if(!result)result=await favoriteCommand(env,a,tx,action,input)

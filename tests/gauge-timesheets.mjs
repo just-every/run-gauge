@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir,readFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
+import { timeReviewJourney } from './gauge-time-review.mjs'
 import { harness } from './gauge-harness.mjs'
 
 // TIME-003: real favorite/grid/manual entry, atomic submission, return/correction,
@@ -109,5 +110,6 @@ try {
  const policyHistory=await (await request(`/api/gauge/history/timePolicies/${policy.id}`,owner)).json();assert(policyHistory.history.some(r=>r.value.lockThrough==='2026-10-08'&&r.value.reason==='Weekly timesheet approval cutoff'))
  const latest=(await state()).data.time.find(t=>t.id===first.id);assert.equal(latest.value.durationSeconds,3601);assert.equal(latest.value.approvedBy,manager.id)
  await signIn(staff.cookie);await page.goto(sheetUrl);await capture('timesheet-corrected')
+ await timeReviewJourney(h,{page,signIn,capture,worker,lead,staff,manager,task,project,zone})
  console.log('PASS TIME-003: daily/week grid, favorites/recent copy, atomic bulk submit, missing/status, audited lock/reopen, import guards and exact approval history')
 }finally{await browser?.close();await h.dispose()}

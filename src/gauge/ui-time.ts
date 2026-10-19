@@ -5,6 +5,9 @@ import type { Value } from './model'
 import { escape as e, input as i, duration, area, select as s, check, form, decision, table, open } from './ui-forms'
 import { localValue } from './form-input'
 import { hours, day, chip, nameOf } from './ui-format'
+import { activeDelegation, reviewSettings } from './time-review'
+import { workDate } from './model'
+import { timePolicySection, timeReviewSection } from './ui-time-policy'
 import { timesheetSection } from './ui-timesheets'
 import type { Report } from './ui-describe'
 
@@ -17,9 +20,9 @@ export function timeSection(a: Actor, report: Report, options: Value) {
  // Start and End are wall-clock times in the Work timezone below; the server adds its UTC offset.
  const interval = t.source?.clockInstants === 'not-supplied' ? i('workDate', 'Work date', t.workDate, 'date') + duration('durationHours', 'Actual duration (hours)', t.durationSeconds) : i('startLocal', 'Start', localValue(t.start, zone), 'datetime-local') + i('endLocal', 'End', localValue(t.end, zone), 'datetime-local')
  const forms = []
- if (editable) forms.push(form('time:save', row ? 'Correct time entry' : 'Manual time', s('engagementId', 'Engagement', d.engagements, t.engagementId) + s('personId', 'Person', people, t.personId ?? a.personId) + s('taskId', 'Task', d.tasks, t.taskId) + i('service', 'Service', t.service ?? 'Delivery') + interval + i('timezone', 'Work timezone', zone) + area('notes', 'Work notes', t.notes) + check('billable', 'Billable', t.billable ?? true), row, 'Save', 'g-card--form'))
- forms.push(form('timer:start', 'Start persistent timer', s('engagementId', 'Engagement', d.engagements) + s('personId', 'Person', people, a.personId) + s('taskId', 'Task', d.tasks) + i('service', 'Service', 'Delivery') + i('timezone', 'Work timezone', report.agency.timezone) + area('notes', 'Work notes') + check('billable', 'Billable', true), undefined, 'Save', 'g-card--form'))
- body += timesheetSection(a,report,options) + forms.join('')
+ if (editable) forms.push(form('time:save', row ? 'Correct time entry' : 'Manual time', s('engagementId', 'Engagement', d.engagements, t.engagementId) + s('personId', 'Person', people, t.personId ?? a.personId) + s('taskId', 'Task', d.tasks, t.taskId) + i('service', 'Service', t.service ?? 'Delivery') + interval + i('timezone', 'Work timezone', zone) + area('notes', 'Work notes', t.notes) + check('billable', 'Billable', t.billable ?? reviewSettings(d.timePolicies[0]).serviceBillability[t.service??'Delivery'] ?? true), row, 'Save', 'g-card--form'))
+ forms.push(form('timer:start', 'Start persistent timer', s('engagementId', 'Engagement', d.engagements) + s('personId', 'Person', people, a.personId) + s('taskId', 'Task', d.tasks) + i('service', 'Service', 'Delivery') + i('timezone', 'Work timezone', report.agency.timezone) + area('notes', 'Work notes') + check('billable', 'Billable', reviewSettings(d.timePolicies[0]).serviceBillability.Delivery??true), undefined, 'Save', 'g-card--form'))
+ body += timeReviewSection(report) + timesheetSection(a,report,options) + forms.join('')
  // Entries waiting for a decision come first, as on Review.
  const recorded = [...d.time.filter(r => r.value.status === 'submitted'), ...d.time.filter(r => r.value.status !== 'submitted')]
  body += table('Recorded work', recorded, [
@@ -30,14 +33,13 @@ export function timeSection(a: Actor, report: Report, options: Value) {
   { label: 'Duration', num: true, size: 'num', line: 2, cell: r => `${r.value.durationSeconds === null ? 'Timer running' : hours(r.value.durationSeconds)}${r.value.billable ? '' : ' <span class="g-tag">not billable</span>'}` },
   { label: 'Status', wrap: true, size: 'status', line: 2, cell: r => `${chip(r.value.status)}${r.value.reviewNote ? `<span class="g-sub">${e(r.value.reviewNote)}</span>` : ''}` },
  ], r => {
-  const self = finance(a) || r.value.personId === a.personId, lead = finance(a) || (a.role === 'lead' && d.engagements.some(x => x.id === r.value.engagementId && x.value.leadId === a.personId)); let buttons = ''
+  const self = finance(a) || r.value.personId === a.personId, lead = finance(a) || (a.role === 'lead' && d.engagements.some(x => x.id === r.value.engagementId && x.value.leadId === a.personId)) || d.timeDelegations.some(x=>activeDelegation(x,d.engagements.find(e=>e.id===r.value.engagementId)!,a,workDate(Date.now(),a.timezone),r.value.workDate)); let buttons = ''
   if (self && r.value.start !== null && r.value.end === null) buttons += decision('timer:stop', 'Stop timer', r)
   if (self && r.value.durationSeconds && ['draft', 'returned'].includes(r.value.status)) buttons += decision('time:submit', 'Submit exact revision', r)
   if (lead && r.value.status === 'submitted') buttons += decision('time:approve', 'Approve exact revision', r) + decision('time:return', 'Return for correction', r, true)
   if (lead && r.value.status === 'approved') buttons += decision('time:correct', 'Reopen with audited correction', r, true, 'quiet')
   return buttons + `<a class="g-link" href="/api/gauge/history/time/${e(r.id)}">Review revision history</a>`
  })
- const policy=d.timePolicies[0]
- body+=`<section class="g-card" id="timesheet-policy"><h2>Timesheet period policy</h2><p>${policy?.value.lockThrough?`Locked through ${e(policy.value.lockThrough)} (inclusive).`:'No period is locked.'}</p>${policy?`<p>${e(policy.value.reason)}</p>`:''}${finance(a)?form('time:policy','Lock or reopen periods',i('lockThrough','Locked through (blank reopens all)',policy?.value.lockThrough??'','date',false)+area('reason','Policy change or reopening reason'),policy,'Save policy','g-bare'):''}</section>`
+ body+=timePolicySection(a,report)
  return body
 }

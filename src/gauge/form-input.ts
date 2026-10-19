@@ -37,6 +37,7 @@ export function localValue(ms: number | string | null | undefined, timeZone: str
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
+ if(['time:save','timer:start'].includes(String(input.action)))input.billable=form.has('billable')
  if(form.has('retainerInput'))Object.assign(input,JSON.parse(String(form.get('retainerInput'))))
  if(form.has('deliveryInput'))Object.assign(input,JSON.parse(String(form.get('deliveryInput'))))
  if(input.action==='delivery:preview'&&input.operation==='baseline') {
@@ -62,6 +63,10 @@ export function formInput(form: FormData): Value {
   else if (key.endsWith('Local')) { if (raw === '') continue; input[base] = zonedInstant(raw, zone(input.timezone)) }
   else continue
   delete input[key]
+ }
+ if(input.action==='time:policy'&&form.has('dueWeekday')){
+  const serviceBillability=Object.fromEntries(String(input.serviceDefaults??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(line=>{const [service,value,...extra]=line.split('|').map(s=>s.trim());need(service&&!extra.length&&['billable','nonbillable'].includes(value),'Use Service | billable or nonbillable');return [service,value==='billable']}))
+  input.review={dueWeekday:input.dueWeekday,dueTime:input.dueTime,minimumNotes:input.minimumNotes,maxEntrySeconds:input.maxEntrySeconds,maxDaySeconds:input.maxDaySeconds,reviewLevels:input.reviewLevels,separation:input.separation==='on',serviceBillability}
  }
  if(input.action==='retainer:preview'&&input.operation==='terms'){input.terms={name:input.name,frequency:input.frequency,unit:input.unit,allowance:input.unit==='value'?input.allowanceMinor:input.allowanceSeconds,services:String(input.services??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean),consumes:input.consumes,proration:input.proration,start:input.start,end:input.end||null,renewal:input.renewal,noticeDays:input.noticeDays,rules:{carryCap:input.unit==='value'?input.carryCapMinor:input.carryCapSeconds,carryPeriods:input.carryPeriods,deficit:input.deficit==='on',overage:input.overage,overageRate:input.unit==='value'?Math.round(decimal(String(input.overagePercent),'Overage percent')*100):input.overageRateMinor}}}
  return input

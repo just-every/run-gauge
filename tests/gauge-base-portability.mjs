@@ -66,6 +66,13 @@ export async function prepareCurrentPortability(h,{importJob}) {
  let retainedImport=await cmd('import:create',{package:sourcePackage,fingerprint:preview.fingerprint})
  while(['applying','queued'].includes(retainedImport.state))retainedImport=await cmd('import:resume',{id:retainedImport.id})
  assert.equal(retainedImport.state,'completed')
+ // TIME-004 / BASE-002: dated delegations and versioned submission/review policy travel as business records, never authority.
+ const portableLead=await h.invite('portable-review-lead'),portableDelegate=await h.invite('portable-review-delegate')
+ await cmd('grant',{operatorId:portableLead.id,personId:engagement.value.leadId,role:'lead',enabled:true})
+ await cmd('grant',{operatorId:portableDelegate.id,personId:person.id,role:'finance',enabled:true})
+ await cmd('time:delegate',{engagementId:engagement.id,delegateId:person.id,from:'2026-10-01',to:'2026-12-31',reason:'Portable review cover'},portableLead.cookie)
+ const portablePolicy=(await state()).data.timePolicies[0]
+ await cmd('time:policy',{...portablePolicy,review:{dueWeekday:5,dueTime:'16:30',minimumNotes:8,maxEntrySeconds:28800,maxDaySeconds:43200,reviewLevels:2,separation:true,serviceBillability:{Research:false}},reason:'Portable independent review policy'})
  const before=await state()
  assert(before.data.archives.some(r=>r.value.base64===historicalBytes.toString('base64')),'native historical document is available before export')
  assert.equal(before.data.time.find(r=>r.id===time.id).value.economics.costMinor,6500)
@@ -95,7 +102,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const stable=report=>({agency:report.agency,data:Object.fromEntries(Object.entries(report.data).map(([kind,rows])=>[kind,[...rows].sort((a,b)=>a.id.localeCompare(b.id))])),...Object.fromEntries(['capacity','economics','pipeline','resourceDemand','utilization','correctionReviews','retainerBalances'].map(key=>[key,unordered(report[key])]))})
  return async persistenceDirectory=>{
   const restored=await harness({persistenceDirectory,beforeLogin:async({request,post})=>{
-   for(const cookie of [owner,agent.cookie,favoriteUser.cookie]){
+   for(const cookie of [owner,agent.cookie,favoriteUser.cookie,portableLead.cookie,portableDelegate.cookie]){
     assert.equal((await request('/api/gauge/state',cookie)).status,401,'old session cannot read restored business data')
     assert.equal((await post('/api/gauge/command',{key:'restored-stale-session',action:'save:clients',name:'Unapproved restored write'},cookie)).status,401,'old session cannot write restored business data')
    }

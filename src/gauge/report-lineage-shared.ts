@@ -30,6 +30,7 @@ export interface ReportLineageInput {
  performance?: {asOf: string; byPerson: Value[]; byRole: Value[]; byClient: Value[]; byPeriod: Value[]}
  retainerBalances?: Value[]
  resourceDemand?: Value[]
+ forecast?: Value | null
 }
 
 export interface Evidence { sources: LineageSource[]; unknown: string[] }

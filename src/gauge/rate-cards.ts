@@ -38,7 +38,7 @@ export async function rateCard(env: Bindings, a: Actor, tx: Transaction, input: 
  need((after === undefined || after === '') === (multiplier === undefined || multiplier === ''), 'Overtime needs both a daily threshold and a multiplier')
  if (after !== undefined && after !== '') { v.overtimeAfterSeconds = integer(after, 'Overtime after seconds per day', 0, 86400); v.overtimeBps = integer(multiplier, 'Overtime multiplier in basis points', 10000, 30000) }
  if (input.writeDownBps !== undefined && input.writeDownBps !== '') v.writeDownBps = integer(input.writeDownBps, 'Write-down in basis points', 0, 10000)
- tx.guard("NOT EXISTS(SELECT 1 FROM g_rates WHERE COALESCE(json_extract(data,'$.personId'),'')=? AND COALESCE(json_extract(data,'$.role'),'')=? AND COALESCE(json_extract(data,'$.clientId'),'')=? AND COALESCE(json_extract(data,'$.engagementId'),'')=? AND json_extract(data,'$.service')=? AND json_extract(data,'$.effective')=?)", v.personId ?? '', v.role ?? '', v.clientId ?? '', v.engagementId ?? '', v.service, v.effective)
+ tx.guard("NOT EXISTS(SELECT 1 FROM g_rates WHERE COALESCE(json_extract(data,'$.personId'),'')=? AND COALESCE(json_extract(data,'$.role'),'')=? AND COALESCE(json_extract(data,'$.clientId'),'')=? AND COALESCE(json_extract(data,'$.engagementId'),'')=? AND json_extract(data,'$.service')=? AND json_extract(data,'$.effective')=? AND id NOT IN (SELECT json_extract(data,'$.rateId') FROM g_rateWithdrawals))", v.personId ?? '', v.role ?? '', v.clientId ?? '', v.engagementId ?? '', v.service, v.effective)
  return v
 }
 
@@ -52,6 +52,8 @@ function matches(r: Row, level: Level, person: Row, engagement: Row, service: st
  if (level === 'person') return v.personId === person.id
  return true
 }
+/** Cards still in precedence: a withdrawal (its own immutable record) removes a card for every later pricing. */
+export const activeRates = (rates: Row[], withdrawals: Row[]) => { const gone = new Set(withdrawals.map(w => w.value.rateId)); return rates.filter(r => !gone.has(r.id)) }
 const pick = (rows: Row[], service: string) => [...rows].sort((x, y) => Number(y.value.service === service) - Number(x.value.service === service) || y.value.effective.localeCompare(x.value.effective))[0]
 
 /** Every card considered at each level and the one that won, for the explain view and the frozen trace. */
@@ -65,11 +67,11 @@ export const traceOf = (x: ReturnType<typeof explain>) => x.levels.map(l => ({ l
 
 /** The frozen economics of one approval: the chosen card (or entry override), overtime, write-down and declared cost. */
 export async function freeze(env: Bindings, tx: Transaction, row: Row, engagement: Row, terms: { mode: string, roundingSeconds: number, budgetId: string | null }) {
- const v = row.value, observedRates = await all(env, 'rates'), person = await get(env, 'people', v.personId); tx.observe('people', person)
+ const v = row.value, observedRates = await all(env, 'rates'), withdrawals = await all(env, 'rateWithdrawals'), person = await get(env, 'people', v.personId); tx.observe('people', person)
  // Fence all candidate cards: insertion during review cannot silently select a different version.
  for (const observed of observedRates) tx.observe('rates', observed)
- tx.guard('(SELECT COUNT(*) FROM g_rates)=?', observedRates.length)
- const x = explain(observedRates, person, engagement, v.service, v.workDate), card = x.bill?.chosen, costCard = x.cost?.chosen
+ tx.guard('(SELECT COUNT(*) FROM g_rates)=?', observedRates.length); tx.guard('(SELECT COUNT(*) FROM g_rateWithdrawals)=?', withdrawals.length)
+ const x = explain(activeRates(observedRates, withdrawals), person, engagement, v.service, v.workDate), card = x.bill?.chosen, costCard = x.cost?.chosen
  const seconds = v.durationSeconds ?? Math.round((v.end - v.start) / 1000)
  const costKind = person.value.employmentType === 'contractor' || person.value.contractor ? '1099-contract' : 'w2-loaded'
  const cost = { costRateId: costCard?.id ?? null, costLevel: x.cost?.level ?? null, costMinor: costCard?.value.costMinor == null ? null : charge(seconds, costCard.value.costMinor), costCurrency: costCard?.value.costMinor == null ? null : costCurrencyOf(costCard), costKind: costCard?.value.costMinor == null ? null : costKind }
@@ -98,6 +100,14 @@ export async function freeze(env: Bindings, tx: Transaction, row: Row, engagemen
 
 /** Finance's negotiated per-entry override, frozen at approval; staff never see it. */
 export async function rateCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | null> {
+ // A withdrawn card leaves precedence for every later pricing (explain, new approvals, FINANCE-006 forecasts);
+ // approvals already frozen keep the card they used.
+ if (action === 'rate:withdraw') {
+  need(finance(a), 'Finance access required', 403)
+  const card = await get(env, 'rates', text(input.id, 'Rate card')); need(card.revision === input.revision, 'Rate card changed; reload', 409)
+  tx.observe('rates', card); tx.guard("NOT EXISTS(SELECT 1 FROM g_rateWithdrawals WHERE json_extract(data,'$.rateId')=?)", card.id)
+  return tx.record('rateWithdrawals', { rateId: card.id, rateRevision: card.revision, reason: text(input.reason, 'Withdrawal reason'), withdrawnBy: a.session.operator.id, withdrawnAt: Date.now() }, undefined, undefined, action)
+ }
  if (action !== 'rate:entry') return null
  need(finance(a), 'Finance access required', 403)
  const row = await get(env, 'time', text(input.id, 'Entry')); need(row.revision === input.revision, 'Entry changed; reload', 409)
@@ -113,6 +123,6 @@ export async function rateCommand(env: Bindings, a: Actor, tx: Transaction, acti
 export async function explainRate(env: Bindings, a: Actor, q: { personId: string, engagementId: string, service: string, date: string }) {
  need(finance(a), 'Finance access required', 403)
  const person = await get(env, 'people', text(q.personId, 'Person')), engagement = await get(env, 'engagements', text(q.engagementId, 'Engagement')), service = text(q.service, 'Service'), day = date(q.date)
- const x = explain(await all(env, 'rates'), person, engagement, service, day), view = (r?: Row): Value | null => r ? { id: r.id, ...r.value } : null
+ const x = explain(activeRates(await all(env, 'rates'), await all(env, 'rateWithdrawals')), person, engagement, service, day), view = (r?: Row): Value | null => r ? { id: r.id, ...r.value } : null
  return { personId: person.id, engagementId: engagement.id, service, date: day, precedence: ['entry', ...billLevels], costPrecedence: [...costLevels], levels: x.levels.map(l => ({ level: l.level, candidates: l.candidates.map(view), chosen: l.chosen?.id ?? null })), bill: x.bill ? { level: x.bill.level, rate: view(x.bill.chosen) } : null, cost: x.cost ? { level: x.cost.level, rate: view(x.cost.chosen) } : null }
 }

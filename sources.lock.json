@@ -1029,6 +1029,10 @@
       "sha256": "742f40e50556fbef54ec06282c0ec0d774ca5e484dbc48ea7c9842cff25e273d",
       "executable": false
     },
+    "src/gauge/rate-cards.ts": {
+      "sha256": "52ceb1c0dcd6cadbe65eaea997b5851ede52d82c69a67529563a8d4600b2281e",
+      "executable": false
+    },
     "src/gauge/report-export.ts": {
       "sha256": "f4c111e1ff85d2802aef48464ac7e3e847db7e43cd46543907108938f0ff589d",
       "executable": false
@@ -1215,6 +1219,10 @@
     },
     "src/gauge/ui-proposals.ts": {
       "sha256": "b714a4b0b9348fc306a9ad083a2b94101fa0b2b9d528a6570130ef6d9238ed37",
+      "executable": false
+    },
+    "src/gauge/ui-rate-cards.ts": {
+      "sha256": "f4f7783f14458fbbbc8b8dff440718ec1ee7e3e817cc6f9b34ba0d00192279ce",
       "executable": false
     },
     "src/gauge/ui-recovery.ts": {
@@ -3063,6 +3071,10 @@
     },
     "tests/gauge-portability.mjs": {
       "sha256": "c3a7f0e888e579884b5c5961714aaab8c7d70a8fea9f156bef30ed05d0f5dee0",
+      "executable": false
+    },
+    "tests/gauge-rate-cards.mjs": {
+      "sha256": "243fd2bb5eeafe48d738b0fb71b31c9f804f71bfc08641bef9e1881cbf4989f4",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {

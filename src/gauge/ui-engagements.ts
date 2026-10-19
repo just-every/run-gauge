@@ -10,6 +10,7 @@ import { meter } from './ui-meter'
 import type { Report } from './ui-describe'
 import { economicsCard, estimateOf } from './ui-review'
 import { pipelineSection } from './ui-pipeline'
+import { retainerSection } from './ui-retainers'
 import { deliveryScheduleSection } from './ui-delivery-schedule'
 import { taskEditor, tasksSection } from './ui-tasks'
 import { resourceProfileFields } from './ui-resource-profiles'
@@ -46,7 +47,7 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   const economics = econ ? `<section class="g-card g-card--strong"><h2>Engagement economics</h2><div class="g-econ-detail">${economicsCard(report, a, econ, false)}<p class="g-big"><span>Remaining effort</span><strong class="g-num">${hours(econ.remainingSeconds)}</strong></p></div></section>` : ''
   const forms = (finance(a) ? engagementForm() : '') + (manager ? (x.type==='internal'?taskForm(id):terms(id) + taskForm(id) + milestoneForm(id)) : '')
   return `<nav class="g-crumbs" aria-label="Breadcrumb"><a href="/app/engagements">Engagements</a><span aria-hidden="true">/</span><span aria-current="page">${e(x.name)}</span></nav><div class="g-titlebar"><h1>${e(x.name)}</h1></div>`
-   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${taskCard}${milestoneCard}${deliveryScheduleSection(a,report,id,{...options,today})}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
+   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${taskCard}${milestoneCard}${deliveryScheduleSection(a,report,id,{...options,today})}${retainerSection(a,report,id,{...options,today})}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
  }
  let body = '<div class="g-titlebar"><h1>Engagements and agreed work</h1></div>'
  body += table('Engagements', d.engagements, [

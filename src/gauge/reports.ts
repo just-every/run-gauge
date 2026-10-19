@@ -7,6 +7,8 @@ import { type Actor, finance, all, fence } from './store'
 import { correctionReviews } from './billing-corrections'
 import { canDecide } from './proposals'
 import { utilization } from './utilization'
+import { retainerCovers } from './retainer-eligibility'
+import { retainerConsumption } from './retainer-consumption'
 import { resourceDemand } from './resource-demand'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
@@ -26,13 +28,14 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const agent = a.role==='agent', ids = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
  data.timeFavorites=data.timeFavorites.filter(r=>ids.has(r.value.engagementId)&&r.value.personId===(a.role==='owner'&&favoritePersonId?favoritePersonId:a.personId))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
- for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
+ for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
   data.rates=[]; data.packets=[]; data.archives=[]
   const leadIds=new Set(data.engagements.filter(e=>agent || (a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
   // Agents see what they prepared; leads see staffing, time and change orders on their engagements; everyone sees time drafted for them. Billing proposals are finance's.
   data.proposals=data.proposals.filter(r=>agent ? r.value.preparedBy===a.session.operator.id : (leadIds.has(r.value.engagementId) && r.value.kind!=='billing') || (r.value.kind==='time' && r.value.plan.personId===a.personId))
   for (const k of ['time','expenses'] as Kind[]) data[k]=data[k].filter(r=>agent ? r.value.status==='approved' : r.value.personId===a.personId || leadIds.has(r.value.engagementId))
+  data.agencyCalendars=[];data.retainers=agent?[]:data.retainers.filter(r=>leadIds.has(r.value.engagementId));data.retainerPeriods=agent?[]:data.retainerPeriods.filter(r=>leadIds.has(r.value.engagementId))
   data.budgets=data.budgets.filter(r=>leadIds.has(r.value.engagementId)); data.milestones=data.milestones.filter(r=>leadIds.has(r.value.engagementId))
   data.resourceRequests=data.resourceRequests.filter(r=>a.role==='lead'&&leadIds.has(r.value.engagementId))
   // People staffed or proposed for staffing on visible engagements are visible too, so a lead can weigh their capacity.
@@ -92,8 +95,8 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const reservations=(await env.DB.prepare('SELECT kind,source_id FROM g_billing_sources').all<{kind:string;source_id:string}>()).results
  for(const k of ['time','expenses','milestones','budgets'] as Kind[])for(const r of data[k]){
   if(r.value.status==='submitted'||((k==='milestones'||k==='budgets')&&r.value.status==='draft'))exceptions.push({type:'decision due',source:`${k}:${r.id}`})
-  if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
+  if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&retainerCovers(data.retainers,r.value)?'retainer billing held':k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
- const report={agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
+ const report={retainerBalances:a.role==='agent'?[]:retainerConsumption(data),agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

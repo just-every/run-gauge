@@ -3,6 +3,7 @@ import { type Value, type Row, need, text, integer, money, date, zone, flag } fr
 import { type Actor, Transaction, finance, access, get } from './store'
 import { catalog } from './catalog'
 import { timeCommand } from './time'
+import { assertAdHocTime } from './retainer-eligibility'
 import { billingCommand } from './billing'
 
 // Agent preparation: an agent grant prepares evidence-backed
@@ -63,6 +64,7 @@ async function plan(env: Bindings, tx: Transaction, kind: string, engagement: Ro
    const row = await get(env, k as 'time', id), v = row.value
    need(v.engagementId === engagement.id && v.status === 'approved', `${source} is not approved work for this engagement`)
    need(!(await env.DB.prepare('SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=?').bind(k, id).first()), `${source} is already allocated to a billing packet`)
+   if (k === 'time') await assertAdHocTime(env,tx,v)
    if (k === 'time') need(v.billable && v.economics?.mode === 'hourly' && v.economics.billMinor !== null, `${source} lacks hourly terms or a bill rate`)
    if (k === 'expenses') need(v.reimbursable, `${source} is not reimbursable`)
   }

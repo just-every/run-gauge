@@ -30,6 +30,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
  // DELIVERY-002 / BASE-002: immutable dependency baselines travel with their source tasks.
  const delivery=await cmd('delivery:preview',{engagementId:internal.id,operation:'baseline',plan:{calendar:{weekdays:[1,2,3,4,5],holidays:['2026-10-05']},nodes:[{id:subtask.id,kind:'task',sourceId:subtask.id,name:'Prepare research notes',start:'2026-10-08',durationDays:1,predecessors:[],staffingIds:[]}]}})
  await cmd('delivery:approve',{...delivery.input,fingerprint:delivery.fingerprint,reason:'Portability delivery baseline',acceptEffects:true})
+ // RETAINER-001 / BASE-002: commercial terms, calendars and individual periods round-trip.
+ await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:['2026-10-05'],reason:'Agency calendar for retained commercial periods'})
+ const retainer=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{name:'Quarterly research retainer',frequency:'quarterly',unit:'hours',allowance:144000,services:['Research'],consumes:'billable',proration:'working',start:'2026-10-16',end:null,renewal:'automatic',noticeDays:14}})
+ await cmd('retainer:approve',{...retainer.input,fingerprint:retainer.fingerprint,reason:'Reviewed quarterly research allowance'})
  const favoriteUser=await h.invite('portability-timesheet-person');await cmd('grant',{operatorId:favoriteUser.id,personId:person.id,role:'staff',enabled:true})
  const favorite=await cmd('time:favorite',{personId:person.id,taskId:task.id,name:'Research training',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
  await cmd('time:favorite',{...favorite,personId:person.id,taskId:task.id,name:'Research workshop',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
@@ -73,7 +77,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  // Restore preserves business values, not SQLite insertion order. Compare records
  // by stable identity; derived groups and source sets have no positional meaning.
  const unordered=value=>Array.isArray(value)?value.map(unordered).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,unordered(v)])):value
- const stable=report=>({agency:report.agency,data:Object.fromEntries(Object.entries(report.data).map(([kind,rows])=>[kind,[...rows].sort((a,b)=>a.id.localeCompare(b.id))])),...Object.fromEntries(['capacity','economics','pipeline','resourceDemand','utilization','correctionReviews'].map(key=>[key,unordered(report[key])]))})
+ const stable=report=>({agency:report.agency,data:Object.fromEntries(Object.entries(report.data).map(([kind,rows])=>[kind,[...rows].sort((a,b)=>a.id.localeCompare(b.id))])),...Object.fromEntries(['capacity','economics','pipeline','resourceDemand','utilization','correctionReviews','retainerBalances'].map(key=>[key,unordered(report[key])]))})
  return async persistenceDirectory=>{
   const restored=await harness({persistenceDirectory,beforeLogin:async({request,post})=>{
    for(const cookie of [owner,agent.cookie,favoriteUser.cookie]){

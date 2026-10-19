@@ -1,6 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { type Value, type Kind, need, text, csv, money, sum } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
+import { assertAdHocTime } from './retainer-eligibility'
 import { correctionReview } from './billing-corrections'
 export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,action: string,input: Value) {
  if (!action.startsWith('packet:')) return null
@@ -19,7 +20,7 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
    const currency = k === 'time' ? v.economics?.currency : k === 'milestones' ? v.currency ?? e.value.currency : v.currency
    need(currency === e.value.currency, 'Source currency differs from engagement; no implicit FX')
    let amount:number, description:string
-   if (k==='time') { need(v.billable && !v.source?.billed && v.economics?.mode==='hourly' && v.economics.billMinor!==null,'Time needs approved hourly terms and a bill rate and must be unbilled'); amount=v.economics.billMinor; description=v.notes; }
+   if (k==='time') { await assertAdHocTime(env,tx,v); need(v.billable && !v.source?.billed && v.economics?.mode==='hourly' && v.economics.billMinor!==null,'Time needs approved hourly terms and a bill rate and must be unbilled'); amount=v.economics.billMinor; description=v.notes; }
    else if (k==='expenses') { need(v.reimbursable,'Expense is not reimbursable'); amount=v.amountMinor; description=v.description }
    else { amount=v.amountMinor; description=v.name }
    lines.push({kind:k,sourceId:id,sourceRevision:row.revision,description,amountMinor:amount,currency,durationSeconds:v.durationSeconds ?? null,billRateMinor:v.economics?.billRateMinor??null,roundedBillingSeconds:v.economics?.roundedBillingSeconds??null,roundingSeconds:v.economics?.roundingSeconds??null,roundingPolicy:k==='time'?'ceil duration to increment; round amount half-up to cents':'exact approved minor units',rateUnit:k==='time'?`${currency} cents per hour`:null,rateId:v.economics?.rateId ?? null,budgetId:v.economics?.budgetId ?? v.budgetId ?? null})
@@ -54,7 +55,7 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
  need(input.currency === undefined || input.currency === row.value.currency, 'Currency differs from packet; no implicit FX')
  const e=await access(env,a,row.value.engagementId);tx.observe('engagements',e)
  need(e.value.currency === row.value.currency, 'Packet currency differs from engagement; no implicit FX')
- for (const l of row.value.lines) { const source=await get(env,l.kind,l.sourceId); need(source.revision===l.sourceRevision && source.value.status==='approved','Source revision changed',409); const currency=l.kind==='time'?source.value.economics?.currency:l.kind==='milestones'?source.value.currency??e.value.currency:source.value.currency; need(l.currency===row.value.currency && currency===row.value.currency, 'Packet source currencies differ; no implicit FX'); tx.observe(l.kind,source); tx.guard('EXISTS(SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=?)',l.kind,l.sourceId,l.sourceRevision) }
+ for (const l of row.value.lines) { const source=await get(env,l.kind,l.sourceId); if(l.kind==='time'&&!row.value.correctsPacketId)await assertAdHocTime(env,tx,source.value); need(source.revision===l.sourceRevision && source.value.status==='approved','Source revision changed',409); const currency=l.kind==='time'?source.value.economics?.currency:l.kind==='milestones'?source.value.currency??e.value.currency:source.value.currency; need(l.currency===row.value.currency && currency===row.value.currency, 'Packet source currencies differ; no implicit FX'); tx.observe(l.kind,source); tx.guard('EXISTS(SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=?)',l.kind,l.sourceId,l.sourceRevision) }
  need(sum(row.value.lines.map((l:Value)=>l.amountMinor))===row.value.totalMinor, 'Packet total differs from its source lines')
  if(row.value.correctsPacketId){const original=await get(env,'packets',row.value.correctsPacketId);need(original.value.currency===row.value.currency,'Adjustment currency differs from original packet; no implicit FX');tx.observe('packets',original)}
  const artifact=csv([['Gauge billing preparation',row.value.currency,'Not an invoice'],['kind','source id','approved revision','description','actual duration seconds','amount minor','currency','rate id','budget id','bill rate minor per hour','rounded billing seconds','rounding increment seconds','rounding policy','corrected source total minor'],...row.value.lines.map((l:Value)=>[l.kind,l.sourceId,l.sourceRevision,l.description,l.durationSeconds,l.amountMinor,l.currency,l.rateId,l.budgetId,l.billRateMinor,l.roundedBillingSeconds,l.roundingSeconds,l.roundingPolicy,l.correctedAmountMinor??'']),['TOTAL','','','','',row.value.totalMinor,row.value.currency]])

@@ -37,6 +37,7 @@ export function localValue(ms: number | string | null | undefined, timeZone: str
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
+ if(form.has('retainerInput'))Object.assign(input,JSON.parse(String(form.get('retainerInput'))))
  if(form.has('deliveryInput'))Object.assign(input,JSON.parse(String(form.get('deliveryInput'))))
  if(input.action==='delivery:preview'&&input.operation==='baseline') {
   input.previousId=input.previousId||null
@@ -57,5 +58,6 @@ export function formInput(form: FormData): Value {
   else continue
   delete input[key]
  }
+ if(input.action==='retainer:preview'&&input.operation==='terms'){input.terms={name:input.name,frequency:input.frequency,unit:input.unit,allowance:input.unit==='value'?input.allowanceMinor:input.allowanceSeconds,services:String(input.services??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean),consumes:input.consumes,proration:input.proration,start:input.start,end:input.end||null,renewal:input.renewal,noticeDays:input.noticeDays}}
  return input
 }

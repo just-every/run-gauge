@@ -13,6 +13,15 @@ export function buildLineage(report: ReportLineageInput) {
  economicLineage(c)
  capacityLineage(c)
  utilizationLineage(c)
+ for(const balance of report.retainerBalances??[]){
+  const period=c.rows('retainerPeriods').find(r=>r.id===balance.periodId)!
+  for(const field of ['allowance','consumed','remaining']){
+   const e=c.evidence();c.row(e,'retainerPeriods',period.id);c.row(e,'retainers',balance.retainerId)
+   if(field!=='allowance')for(const id of balance.sources){const row=c.rows('time').find(r=>r.id===id)!;c.timeEvidence(e,row)}
+   if(field!=='allowance')for(const id of balance.unknownSources)e.unknown.push(`time:${id}: approved bill value unknown or restricted`)
+   c.add(`retainer:${period.id}:${field}`,`Retainer ${field}`,balance[field],balance.unit==='hours'?'seconds':'minor',field==='allowance'?'Versioned allowance × active days / full period days; half up to cents or whole minutes.':field==='consumed'?'Eligible approved work by start work date, service and all/billable/nonbillable policy; actual seconds or frozen approved bill value.':'Immutable period entitlement minus eligible approved consumption.',e,balance.unit==='value'?balance.currency:null,field==='consumed'?balance.knownConsumed:undefined)
+  }
+ }
  for(const row of report.resourceDemand??[]){
   for(const field of ['unfilledSeconds','staffingSeconds','totalSeconds']){
    const e=c.evidence();c.row(e,'engagements',row.engagementId)

@@ -8,6 +8,7 @@ import { specialistHandoffSection } from './ui-specialist-handoff'
 import { capacitySection } from './ui-capacity'
 import { rateCardsSection } from './ui-rate-cards'
 import { apiKeysSection } from './ui-api-keys'
+import { approvalPolicySection, packetDecision } from './ui-approvals'
 
 const humanState = (state: string) => state.replace(/_/g, ' ')
 export async function operations(env:Bindings,a:Actor,section:string,options:Value,report:Report) {
@@ -46,7 +47,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    {label:'Lines',num:true,size:'num',line:2,cell:r=>{const n=(r.value.lines??[]).length;return `${n}<span class="g-brief">&nbsp;${n===1?'line':'lines'}</span>`}},
    {label:'Status',wrap: true,size:'status',line:2,cell:r=>chip(r.value.status)},
   ],r=>{
-   if(r.value.status==='draft')return decision('packet:approve','Approve exact packet',r)+decision('packet:cancel','Cancel draft',r,false,'secondary')
+   if(r.value.status==='draft')return packetDecision(a,d.approvalPolicies,r)
    if(r.value.status!=='approved')return ''
    const review=report.correctionReviews.find(x=>x.packetId===r.id)
    const adjust=review?`<details class="g-reveal"><summary class="g-btn g-btn--quiet">Prepare adjustment</summary>${review.sources.map(line=>form('packet:adjust',`Correct ${line.kind==='time'?'time':line.kind==='expenses'?'expense':'milestone'}: ${line.description}`,`<p class="g-note">Currently ${money(line.currentAmountMinor,r.value.currency)}</p><input type="hidden" name="sourceId" value="${e(line.sourceId)}"><input type="hidden" name="sourceKind" value="${e(line.kind)}">`+amount('correctedAmountDollars',`Correct total amount for this source (${r.value.currency})`,line.currentAmountMinor)+i('reason','Correction reason'),r,'Prepare adjustment','g-bare g-bare--titled')).join('')}</details>`:'<p class="g-note">Continue corrections from the latest reviewed packet in this branch.</p>'
@@ -82,6 +83,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    {label:'Gauge role',cell:r=>e(r.value.role.charAt(0).toUpperCase()+r.value.role.slice(1))},
    {label:'Enabled',cell:r=>r.value.enabled?'Yes':'No'},
   ],undefined,'No grants yet. The owner holds finance authority without one.')
+  body+=await approvalPolicySection(env,a,d.people,d.approvalPolicies)
   body+=await apiKeysSection(env,options.createdKey)
  }
  return body

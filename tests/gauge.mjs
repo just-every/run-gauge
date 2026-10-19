@@ -5,6 +5,7 @@ import {randomUUID} from 'node:crypto'
 import {portability} from './gauge-portability.mjs'
 import {prepareCurrentPortability} from './gauge-base-portability.mjs'
 import {harness} from './gauge-harness.mjs'
+import {governJourney} from './gauge-approvals.mjs'
 // A USD agency: RATE-002 declares new costs in USD, so cost totals sum with USD expenses (AUD buckets: gauge-currency.mjs).
 const h=await harness({currency:'USD'}),{cmd,state,request,post,owner}=h
 let count=0
@@ -185,6 +186,7 @@ try{
   assert(!(await state(alphaUser.cookie)).data.time.some(t=>t.id===third.id),'Revoked review leaves the delegate state')
   await cmd('time:approve',third,betaUser.cookie)
  })
+ await flow('GOVERN-001 cost export and credit by role, owner-set two-person limit, independent approver, audited grants',()=>governJourney(h,{eng,staff,leadUser,financeUser}))
  await flow('ACCESS-001 revocation and minimal replay acknowledgements',async()=>{
   await cmd('grant',{operatorId:financeUser.id,personId:p.id,role:'staff',enabled:true});const replay=await cmd('save:rates',receipt,financeUser.cookie);assert.deepEqual(Object.keys(replay).sort(),['id','revision','saved']);assert(!JSON.stringify(replay).includes('costMinor'))
   await cmd('grant',{operatorId:staff.id,personId:p.id,role:'staff',enabled:false});assert.equal((await request('/api/gauge/state',staff.cookie)).status,403);await cmd('time:submit',entry,staff.cookie,403)

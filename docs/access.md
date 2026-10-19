@@ -26,3 +26,7 @@ Save the grant again with **Enabled** cleared. It takes effect on that operator'
 ## Utilization API keys
 
 A sibling tool such as Easel can read the agency's utilization without anyone's sign-in. Under **Utilization API keys**, enter a **Key label** and choose **Create key**, then copy the key at once: Gauge shows it only this time and keeps only its fingerprint. The key reads the participant count, available hours and approved billable hours for a date range, with no names, rates, costs or pay, and cannot change anything. **Key activity** lists every creation, read and revocation. Choose **Revoke key** to stop it on its next request. Keys never travel in an export.
+
+## Two-person review and grant history
+
+On **Access**, the owner can set **Two-person review limit**: an adjustment (credit or increase) to an approved billing packet above that amount must be approved by an owner or finance person other than the one who prepared it. The preparer sees "Needs an independent approver" until someone else approves or the draft is cancelled. Leave the amount empty for no limit. **Grant history** lists every access change with who made it and when.

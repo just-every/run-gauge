@@ -30,6 +30,12 @@ export async function prepareCurrentPortability(h,{importJob}) {
  // DELIVERY-002 / BASE-002: immutable dependency baselines travel with their source tasks.
  const delivery=await cmd('delivery:preview',{engagementId:internal.id,operation:'baseline',plan:{calendar:{weekdays:[1,2,3,4,5],holidays:['2026-10-05']},nodes:[{id:subtask.id,kind:'task',sourceId:subtask.id,name:'Prepare research notes',start:'2026-10-08',durationDays:1,predecessors:[],staffingIds:[]}]}})
  await cmd('delivery:approve',{...delivery.input,fingerprint:delivery.fingerprint,reason:'Portability delivery baseline',acceptEffects:true})
+ // DELIVERY-003 / BASE-002: immutable template versions and the plan applied from one round-trip.
+ const kickoff={key:'kickoff',kind:'task',name:'Portable kickoff',offsetDays:0,durationDays:1,predecessors:[],owner:'lead',effortSeconds:3600}
+ const template=await cmd('template:save',{name:'Portable onboarding',purpose:'client-onboarding',items:[kickoff],reason:'Portable onboarding template'})
+ await cmd('template:save',{previousId:template.id,items:[kickoff,{key:'close',kind:'milestone',name:'Portable close',offsetDays:0,durationDays:1,predecessors:['kickoff'],amountMinor:50000}],reason:'Add a priced close'})
+ const onboarding=await cmd('save:engagements',{name:'Portable onboarding project',clientId:engagement.value.clientId,leadId:engagement.value.leadId,members:[],scope:'Started from a template',timezone:zone})
+ await cmd('template:apply',{templateId:template.id,engagementId:onboarding.id,start:'2026-10-12',reason:'Portable template application'})
  // RETAINER-001 / RETAINER-002 / BASE-002: commercial terms, calendars and individual periods round-trip.
  await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:['2026-10-05'],reason:'Agency calendar for retained commercial periods'})
  const retainer=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{name:'Quarterly research retainer',frequency:'quarterly',unit:'hours',allowance:144000,services:['Research'],consumes:'billable',proration:'working',start:'2026-10-16',end:null,renewal:'automatic',noticeDays:14,rules:{carryCap:28800,carryPeriods:2,deficit:false,overage:'bill',overageRate:18000}}})

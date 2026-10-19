@@ -18,6 +18,7 @@ import { taskCommand } from './tasks'
 import { retainerPreview, retainerCommand } from './retainers'
 import { deliveryPreview, deliveryCommand } from './delivery-schedule'
 import { schedulePreview } from './schedule-preview'
+import { templateCommand } from './delivery-templates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
@@ -31,6 +32,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  const tx=new Transaction(env,a)
  let result:Value|null=await retainerCommand(env,a,tx,action,input)
  if(!result)result=await deliveryCommand(env,a,tx,action,input)
+ if(!result)result=await templateCommand(env,a,tx,action,input)
  if(!result)result=await scheduleCommand(env,a,tx,action,input)
  if(!result)result=await resourceCommand(env,a,tx,action,input)
  if(!result)result=await opportunityCommand(env,a,tx,action,input)

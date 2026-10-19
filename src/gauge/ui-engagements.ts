@@ -12,6 +12,7 @@ import { economicsCard, estimateOf } from './ui-review'
 import { pipelineSection } from './ui-pipeline'
 import { retainerSection } from './ui-retainers'
 import { deliveryScheduleSection } from './ui-delivery-schedule'
+import { templateApplySection, templatesSection } from './ui-delivery-templates'
 import { taskEditor, tasksSection } from './ui-tasks'
 import { resourceProfileFields } from './ui-resource-profiles'
 
@@ -47,7 +48,7 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   const economics = econ ? `<section class="g-card g-card--strong"><h2>Engagement economics</h2><div class="g-econ-detail">${economicsCard(report, a, econ, false)}<p class="g-big"><span>Remaining effort</span><strong class="g-num">${hours(econ.remainingSeconds)}</strong></p></div></section>` : ''
   const forms = (finance(a) ? engagementForm() : '') + (manager ? (x.type==='internal'?taskForm(id):terms(id) + taskForm(id) + milestoneForm(id)) : '')
   return `<nav class="g-crumbs" aria-label="Breadcrumb"><a href="/app/engagements">Engagements</a><span aria-hidden="true">/</span><span aria-current="page">${e(x.name)}</span></nav><div class="g-titlebar"><h1>${e(x.name)}</h1></div>`
-   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${taskCard}${milestoneCard}${deliveryScheduleSection(a,report,id,{...options,today})}${retainerSection(a,report,id,{...options,today})}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
+   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${taskCard}${milestoneCard}${templateApplySection(a,report,id,today)}${deliveryScheduleSection(a,report,id,{...options,today})}${retainerSection(a,report,id,{...options,today})}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
  }
  let body = '<div class="g-titlebar"><h1>Engagements and agreed work</h1></div>'
  body += table('Engagements', d.engagements, [
@@ -61,5 +62,5 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   body += `<div class="g-pair">${table('Clients', d.clients, [{ label: 'Client', cell: r => open('engagements', r, r.value.name) }])}${table('People', d.people, [{ label: 'Name', cell: r => open('engagements', r, r.value.name) }, { label: 'Work timezone', cell: r => e(r.value.timezone) }, { label: 'Contractor', cell: r => yesNo(r.value.contractor) }])}</div>`
   body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${engagementForm()}${form('save:clients', 'Client', i('name', 'Client name', v('clients').name), edit('clients'))}${form('save:people', 'Person', i('name', 'Name', p.name) + i('timezone', 'Work timezone', p.timezone ?? report.agency.timezone) + resourceProfileFields(p), edit('people'))}${terms()}${taskForm()}${milestoneForm()}</div>`
  } else if (manager) body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${terms()}${taskForm()}${milestoneForm()}</div>`
- return body + tasksSection(a,report,options) + pipelineSection(a, report, options.opportunity)
+ return body + tasksSection(a,report,options) + templatesSection(a,report) + pipelineSection(a, report, options.opportunity)
 }

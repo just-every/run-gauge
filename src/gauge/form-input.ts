@@ -44,6 +44,11 @@ export function formInput(form: FormData): Value {
   input.plan={calendar:{weekdays:form.getAll('weekdays').map(Number),holidays:String(form.get('deliveryHolidays')??'').split(',').map(s=>s.trim()).filter(Boolean)},nodes:form.getAll('nodeId').map(String).filter(id=>form.has(`include:${id}`)).map(id=>({id,kind:form.get(`nodeKind:${id}`),sourceId:form.get(`nodeSource:${id}`)||null,name:form.get(`nodeName:${id}`),start:form.get(`start:${id}`),durationDays:Number(form.get(`duration:${id}`)),predecessors:form.getAll(`predecessors:${id}`).map(String),staffingIds:form.getAll(`staffing:${id}`).map(String)}))}
  }
 
+ if(input.action==='template:save'&&form.has('itemLines')){
+  // One item per line: key | kind | name | offset days | duration days | after keys | owner | effort hours | fee.
+  input.items=String(form.get('itemLines')).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{const [key,kind,name,offsetDays,durationDays,after='',owner='',effort='',fee='']=line.split('|').map(s=>s.trim());return {key,kind,name,offsetDays,durationDays,predecessors:after.split(',').map(s=>s.trim()).filter(Boolean),owner:owner||null,effortSeconds:effort===''?0:Math.round(decimal(effort,'Effort hours')*3600),amountMinor:fee===''?(kind==='milestone'?'':null):cents(fee)}})
+  delete input.itemLines;input.previousId=input.previousId||null
+ }
  if(input.gridDate){input.startLocal=`${input.gridDate}T${input.startClock}`;input.endLocal=`${input.gridDate}T${input.endClock}`;delete input.startClock;delete input.endClock;delete input.gridDate}
  if(form.get('action')==='task:progress')input.completedItems=form.getAll('completedItems')
  for (const name of lists) if (form.getAll(name).length) input[name] = form.getAll(name)

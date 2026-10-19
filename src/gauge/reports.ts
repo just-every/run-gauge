@@ -34,6 +34,8 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
   data.rates=[]; data.packets=[]; data.archives=[]
+  // Agency delivery templates are planning configuration for those who start projects.
+  if(a.role!=='lead')data.deliveryTemplates=[]
   const leadIds=new Set(data.engagements.filter(e=>agent || (a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
   // Agents see what they prepared; leads see staffing, time and change orders on their engagements; everyone sees time drafted for them. Billing proposals are finance's.
   data.proposals=data.proposals.filter(r=>agent ? r.value.preparedBy===a.session.operator.id : (leadIds.has(r.value.engagementId) && r.value.kind!=='billing') || (r.value.kind==='time' && r.value.plan.personId===a.personId))

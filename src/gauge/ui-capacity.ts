@@ -10,6 +10,7 @@ import { columns, lanes, board, mondayOf, shift } from './ui-board'
 import { recoveryPanel, worklog } from './ui-recovery'
 import { reports } from './reports'
 import { utilizationSection } from './ui-utilization'
+import { resourcesSection } from './ui-resources'
 
 export async function capacitySection(env: Bindings, a: Actor, report: Report, options: Value) {
  const d = report.data, today: string = options.today, zone: string = options.zone, weeks = options.view === 'weeks', monday = report.from
@@ -27,6 +28,7 @@ export async function capacitySection(env: Bindings, a: Actor, report: Report, o
  body += `<div class="g-workspace"><section class="g-board-wrap" aria-label="Staffing board">${grid}</section>${await recoveryPanel(env, a, report, zone, today)}</div>${await worklog(env, report, zone, today, week)}`
  const utilizationFrom=options.utilizationFrom??monday,utilizationTo=options.utilizationTo??shift(utilizationFrom,6)
  body += utilizationSection(await reports(env,a,utilizationFrom,utilizationTo),options)
+ body += await resourcesSection(env,a,report,options)
 
  const calendar = d.calendars.find(r => r.id === options.edit), leave = d.leave.find(r => r.id === options.edit), staffing = d.staffing.find(r => r.id === options.edit)
  const fields = (row: any, people = d.people, label = 'Hours per date') => s('personId', 'Person', people, row?.value.personId ?? a.personId) + i('from', 'From', row?.value.from ?? today, 'date') + i('to', 'Through', row?.value.to ?? today, 'date') + duration('dailyHours', label, row?.value.dailySeconds ?? 28800)

@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 3 | 47 | 71 | 121 |
-| All | 20 | 47 | 71 | 138 |
+| Target and push further | 4 | 47 | 70 | 121 |
+| All | 21 | 47 | 70 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -450,7 +450,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `RETAINER-003` | Explained remaining balance | target | missing |  | No retainer statements, source allocation or balance reporting. |
 | `RETAINER-004` | Retainer period corrections | target | missing |  | No retainer close, correction or lifecycle workflow. |
 | `RETAINER-005` | Scheduled retainer billing | target | missing |  | No recurring schedule, retainer budget rollover or automatic invoice draft. |
-| `RESOURCE-001` | Skills and resource requests | target | missing |  | No skills catalogue, staffing requests or role placeholders. |
+| `RESOURCE-001` | Skills and resource requests | target | done | `src/gauge/resource-profiles.ts`; `src/gauge/resource-candidates.ts`; `src/gauge/resources.ts`; `src/gauge/ui-resources.ts`; `tests/gauge-resources.mjs` — RESOURCE-001 | Skills, proficiency, team, location, employment and role needs feed scoped dated candidate search with private effective costs. Exact lead approval atomically replaces unfilled demand with one named committed allocation, preserving competing work and refusing stale or duplicate fills. |
 | `RESOURCE-002` | Portfolio resource schedule | target | partial | `src/gauge/catalog.ts`; `src/gauge/reports.ts`; `src/gauge/ui-capacity.ts`; `tests/gauge.mjs` | Daily cross-project allocation totals ship; interactive moves/splits, search and unfilled-demand scheduling are absent. |
 | `RESOURCE-003` | Leave and holiday approvals | target | partial | `src/gauge/catalog.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` | Dated calendars and private leave exist; holiday calendars, leave approval, HRIS time-off sync and delivered conflict notifications do not. |
 | `RESOURCE-004` | Scheduled versus actual utilization | target | done | `src/gauge/utilization.ts`; `src/gauge/ui-utilization.ts`; `src/gauge/report-lineage-utilization.ts`; `tests/gauge-utilization.mjs` — RESOURCE-004 | Person/service/project/detail comparisons reconcile committed, tentative, recorded, pending and approved hours. Every ratio states numerator and denominator with holiday/leave/calendar explanations and scoped sources; internal client-free work raises total utilization only. |

@@ -8,17 +8,19 @@ import { appPage, historyPage, tabsFor } from './ui'
 import { importCommand } from './imports'
 import { formInput } from './form-input'
 import { reportCsv } from './report-export'
+import { resourceCandidates } from './resource-candidates'
 // The page an /app/action form belongs to: its result (or refusal) shows there.
-const sectionFor=(action:string)=>action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('packet:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'?'access':action==='save:rates'?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
+const sectionFor=(action:string)=>action.startsWith('resource:')||action==='save:resourceRequests'?'capacity':action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('packet:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'?'access':action==='save:rates'?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
 const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-content-type-options':'nosniff','x-robots-tag':'noindex','content-security-policy':"default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
  // Resolve complete declared paths before admitting a command or reading its body.
  const mutation=path==='/api/gauge/command'||path==='/app/action'
  const historyRoute=path.match(/^\/api\/gauge\/history\/([^/%]+)\/([^/%]+)$/)
+ const resourceRoute=path.match(/^\/api\/gauge\/resources\/([^/%]+)$/)
  const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports)\/([^/%]+)$/)
  const page=path==='/app'?'review':path.match(/^\/app\/(review|engagements|time|expenses|capacity|rates|billing|imports|access)$/)?.[1]
- if((!mutation&&!historyRoute&&!download&&!['/api/gauge/state','/api/gauge/report.csv'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
+ if((!mutation&&!historyRoute&&!resourceRoute&&!download&&!['/api/gauge/state','/api/gauge/report.csv'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
  const env=runtimeBindings(original)
  // A refused page form shows its reason on the page it came from; programs keep the JSON answer.
  let refused:{a:Actor,action:string}|undefined
@@ -42,6 +44,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    const back=typeof input.page==='string'&&tabsFor(a).includes(input.page)?input.page:sectionFor(action)
    return new Response(null,{status:303,headers:{...headers,location:`/app/${back}?saved=1`}})
   }
+  if(resourceRoute)return Response.json(await resourceCandidates(env,a,await get(env,'resourceRequests',resourceRoute[1])),{headers})
   if(historyRoute){const k=kind(historyRoute[1]),id=historyRoute[2];await get(env,k,id);const data=await visible(env,a);need(data[k].some(r=>r.id===id),'This record is not visible to you',403);const history=(await env.DB.prepare('SELECT revision,data,actor,action,at FROM g_history WHERE kind=? AND record_id=? ORDER BY id').bind(k,id).all<any>()).results.map(h=>({revision:h.revision,value:redact(a,k,JSON.parse(h.data)),actor:h.actor,action:h.action,at:h.at}));await fence(env,a);if(request.headers.get('accept')?.includes('text/html'))return new Response(await historyPage(env,a,k,id,data,history),{headers:{...headers,'content-type':'text/html; charset=utf-8',vary:'accept'}});return Response.json({id,kind:k,history},{headers:{...headers,vary:'accept'}})}
   if(download?.[1]==='files'){const id=download[2];const file=await env.DB.prepare('SELECT *,hex(bytes) AS bytes_hex FROM g_files WHERE id=?').bind(id).first<any>();need(file,'Attachment not found',404);const expense=await get(env,'expenses',file.expense_id);await access(env,a,expense.value.engagementId);need(finance(a)||a.personId===expense.value.personId,'Attachment access requires finance or ownership',403);await fence(env,a);return new Response(Buffer.from(file.bytes_hex,'hex'),{headers:{...headers,'content-type':'application/octet-stream','content-disposition':`attachment; filename="receipt-${id}"`}})}
   if(download?.[1]==='packets'){need(finance(a),'Finance access required',403);const packet=await get(env,'packets',download[2]);need(packet.value.status==='approved','Approve the exact packet before downloading',409);const tx=new Transaction(env,a);tx.observe('packets',packet);tx.sql('INSERT INTO g_exports(packet_id,actor,exported_at) VALUES(?,?,?) ON CONFLICT(packet_id) DO NOTHING',packet.id,a.session.operator.id,Date.now());await tx.commit();return new Response(packet.value.artifact,{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="gauge-${packet.id}.csv"`}})}
@@ -53,7 +56,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    need(url.searchParams.get('fingerprint')===report.fingerprint,'Report inputs changed; refresh the report before exporting',409)
    await fence(env,a);return new Response(reportCsv(report),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="gauge-report-calculations.csv"'}})
   }
-  if(page)return new Response(await appPage(env,a,page,{from:url.searchParams.get('from'),to:url.searchParams.get('to'),edit:url.searchParams.get('edit'),opportunity:url.searchParams.get('opportunity'),calculation:url.searchParams.get('calculation'),view:url.searchParams.get('view'),utilizationFrom:url.searchParams.get('utilizationFrom'),utilizationTo:url.searchParams.get('utilizationTo'),utilizationGroup:url.searchParams.get('utilizationGroup'),saved:url.searchParams.get('saved')==='1'}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
+  if(page)return new Response(await appPage(env,a,page,{from:url.searchParams.get('from'),to:url.searchParams.get('to'),edit:url.searchParams.get('edit'),opportunity:url.searchParams.get('opportunity'),calculation:url.searchParams.get('calculation'),view:url.searchParams.get('view'),resourceRequest:url.searchParams.get('resourceRequest'),utilizationFrom:url.searchParams.get('utilizationFrom'),utilizationTo:url.searchParams.get('utilizationTo'),utilizationGroup:url.searchParams.get('utilizationGroup'),saved:url.searchParams.get('saved')==='1'}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
   return new Response('Not found',{status:404,headers})
  }catch(error){
   const message=error instanceof Fault?error.message:error instanceof Error&&/IMPORT_|NATIVE_EDIT|SOURCE_|PLAN_|RECONCIL|CONFLICT/.test(error.message)?error.message:'Operation refused: data changed, overlaps, dependencies or unavailable storage. Reload and review before retrying.',status=error instanceof Fault?error.status:409

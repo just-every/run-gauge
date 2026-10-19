@@ -27,6 +27,7 @@ export interface ReportLineageInput {
  exceptions: Value[]
  correctionReviews?: Value[]
  utilization?: {byPerson: Value[]; byService: Value[]; byProject: Value[]; details: Value[]}
+ resourceDemand?: Value[]
 }
 
 export interface Evidence { sources: LineageSource[]; unknown: string[] }

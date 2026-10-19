@@ -35,3 +35,11 @@ Choose dates and group by person, service, project or the person/project/service
 Every percentage shows its numerator and denominator. Billable and total hours divide by net calendar capacity after holidays and leave. Approved billable hours also divide by the committed schedule, with a separate ratio that includes tentative hours. Each participant's calendar counts once within a group, even across multiple services or projects. Missing calendars and zero capacity show an unknown percentage. Reports cover only work you can see.
 
 Open **Source records** to follow staffing and each time status to its record, or inspect the calendar, holiday and leave deductions date by date. **Download utilization calculations CSV** exports the same dated figures, formulas and permitted source revisions; changed inputs require a refreshed download.
+
+## Skills and resource requests
+
+Finance keeps people's role, team, location, employment type and skill proficiency on Engagements. Skills use levels 1–5, for example `UX:4, Research:3`. Staffing shows the agency skills catalogue without exposing private rates.
+
+The lead creates a role request with required skill, minimum proficiency, dates and hours per date, optionally narrowing by team, location or employment type. Every requested date needs known capacity; split requests around non-working dates. Open the role to find qualified employees and contractors. Availability deducts all committed work, holidays and leave while keeping private project details and leave reasons hidden. Missing calendars and insufficient daily capacity show a reason instead of a feasible choice.
+
+Finance also sees the requested labor's declared cost, using the rate effective on each day. Missing rates leave cost unknown; leads receive no cost or rate details. **Approve and staff** rechecks the exact search, replaces the unfilled role with one committed named allocation and assigns the person to the engagement. Changed inputs require a new search. Replayed or racing approvals cannot duplicate the allocation. **Demand without duplicates** reconciles unfilled roles plus named staffing for the board's reporting dates.

@@ -31,7 +31,7 @@
     "deps": "rer install",
     "rer": "rer",
     "test:site": "node --test tests/site/*.test.mjs",
-    "test:gauge": "node tests/gauge.mjs && node tests/gauge-currency.mjs && node tests/gauge-pipeline.mjs && node tests/gauge-report-lineage.mjs && node tests/gauge-utilization.mjs && node tests/gauge-agent.mjs && node --test --test-concurrency=1 tests/gauge-forecast.mjs",
+    "test:gauge": "node tests/gauge.mjs && node tests/gauge-currency.mjs && node tests/gauge-pipeline.mjs && node tests/gauge-report-lineage.mjs && node tests/gauge-utilization.mjs && node tests/gauge-resources.mjs && node tests/gauge-agent.mjs && node --test --test-concurrency=1 tests/gauge-forecast.mjs",
     "source:lock": "node scripts/edition-authoring/cli.mjs lock",
     "source:check": "node scripts/edition-authoring/cli.mjs check && node scripts/edition-authoring/cli.mjs verify-base --offline"
   },

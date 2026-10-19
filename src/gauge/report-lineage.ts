@@ -13,6 +13,14 @@ export function buildLineage(report: ReportLineageInput) {
  economicLineage(c)
  capacityLineage(c)
  utilizationLineage(c)
+ for(const row of report.resourceDemand??[]){
+  for(const field of ['unfilledSeconds','staffingSeconds','totalSeconds']){
+   const e=c.evidence();c.row(e,'engagements',row.engagementId)
+   if(field!=='staffingSeconds')for(const id of row.requestSources)c.row(e,'resourceRequests',id)
+   if(field!=='unfilledSeconds')for(const id of row.staffingSources)c.row(e,'staffing',id)
+   c.add(`resourceDemand:${row.engagementId}:${field}`,field,row[field],'seconds',`${field}: daily requested/allocation seconds × covered report dates. Only open requests count as unfilled; filled requests count through their one named staffing allocation.`,e)
+  }
+ }
  pipelineLineage(c)
  exceptionLineage(c)
  correctionLineage(c)

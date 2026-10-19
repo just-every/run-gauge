@@ -7,6 +7,7 @@ import { type Actor, finance, all, fence } from './store'
 import { correctionReviews } from './billing-corrections'
 import { canDecide } from './proposals'
 import { utilization } from './utilization'
+import { resourceDemand } from './resource-demand'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 const amounts = ['amountMinor','budgetMinor','totalMinor','costMinor','billMinor']
@@ -24,7 +25,7 @@ export async function visible(env: Bindings,a: Actor) {
  // An agent reads every engagement it may prepare for, approved work only, and no amounts.
  const agent = a.role==='agent', ids = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
- for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
+ for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
   data.rates=[]; data.packets=[]; data.archives=[]
   const leadIds=new Set(data.engagements.filter(e=>agent || (a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
@@ -32,6 +33,7 @@ export async function visible(env: Bindings,a: Actor) {
   data.proposals=data.proposals.filter(r=>agent ? r.value.preparedBy===a.session.operator.id : (leadIds.has(r.value.engagementId) && r.value.kind!=='billing') || (r.value.kind==='time' && r.value.plan.personId===a.personId))
   for (const k of ['time','expenses'] as Kind[]) data[k]=data[k].filter(r=>agent ? r.value.status==='approved' : r.value.personId===a.personId || leadIds.has(r.value.engagementId))
   data.budgets=data.budgets.filter(r=>leadIds.has(r.value.engagementId)); data.milestones=data.milestones.filter(r=>leadIds.has(r.value.engagementId))
+  data.resourceRequests=data.resourceRequests.filter(r=>a.role==='lead'&&leadIds.has(r.value.engagementId))
   // People staffed or proposed for staffing on visible engagements are visible too, so a lead can weigh their capacity.
   const staffed=new Set([...data.staffing.map(r=>r.value.personId),...data.proposals.flatMap(r=>r.value.kind==='staffing'?r.value.plan.alternatives.map((x:any)=>x.personId):[])])
   data.people=data.people.filter(r=>r.id===a.personId || staffed.has(r.id) || data.engagements.some(e=>e.value.leadId===r.id || e.value.members?.includes(r.id)))
@@ -41,7 +43,7 @@ export async function visible(env: Bindings,a: Actor) {
  const clientIds=new Set([...data.engagements,...data.opportunities].map(r=>r.value.clientId)); if(!finance(a))data.clients=data.clients.filter(r=>clientIds.has(r.id))
  await fence(env,a); return data
 }
-export function capacity(data: Awaited<ReturnType<typeof visible>>,from: string,to: string) {
+export function capacity(data: Pick<Awaited<ReturnType<typeof visible>>,'people'|'calendars'|'leave'|'staffing'>,from: string,to: string) {
  date(from);date(to);need(to>=from && Date.parse(to)-Date.parse(from)<=366*86400000,'Choose a capacity window of up to one year')
  return data.people.map(person=>{
   let available=0,committed=0,tentative=0,knownCommitted=0; const conflicts:any[]=[],days=[]; let missingCalendarDays=0
@@ -91,6 +93,6 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string) {
   if(r.value.status==='submitted'||((k==='milestones'||k==='budgets')&&r.value.status==='draft'))exceptions.push({type:'decision due',source:`${k}:${r.id}`})
   if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
- const report={agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,utilization:utilization(data,cap,from,to),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
+ const report={agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

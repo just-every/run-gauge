@@ -1,6 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { type Value, type Kind, type Row, need, text, integer, money, date, zone, flag, sum } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
+import { resourceProfile } from './resource-profiles'
 export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | Value | null> {
  if (action === 'grant') {
   need(a.role === 'owner', 'Only the owner assigns access', 403)
@@ -22,7 +23,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  if (['clients','people','engagements','rates','calendars'].includes(k)) need(finance(a), 'Finance access required', 403)
  if (['clients','people'].includes(k)) {
   v.name = text(input.name, 'Name', 200)
-  if (k === 'people') { v.timezone = zone(input.timezone); v.contractor = flag(input.contractor) }
+  if (k === 'people') { v.timezone = zone(input.timezone); Object.assign(v,resourceProfile(input,previous?.value)) }
  }
  if (k === 'engagements') {
   v.type = input.type ?? previous?.value.type ?? 'client'
@@ -71,6 +72,8 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
    tx.guard("NOT EXISTS(SELECT 1 FROM g_calendars WHERE person_id=? AND id<>? AND json_extract(data,'$.from')<=? AND json_extract(data,'$.to')>=?)",p.id,previous?.id ?? '',v.to,v.from) }
   if (k === 'leave') { v.dailySeconds = integer(input.dailySeconds,'Leave seconds per day',0,86400); v.note = text(input.note,'Leave reason') }
   if (k === 'staffing') { v.dailySeconds = integer(input.dailySeconds,'Allocation seconds per day',0,86400); need(['tentative','committed'].includes(input.commitment),'Choose tentative or committed'); v.commitment = input.commitment
+   need(input.resourceRequestId===undefined,'Request links are created only by approving an open request')
+   if(previous?.value.resourceRequestId)v.resourceRequestId=previous.value.resourceRequestId
    const engagement = await get(env,'engagements',v.engagementId)
    v.service = text(input.service ?? previous?.value.service ?? 'Unspecified','Service',200)
    v.billable = input.billable === undefined ? previous?.value.billable ?? engagement.value.type!=='internal' : flag(input.billable)

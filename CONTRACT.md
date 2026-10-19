@@ -317,7 +317,7 @@ The seventeen released clause IDs remain intact. The original AUD pilot now supp
 
 - **BASE-001 — Run and own the complete product.** Gauge remains MIT open source and runs locally or in the agency own supported Cloudflare account using Base install/setup/dev/build/preview/deploy commands. The owner controls domain, storage and provider accounts; clean installs start empty and health/unknown-route behavior is explicit. **Acceptance evidence:** Clone, install, set up an empty agency, start locally and deploy a private test installation; open health, sign-in and unknown routes without seeded client data.
 
-- **BASE-002 — Whole installation portability.** Export and restore every supported project, commercial version, work record, source original, receipt, audit, retainer, invoice, schedule and outcome with integrity validation into an empty destination. Exclude installation authority and provider secrets, require fresh reconnection, and never replay external writes from restored history. **Acceptance evidence:** Round-trip a complete agency dataset into an empty install, reconcile counts and money, reject corruption/occupied restore and verify no old session or external job runs.
+- **BASE-002 — Whole installation portability.** Export and restore every supported project, commercial version, work record, source original, receipt, audit, retainer, invoice, schedule and outcome with integrity validation into an empty destination. Exclude installation authority and provider secrets, require fresh reconnection, and never replay external writes from restored history. This obligation is done when every currently supported capability and record kind conforms; each future clause adding a capability, provider, record kind or door inherits it before shipping, including SETUP-004, SALES-002 through SALES-005, RETAINER-001 through RETAINER-005, DELIVERY-001 through DELIVERY-006, FINANCE-004 through FINANCE-007, INVOICE-001 through INVOICE-008, PAYMENT-001 through PAYMENT-003, CONNECT-001 through CONNECT-020 and FOLLOWUP-004. Current Gauge has no external business-write job runner; retained import jobs and proposal outcomes are history, not replay instructions. **Acceptance evidence:** Round-trip a complete agency dataset into an empty install, reconcile counts and money, reject corruption/occupied restore and verify no old session or external job runs.
 
 - **BASE-003 — Replace platform interfaces explicitly.** Declare Base auth, mail, model, storage, dependency and portability interfaces and their replacements. Owner-selected mail/model providers use the same controls; missing configuration produces actionable failure and never fabricated business results. Keep schema upgrades forward-only and documented. **Acceptance evidence:** Switch a supported mail/model provider, revoke its credentials and observe an explicit failed job with unchanged business records; upgrade then export/restore without losing historical calculations.
 
@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 5 | 46 | 70 | 121 |
-| All | 22 | 46 | 70 | 138 |
+| Target and push further | 6 | 45 | 70 | 121 |
+| All | 23 | 45 | 70 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -539,7 +539,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `MOBILE-003` | Desktop timer applications | target | missing |  | No macOS/Windows timer applications or offline recovery. |
 | `MOBILE-004` | Browser timer extension | target | missing |  | No browser extension or browser-host consent model. |
 | `BASE-001` | Run and own the complete product | target | partial | `AGENTS.md`; `SEED-COMMAND-CONTRACT.md`; `src/server.ts`; `tests/gauge-cli-journey.mjs` | Local Base command path exists; hosted target deployment and new integration operational capacity remain unproven. |
-| `BASE-002` | Whole installation portability | target | partial | `tests/gauge-portability.mjs`; `tests/gauge.mjs`; `src/gauge/import-targets.ts` | Current whole-dataset archive/restore is proven; retainers/invoices/connectors and safe restoration of their external jobs do not exist yet. |
+| `BASE-002` | Whole installation portability | target | done | `tests/gauge-portability.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs` (`BASE-002 / MOVE-001`) | All current business records, histories, exact amounts, artifacts, receipts and originals round-trip; corrupt/occupied restore and old HTTP sessions are refused. Fresh native sign-in is required. Future capabilities inherit this obligation before shipping; no current external business-write runner is claimed. |
 | `BASE-003` | Replace platform interfaces explicitly | target | partial | `base-copies.json`; `edition.json`; `src/modules/operator-auth/README.md`; `SEED-COMMAND-CONTRACT.md` | Base composition and current interfaces are recorded; model-backed PSA execution and tested provider substitution for the target are absent. |
 | `BASE-004` | Capacity backup and recovery operations | target | partial | `MOVE-IN.md`; `src/gauge/imports.ts`; `tests/gauge.mjs` | Current bounded import and archive recovery exist; target capacity measurements, scheduled backups and operational monitoring are absent. |
 | `BASE-005` | Agency-size capacity floor | target | missing |  | Import packages are bounded at 1,000 rows and 8 MiB per request and hosted capacity is unmeasured; no floor dataset generator, measured bounds or over-limit preview refusal exist. |

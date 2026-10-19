@@ -248,7 +248,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "bc4e6dce6cdd7ab6955ab29590921209487866836886afa8622e7656618b1326",
+      "sha256": "f1c4726f4433faed063ebda550901c9999565e55b0d7dc74272f55a37c7e9af2",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -272,7 +272,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b16a9f44f74e854593fe40cd49b73e8f831cf1509a9760b2874294bc1ade9814",
+      "sha256": "43569b3ac439de0a77d4e2c65f418dc80893057fa389aa03c6b461a65377fac9",
       "executable": false
     },
     "DEMO.md": {
@@ -2875,6 +2875,10 @@
       "sha256": "159e51c048d51ebd0bc967f15e04d6ed8a06b20cdb8b1350840b8cb233bdf07d",
       "executable": false
     },
+    "tests/gauge-base-portability.mjs": {
+      "sha256": "648504ead99ee4a41c5b25e41ae3ebbf5eaa83791f9584cae04db7689be07484",
+      "executable": false
+    },
     "tests/gauge-cli-journey.mjs": {
       "sha256": "d507181cb9a6658fd56c77f1949bc26650c80202a99bba16ad01821ef036af03",
       "executable": false
@@ -2888,7 +2892,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "c0862777a17f7b04731faee90fd5da8b1dc7c6f52ddb133f95987e98dd9e60f0",
+      "sha256": "6cbf4e2abef651f43aa933d8153305c6715d3c01524df1224d55d9733a01623c",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {
@@ -2896,7 +2900,7 @@
       "executable": false
     },
     "tests/gauge-portability.mjs": {
-      "sha256": "a064621fe372b5548a7a210697513aacd2b50922e97cc381c056477a2b3309b1",
+      "sha256": "c3a7f0e888e579884b5c5961714aaab8c7d70a8fea9f156bef30ed05d0f5dee0",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {
@@ -2916,7 +2920,7 @@
       "executable": false
     },
     "tests/gauge.mjs": {
-      "sha256": "ad0bd831f8535b9e5f796a034c02e72a3157c55322201ec4e50357e40369d59c",
+      "sha256": "bf49cf7abf10b60bccc0d2edbfcb52170eb79276a9a4675509dfd7ffe19b636b",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {

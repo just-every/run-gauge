@@ -3,12 +3,13 @@ import {readFile} from 'node:fs/promises'
 import {execFileSync} from 'node:child_process'
 import {randomUUID} from 'node:crypto'
 import {portability} from './gauge-portability.mjs'
+import {prepareCurrentPortability} from './gauge-base-portability.mjs'
 import {harness} from './gauge-harness.mjs'
 const h=await harness(),{cmd,state,request,post,owner}=h
 let count=0
 async function flow(name,fn){await fn();console.log(`PASS ${name}`);count++}
 try{
- let p,lead,other,eng,task,budget,entry,staff,leadUser,financeUser,packet,receipt
+ let p,lead,other,eng,task,budget,entry,staff,leadUser,financeUser,packet,receipt,importJob
  const record=async(k,id)=>(await state()).data[k].find(r=>r.id===id)
  await flow('ENGAGEMENT-001 real empty account to scoped engagement',async()=>{
   assert.equal((await state()).data.engagements.length,0)
@@ -120,12 +121,14 @@ try{
   job=await cmd('import:undo',{id:job.id});while(job.state==='undoing')job=await cmd('import:resume',{id:job.id});assert.equal((await state()).data.time.length,before)
   const changedPack=structuredClone(pack);changedPack.manifest.namespace='synthetic-edited';const changedPreview=await cmd('import:preview',{package:changedPack});let editedJob=await cmd('import:create',{package:changedPack,fingerprint:changedPreview.fingerprint});while(editedJob.state==='applying')editedJob=await cmd('import:resume',{id:editedJob.id})
   const importedTask=(await state()).data.tasks.find(r=>r.value.source?.namespace==='harvest:synthetic-edited');await cmd('save:tasks',{...importedTask,...importedTask.value,remainingSeconds:300})
+  importJob=editedJob.id
   let refused=false;for(let n=0;n<10&&!refused;n++){const response=await post('/api/gauge/command',{action:n===0?'import:undo':'import:resume',id:editedJob.id,key:randomUUID()},owner);if(response.status===409)refused=true;else assert.equal(response.status,200)}assert(refused,'edited import refuses destructive undo');assert.equal((await record('tasks',importedTask.id)).value.remainingSeconds,300)
  })
  await flow('ACCESS-001 revocation and minimal replay acknowledgements',async()=>{
   await cmd('grant',{operatorId:financeUser.id,personId:p.id,role:'staff',enabled:true});const replay=await cmd('save:rates',receipt,financeUser.cookie);assert.deepEqual(Object.keys(replay).sort(),['id','revision','saved']);assert(!JSON.stringify(replay).includes('costMinor'))
   await cmd('grant',{operatorId:staff.id,personId:p.id,role:'staff',enabled:false});assert.equal((await request('/api/gauge/state',staff.cookie)).status,403);await cmd('time:submit',entry,staff.cookie,403)
  })
- await h.close();await flow('MOVE-001 complete D1 archive restore, corruption and occupied refusal',()=>portability(h.directory))
+ const verifyRestored=await prepareCurrentPortability(h,{importJob})
+ await h.close();await flow('BASE-002 / MOVE-001 complete current agency restore, fresh authority, corruption and occupied refusal',()=>portability(h.directory,{verifyRestored}))
  console.log(`${count} Gauge public-door flows passed`)
 }finally{await h.dispose()}

@@ -6,7 +6,7 @@ import {join,resolve} from 'node:path'
 import {tmpdir} from 'node:os'
 import {createPortability,readArchive} from '@runeditrun/rer/modules/portability'
 import {portabilityPolicy as policy} from '../scripts/installer/portability-policy.mjs'
-export async function portability(source){
+export async function portability(source,{verifyRestored}={}){
  const proxy=await getPlatformProxy({configPath:resolve('wrangler.jsonc'),persist:{path:join(source,'v3')},remoteBindings:false});let archive,expected
  try{
   const service=await createPortability({db:proxy.env.DB,policy}),id=await service.exports.create();while((await service.exports.advance(id,{maxParts:16})).phase==='building'){}
@@ -31,5 +31,7 @@ export async function portability(source){
   // Restore turns provider sign-in off and advances the auth generation, so no pre-restore session survives; every other value round-trips.
   const restoredAuth=item=>item.table==='oa_auth_settings'?{...item,row:{...item.row,idp_sign_in:0,first_setup:0,generation:item.row.generation+1}}:item
   assert.deepEqual(values(after),values(expected).map(restoredAuth));await service.exports.abort(exportId)
+  await restored.dispose();restored=undefined
+  if(verifyRestored)await verifyRestored(destination)
  }finally{await restored?.dispose();await rm(destination,{recursive:true,force:true})}
 }

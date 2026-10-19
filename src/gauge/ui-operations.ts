@@ -7,6 +7,7 @@ import { type Report, describeSource } from './ui-describe'
 import { specialistHandoffSection } from './ui-specialist-handoff'
 import { capacitySection } from './ui-capacity'
 import { rateCardsSection } from './ui-rate-cards'
+import { apiKeysSection } from './ui-api-keys'
 
 const humanState = (state: string) => state.replace(/_/g, ' ')
 export async function operations(env:Bindings,a:Actor,section:string,options:Value,report:Report) {
@@ -81,6 +82,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    {label:'Gauge role',cell:r=>e(r.value.role.charAt(0).toUpperCase()+r.value.role.slice(1))},
    {label:'Enabled',cell:r=>r.value.enabled?'Yes':'No'},
   ],undefined,'No grants yet. The owner holds finance authority without one.')
+  body+=await apiKeysSection(env,options.createdKey)
  }
  return body
 }

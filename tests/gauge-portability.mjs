@@ -12,6 +12,7 @@ export async function portability(source,{verifyRestored}={}){
   const service=await createPortability({db:proxy.env.DB,policy}),id=await service.exports.create();while((await service.exports.advance(id,{maxParts:16})).phase==='building'){}
   archive=await new Response(await service.exports.download(id)).text();expected=[];for await(const r of readArchive(new Response(archive).body))expected.push(r)
   assert(expected[0].tables.some(t=>t.name==='g_files'&&t.count>0));assert(expected[0].tables.some(t=>t.name==='ik_jobs'&&t.count>0));assert(!expected[0].tables.some(t=>t.name==='oa_sessions'))
+  assert((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_api_keys').first()).n>0);assert(!expected[0].tables.some(t=>t.name==='g_api_keys'),'utilization keys never leave');assert(expected[0].tables.some(t=>t.name==='g_api_key_audit'&&t.count>0),'key audit history travels')
   await service.exports.abort(id)
   const occupied=await service.imports.create(expected[0]);for(const part of expected.filter(r=>r.kind==='part'))await service.imports.uploadPart(occupied,part.index,part);await assert.rejects(()=>service.imports.finalize(occupied,{contentHash:expected.at(-1).contentHash,archiveHash:expected.at(-1).archiveHash}),/destination|empty|occupied/);await service.imports.abort(occupied)
  }finally{await proxy.dispose()}
@@ -23,6 +24,7 @@ export async function portability(source,{verifyRestored}={}){
   await assert.rejects(()=>service.imports.finalize(id,{contentHash:'0'.repeat(64),archiveHash:expected.at(-1).archiveHash}));assert.equal((await restored.env.DB.prepare('SELECT COUNT(*) n FROM g_time').first()).n,0)
   await service.imports.finalize(id,{contentHash:expected.at(-1).contentHash,archiveHash:expected.at(-1).archiveHash})
   for(const table of manifest.tables){const actual=await restored.env.DB.prepare(`SELECT COUNT(*) n FROM "${table.name}"`).first();assert.equal(actual.n,table.count,table.name)}
+  assert.equal((await restored.env.DB.prepare('SELECT COUNT(*) n FROM g_api_keys').first()).n,0,'a restored installation holds no utilization key')
   const file=await restored.env.DB.prepare('SELECT id,expense_id,bytes FROM g_files LIMIT 1').first();assert.equal(Buffer.from(file.bytes).toString(),'private receipt bytes')
   const expense=await restored.env.DB.prepare('SELECT data FROM g_expenses WHERE id=?').bind(file.expense_id).first();assert.equal(JSON.parse(expense.data).status,'approved');assert(JSON.parse(expense.data).attachmentIds.includes(file.id),'restored approved expense retains its receipt link')
   const packets=(await restored.env.DB.prepare("SELECT data FROM g_packets WHERE status='approved'").all()).results;assert(packets.some(p=>JSON.parse(p.data).artifact.includes("'=SUM(1,2)")))

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 
@@ -73,7 +74,7 @@ try {
    await page.setViewportSize({ width, height: 1000 }); await page.evaluate(() => document.fonts.ready)
    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name} fits ${width}`)
    await page.screenshot({ path: `${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`, fullPage: true })
-   const focus=page.locator(name.startsWith('internal')?'form:has(input[value="save:engagements"])':'#utilization')
+   const focus=page.locator(name.startsWith('utilization-key')?'#api-keys':name.startsWith('internal')?'form:has(input[value="save:engagements"])':'#utilization')
    await focus.scrollIntoViewIfNeeded(); await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`})
   }
  }
@@ -194,5 +195,56 @@ try {
  await cmd('save:leave', { personId: person.id, from: '2026-10-07', to: '2026-10-07', dailySeconds: hour, note: 'Additional leave' })
  assert.equal((await request(csvPath(data), owner)).status, 409, 'Changed utilization denominator refuses an old export snapshot')
  assert.equal(row((await report()).utilization.byPerson, person.id).availableSeconds, 31 * hour)
+ // CONNECT-020 utilization key (ct 19 Oct 12:43Z): owner-created, shown once, SHA-256 at rest, read-only,
+ // scoped to the aggregate state answer, audited and revocable.
+ const keyed = (token, path = '/api/gauge/state?' + new URLSearchParams({ from, to }), options = {}) => request(path, '', { ...options, headers: { authorization: `Bearer ${token}`, ...options.headers } })
+ await cmd('apikey:create', { label: 'Staff attempt' }, staff.cookie, 403)
+ await page.goto(h.origin + '/app/access')
+ const keyForm = page.locator('form').filter({ has: page.locator('input[name=action][value="apikey:create"]') })
+ await keyForm.getByLabel('Key label (where it is used)', { exact: true }).fill('Easel revenue model')
+ await keyForm.getByRole('button', { name: 'Create key', exact: true }).click()
+ const token = await page.getByLabel('New utilization key', { exact: true }).inputValue()
+ assert.match(token, /^gauge_util_[A-Za-z0-9_-]{43}$/)
+ await capture('utilization-key-created')
+ await page.reload(); assert.equal(await page.getByLabel('New utilization key', { exact: true }).count(), 0, 'Reloading never shows the key again')
+ const stored = await h.db.prepare('SELECT id,hash,label,scope FROM g_api_keys').all()
+ assert.equal(stored.results.length, 1); assert.equal(stored.results[0].hash, createHash('sha256').update(token).digest('hex')); assert.equal(stored.results[0].scope, 'utilization:read')
+ for (const table of ['g_api_keys', 'g_api_key_audit', 'g_receipts', 'g_history']) assert(!JSON.stringify((await h.db.prepare(`SELECT * FROM ${table}`).all()).results).includes(token), `${table} never stores the key`)
+ const requestKey = randomUUID(), first = await h.post('/api/gauge/command', { key: requestKey, action: 'apikey:create', label: 'Replay check' }, owner), firstBody = await first.json()
+ assert.equal(first.status, 200); assert.match(firstBody.token, /^gauge_util_/)
+ const replay = await (await h.post('/api/gauge/command', { key: requestKey, action: 'apikey:create', label: 'Replay check' }, owner)).json()
+ assert.equal(replay.id, firstBody.id); assert.equal(replay.token, undefined, 'A replayed create never shows the key again')
+ const owned = await report(), keyResponse = await keyed(token)
+ assert.equal(keyResponse.status, 200); const aggregate = await keyResponse.json()
+ assert.deepEqual(Object.keys(aggregate).sort(), ['approvedBillableSeconds', 'asOf', 'availableSeconds', 'from', 'knownAvailableSeconds', 'missingCalendarDays', 'participantCount', 'scope', 'to'])
+ assert.equal(aggregate.participantCount, owned.data.people.length); assert.equal(aggregate.participantCount, 4)
+ assert.equal(aggregate.knownAvailableSeconds, owned.capacity.reduce((n, c) => n + c.knownAvailableSeconds, 0)); assert.equal(aggregate.knownAvailableSeconds, 31 * hour)
+ assert.equal(aggregate.missingCalendarDays, 14); assert.equal(aggregate.availableSeconds, null, 'A missing calendar leaves available capacity unknown, never zero')
+ assert.equal(aggregate.approvedBillableSeconds, owned.utilization.details.reduce((n, d) => n + d.approvedBillableSeconds, 0)); assert.equal(aggregate.approvedBillableSeconds, 24 * hour, 'Approved internal training is not billable; drafts and submitted time do not count')
+ for (const p of owned.data.people) assert(!JSON.stringify(aggregate).includes(p.value.name) && !JSON.stringify(aggregate).includes(p.id), 'Aggregate names no person')
+ assert(!/Minor|rate|cost|pay/i.test(JSON.stringify(aggregate)), 'Aggregate carries no pay, rate or cost')
+ for (const p of [missing, other]) await cmd('save:calendars', { personId: p.id, from, to, dailySeconds: 4 * hour, weekdays: '1,2,3,4,5', holidays: [], timezone: 'Australia/Brisbane' })
+ const known = await (await keyed(token)).json()
+ assert.equal(known.missingCalendarDays, 0); assert.equal(known.availableSeconds, (31 + 2 * 5 * 4) * hour); assert.equal(known.availableSeconds, (await report()).capacity.reduce((n, c) => n + c.availableSeconds, 0))
+ assert.equal((await keyed(token, '/api/gauge/state?from=2026-10-01')).status, 400, 'A keyed read names its inclusive window')
+ assert.equal((await keyed(token, '/api/gauge/report.csv?' + new URLSearchParams({ from, to }))).status, 403)
+ assert.equal((await keyed(token, '/api/gauge/history/people/' + person.id)).status, 403)
+ assert.equal((await keyed(token, '/api/gauge/command', { method: 'POST', headers: { origin: h.origin, 'content-type': 'application/json' }, body: JSON.stringify({ key: randomUUID(), action: 'save:clients', name: 'Keyed write' }) })).status, 403, 'A key never writes')
+ assert.equal((await keyed('gauge_util_' + 'x'.repeat(43))).status, 401)
+ const listed = (await h.db.prepare('SELECT id FROM g_api_keys WHERE label=?').bind('Easel revenue model').first()).id
+ await cmd('apikey:revoke', { id: listed }, staff.cookie, 403)
+ await page.goto(h.origin + '/app/access')
+ const keyRow = page.locator(`tr[id="${listed}"]`)
+ assert(/active/i.test(await keyRow.innerText()))
+ await keyRow.getByRole('button', { name: 'Revoke key', exact: true }).click()
+ assert(/revoked/i.test(await page.locator(`tr[id="${listed}"]`).innerText()))
+ assert.equal((await keyed(token)).status, 401, 'A revoked key is refused on the next request')
+ assert.equal((await keyed(firstBody.token)).status, 200, 'Revoking one key leaves the others')
+ const audit = (await h.db.prepare('SELECT key_id,action,actor,detail FROM g_api_key_audit WHERE key_id=? ORDER BY id').bind(listed).all()).results
+ assert.deepEqual(audit.map(r => r.action), ['create', 'read', 'read', 'revoke'])
+ assert.deepEqual(JSON.parse(audit[1].detail), { from, to }); assert.equal(audit[1].actor, 'key:Easel revenue model')
+ assert(await page.getByRole('row').filter({ hasText: 'Read utilization' }).count() >= 2, 'The owner sees each keyed read')
+ await capture('utilization-key-revoked')
+ console.log('PASS CONNECT-020 utilization key: owner-only create shown once, SHA-256 at rest, aggregate-only participant/available/approved-billable figures equal to the owner report, read-only scope, audited reads, revocation')
  console.log('PASS RESOURCE-004 scheduled/recorded/pending/approved utilization, 30/32 billable capacity, internal training, holiday and leave denominators, zero and missing capacity, service/project/detail grouping, scoped sources, CSV fingerprint and browser drills')
 } finally { await browser?.close(); await h.dispose() }

@@ -52,6 +52,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const favoriteUser=await h.invite('portability-timesheet-person');await cmd('grant',{operatorId:favoriteUser.id,personId:person.id,role:'staff',enabled:true})
  const favorite=await cmd('time:favorite',{personId:person.id,taskId:task.id,name:'Research training',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
  await cmd('time:favorite',{...favorite,personId:person.id,taskId:task.id,name:'Research workshop',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
+ // CONNECT-020 / BASE-002: a live utilization key is installation authority and never travels.
+ assert.match((await cmd('apikey:create',{label:'Portability source key'})).token,/^gauge_util_/)
  await cmd('time:policy',{lockThrough:'2020-12-31',reason:'Historical migration cutoff; current work remains open'})
  await cmd('save:staffing',{personId:person.id,engagementId:internal.id,from:'2026-10-09',to:'2026-10-09',dailySeconds:3600,commitment:'tentative',service:'Research',billable:false})
  const agent=await h.invite('portability-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true})

@@ -11,8 +11,9 @@ import { formInput } from './form-input'
 import { reportCsv } from './report-export'
 import { resourceCandidates } from './resource-candidates'
 import { explainRate } from './rate-cards'
+import { apiKeyCommand, utilizationKeyRead } from './api-keys'
 // The page an /app/action form belongs to: its result (or refusal) shows there.
-const sectionFor=(action:string)=>action.startsWith('staffing:')||action.startsWith('resource:')||action==='save:resourceRequests'?'capacity':action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('packet:')||action.startsWith('handoff:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'?'access':action==='save:rates'||action==='rate:entry'?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
+const sectionFor=(action:string)=>action.startsWith('staffing:')||action.startsWith('resource:')||action==='save:resourceRequests'?'capacity':action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('packet:')||action.startsWith('handoff:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'||action.startsWith('apikey:')?'access':action==='save:rates'||action==='rate:entry'?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
 const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-content-type-options':'nosniff','x-robots-tag':'noindex','content-security-policy':"default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
@@ -28,6 +29,14 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  let refused:{a:Actor,action:string}|undefined
  try{
   need(url.origin===env.AUTH_ORIGIN&&(!request.headers.has('host')||request.headers.get('host')===url.host),'Invalid host',403)
+  // An owner-created utilization key (CONNECT-020) reads only the aggregate state answer; it never writes or opens another route.
+  const bearer=request.headers.get('authorization')
+  if(bearer!==null){
+   need(path==='/api/gauge/state','API keys read only /api/gauge/state',403)
+   if(!['GET','HEAD'].includes(request.method))return Response.json({error:'Method not allowed'},{status:405,headers:{...headers,allow:'GET, HEAD'}})
+   const token=bearer.match(/^Bearer (\S{1,200})$/)?.[1];need(token,'Send Authorization: Bearer <key>',401)
+   return Response.json(await utilizationKeyRead(env,token,url.searchParams.get('from'),url.searchParams.get('to')),{headers})
+  }
   const session=await operatorAuth(env).getSession(request);if(!session&&path.startsWith('/app'))return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});need(session,'Sign in required',401)
   const a=await actor(env,session);await fence(env,a)
   const allowed=mutation?['POST']:['GET','HEAD']
@@ -39,8 +48,10 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    let input:any
    if(request.headers.get('content-type')?.includes('application/json'))input=await parsed.json()
    else { const form=await parsed.formData();if(path==='/app/action')refused={a,action:String(form.get('action')??'')};input=formInput(form);if(input.package)input.package=JSON.parse(input.package);else if(input.manifest){const files:Record<string,string>={},archives:any[]=[];for(const file of form.getAll('files'))if(file instanceof File&&file.size){if(file.type==='application/pdf')archives.push({name:file.name,mediaType:file.type,base64:Buffer.from(await file.arrayBuffer()).toString('base64')});else{need(file.name.endsWith('.csv'),'Use CSV or PDF source files');files[file.name]=await file.text()}}input.package={manifest:JSON.parse(input.manifest),files,archives}} }
-   const action=String(input.action??'');let result:any; if(action==='invite'){need(a.role==='owner','Only the owner invites operators',403);result=await operatorAuth(env).invite(request,{email:input.email,displayName:input.displayName,role:'member'})}else result=publicResult(await command(env,a,action,input))
+   const action=String(input.action??'');let result:any; if(action==='invite'){need(a.role==='owner','Only the owner invites operators',403);result=await operatorAuth(env).invite(request,{email:input.email,displayName:input.displayName,role:'member'})}else if(action.startsWith('apikey:'))result=await apiKeyCommand(env,a,action,input);else result=publicResult(await command(env,a,action,input))
    if(path.startsWith('/api/'))return Response.json(result,{headers})
+   // A new key's value shows once, on the page that created it; the redirect pattern would lose it.
+   if(action==='apikey:create')return new Response(await appPage(env,a,'access',{createdKey:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='retainer:preview')return new Response(await appPage(env,a,'engagements',{edit:result.engagementId,retainerPreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='delivery:preview')return new Response(await appPage(env,a,'engagements',{edit:result.engagementId,deliveryPreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='staffing:preview')return new Response(await appPage(env,a,'capacity',{edit:input.id,from:result.parts[0].from,schedulePreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})

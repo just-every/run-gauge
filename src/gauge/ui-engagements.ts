@@ -9,6 +9,7 @@ import { hours, money, day, chip, nameOf, yesNo } from './ui-format'
 import { meter } from './ui-meter'
 import type { Report } from './ui-describe'
 import { economicsCard, estimateOf } from './ui-review'
+import { pipelineSection } from './ui-pipeline'
 
 const termsLine = (b: Row) => `${b.value.mode === 'fixed' ? 'Fixed fee' : 'Hourly'} · ${hours(b.value.effortSeconds)}${b.value.amountMinor === undefined ? '' : ` · ${money(b.value.amountMinor, b.value.currency)}`}`
 
@@ -56,5 +57,5 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   body += `<div class="g-pair">${table('Clients', d.clients, [{ label: 'Client', cell: r => open('engagements', r, r.value.name) }])}${table('People', d.people, [{ label: 'Name', cell: r => open('engagements', r, r.value.name) }, { label: 'Work timezone', cell: r => e(r.value.timezone) }, { label: 'Contractor', cell: r => yesNo(r.value.contractor) }])}</div>`
   body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${engagementForm()}${form('save:clients', 'Client', i('name', 'Client name', v('clients').name), edit('clients'))}${form('save:people', 'Person', i('name', 'Name', p.name) + i('timezone', 'Work timezone', p.timezone ?? report.agency.timezone) + check('contractor', 'Contractor', p.contractor), edit('people'))}${terms()}${taskForm()}${milestoneForm()}</div>`
  } else if (manager) body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${terms()}${taskForm()}${milestoneForm()}</div>`
- return body
+ return body + pipelineSection(a, report, options.opportunity)
 }

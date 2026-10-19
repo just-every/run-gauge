@@ -1,5 +1,6 @@
 import type { Bindings } from '../auth.server'
-import { type Row, type Kind, type Value, need, date, sum } from './model'
+import { type Row, type Kind, type Value, need, date, sum, kinds } from './model'
+import { pipeline } from './pipeline'
 import { type Actor, finance, all, fence } from './store'
 import { correctionReviews } from './billing-corrections'
 import { canDecide } from './proposals'
@@ -15,7 +16,8 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  return v
 }
 export async function visible(env: Bindings,a: Actor) {
- const data = Object.fromEntries(await Promise.all((['clients','people','engagements','budgets','tasks','milestones','rates','calendars','leave','staffing','time','expenses','packets','archives','proposals'] as Kind[]).map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
+ const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
+ data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
  // An agent reads every engagement it may prepare for, approved work only, and no amounts.
  const agent = a.role==='agent', ids = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
@@ -33,7 +35,7 @@ export async function visible(env: Bindings,a: Actor) {
   const personIds=new Set(data.people.map(r=>r.id)); data.calendars=data.calendars.filter(r=>personIds.has(r.value.personId)); data.leave=data.leave.filter(r=>personIds.has(r.value.personId))
   for (const k of Object.keys(data) as Kind[]) data[k]=data[k].map(r=>({...r,value:redact(a,k,r.value)}))
  }
- const clientIds=new Set(data.engagements.map(r=>r.value.clientId)); if(!finance(a))data.clients=data.clients.filter(r=>clientIds.has(r.id))
+ const clientIds=new Set([...data.engagements,...data.opportunities].map(r=>r.value.clientId)); if(!finance(a))data.clients=data.clients.filter(r=>clientIds.has(r.id))
  await fence(env,a); return data
 }
 export function capacity(data: Awaited<ReturnType<typeof visible>>,from: string,to: string) {
@@ -81,5 +83,5 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string) {
   if(r.value.status==='submitted'||((k==='milestones'||k==='budgets')&&r.value.status==='draft'))exceptions.push({type:'decision due',source:`${k}:${r.id}`})
   if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
- await fence(env,a);return {agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,economics:econ,exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to}
+ await fence(env,a);return {agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],from,to}
 }

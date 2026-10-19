@@ -42,3 +42,9 @@ The owner invites an operator for the agent, has it accept, then on **Access** g
 People decide with `proposal:approve` `{id, revision, choice?, start?, end?, billable?}` or `proposal:decline` `{id, revision, reason}`. A decided proposal cannot change; it keeps `decidedBy`, `decidedAt`, the reason or `effect: {kind, id, revision}`, and its history.
 
 The agent's own reads come from `GET /api/gauge/state`: every engagement with its tasks, people, calendars, leave (notes private), staffing and approved work without rates or costs, plus the proposals it prepared and the week's exceptions.
+
+## Opportunity pipeline (SALES-001)
+
+Leads manage their own opportunities; finance manages all. `save:opportunities` takes `name`, `clientId`, `ownerId` (person), `stage` (`discovery`, `qualified`, `proposal`, `won`, `lost`), integer `probability` (0–100 percent), proposed `from`/`to` dates, `services`, `amountMinor`, `demandSeconds`, and optional `engagementId`. Updates bind `id` and `revision`. Won requires 100%, lost 0%; only won work may link to a same-client, same-currency engagement the actor manages. An engagement links to at most one opportunity. The engagement page and current state show opportunity history and pipeline totals.
+
+`pipeline` groups totals by explicit currency. Open weighted value rounds each opportunity’s amount × probability half-up to cents; open demand remains tentative whole seconds outside signed staffing. Booked backlog is agreed value before billing: the latest approved engagement budget, or its linked won value when no budget is approved, plus unlinked wins. Linked opportunity and approved terms count once. Lost opportunities contribute neither; no invoice or cash completion is implied.

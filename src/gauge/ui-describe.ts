@@ -12,6 +12,7 @@ const find = (rows: Row[], id: string) => rows.find(r => r.id === id)
 /** "Mia Chen · Workshop · 6.5 h · 6 Oct 2026" for one source line "time:ID" (or expenses, milestones, budgets, proposals). */
 export function describeSource(d: Data, source: string): { text: string; href: string } {
  const [kind, id] = source.split(':') as [string, string]
+ if (kind === 'opportunities') { const r = find(d.opportunities, id); return { text: r ? `${r.value.name} · ${r.value.stage}` : 'Opportunity', href: `/app/engagements?opportunity=${id}#pipeline-title` } }
  if (kind === 'proposals') { const p = find(d.proposals, id); return { text: p ? `${proposalLabels[p.value.kind]} · ${nameOf(d.engagements, p.value.engagementId)}` : 'Agent proposal', href: `/app/review#${id}` } }
  if (kind === 'time') { const t = find(d.time, id); return { text: t ? [nameOf(d.people, t.value.personId), nameOf(d.engagements, t.value.engagementId), nameOf(d.tasks, t.value.taskId), hours(t.value.durationSeconds), day(t.value.workDate)].join(' · ') : 'Time entry', href: `/app/time?edit=${id}` } }
  if (kind === 'expenses') { const x = find(d.expenses, id); return { text: x ? [x.value.description, nameOf(d.engagements, x.value.engagementId), ...(x.value.amountMinor === undefined ? [] : [money(x.value.amountMinor, x.value.currency)])].join(' · ') : 'Expense', href: `/app/expenses?edit=${id}` } }

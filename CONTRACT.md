@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 0 | 49 | 72 | 121 |
-| All | 17 | 49 | 72 | 138 |
+| Target and push further | 1 | 49 | 71 | 121 |
+| All | 18 | 49 | 71 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -438,7 +438,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `SETUP-002` | Client and contact workspace | target | missing |  | Client records contain names only; no contacts, terms, search, custom fields or merge. |
 | `SETUP-003` | Client billing currencies and exchange rates | target | partial | `src/gauge/agency.ts`; `src/gauge/catalog.ts`; `src/gauge/time.ts`; `src/gauge/billing.ts`; `src/gauge/reports.ts`; `tests/gauge-currency.mjs` | New engagements and rates use the saved agency currency; terms, approved time economics, expenses, packets and reports preserve their record currency and refuse mixed-currency operations without conversion. Client defaults, engagement currency overrides, approved exchange rates, labelled FX conversion and multicurrency provider sync remain absent. |
 | `SETUP-004` | Custom fields on clients, engagements, people and tasks | target | missing |  | No custom field definitions or values on any record; no required-field or field-visibility enforcement, custom-field report dimensions or measures, or custom-field import. |
-| `SALES-001` | Opportunity pipeline | target | missing |  | No opportunity records, stages, weighted pipeline or won/lost workflow. |
+| `SALES-001` | Opportunity pipeline | target | done | `src/gauge/pipeline.ts`; `src/gauge/ui-pipeline.ts`; `tests/gauge-pipeline.mjs` — SALES-001 | Leads own versioned opportunities with stages, probability, dates, services, value and tentative demand. Won/lost history is retained; open weighted totals and booked value before billing count linked approved engagement terms once. |
 | `SALES-002` | Costed estimates | target | partial | `src/gauge/catalog.ts`; `src/gauge/proposals.ts` | Budget effort and staffing economics exist; no pre-sale estimate lines, mixed estimates, contingencies or version comparison. |
 | `SALES-003` | Proposals and client acceptance | target | missing |  | No proposal document, external acceptance or signature-provider intake. |
 | `SALES-004` | Won work becomes an engagement | target | missing |  | No accepted-estimate or deal conversion; engagement creation is manual. |

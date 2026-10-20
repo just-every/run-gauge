@@ -43,6 +43,19 @@ try {
  const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage()
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
  await page.goto(h.origin + '/app/imports')
+ await page.getByRole('link', { name: 'Read the move-in guide' }).click()
+ assert.equal(new URL(page.url()).pathname, '/move-in.html')
+ for (const width of [1440, 390]) {
+  await page.setViewportSize({ width, height: 1100 })
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `MIGRATE-002 guide fits ${width}`)
+  if (process.env.GAUGE_HARVEST_SHOTS) {
+   await mkdir(process.env.GAUGE_HARVEST_SHOTS, { recursive: true })
+   // Read the changed manifest section in the public guide, without changing its document.
+   await page.evaluate(() => { const pre = document.querySelector('pre'), node = pre.firstChild, index = node.textContent.indexOf('timeReconciliation'); const range = document.createRange(); range.setStart(node, index); range.setEnd(node, index + 1); window.scrollBy(0, range.getBoundingClientRect().top - 100) })
+   await page.screenshot({ path: `${process.env.GAUGE_HARVEST_SHOTS}/harvest-guide-${width}.png` })
+  }
+ }
+ await page.getByRole('link', { name: 'Back to imports' }).click()
  await page.getByLabel('Harvest export files:', { exact: false }).setInputFiles(Object.entries(pack.files).map(([name, content]) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) })))
  await page.getByLabel('Manifest, as described in the move-in guide').fill(JSON.stringify(pack.manifest))
  await page.getByRole('button', { name: 'Preview', exact: true }).click()

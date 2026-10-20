@@ -632,7 +632,7 @@
       "executable": false
     },
     "public/move-in.html": {
-      "sha256": "d1681373155244dec2887c1c9a592d0bb47b6ad0e8c84c33be996fb033c04212",
+      "sha256": "bb1d5f4a56133c96a95b72b7293ed4fd7d30d23cdfb61d5cfb440750b1155146",
       "executable": false
     },
     "public/rer-theme.css": {
@@ -3228,7 +3228,7 @@
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
-      "sha256": "0295b3765f4c647ae43db53bfab5cd89a6390add7bffef943b00fe22bf5d005f",
+      "sha256": "159263f306d314599fabeb0a53d053c811d154935f7d49b9b129c8380fccb8ac",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

@@ -31,6 +31,7 @@ export interface ReportLineageInput {
  retainerBalances?: Value[]
  resourceDemand?: Value[]
  forecast?: Value | null
+ margin?: Value[] | null
 }
 
 export interface Evidence { sources: LineageSource[]; unknown: string[] }

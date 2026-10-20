@@ -7,6 +7,7 @@ import { retainerLineage } from './report-lineage-retainers'
 import { utilizationLineage } from './report-lineage-utilization'
 import { performanceLineage } from './report-lineage-performance'
 import { forecastLineage } from './report-lineage-forecast'
+import { marginLineage } from './report-lineage-margin'
 
 export type { LineageFigure, LineageSource, ReportLineageInput } from './report-lineage-shared'
 
@@ -19,6 +20,7 @@ export function buildLineage(report: ReportLineageInput) {
  performanceLineage(c)
  retainerLineage(c)
  forecastLineage(c)
+ marginLineage(c)
  for(const row of report.resourceDemand??[]){
   for(const field of ['unfilledSeconds','staffingSeconds','totalSeconds']){
    const e=c.evidence();c.row(e,'engagements',row.engagementId)

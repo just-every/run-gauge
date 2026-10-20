@@ -16,6 +16,7 @@ import { retainerStatements } from './retainer-statements'
 import { resourceDemand } from './resource-demand'
 import { financeForecast } from './finance-forecast'
 import { demandForecast } from './demand-forecast'
+import { projectMargin } from './margin'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 const amounts = ['amountMinor','budgetMinor','totalMinor','costMinor','billMinor']
@@ -131,6 +132,6 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const forecast=finance(a)?financeForecast(data,forecastDay,retainerBalances):null
  // RESOURCE-005 capacity runs from the day after the forecast day for a year, whatever window the state read shows.
  const forecastCapacity=forecast?capacity(data,new Date(Date.parse(forecastDay)+86400000).toISOString().slice(0,10),new Date(Date.parse(forecastDay)+366*86400000).toISOString().slice(0,10)):[]
- const report={timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
+ const report={timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

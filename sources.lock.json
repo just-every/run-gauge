@@ -272,7 +272,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "64e85b53396adff79c280a50c8061149bab25cc2acc938b25affe77d9c7f87cd",
+      "sha256": "ea9656a8cd8eec961bc09709199311c5ab2524c1183dd8261473801d49852c9d",
       "executable": false
     },
     "base-copies.json": {
@@ -3236,7 +3236,7 @@
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
-      "sha256": "7a4c827350672b6810678e00a25bacfbee31b9e2a96cf81901716956040fd4d7",
+      "sha256": "3ddf659b5fb892c389c0aa1480a281ee4f7a169b67e459acc15535a5f9b175cb",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

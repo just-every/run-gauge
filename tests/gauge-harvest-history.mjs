@@ -84,8 +84,8 @@ try {
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `MIGRATE-002 guide fits ${width}`)
   if (process.env.GAUGE_HARVEST_SHOTS) {
    await mkdir(process.env.GAUGE_HARVEST_SHOTS, { recursive: true })
-   // Read the changed manifest section in the public guide, without changing its document.
-   await page.evaluate(() => { const pre = document.querySelector('pre'), node = pre.firstChild, index = node.textContent.indexOf('timeReconciliation'); const range = document.createRange(); range.setStart(node, index); range.setEnd(node, index + 1); window.scrollBy(0, range.getBoundingClientRect().top - 100) })
+   // Read the changed workbook section in the public guide, without changing its document.
+   await page.evaluate(() => { const pre = document.querySelector('pre'), node = pre.firstChild, index = node.textContent.indexOf('XLSX time uses'); const range = document.createRange(); range.setStart(node, index); range.setEnd(node, index + 1); window.scrollBy(0, range.getBoundingClientRect().top - 100) })
    await page.screenshot({ path: `${process.env.GAUGE_HARVEST_SHOTS}/harvest-guide-${width}.png` })
   }
  }

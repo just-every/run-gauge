@@ -3284,7 +3284,7 @@
       "executable": false
     },
     "tests/journeys/forecast-browser.mjs": {
-      "sha256": "d2a67f7eb08ea90cec31dde954deda1b2025c6fbd0288c37698e55f887d702e5",
+      "sha256": "18bb602af3439b3ccc2f8a55402a24f7f8bbb01c4b19d7de88fbedb6e8602035",
       "executable": false
     },
     "tests/runtime.mjs": {

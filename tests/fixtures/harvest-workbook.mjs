@@ -21,7 +21,7 @@ const columnName = index => {
  * extraSheets: [{ name, rows, formula? }]. extraFiles: { 'zip/path': string|Uint8Array }
  * adds or replaces ZIP members so rejection cases can alter the package explicitly.
  */
-export function workbook(rows, { worksheet = 'Detailed time', formula = {}, extraSheets = [], extraFiles = {} } = {}) {
+export function workbook(rows, { worksheet = 'Detailed time', formula = {}, date1904 = false, extraSheets = [], extraFiles = {} } = {}) {
  const strings = [], stringIndexes = new Map()
  let stringCount = 0
  const sharedString = value => {
@@ -51,7 +51,7 @@ export function workbook(rows, { worksheet = 'Detailed time', formula = {}, extr
   }).join('')
   files[`xl/worksheets/sheet${sheetIndex + 1}.xml`] = xml(`<worksheet xmlns="${main}"><sheetData>${data}</sheetData></worksheet>`)
  })
- files['xl/workbook.xml'] = xml(`<workbook xmlns="${main}" xmlns:r="${relationships}"><sheets>${sheets.map((sheet, index) => `<sheet name="${escape(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join('')}</sheets></workbook>`)
+ files['xl/workbook.xml'] = xml(`<workbook xmlns="${main}" xmlns:r="${relationships}"><workbookPr date1904="${date1904 ? 1 : 0}"/><sheets>${sheets.map((sheet, index) => `<sheet name="${escape(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join('')}</sheets></workbook>`)
  files['xl/_rels/workbook.xml.rels'] = xml(`<Relationships xmlns="${packageRelationships}">${sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="${relationships}/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join('')}<Relationship Id="rIdStrings" Type="${relationships}/sharedStrings" Target="sharedStrings.xml"/></Relationships>`)
  files['xl/sharedStrings.xml'] = xml(`<sst xmlns="${main}" count="${stringCount}" uniqueCount="${strings.length}">${strings.map(value => `<si><t xml:space="preserve">${escape(value)}</t></si>`).join('')}</sst>`)
  files['_rels/.rels'] = xml(`<Relationships xmlns="${packageRelationships}"><Relationship Id="rId1" Type="${relationships}/officeDocument" Target="xl/workbook.xml"/></Relationships>`)

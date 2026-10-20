@@ -10,7 +10,7 @@ export async function importCommand(env: Bindings,a: Actor,action:string,input:V
  if(action==='import:preview'||action==='import:create') {
   const source=input.package as HarvestInput;need(source?.files,'Upload a Harvest package');const parsed=harvest(source,a.currency),ctx=importContext(env,a,parsed.namespace),plan=await planD1Import(parsed.bundle,parsed.mapping,ctx)
   need(plan.counts.rejected===0,'Resolve rejected source rows')
-  if(action==='import:preview')return {fingerprint:plan.fingerprint,counts:plan.counts,totals:parsed.totals,timeControls:parsed.timeControls,schedule:parsed.schedule,memberships:parsed.memberships,omissions:parsed.omissions,package:source}
+  if(action==='import:preview')return {fingerprint:plan.fingerprint,counts:plan.counts,totals:parsed.totals,timeControls:parsed.timeControls,timeSources:parsed.bundle.records.filter(r=>r.kind==='time').map(r=>({sourceId:r.sourceId,location:r.location})),schedule:parsed.schedule,memberships:parsed.memberships,omissions:parsed.omissions,package:source}
   need(input.fingerprint===plan.fingerprint,'Preview changed; review it again',409)
   const job=await createD1ImportJob(plan,{...ctx,reviewedFingerprint:plan.fingerprint,operationKey:text(input.key,'Request key')});return applyD1ImportBatches(job.id,ctx)
  }

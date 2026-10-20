@@ -22,7 +22,7 @@ export function harvest(input:HarvestInput,expectedCurrency:string) {
  const namespace=`harvest:${m.namespace}`,id=(k:string,s:string)=>`hv_${sha256(`${namespace}:${k}:${s}`).slice(0,32)}`
  const records:Record<string,Record<string,string>[]>={}
  need(!input.workbook || !Object.hasOwn(input.files,'time.csv'),'Supply time.csv or time.xlsx, never both')
- const workbook=input.workbook?harvestWorkbook(input.workbook.base64,m.timeWorksheet):undefined
+ const workbook=input.workbook?harvestWorkbook(input.workbook.base64,m.timeWorksheet,m.columns?.time?.date??'Date'):undefined
  const timeFile=workbook?'time.xlsx':'time.csv'
  if(workbook){records['time.csv']=workbook.records.map(r=>r.value);bundle.artifacts.push({name:timeFile,sha256:sha256(workbook.bytes),size:workbook.bytes.length,original:{status:'available',base64:input.workbook!.base64}})}
  for(const name of ['clients.csv','people.csv','projects.csv',...(workbook?[]:['time.csv'])]){need(typeof input.files[name]==='string',`Supply ${name}`);records[name]=parseCsv(input.files[name])}

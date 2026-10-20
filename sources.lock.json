@@ -284,7 +284,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "736f9f4696f68b11a5ba191960030926acdccb290bf84ee3166b73c92167f202",
+      "sha256": "b85dfea7579cd2c245a826a33c81eea6956254555cc4a2375c2b1e2b267ea60d",
       "executable": false
     },
     "DEMO.md": {
@@ -508,7 +508,7 @@
       "executable": false
     },
     "MOVE-IN.md": {
-      "sha256": "47b8372b8d7b74d6e770eb627c81a2fd8de323ec4cd7237e5ee511265fef519c",
+      "sha256": "8818aeb08c5df300e2caffb7e258e7b83119f542d74732b90efec5c4cd3b9e2d",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -632,7 +632,7 @@
       "executable": false
     },
     "public/move-in.html": {
-      "sha256": "48f1f24dd9a1d257576e206911ffbedc9d2e3286b6bf83c11dbefde5297674d8",
+      "sha256": "e7621b468faff0ad371bbf61a08aeaec6271b7ac0ffa7800dc44c323715c2bfa",
       "executable": false
     },
     "public/rer-theme.css": {
@@ -1072,11 +1072,11 @@
       "executable": false
     },
     "src/gauge/harvest-workbook.ts": {
-      "sha256": "4f5417543f9668a32e23552fd7978436efa23f4709f5aba26753b71ac6362045",
+      "sha256": "26b008b19fafd817bb4ad4314277a8e9acf0b24314c9014deba4d80029547450",
       "executable": false
     },
     "src/gauge/harvest.ts": {
-      "sha256": "ce418264275545a6953b649061b62207df354e4c9374dcf99444dcf3a4516da8",
+      "sha256": "3f28f3c57f147c5d3fc13ea48757335eb799c9fb2fca650bc7638564cfcada57",
       "executable": false
     },
     "src/gauge/http.ts": {
@@ -1088,7 +1088,7 @@
       "executable": false
     },
     "src/gauge/imports.ts": {
-      "sha256": "c6c68432bc29035bda3fdc800b71f4c9f2dd10e34f3686f61df0e42d4295cc3c",
+      "sha256": "8a6faaa6c9507cd5980007a18ac039edbe5c8f706b787eed29cea9e28fd0bf2a",
       "executable": false
     },
     "src/gauge/margin.ts": {
@@ -3152,7 +3152,7 @@
       "executable": false
     },
     "tests/fixtures/harvest-workbook.mjs": {
-      "sha256": "ab84cd5b9389662c311b9cdedbc82c546edc3b632d7b9734ee37cbf98c24a787",
+      "sha256": "a4701d01e331fe3add402bc4878243dc0669eee143bdb75b9865e7e1c75ece0c",
       "executable": false
     },
     "tests/fixtures/harvest/clients.csv": {
@@ -3236,7 +3236,7 @@
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
-      "sha256": "4f92f561744e40a83c015ef0412bd45ff3732e438cf33b9e5aa6952e4f4bcdca",
+      "sha256": "7a4c827350672b6810678e00a25bacfbee31b9e2a96cf81901716956040fd4d7",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

@@ -36,7 +36,7 @@ function workbookFiles(bytes: Uint8Array) {
  return files
 }
 
-export function harvestWorkbook(base64: unknown, worksheet: unknown) {
+export function harvestWorkbook(base64: unknown, worksheet: unknown, dateColumn = 'Date') {
  try {
   need(typeof base64 === 'string' && base64.length <= 2800000, 'Workbook must be base64, limited to 2 MiB')
   const bytes = Buffer.from(base64, 'base64')
@@ -50,7 +50,11 @@ export function harvestWorkbook(base64: unknown, worksheet: unknown) {
    need(XMLValidator.validate(source) === true, 'Invalid workbook XML')
    return parser.parse(source)
   }
-  const sheets = list(xml('xl/workbook.xml').workbook?.sheets?.sheet)
+  const book = xml('xl/workbook.xml').workbook
+  const sheets = list(book?.sheets?.sheet)
+  const date1904 = book?.workbookPr?.['@_date1904'] ?? '0'
+  need(['0', '1', 'false', 'true'].includes(date1904), 'Invalid workbook date system')
+  const modernDates = ['1', 'true'].includes(date1904)
   const matches = sheets.filter(sheet => sheet['@_name'] === name)
   need(matches.length === 1, 'Select one existing worksheet by its exact name')
   const rels = list(xml('xl/_rels/workbook.xml.rels').Relationships?.Relationship)
@@ -68,7 +72,7 @@ export function harvestWorkbook(base64: unknown, worksheet: unknown) {
   const records: { value: Record<string, string>; row: number }[] = []
   for (const row of rows) {
    const number = Number(row['@_r']); need(Number.isSafeInteger(number) && number > previous, 'Workbook rows need ordered explicit row numbers'); previous = number
-   const values: string[] = []; const used = new Set<number>()
+   const values: string[] = []; const used = new Set<number>(), numeric = new Set<number>()
    for (const cell of list(row.c)) {
     need(!Object.hasOwn(cell, 'f'), 'Workbook formulas are unsupported; supply exported values')
     const ref = String(cell['@_r'] ?? '').match(/^([A-Z]{1,3})([1-9]\d*)$/)
@@ -80,6 +84,7 @@ export function harvestWorkbook(base64: unknown, worksheet: unknown) {
     else if (type === 'inlineStr') value = string(cell.is)
     else { need(['n', 'str', 'd'].includes(type), 'Unsupported workbook cell type'); value = cell.v === undefined ? '' : plain(cell.v) }
     values[column - 1] = value
+    if (type === 'n' && value !== '') numeric.add(column - 1)
    }
    if (!values.some(value => value !== '')) continue
    if (!header) {
@@ -88,6 +93,13 @@ export function harvestWorkbook(base64: unknown, worksheet: unknown) {
     need(header.every(Boolean) && new Set(header).size === header.length, 'Workbook needs unique nonempty headers')
    } else {
     need(values.length <= header.length, 'Workbook row extends beyond its headers')
+    const dateIndex = header.indexOf(dateColumn)
+    if (numeric.has(dateIndex)) {
+     const raw = values[dateIndex], serial = Number(raw)
+     need(/^\d+$/.test(raw) && Number.isSafeInteger(serial) && serial >= (modernDates ? 0 : 1) && serial <= (modernDates ? 2957003 : 2958465) && (modernDates || serial !== 60), 'Workbook date must be a whole valid Excel date')
+     const epoch = modernDates ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 31)
+     values[dateIndex] = new Date(epoch + (serial - (!modernDates && serial > 60 ? 1 : 0)) * 86400000).toISOString().slice(0, 10)
+    }
     records.push({ value: Object.fromEntries(header.map((key, i) => [key, values[i] ?? ''])), row: number })
    }
   }

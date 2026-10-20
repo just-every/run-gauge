@@ -524,11 +524,11 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "609e163daa49b003860a4f3a4ad5d8f3cf6fc93037ca9438191820812a478839",
+      "sha256": "238ac62a7c42770f94b49986a6db41bba5c52e2c186930e23d44346ed0187b74",
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "79b994942a18dac2067894d4098f96233ca0cb42755c22ccc01334085478607b",
+      "sha256": "957d77da98fa968e9c0600d0113808096bf6ba0441ff746166e0dfdb2c540220",
       "executable": false
     },
     "PROVENANCE.md": {

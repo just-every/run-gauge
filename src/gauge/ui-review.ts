@@ -10,6 +10,7 @@ import { timeReviewSection } from './ui-time-policy'
 import { proposalSection } from './ui-proposals'
 import { forecastSection } from './ui-forecast'
 import { marginSection } from './ui-margin'
+import { cashSection } from './ui-cash'
 import { demandSection } from './ui-demand'
 
 /** The latest approved estimate per engagement (lead and finance see terms). */
@@ -34,5 +35,5 @@ export async function reviewSection(env: Bindings, a: Actor, report: Report) {
  const rows = [...report.exceptions.filter(x => x.type !== 'unbilled approved work').map(x => describeException(report, x)), ...unbilledByEngagement(report, unbilled)]
  const exceptions = `<section class="g-block"><h2>Decisions and exceptions</h2>${rows.length ? `<ul class="g-card g-exceptions">${rows.map(x => `<li>${chip(x.type)}<a href="${e(x.href)}">${e(x.text.replaceAll(' · ', '\u00a0· '))}</a></li>`).join('')}</ul>` : '<p class="g-empty">No exceptions in the selected period. Missing calendars mean expected time is unknown.</p>'}</section>`
  const economics = `<section class="g-block"><h2>Engagement economics</h2>${report.economics.length ? `<div class="g-econ-grid">${report.economics.map(x => economicsCard(report, a, x)).join('')}</div>` : '<p class="g-empty">Create an engagement and approved terms to begin.</p>'}</section>`
- return head + `<div class="g-review">${await proposalSection(env, a, report)}${exceptions}</div>${timeReviewSection(report)}${economics}${forecastSection(report)}${marginSection(report)}${demandSection(report, a.role === 'owner')}<p class="g-footnote">Exceptions come from your approved records. Operational economics are not accounting revenue.</p>`
+ return head + `<div class="g-review">${await proposalSection(env, a, report)}${exceptions}</div>${timeReviewSection(report)}${economics}${forecastSection(report)}${marginSection(report)}${cashSection(report)}${demandSection(report, a.role === 'owner')}<p class="g-footnote">Exceptions come from your approved records. Operational economics are not accounting revenue.</p>`
 }

@@ -27,6 +27,13 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  if (['clients','people'].includes(k)) {
   v.name = text(input.name, 'Name', 200)
   if (k === 'people') { v.timezone = zone(input.timezone); Object.assign(v,resourceProfile(input,previous?.value)) }
+  // FINANCE-002 cash basis (FINANCE-007): payment terms in days (Net N), an approved average days late and a collection probability.
+  if (k === 'clients') {
+   const days = (key: string, label: string) => input[key] === undefined ? previous?.value[key] ?? null : input[key] === '' || input[key] === null ? null : integer(input[key], label, 0, 365)
+   v.paymentTermsDays = days('paymentTermsDays', 'Payment terms days'); v.daysLate = days('daysLate', 'Days late')
+   v.daysLateApprovedBy = v.daysLate === null ? null : v.daysLate === (previous?.value.daysLate ?? null) ? previous?.value.daysLateApprovedBy ?? a.session.operator.id : a.session.operator.id
+   v.collectionPercent = input.collectionPercent === undefined ? previous?.value.collectionPercent ?? 100 : input.collectionPercent === '' ? 100 : integer(input.collectionPercent, 'Collection probability percent', 0, 100)
+  }
  }
  if (k === 'engagements') {
   v.type = input.type ?? previous?.value.type ?? 'client'

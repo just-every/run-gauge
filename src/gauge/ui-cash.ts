@@ -1,0 +1,15 @@
+// FINANCE-002 on Week in review: committed revenue, expected invoices and expected cash by month, with the
+// historical-timing range, nothing issued and no payments recorded shown as such.
+import { escape as e } from './ui-forms'
+import { money } from './ui-format'
+import type { Report } from './ui-describe'
+
+export function cashSection(report: Report) {
+ const c = report.cash
+ if (!c || !c.months.length) return ''
+ const link = (r: (typeof c.months)[number], field: 'invoicesMinor' | 'expectedMinor' | 'historicalExpectedMinor') => `<a href="?calculation=${e(`cash:${r.currency}:${r.month}:${field}`)}#report-evidence">${money(r[field], r.currency)}</a>`
+ const td = (label: string, html: string) => `<td data-label="${e(label)}" class="g-num">${html}</td>`
+ const rows = c.months.map(r => `<tr><th scope="row">${e(r.month)}${r.complete ? '' : ' <span class="g-chip g-chip--warn">Incomplete</span>'}</th>${td('Committed revenue', money(r.revenueMinor, r.currency))}${td('+ tentative', r.tentativeMinor ? `+ ${money(r.tentativeMinor, r.currency)}` : '—')}${td('+ weighted pipeline', r.pipelineMinor ? `+ ${money(r.pipelineMinor, r.currency)}` : '—')}${td('Expected invoices', link(r, 'invoicesMinor'))}${td('Expected cash on terms', `${link(r, 'expectedMinor')}${r.openMinor !== r.expectedMinor ? `<br><small>of ${money(r.openMinor, r.currency)} open</small>` : ''}${r.pastDueMinor ? `<br><small>${money(r.pastDueMinor, r.currency)} past due</small>` : ''}`)}${td('Historical timing', link(r, 'historicalExpectedMinor'))}${td('Range', r.rangeLowMinor === r.rangeHighMinor ? money(r.rangeLowMinor, r.currency) : `${money(r.rangeLowMinor, r.currency)} – ${money(r.rangeHighMinor, r.currency)}`)}</tr>`).join('')
+ const clients = c.engagements.map(x => `<li>${e(x.name)}: ${e(x.termsLabel)}${x.daysLate === null ? '' : ` · ${x.daysLate} days late, historical timing`} · ${x.collectionPercent}% collection · booked ${money(x.bookedRevenueMinor, x.currency)} · backlog ${money(x.backlogMinor, x.currency)}</li>`).join('')
+ return `<section class="g-block" id="cash-forecast"><h2>Revenue and cash forecast</h2><p class="g-lede">As of ${e(c.asOf)}. Revenue is the committed forecast; tentative work and weighted pipeline are separate additions. Nothing is invoiced yet, so every amount is an expected invoice, pre-tax: monthly in arrears on the 1st, milestones on their due date, received after the client's payment terms. Issued receivables: ${e(c.issuedReceivables)}. Pending and settled cash: ${e(c.settledCash)}.</p><section class="g-card g-card--table"><div class="g-table"><table><thead><tr><th>Month</th><th>Committed revenue</th><th>+ tentative</th><th>+ weighted pipeline</th><th>Expected invoices</th><th>Expected cash on terms</th><th>Historical timing</th><th>Range</th></tr></thead><tbody>${rows}</tbody></table></div></section><details class="g-card"><summary>Terms, collection and backlog by engagement</summary><ul>${clients}</ul></details></section>`
+}

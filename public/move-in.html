@@ -12,12 +12,16 @@ Forecast&#x27;s [schedule export guide](https://help.getharvest.com/forecast/sch
 Forecast [has no public documented API](https://help.getharvest.com/forecast/faqs/faq-list/api/). Gauge accepts an owner-authorized, uploaded capture, with explicit units, identities and field mappings; it does not fetch or verify provider authorization, infer an undocumented schema or claim a live connection (CONNECT-013). The capture&#x27;s original bytes and all entity payloads remain in custody.
 
 Upload `clients.csv`, `people.csv`, `projects.csv`, `time.csv`, optionally
-`forecast.csv`, `forecast.json`, and optional PDF archives. CSV uploads retain their exact UTF-8
+`forecast.csv`, `forecast.json`, and optional PDF archives. Supply `time.xlsx` instead of `time.csv` for detailed time workbooks, and set `timeWorksheet` to the exact worksheet name. Never supply both time formats. CSV uploads retain their exact UTF-8
 bytes. PDF bytes are retained as binary originals and downloadable historical
 archives; they never become editable invoices, payment state or native authority.
 Each CSV is limited to 2 MiB; PDF to 1 MiB; a package to 1000 rows and an HTTP
 request to 8 MiB. Split larger exports at complete engagement boundaries, preserving
 stable source IDs and namespace. Hosted upload capacity is unproven.
+
+XLSX time uses the same time-column mappings, source IDs, historical rates and independent controls as CSV. The selected worksheet must have unique headers on row 1, exported numeric or text values, ISO `YYYY-MM-DD` date text (format Excel date columns as text before export), and at most 1000 time rows. Raw and rounded numeric cell text is converted directly into exact seconds, without floating-point hour arithmetic. Shared strings, inline strings and sparse empty optional cells are accepted. Formula cells, Excel serial dates, unsupported cell types and ambiguous/missing worksheet names refuse; no cached formula result is trusted. Original workbook bytes and selected worksheet/row locations stay in custody. No source data is rewritten or discarded. ZIP decoding is bounded to 2 MiB compressed, 8 MiB expanded and 128 members. This is detailed time support only, not other workbook record kinds or complete finance history.
+
+For `POST /api/gauge/command`, put the binary workbook in `package.workbook: {base64: &quot;...&quot;}`, omit `files[&quot;time.csv&quot;]`, and provide `manifest.timeWorksheet`. Browser upload accepts `time.xlsx` directly; the retained artifact keeps that filename. Equivalent CSV and worksheet rows share source identities and do not duplicate imported work; source or later native changes still require reconciliation.
 
 Supply a JSON manifest:
 

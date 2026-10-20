@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { workbook } from './fixtures/harvest-workbook.mjs'
 
 // MIGRATE-002: source raw/rounded time, historical rates, invoice and approval/lock evidence
 // through native preview, apply, state, retained originals, billing refusal and browser doors.
@@ -20,6 +21,29 @@ try {
    'projects.csv': 'Project ID,Client ID,Project,Notes\nlaunch,northstar,Autumn launch,Identity and launch delivery\n',
    'time.csv': 'Time Entry ID,Person ID,Project ID,Date,Hours,Rounded Hours,Task,Billable?,Invoiced?,Invoice ID,Approved?,Locked?,Notes\nbrand,ada,launch,2026-09-04,2.11,2.25,Brand design,Yes,Yes,INV-204,Yes,Yes,Approved identity concepts\nweb,ada,launch,2026-09-11,1,1,Web delivery,Yes,No,,No,No,Accessible launch page\n',
   },
+ }
+ const rows = pack.files['time.csv'].trimEnd().split('\n').map(line => line.split(','))
+ rows[1][4] = 2.11; rows[1][5] = 2.25; rows[2][4] = 1; rows[2][5] = 1
+ rows[2][9] = undefined // Sparse optional invoice reference.
+ rows[1][12] = { value: rows[1][12], type: 'inlineStr' }
+ const bytes = workbook(rows, { extraSheets: [{ name: 'Summary', rows: [['Not detailed time']] }] })
+ const xlsx = structuredClone(pack); delete xlsx.files['time.csv']
+ xlsx.manifest.timeWorksheet = 'Detailed time'; xlsx.workbook = { base64: bytes.toString('base64') }
+ const xlsxPreview = await cmd('import:preview', { package: xlsx })
+ assert.deepEqual(xlsxPreview.timeControls, pack.manifest.timeReconciliation, 'MIGRATE-002 XLSX controls match independent report')
+ for (const [label, alter] of [
+  ['missing worksheet', p => { delete p.manifest.timeWorksheet }],
+  ['wrong worksheet', p => { p.manifest.timeWorksheet = 'Absent' }],
+  ['conflicting time formats', p => { p.files['time.csv'] = pack.files['time.csv'] }],
+  ['formula', p => { p.workbook.base64 = workbook(rows, { formula: { E2: '1+1.11' } }).toString('base64') }],
+  ['serial date', p => { const changed = structuredClone(rows); changed[1][3] = 46269; p.workbook.base64 = workbook(changed).toString('base64') }],
+  ['expanded ZIP limit', p => { p.workbook.base64 = workbook(rows, { extraFiles: { 'large.xml': 'x'.repeat(8 * 1024 * 1024 + 1) } }).toString('base64') }],
+  ['compressed size limit', p => { p.workbook.base64 = Buffer.alloc(2 * 1024 * 1024 + 1).toString('base64') }],
+  ['independent controls', p => { p.manifest.timeReconciliation['northstar/2026-09'].rawSeconds-- }],
+ ]) {
+  const invalid = structuredClone(xlsx); alter(invalid)
+  await cmd('import:preview', { package: invalid }, owner, 400)
+  assert.equal((await state()).data.time.length, 0, `MIGRATE-002 ${label} refuses without writes`)
  }
  const preview = await cmd('import:preview', { package: pack })
  assert.deepEqual(preview.timeControls, pack.manifest.timeReconciliation)
@@ -56,10 +80,11 @@ try {
   }
  }
  await page.getByRole('link', { name: 'Back to imports' }).click()
- await page.getByLabel('Harvest export files:', { exact: false }).setInputFiles(Object.entries(pack.files).map(([name, content]) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) })))
- await page.getByLabel('Manifest, as described in the move-in guide').fill(JSON.stringify(pack.manifest))
+ await page.getByLabel('Harvest export files:', { exact: false }).setInputFiles(Object.entries(xlsx.files).map(([name, content]) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) })).concat({ name: 'time.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: bytes }))
+ await page.getByLabel('Manifest, as described in the move-in guide').fill(JSON.stringify(xlsx.manifest))
  await page.getByRole('button', { name: 'Preview', exact: true }).click()
  assert(await page.getByRole('heading', { name: 'Source time controls' }).isVisible())
+ assert.match(await page.locator('main').innerText(), /Source time controls/)
  const shots = process.env.GAUGE_HARVEST_SHOTS
  const capture = async name => {
   for (const width of [1440, 390]) {
@@ -103,10 +128,10 @@ try {
  const importPage = await (await request('/app/imports', owner)).text(), retainedPath = importPage.match(/href="(\/api\/gauge\/imports\/[^"]+)"/)[1]
  const originals = await request(retainedPath, owner)
  assert.equal(originals.status, 200)
- const retained = await originals.json(), timeOriginal = retained.find(r => r.name === 'time.csv')
- assert.equal(Buffer.from(timeOriginal.original.base64, 'base64').toString(), pack.files['time.csv'])
- const afterEdit = await cmd('import:preview', { package: pack })
- await cmd('import:create', { package: pack, fingerprint: afterEdit.fingerprint }, owner, 409)
+ const retained = await originals.json(), timeOriginal = retained.find(r => r.name === 'time.xlsx')
+ assert.deepEqual(Buffer.from(timeOriginal.original.base64, 'base64'), bytes, 'MIGRATE-002 exact binary workbook custody')
+ const afterEdit = await cmd('import:preview', { package: xlsx })
+ await cmd('import:create', { package: xlsx, fingerprint: afterEdit.fingerprint }, owner, 409)
  assert.deepEqual((await state()).data.time.find(r => r.id === final.id), final, 'Reimport preserves later native approval')
- console.log('PASS MIGRATE-002 raw 7596 / rounded 8100 seconds, historical rates, invoice reference, source approval/lock evidence, independent controls, preview/apply, native approval, duplicate-billing refusal and original custody')
+ console.log('PASS MIGRATE-002 XLSX bounded value-only decoding, worksheet selection, binary custody, cross-format replay; raw 7596 / rounded 8100 seconds, historical rates, invoice reference, source approval/lock evidence, independent controls, preview/apply, native approval, duplicate-billing refusal and original custody')
 } finally { await browser?.close(); await h.dispose() }

@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { canonicalJson, sha256, type SourceBundle, type SourceRecord, type TargetEffect } from '../modules/import-kit/src/d1/index'
 import { need, text, date, zone, type Value, charge } from './model'
+import { harvestWorkbook } from './harvest-workbook'
 import { forecastSource } from './forecast-source'
 import { harvestSeconds, harvestTimeEvidence, addHarvestTimeControl, type HarvestTimeControl } from './harvest-time'
 import { normalizeHarvestRates, harvestRateAt } from './harvest-rates'
@@ -11,7 +12,7 @@ export function parseCsv(source: string): Record<string,string>[] {
  const header=rows.shift();need(header?.length,'CSV needs headers');header[0]=header[0].replace(/^\uFEFF/,'');need(new Set(header).size===header.length,'Duplicate CSV column')
  return rows.map((r,i)=>{need(r.length===header.length,`CSV row ${i+2} has the wrong column count`);return Object.fromEntries(header.map((h,j)=>[h,r[j]]))})
 }
-export interface HarvestInput { manifest: Value; files: Record<string,string>; archives?: {name:string;mediaType:string;base64:string}[] }
+export interface HarvestInput { manifest: Value; files: Record<string,string>; workbook?: {base64:string}; archives?: {name:string;mediaType:string;base64:string}[] }
 export function harvest(input:HarvestInput,expectedCurrency:string) {
  const m=input.manifest;need(m && typeof m==='object','Manifest required');need(typeof m.currency==='string'&&/^[A-Z]{3}$/.test(m.currency),'Declare the Harvest package currency as a three-letter ISO currency code');const currency=m.currency
  need(currency===expectedCurrency,`Harvest package uses ${currency}; agency uses ${expectedCurrency}. No currency conversion is performed.`)
@@ -20,12 +21,16 @@ export function harvest(input:HarvestInput,expectedCurrency:string) {
  const timeControls: Record<string, HarvestTimeControl> = {}, historicalRates = new Map<string, ReturnType<typeof normalizeHarvestRates>>()
  const namespace=`harvest:${m.namespace}`,id=(k:string,s:string)=>`hv_${sha256(`${namespace}:${k}:${s}`).slice(0,32)}`
  const records:Record<string,Record<string,string>[]>={}
- for(const name of ['clients.csv','people.csv','projects.csv','time.csv']){need(typeof input.files[name]==='string',`Supply ${name}`);records[name]=parseCsv(input.files[name])}
+ need(!input.workbook || !Object.hasOwn(input.files,'time.csv'),'Supply time.csv or time.xlsx, never both')
+ const workbook=input.workbook?harvestWorkbook(input.workbook.base64,m.timeWorksheet):undefined
+ const timeFile=workbook?'time.xlsx':'time.csv'
+ if(workbook){records['time.csv']=workbook.records.map(r=>r.value);bundle.artifacts.push({name:timeFile,sha256:sha256(workbook.bytes),size:workbook.bytes.length,original:{status:'available',base64:input.workbook!.base64}})}
+ for(const name of ['clients.csv','people.csv','projects.csv',...(workbook?[]:['time.csv'])]){need(typeof input.files[name]==='string',`Supply ${name}`);records[name]=parseCsv(input.files[name])}
  for(const [name,content]of Object.entries(input.files)){need(['clients.csv','people.csv','projects.csv','time.csv','forecast.csv','forecast.json'].includes(name),'Unsupported source file; review omissions explicitly');const bytes=Buffer.from(content);need(bytes.length<=2*1024*1024,'Each source file is limited to 2 MiB');bundle.artifacts.push({name,sha256:sha256(bytes),size:bytes.length,original:{status:'available',base64:bytes.toString('base64')}})}
  need(Object.values(records).reduce((n,r)=>n+r.length,0)<=1000,'This pilot importer accepts at most 1000 rows per reviewed package; split at complete engagement boundaries')
  const columns=(file:string)=>m.columns?.[file]??{}
  const field=(r:Record<string,string>,file:string,key:string,def:string)=>text(r[columns(file)[key]??def],`${file}: ${key}`)
- const add=(file:string,index:number,k:string,s:string,payload:Value,ef:TargetEffect[])=>{const artifact=bundle.artifacts.find(f=>f.name===file)!;const record:SourceRecord={namespace,kind:k,sourceId:s,payload,payloadHash:sha256(canonicalJson(payload)),artifactHash:artifact.sha256,location:{artifact:file,row:index+2}};bundle.records.push(record);effects.set(`${k}:${s}`,ef)}
+ const add=(file:string,index:number,k:string,s:string,payload:Value,ef:TargetEffect[])=>{const artifact=bundle.artifacts.find(f=>f.name===file)!;const record:SourceRecord={namespace,kind:k,sourceId:s,payload,payloadHash:sha256(canonicalJson(payload)),artifactHash:artifact.sha256,location:{artifact:file,row:workbook&&file===timeFile?workbook.records[index].row:index+2,...(workbook&&file===timeFile?{pointer:workbook.worksheet}:{})}};bundle.records.push(record);effects.set(`${k}:${s}`,ef)}
  const clients=new Map<string,string>(),people=new Map<string,string>(),projects=new Map<string,string>(),clientNames=new Map<string,string>(),tasks=new Set<string>()
  records['clients.csv'].forEach((r,i)=>{const s=field(r,'clients','id','Client ID'),name=field(r,'clients','name','Client');need(!clients.has(s),'Duplicate client id');clients.set(s,id('clients',s));clientNames.set(s,name);add('clients.csv',i,'clients',s,r,[{targetKind:'clients',targetId:id('clients',s),value:{name,source:{namespace,externalId:s}}}])})
  records['people.csv'].forEach((r,i)=>{const s=field(r,'people','id','Person ID'),name=field(r,'people','name','Name');need(!people.has(s),'Duplicate person id');people.set(s,id('people',s));const rates=normalizeHarvestRates(m.rates?.[s]);historicalRates.set(s,rates);add('people.csv',i,'people',s,r,[{targetKind:'people',targetId:id('people',s),value:{name,timezone:m.timezone,contractor:r.Contractor==='Yes',source:{namespace,externalId:s}}}])})
@@ -40,7 +45,7 @@ export function harvest(input:HarvestInput,expectedCurrency:string) {
   const billable=field(r,'time','billable','Billable?');need(['Yes','No'].includes(billable),'Resolve source billable flag explicitly')
   const evidence=harvestTimeEvidence(r,columns('time'),duration),source={namespace,externalId:s,billed:billed==='Yes',clockInstants:'not-supplied',currency,...evidence,rateEffective:rate.effective,billMinor:charge(evidence.billingSeconds??duration,rate.billMinor),costMinor:rate.costMinor===null?null:charge(duration,rate.costMinor)}
   ef.push({targetKind:'time',targetId:id('time',s),value:{engagementId:projects.get(project)!,personId:people.get(person)!,taskId,service:task,notes:r[columns('time').notes??'Notes']??'',billable:billable==='Yes',start:null,end:null,durationSeconds:duration,workDate:day,timezone:m.timezone,status:'draft',currency,source}})
-  add('time.csv',i,'time',s,r,ef)
+  add(timeFile,i,'time',s,r,ef)
   const projectRow=records['projects.csv'].find(p=>field(p,'projects','id','Project ID')===project)!,client=field(projectRow,'projects','clientId','Client ID'),key=`${client}/${day.slice(0,7)}`;addHarvestTimeControl(timeControls,key,source,billable==='Yes');totals[key]??={count:0,seconds:0,amountMinor:0};totals[key].count++;totals[key].seconds+=duration;totals[key].amountMinor+=billable==='Yes'?source.billMinor:0;need(Number.isSafeInteger(totals[key].amountMinor),'Client period total exceeds exact integer range')
  })
  // Explicit rates remain native data, never account grants; all imported work awaits review.

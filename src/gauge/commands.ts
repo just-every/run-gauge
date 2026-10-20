@@ -27,18 +27,22 @@ import { targetCommand } from './billability'
 import { approvalCommand } from './approval-policy'
 import { projectScenarioCommand, projectScenarioPreview } from './project-scenarios'
 import { demandScenarioCommand } from './demand-scenarios'
+import { seal } from './audit'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
+ // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
+ await seal(env,action.startsWith('import:'))
  if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)
  if(action==='retainer:preview')return retainerPreview(env,a,input)
  if(action==='delivery:preview')return deliveryPreview(env,a,input)
  if(action==='staffing:preview')return schedulePreview(env,a,input)
- if(action.startsWith('import:'))return importCommand(env,a,action,input)
+ if(action.startsWith('import:')){const result=await importCommand(env,a,action,input);await seal(env,true);return result}
  const key=text(input.key,'Unique request key',200),digest=sha256(canonicalJson({...input,file:input.file instanceof File?{name:input.file.name,size:input.file.size,hash:sha256(new Uint8Array(await input.file.arrayBuffer()))}:null,action})),previous=await env.DB.prepare('SELECT actor,digest,result FROM g_receipts WHERE key=?').bind(key).first<{actor:string;digest:string;result:string}>()
  if(previous){need(previous.actor===a.session.operator.id && previous.digest===digest,'Request key already used for different work',409);await fence(env,a);return JSON.parse(previous.result)}
  const tx=new Transaction(env,a)
+ tx.key=key;tx.action=action
  let result:Value|null=await retainerCommand(env,a,tx,action,input)
  if(!result)result=await deliveryCommand(env,a,tx,action,input)
  if(!result)result=await templateCommand(env,a,tx,action,input)

@@ -35,6 +35,7 @@ async function save(env: Bindings, tx: Transaction, value: Value, old: Row | und
  result.value.nextOccurrenceId=ids.get(result.id)
  // The row is still being created in this batch; update without a second stale observation.
  tx.sql('UPDATE g_tasks SET data=? WHERE id=? AND revision=?',JSON.stringify(result.value),result.id,result.revision)
+ tx.sql("UPDATE g_audit SET data=? WHERE kind='tasks' AND record_id=? AND revision=? AND hash IS NULL",JSON.stringify(result.value),result.id,result.revision)
  return result
 }
 export async function taskCommand(env: Bindings,a: Actor,tx: Transaction,action: string,input: Value): Promise<Row|null> {

@@ -22,7 +22,14 @@ export async function access(env: Bindings, a: Actor, engagementId: string, mana
 }
 export class Transaction {
  statements: D1PreparedStatement[] = []
+ /** The command's request key and action, kept on each GOVERN-005 audit row. */
+ key: string | null = null
+ action: string | null = null
  constructor(public env: Bindings, public actor: Actor) {}
+ /** GOVERN-005: an append-only audit row in the committing batch; src/gauge/audit.ts seals it into the chain. */
+ audit(action: string, k: string, recordId: string, data: Value, link: { previousRevision?: string | null, revision?: string | null } = {}) {
+  this.sql('INSERT INTO g_audit(at,actor,role,person_id,request_key,action,kind,record_id,previous_revision,revision,data) VALUES(?,?,?,?,?,?,?,?,?,?,?)', Date.now(), this.actor.session.operator.id, this.actor.role, this.actor.personId, this.key, action, k, recordId, link.previousRevision ?? null, link.revision ?? null, JSON.stringify(data))
+ }
  sql(sql: string, ...params: any[]) { this.statements.push(this.env.DB.prepare(sql).bind(...params)) }
  guard(sql: string, ...params: any[]) { this.sql(`INSERT INTO g_assert(ok) VALUES(CASE WHEN (${sql}) THEN 1 ELSE 0 END)`, ...params); this.sql('DELETE FROM g_assert') }
  observe(k: Kind, row: Row) { this.guard(`EXISTS(SELECT 1 FROM g_${k} WHERE id=? AND revision=? AND data=?)`, row.id, row.revision, JSON.stringify(row.value)) }
@@ -31,6 +38,7 @@ export class Transaction {
   const row = { id: previous?.id ?? id, revision: uuid(), value }
   if (previous) this.sql(`UPDATE g_${k} SET revision=?,data=? WHERE id=?`, row.revision, JSON.stringify(value), row.id)
   else this.sql(`INSERT INTO g_${k}(id,revision,data) VALUES(?,?,?)`, row.id, row.revision, JSON.stringify(value))
+  this.audit(action !== 'create' ? action : this.action ?? (previous ? 'update' : 'create'), k, row.id, value, { previousRevision: previous?.revision ?? null, revision: row.revision })
   return row
  }
  async commit() { const p = authority(this.actor); const check = () => this.env.DB.prepare(`INSERT INTO g_assert(ok) VALUES(CASE WHEN (${p.sql}) THEN 1 ELSE 0 END)`).bind(...p.params); await this.env.DB.batch([check(), ...this.statements, check(), this.env.DB.prepare('DELETE FROM g_assert')]) }

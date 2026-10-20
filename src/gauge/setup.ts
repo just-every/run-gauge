@@ -30,6 +30,7 @@ export async function agencySetupResponse(request: Request, env: Bindings, auth:
    tx.guard('NOT EXISTS(SELECT 1 FROM oa_first_run WHERE singleton=1)')
    tx.sql('INSERT INTO g_agency(singleton,currency,timezone) VALUES(1,?,?) ON CONFLICT(singleton) DO UPDATE SET currency=excluded.currency,timezone=excluded.timezone', currency, timezone)
    tx.sql('INSERT INTO oa_first_run(singleton,completed_by,completed_at) VALUES(1,?,?)', session.operator.id, Date.now())
+   tx.audit('agency:setup', 'agency', 'agency', { currency, timezone })
    await tx.commit()
    return new Response(null, { status: 303, headers: { ...headers, location: '/app' } })
   }

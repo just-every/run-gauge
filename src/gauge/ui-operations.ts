@@ -57,6 +57,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
   })
  }
  if(section==='billing')body+=specialistHandoffSection(a,report)
+ if(section==='billing')body+='<section class="g-card"><h2>Business audit</h2><p class="g-note">Search every saved change, decision, grant, key event, packet export and import effect; verify the audit chain and export it.</p><div class="g-actions"><a class="g-btn g-btn--secondary" href="/app/audit">Open the business audit</a></div></section>'
  if(section==='imports'){
   body='<div class="g-titlebar"><h1>Harvest move-in</h1></div><p class="g-lede">Preview a Harvest export without changing anything; nothing is applied until you choose to. <a href="/move-in.html">Read the move-in guide</a>.</p>'
   const preview=options.preview

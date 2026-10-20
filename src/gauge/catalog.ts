@@ -15,6 +15,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   tx.sql('INSERT INTO g_grants(operator_id,person_id,role,enabled) VALUES(?,?,?,?) ON CONFLICT(operator_id) DO UPDATE SET person_id=excluded.person_id,role=excluded.role,enabled=excluded.enabled,version=g_grants.version+1', operatorId, personId, input.role, flag(input.enabled) ? 1 : 0)
   // GOVERN-001: every grant change is kept with who made it and when.
   tx.sql('INSERT INTO g_grant_audit(operator_id,person_id,role,enabled,actor,at) VALUES(?,?,?,?,?,?)', operatorId, personId, input.role, flag(input.enabled) ? 1 : 0, a.session.operator.id, Date.now())
+  tx.audit('grant', 'grants', operatorId, { personId, role: input.role, enabled: flag(input.enabled) })
   return { granted: true }
  }
  if (!action.startsWith('save:')) return null

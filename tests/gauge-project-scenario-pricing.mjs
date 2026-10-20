@@ -102,6 +102,14 @@ export async function pricingScenarioJourney(h,browser) {
    await pricedRow.scrollIntoViewIfNeeded()
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Pricing fits ${width}`)
    if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/pricing-adopted-${width}.png`,fullPage:false})}
+   const calculation=`forecast:${projects[0].id}:etcFeesMinor`
+   await page.goto(`${h.origin}/app/review?from=${day(1)}&to=${day(2)}&calculation=${encodeURIComponent(calculation)}`)
+   const figure=page.locator(`[id="calculation-${calculation}"]`)
+   assert.match(await figure.locator('.g-summary').innerText(),/\$1,080\.00/,'FINANCE-003 native forecast displays independently computed net remaining fees')
+   for(const booking of bookings)assert.equal(await figure.locator(`a[href="/api/gauge/history/staffing/${booking.id}"]`).count(),1,'FINANCE-003 both project threshold sources have revision doors')
+   await figure.evaluate(el=>el.scrollIntoView({block:'start'}))
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Forecast formula fits ${width}`)
+   if(process.env.GAUGE_SCENARIO_SHOTS)await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/pricing-lineage-${width}.png`,fullPage:false})
   }
  } finally {await context.close()}
  console.log('PASS FINANCE-003 overtime/write-downs: independent per-project fees/cost/margin/cash, shared daily threshold, tentative ordering, isolated native pricing adoption, frozen actuals, cross-project spillover and agency-day fence; 1440/390')

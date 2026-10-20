@@ -7,7 +7,7 @@ The importer follows Harvest's documented export format and has been tested with
 On **Imports**, **Preview source package** takes:
 
 - `clients.csv`, `people.csv`, `projects.csv` and `time.csv` from Harvest, and optionally `forecast.csv` (Project or Team, periods in rows or columns) or an authorized `forecast.json` capture with explicit mappings and archived invoice PDFs;
-- a required manifest in JSON that names the account, the currency, the timezone, the column mapping, each project's lead and reviewed members, one historical rate per person, and your own client and month totals to reconcile against.
+- a required manifest in JSON that names the account, the currency, the timezone, the column mapping, each project's lead and reviewed members, reviewed dated historical rates per person, and your own client and month totals to reconcile against.
 
 New agencies default to USD. The manifest must declare the package's actual currency, and it must match the agency currency saved during setup. An AUD package is refused by a USD agency with a reason such as “Harvest package uses AUD; agency uses USD.” Gauge performs no currency conversion. Imported engagements, rates and time amounts retain the declared currency; existing historical records keep theirs.
 
@@ -15,7 +15,7 @@ The repository's `MOVE-IN.md` gives every manifest field, and `tests/fixtures/ha
 
 ## Preview, then apply
 
-**Preview** makes no changes. It shows the records it found, the client and month totals, the reviewed project members and what it leaves out, and it refuses a package whose totals disagree with yours.
+**Preview** makes no changes. Source time controls keep raw hours separate from exported billing rounding, reconcile billed and unbilled hours and costs, and retain invoice references and source approval/lock flags as evidence. Unknown source values stay visible; these flags never approve or lock native work. It shows the records it found, the client and month totals, the reviewed project members and what it leaves out, and it refuses a package whose totals disagree with yours.
 
 **Apply first bounded batch** applies that exact reviewed preview in small, journaled batches; **Resume bounded work** continues it. Imported time arrives as drafts, to be submitted and approved in Gauge. Imported people get no sign-in or role.
 

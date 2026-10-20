@@ -1063,6 +1063,14 @@
       "sha256": "0e87470080ceda8b7bd85cc75b1ccc8b91547595b26f1dda3a65aafbe7fbc9a9",
       "executable": false
     },
+    "src/gauge/harvest-rates.ts": {
+      "sha256": "9c84a004b156811a7c1d67aab9d8344fbb7fc4ba59403f258d0601523b70219d",
+      "executable": false
+    },
+    "src/gauge/harvest-time.ts": {
+      "sha256": "8a898b448e132b9224dc81b58ea7c521a33d7b367a48d257a7264d159bd4a6b4",
+      "executable": false
+    },
     "src/gauge/harvest.ts": {
       "sha256": "51820ea3506eb32c283451807be7914e7737e3496afa328a1bffe387f3f285e9",
       "executable": false
@@ -1325,6 +1333,10 @@
     },
     "src/gauge/ui-forms.ts": {
       "sha256": "6170846bfae0d35ef1e6cef3663b3541f873e4edd9b430f7a2db60fd52013b93",
+      "executable": false
+    },
+    "src/gauge/ui-harvest-history.ts": {
+      "sha256": "4a8b806462005c3b22e1b355e3f3e07030eb1739e9a6416d88bf8ef6a9134fda",
       "executable": false
     },
     "src/gauge/ui-margin.ts": {
@@ -3213,6 +3225,10 @@
     },
     "tests/gauge-harness.mjs": {
       "sha256": "6cbf4e2abef651f43aa933d8153305c6715d3c01524df1224d55d9733a01623c",
+      "executable": false
+    },
+    "tests/gauge-harvest-history.mjs": {
+      "sha256": "92fffeff405669d722b4630ecabc1cd45f31459e96d7b9dd62fb92dd6f50f861",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

@@ -112,14 +112,18 @@ export async function projectScenarioCommand(env: Bindings, a: Actor, tx: Transa
  const candidate = await compare(env,a,data,preview.changes,preview.asOf,tx), effects: Value[] = []
  // All guards above precede every write. A selected alternative is one atomic effect set.
  for(const effect of candidate.effects) {
-  const value = effect.kind === 'budgets' ? {...effect.value,createdAt:Date.now(),approvedAt:Date.now(),approvedBy:a.session.operator.id} : effect.kind === 'deliveryPlans' ? {...effect.value,reason,approvedBy:a.session.operator.id,approvedAt:Date.now()} : effect.value
+  let value = effect.kind === 'budgets' ? {...effect.value,createdAt:Date.now(),approvedAt:Date.now(),approvedBy:a.session.operator.id} : effect.kind === 'deliveryPlans' ? {...effect.value,reason,approvedBy:a.session.operator.id,approvedAt:Date.now()} : effect.value
+  if(effect.kind === 'engagements') {
+   const additions = candidate.effects.filter(p=>p.kind==='staffing'&&p.value.engagementId===effect.source?.id).map(p=>p.value.personId)
+   value = {...value,members:[...new Set([...(value.members ?? []),...additions])]}
+  }
   const row = await tx.record(effect.kind,value,effect.source,effect.id,'projectScenario:adopt')
   effects.push({kind:effect.kind,sourceId:effect.source?.id ?? null,id:row.id,revision:row.revision})
  }
  for(const e of data.engagements) {
   const current = candidate.effects.find(p=>p.kind==='engagements'&&p.source?.id===e.id)
   const additions = candidate.effects.filter(p => p.kind === 'staffing' && p.value.engagementId === e.id).map(p => p.value.personId), members = [...new Set([...(e.value.members ?? []),...additions])]
-  if(current) { need(additions.length===0,'Compare scope and membership changes separately',409); continue }
+  if(current)continue
   if(additions.length && members.length !== (e.value.members ?? []).length)await tx.record('engagements',{...e.value,members},e,undefined,'projectScenario:assign')
  }
  return tx.record('projectScenarios',{...stored.value,status:'adopted',adoptedBy:a.session.operator.id,adoptedAt:Date.now(),adoptionReason:reason,selectedIds:preview.changes.map(c => c.id),approvedComparison:preview,effects},stored,undefined,action)

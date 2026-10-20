@@ -272,7 +272,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "3f45705761716a42838d0838e18ef18f42d43e000b05cbaaf74e0dffb47dff0f",
+      "sha256": "c0c6a18dcaf73deb3189d38cb94b6730ca0cc070fe60ae6b5b9464f52e24bded",
       "executable": false
     },
     "base-copies.json": {
@@ -284,7 +284,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8ecf04bd8bd6dbfbcc9bad27d910435babc4becade6b8105a8a12a7e46f1dffe",
+      "sha256": "d3fc6a930e0ad89bffe36032c9240bfa9195391c75a5c9cc2784f518c42a1699",
       "executable": false
     },
     "DEMO.md": {
@@ -1124,7 +1124,7 @@
       "executable": false
     },
     "src/gauge/project-scenario-scope.ts": {
-      "sha256": "63f071f5b210bc809d8a2502d7544bbd5b27ee1a167181f082f9ffba2a6b6d66",
+      "sha256": "2ffc41180d9c3eab4452531694aa89cdf81178d9769ec5da7928e6922a2cd744",
       "executable": false
     },
     "src/gauge/project-scenario-staffing.ts": {
@@ -1132,7 +1132,7 @@
       "executable": false
     },
     "src/gauge/project-scenarios.ts": {
-      "sha256": "284816b2d1968d4bfbf402e6245f99f836cf9e3575906ce8bbff3afe4d545286",
+      "sha256": "2953cea5955f263078553940ef8ac1a12d20213b81fd262a9545056c2b2a3908",
       "executable": false
     },
     "src/gauge/proposals.ts": {
@@ -3284,7 +3284,7 @@
       "executable": false
     },
     "tests/gauge-project-scenario-pricing.mjs": {
-      "sha256": "2ed402f9ff2010172b6cdcfa624d5348ed39e3ffba8b85339023913f6d9c06f6",
+      "sha256": "cc91718238a8ab5a9808e1cdb037565d6c034d292bb677f6477d7e492c8eae8f",
       "executable": false
     },
     "tests/gauge-project-scenario-rates.mjs": {

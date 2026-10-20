@@ -84,6 +84,7 @@ export async function pricingScenarioJourney(h,browser) {
  assert.equal(spill.deltas.find(p=>p.engagementId===projects[1].id).eacFeesMinor,-9000)
  assert.equal(spill.scenario.capacity[0].committedSeconds,14*3600)
  // The agency-day fence refuses yesterday's exact comparison even if no source changed.
+ await cmd('projectScenario:preview',{asOf,changes:[{...scope,terms:{mode:'fixed',amountMinor:10000,effortSeconds:3600,roundingSeconds:60,reason:'Would reclassify actuals'}}]},owner,409)
  const yesterdayInput={asOf:day(-1),changes:[scope]},yesterday=await cmd('projectScenario:preview',yesterdayInput)
  const old=await cmd('projectScenario:prepare',{...yesterdayInput,fingerprint:yesterday.fingerprint,name:'Prior day scope',reason:'Prior review'})
  const oldSelection={...old,asOf:day(-1),selectedIds:[scope.id]},oldPreview=await cmd('projectScenario:preview',oldSelection)

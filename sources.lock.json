@@ -261,7 +261,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a908e7bc1f76d848c92136990f917514a441e90e4c27d2f0721ef344615b1382",
+      "sha256": "4e370dd7160904ff2e77385fd0a935626e421a820a5b2416f289b4353c352fc2",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -285,7 +285,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3a6cfe5da857a24a0705648a0759814fcbf18f9d40a15018614963f46412ae5f",
+      "sha256": "bfb9fc7bc3b348150fb9b3a0fca42105fb8ad17bdd39e585bbc04061887ea586",
       "executable": false
     },
     "DEMO.md": {
@@ -533,7 +533,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "0499c07da223539b98d933cdf9e9ed06e8b71256f7314325dbdf97432cf21db9",
+      "sha256": "22815cec00708492bc5a60e40c4b18a672c03c4d62c4d134ee36de5471a07445",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -3266,6 +3266,10 @@
     },
     "tests/gauge-demand-forecast.mjs": {
       "sha256": "e1d287523b2ff05f1c78cf8b0fff43e2653a02e2619765bfe8746614619745be",
+      "executable": false
+    },
+    "tests/gauge-expected-cash.mjs": {
+      "sha256": "005bbe807b4717646b36ecbdf3113a8a45234c26c979ed37414572112b1863b3",
       "executable": false
     },
     "tests/gauge-finance-forecast.mjs": {

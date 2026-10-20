@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 28 | 33 | 60 | 121 |
-| All | 45 | 33 | 60 | 138 |
+| Target and push further | 28 | 34 | 59 | 121 |
+| All | 45 | 34 | 59 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -473,7 +473,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `FINANCE-004` | Monthly period close | target | missing |  | No period close, WIP checklist or accounting reconciliation lock. |
 | `FINANCE-005` | Revenue schedules for the accountant | target | missing |  | No revenue schedules, deferred revenue or journal mapping. |
 | `FINANCE-006` | Committed forecast basis | target | done | `src/gauge/finance-forecast.ts`; `src/gauge/report-lineage-forecast.ts`; `src/gauge/rate-cards.ts`; `src/gauge/ui-forecast.ts`; `migrations/core/0033_gauge_rate_withdrawals.sql`; `tests/gauge-finance-forecast.mjs` |  |
-| `FINANCE-007` | Expected cash basis | target | missing |  | No expected invoice or receipt dates, payment terms, days-late assumptions, collection probability, dispute exclusion, pending/settled split or cash assumption range. |
+| `FINANCE-007` | Expected cash basis | target | partial | `src/gauge/cash-forecast.ts`; `src/gauge/report-lineage-cash.ts`; `tests/gauge-expected-cash.mjs` — FINANCE-007; `tests/gauge-cash-forecast.mjs` | Unissued amounts follow the basis (FINANCE-002): fixed-fee milestones invoiced on their scheduled date and moved through the delivery plan, hourly fees monthly in arrears on the 1st, receipt on the client's Net N (or "Net 30 assumed"), approved days late as the labelled historical-timing end of the range and collection probability beside the full open amount. Retainer in-advance invoices (RETAINER-005), issued invoices and disputes (INVOICE-001, INVOICE-006, INVOICE-007), scheduled-invoice probabilities and pending versus settled ACH (PAYMENT-001, PAYMENT-002 in Stripe test mode) remain. |
 | `INVOICE-001` | Issue numbered USD and client-currency invoices | target | partial | `src/gauge/billing.ts`; `tests/gauge.mjs`; `tests/gauge-currency.mjs` | Approved billing packets and immutable CSVs retain their source currency, including USD, and refuse mixed currencies. They remain billing preparation only; invoice numbering, USD and client-currency invoice issuance, customer terms and invoice states are absent. |
 | `INVOICE-002` | Progress and consolidated invoices | target | partial | `src/gauge/catalog.ts`; `src/gauge/billing.ts`; `tests/gauge.mjs` | Fixed-milestone packet sources exist; percentage progress, deposits and multi-project invoices are missing. |
 | `INVOICE-003` | Branded invoice delivery | target | missing |  | No invoice PDF/page, invoice email delivery or delivery tracking. |

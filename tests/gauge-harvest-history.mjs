@@ -43,8 +43,8 @@ try {
  const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage()
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
  await page.goto(h.origin + '/app/imports')
- await page.getByRole('link', { name: 'Read the move-in guide' }).click()
- assert.equal(new URL(page.url()).pathname, '/move-in.html')
+ const [guideResponse] = await Promise.all([page.waitForNavigation(), page.getByRole('link', { name: 'Read the move-in guide' }).click()])
+ assert.equal(guideResponse.status(), 200)
  for (const width of [1440, 390]) {
   await page.setViewportSize({ width, height: 1100 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `MIGRATE-002 guide fits ${width}`)

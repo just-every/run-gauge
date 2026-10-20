@@ -42,7 +42,8 @@
           "migrations/core/0030_gauge_billability_targets.sql",
           "migrations/core/0031_gauge_approval_policy.sql",
           "migrations/core/0032_gauge_retainer_close.sql",
-        "migrations/core/0033_gauge_rate_withdrawals.sql"
+        "migrations/core/0033_gauge_rate_withdrawals.sql",
+          "migrations/core/0034_gauge_demand_scenarios.sql"
         ]
       }
     },

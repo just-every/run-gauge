@@ -15,6 +15,7 @@ import { correctionValue, correctionBalance } from './retainer-privacy'
 import { retainerStatements } from './retainer-statements'
 import { resourceDemand } from './resource-demand'
 import { financeForecast } from './finance-forecast'
+import { demandForecast } from './demand-forecast'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 const amounts = ['amountMinor','budgetMinor','totalMinor','costMinor','billMinor']
@@ -42,7 +43,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
  for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
-  data.rates=[]; data.rateWithdrawals=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
+  data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
   // Agency delivery templates are planning configuration for those who start projects.
   if(a.role!=='lead')data.deliveryTemplates=[]
   const leadIds=new Set(data.engagements.filter(e=>agent || (a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
@@ -127,6 +128,9 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const timeReview=reviewQueue(data,a.timezone,allTime)
  const reviewerIds=a.role==='lead'?(await env.DB.prepare("SELECT DISTINCT g.person_id FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id WHERE g.enabled=1 AND g.role IN ('lead','finance') AND o.status='active'").all<{person_id:string}>()).results.map(r=>r.person_id):[]
  const timeReviewers=(await all(env,'people')).filter(p=>reviewerIds.includes(p.id)).map(p=>({...p,value:{name:p.value.name}}))
- const report={timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast:finance(a)?financeForecast(data,forecastDay,retainerBalances):null,from,to,asOf}
+ const forecast=finance(a)?financeForecast(data,forecastDay,retainerBalances):null
+ // RESOURCE-005 capacity runs from the day after the forecast day for a year, whatever window the state read shows.
+ const forecastCapacity=forecast?capacity(data,new Date(Date.parse(forecastDay)+86400000).toISOString().slice(0,10),new Date(Date.parse(forecastDay)+366*86400000).toISOString().slice(0,10)):[]
+ const report={timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

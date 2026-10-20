@@ -508,7 +508,7 @@
       "executable": false
     },
     "MOVE-IN.md": {
-      "sha256": "90b533e29ce9f806e7690e7bf69123263ee0c7b81a1fd21e7b11cedba82f534d",
+      "sha256": "9605501ddaa8e64cc6a13dd381fbbb61e7f346f73092d1a8c169380cba0a51e4",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -632,7 +632,7 @@
       "executable": false
     },
     "public/move-in.html": {
-      "sha256": "2d3fd543d583d599812cba2d06af53dd15931a4ecaf054da31ebe14fa6f4647c",
+      "sha256": "d1681373155244dec2887c1c9a592d0bb47b6ad0e8c84c33be996fb033c04212",
       "executable": false
     },
     "public/rer-theme.css": {
@@ -1052,7 +1052,7 @@
       "executable": false
     },
     "src/gauge/forecast-source.ts": {
-      "sha256": "ce5cf73f9178d87f2a828e0a9801917ad673a9c17dfcb76b2506c9f8906a65f3",
+      "sha256": "b2103c1624d2329b4b1c32af3bed19463a508c19321715ad1fe0cf76e162bb40",
       "executable": false
     },
     "src/gauge/forecast.ts": {
@@ -3204,7 +3204,7 @@
       "executable": false
     },
     "tests/gauge-forecast.mjs": {
-      "sha256": "50f8b015e9cf1574d076610f70b703f59891e8dc89b650dca7241ee7d1431567",
+      "sha256": "a49c8cae2dc86026f932ef19037edc9c9bce4d7ab2a18127da0093f0980617cd",
       "executable": false
     },
     "tests/gauge-handoffs.mjs": {

@@ -37,8 +37,9 @@ export function forecastSource(ctx:ForecastContext, rows:Record<string,string>[]
    need(['tentative','committed'].includes(commitment),'Declare Forecast commitment')
    if(period.workingDays!==undefined)integer(period.workingDays,'Forecast working-day count',1,366)
    const days=period.workingDates===undefined?[]:forecastDates(period,totalSeconds)
-   const key=`csv:${view}:${who}:${engagementId??'team'}:${label}`,effects:TargetEffect[]=[]
-   if(engagementId&&p.personId)for(const {day,dailySeconds}of days)effects.push({targetKind:'staffing',targetId:id('staffing',m.forecast?`${key}:${day}`:`${index}:${label}:${day}`),value:{personId:p.personId,engagementId,from:day,to:day,dailySeconds,commitment,source:{namespace:`harvest:${m.namespace}`,externalId:key,periodTotalSeconds:totalSeconds,granularity:'reviewed distribution; not original daily facts'}}})
+   const detail=cols.id?text(row[cols.id],'Forecast row id'):[who,engagementId??'team',row[cols.task??'Task']??''].join(':')
+   const key=`csv:${view}:${detail}:${label}`,effects:TargetEffect[]=[]
+   if(engagementId&&p.personId)for(const {day,dailySeconds}of days)effects.push({targetKind:'staffing',targetId:id('staffing',m.forecast?`${key}:${day}`:`${index}:${label}:${day}`),value:{personId:p.personId,engagementId,from:day,to:day,dailySeconds,commitment,source:{namespace:`harvest:${m.namespace}`,externalId:m.forecast?key:`${index}:${label}`,periodTotalSeconds:totalSeconds,granularity:'reviewed distribution; not original daily facts'}}})
    save('forecast.csv',index,key,row,{view,person:who,...p,engagementId,project:view==='project'?`${row[cols.client??'Client']} / ${row[cols.project??'Project']}`:null,period:label,from,to,workingDays:period.workingDays??null,workingDates:period.workingDates??null,totalSeconds,commitment,resolution:effects.length?'Reviewed distribution; not original daily facts':'Aggregate only; excluded from daily staffing'},effects)
   }
  })
@@ -54,6 +55,7 @@ function apiCapture(ctx:ForecastContext,capture:Value,save:(file:string,index:nu
  const fields=cfg.fields??{},read=(row:Value,kind:string,key:string)=>row[fields[kind]?.[key]??key]
  const arrays:Record<string,Value[]>={}
  for(const kind of ['people','projects','assignments','availability']){const rows=capture[cfg.arrays?.[kind]??kind];need(Array.isArray(rows),`Supply captured Forecast ${kind}`);arrays[kind]=rows;const ids=rows.map(r=>text(String(read(r,kind,'id')??''),`Captured ${kind} id`));need(new Set(ids).size===ids.length,`Duplicate captured ${kind} id`)}
+ need(Object.values(arrays).reduce((n,rows)=>n+rows.length,0)<=1000,'Captured Forecast arrays exceed 1000 source rows')
  const personIds=new Set(arrays.people.map(r=>String(read(r,'people','id')))),projectIds=new Set(arrays.projects.map(r=>String(read(r,'projects','id'))))
  const who=(raw:Value,kind:string)=>{const key=String(read(raw,kind,'personId'));need(personIds.has(key),'Assignment/availability person missing from capture');const personId=people.get(m.schedulePeople?.[key]),placeholder=m.schedulePlaceholders?.[key]??null;need(!(personId&&placeholder),'A Forecast identity cannot be both a person and placeholder');need(personId||placeholder,'Map captured person or placeholder');return {key,personId:personId??null,placeholder}}
  arrays.availability.forEach((raw,index)=>{

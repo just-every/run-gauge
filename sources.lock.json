@@ -1052,7 +1052,7 @@
       "executable": false
     },
     "src/gauge/forecast.ts": {
-      "sha256": "bc5aa4e6f1d5575959c99baf063a7eb013489d6099f228995d27183fb1aa9ceb",
+      "sha256": "477f7e12caabd611cad7731f68d3766ad1f07d8fd92054b6aa00876f9c76805a",
       "executable": false
     },
     "src/gauge/form-input.ts": {
@@ -1060,19 +1060,19 @@
       "executable": false
     },
     "src/gauge/harvest.ts": {
-      "sha256": "a0fd7675b29b9024d5372ac7482b1681eb47e7cecc0835cf3c1782cdf76f9c4c",
+      "sha256": "d6832dd82007bc624ab1e720e46d9d082a59152d19bc238d594c19e0477498de",
       "executable": false
     },
     "src/gauge/http.ts": {
-      "sha256": "30019756d7ca214e50aa2657c3769b8659e2fca9f8bda17c1d752a6cf549d60a",
+      "sha256": "a07f91b397b39f4a95fdbf484644c085f9119cb763354049d483d94ae8559839",
       "executable": false
     },
     "src/gauge/import-targets.ts": {
-      "sha256": "ceb914b050b12022e1461a8fa4399c2ee1b862d312d138492eec41d87bef74fa",
+      "sha256": "d75759f47e479c8d2121a149a254874c505628d7b9172dc5440bb565f77067b0",
       "executable": false
     },
     "src/gauge/imports.ts": {
-      "sha256": "ee7dc3170e8c20977d08346fa7f09afc6efe24ba63a4870431935b53416c1bc9",
+      "sha256": "0737d91819fe5f88f684dddcb6f84b4c9530d07c53c1decaa996651da2776555",
       "executable": false
     },
     "src/gauge/margin.ts": {
@@ -1328,7 +1328,7 @@
       "executable": false
     },
     "src/gauge/ui-operations.ts": {
-      "sha256": "eeb8f79581a7627f9163e0262646fcf114701076890cc8956f1d31d6acb745df",
+      "sha256": "ea3710ac9b2627118b3eb1544d61df82965e0d34598b91285a72ad802f80b043",
       "executable": false
     },
     "src/gauge/ui-performance.ts": {
@@ -3124,7 +3124,7 @@
       "executable": false
     },
     "tests/fixtures/forecast.mjs": {
-      "sha256": "18ad1d729dee471531b6bba973636cd92b107a9f3bbbcaaec156cc14f1f736f9",
+      "sha256": "a77666af8371d5c89b549e66ec7c2845fda19cac2aa7f9f06b9255e377fff9f0",
       "executable": false
     },
     "tests/fixtures/harvest/clients.csv": {
@@ -3196,7 +3196,7 @@
       "executable": false
     },
     "tests/gauge-forecast.mjs": {
-      "sha256": "cfa52a9323bb2b6a941d21bb45ae994fbc688209781e909a06b4e39067618577",
+      "sha256": "e8ede9aa5dce718c307c1be0dcaa13bb769b472172b473b5e3d0af777d80b479",
       "executable": false
     },
     "tests/gauge-handoffs.mjs": {

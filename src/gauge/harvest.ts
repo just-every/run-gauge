@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { canonicalJson, sha256, type SourceBundle, type SourceRecord, type TargetEffect } from '../modules/import-kit/src/d1/index'
 import { need, text, date, zone, integer, money, type Value, charge } from './model'
-import { forecastDates } from './forecast'
+import { forecastSource } from './forecast-source'
 export function parseCsv(source: string): Record<string,string>[] {
  const rows:string[][]=[];let row:string[]=[],cell='',quoted=false
  for(let i=0;i<source.length;i++){const c=source[i];if(c==='"'){if(quoted&&source[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&source[i+1]==='\n')i++;row.push(cell);if(row.some(Boolean))rows.push(row);row=[];cell=''}else cell+=c}
@@ -19,7 +19,7 @@ export function harvest(input:HarvestInput,expectedCurrency:string) {
  const namespace=`harvest:${m.namespace}`,id=(k:string,s:string)=>`hv_${sha256(`${namespace}:${k}:${s}`).slice(0,32)}`
  const records:Record<string,Record<string,string>[]>={}
  for(const name of ['clients.csv','people.csv','projects.csv','time.csv']){need(typeof input.files[name]==='string',`Supply ${name}`);records[name]=parseCsv(input.files[name])}
- for(const [name,content]of Object.entries(input.files)){need(['clients.csv','people.csv','projects.csv','time.csv','forecast.csv'].includes(name),'Unsupported source file; review omissions explicitly');const bytes=Buffer.from(content);need(bytes.length<=2*1024*1024,'Each source file is limited to 2 MiB');bundle.artifacts.push({name,sha256:sha256(bytes),size:bytes.length,original:{status:'available',base64:bytes.toString('base64')}})}
+ for(const [name,content]of Object.entries(input.files)){need(['clients.csv','people.csv','projects.csv','time.csv','forecast.csv','forecast.json'].includes(name),'Unsupported source file; review omissions explicitly');const bytes=Buffer.from(content);need(bytes.length<=2*1024*1024,'Each source file is limited to 2 MiB');bundle.artifacts.push({name,sha256:sha256(bytes),size:bytes.length,original:{status:'available',base64:bytes.toString('base64')}})}
  need(Object.values(records).reduce((n,r)=>n+r.length,0)<=1000,'This pilot importer accepts at most 1000 rows per reviewed package; split at complete engagement boundaries')
  const columns=(file:string)=>m.columns?.[file]??{}
  const field=(r:Record<string,string>,file:string,key:string,def:string)=>text(r[columns(file)[key]??def],`${file}: ${key}`)
@@ -42,27 +42,10 @@ export function harvest(input:HarvestInput,expectedCurrency:string) {
  })
  // Explicit rates remain native data, never account grants; all imported work awaits review.
  for(const [person,personId]of people){const r=m.rates[person];add('people.csv',records['people.csv'].findIndex(p=>field(p,'people','id','Person ID')===person),'rates',person,{person,...r},[{targetKind:'rates',targetId:id('rates',person),value:{personId,service:'*',effective:r.effective,costMinor:r.costMinor,billMinor:r.billMinor,currency,source:{namespace,externalId:person}}}])}
- if(input.files['forecast.csv']){
-  const rows=parseCsv(input.files['forecast.csv'])
-  need(m.schedulePeriods&&m.schedulePeople&&m.scheduleProjects,'Forecast requires explicit period, person and project mappings')
-  rows.forEach((r,i)=>{
-   const person=m.schedulePeople[r.Person],project=m.scheduleProjects[`${r.Client}/${r.Project}`]
-   need(people.has(person)&&projects.has(project),'Unresolved Forecast identity')
-   const ef:TargetEffect[]=[]
-   for(const [column,period]of Object.entries(m.schedulePeriods) as [string,Value][]){
-    if(!r[column]||Number(r[column])===0)continue
-    const total=seconds(r[column])
-    for(const {day,dailySeconds}of forecastDates(period,total))ef.push({
-     targetKind:'staffing',targetId:id('staffing',`${i}:${column}:${day}`),
-     value:{personId:people.get(person)!,engagementId:projects.get(project)!,from:day,to:day,dailySeconds,commitment:'tentative',source:{namespace,periodTotalSeconds:total,externalId:`${i}:${column}`}}
-    })
-   }
-   add('forecast.csv',i,'staffing',String(i),r,ef)
-  })
- }
+ const schedule=forecastSource({manifest:m,people,projects,id,add},input.files['forecast.csv']?parseCsv(input.files['forecast.csv']):[],input.files['forecast.json']?JSON.parse(input.files['forecast.json']):undefined)
  const expected=m.reconciliation;need(expected&&canonicalJson(expected)===canonicalJson(totals),'Independent client/month count, seconds and billable amount totals do not reconcile')
  for(const archive of input.archives??[]){need(archive.mediaType==='application/pdf','Historical archives must be PDF');const bytes=Buffer.from(archive.base64,'base64');need(bytes.length<=1024*1024&&bytes.toString('base64')===archive.base64,'Invalid or oversized PDF');const name=text(archive.name,'Archive filename',200);need(name.endsWith('.pdf'),'PDF filename required');bundle.artifacts.push({name,sha256:sha256(bytes),size:bytes.length,original:{status:'available',base64:archive.base64}});add(name,-1,'archives',name,{name,kind:'historical-document'},[{targetKind:'archives',targetId:id('archives',name),value:{name,mediaType:archive.mediaType,base64:archive.base64,semantics:'Historical document only; no editable invoice or active authority',source:{namespace,externalId:name}}}])}
  need(bundle.records.length<=1000,'The complete package exceeds 1000 source records including rates and optional files')
  const manifestBytes=Buffer.from(JSON.stringify(m));bundle.artifacts.push({name:'manifest.json',sha256:sha256(manifestBytes),size:manifestBytes.length,original:{status:'available',base64:manifestBytes.toString('base64')}})
- return {bundle,namespace,memberships:m.projectMembers??{},mapping:{version:'gauge-harvest-1',map:(r:SourceRecord)=>({effects:effects.get(`${r.kind}:${r.sourceId}`)??[]})},totals,omissions:['No native authority or approval imported.','Date-only time has unknown clock instants.','Historical rate versions are supplied in the manifest; source approval history is unavailable.','Invoice PDFs are historical documents, not editable invoices.','Forecast aggregate periods are mapped to tentative daily allocations; actual calendars must be reviewed.']}
+ return {bundle,namespace,memberships:m.projectMembers??{},mapping:{version:'gauge-harvest-1',map:(r:SourceRecord)=>({effects:effects.get(`${r.kind}:${r.sourceId}`)??[]})},totals,schedule,omissions:['No native authority or approval imported.','Date-only time has unknown clock instants.','Historical rate versions are supplied in the manifest; source approval history is unavailable.','Invoice PDFs are historical documents, not editable invoices.','Forecast aggregate periods stay labeled; only explicitly reviewed dates or supplied captured date allocations create daily records. Source snapshots retain their granularity; imported commitment is a reviewed mapping, never commercial approval.']}
 }

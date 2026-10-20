@@ -3284,7 +3284,7 @@
       "executable": false
     },
     "tests/gauge-project-scenario-pricing.mjs": {
-      "sha256": "cc91718238a8ab5a9808e1cdb037565d6c034d292bb677f6477d7e492c8eae8f",
+      "sha256": "fba785bb72b361d35063291948523d4148e02491a2e038c6358e83580d2fcbc0",
       "executable": false
     },
     "tests/gauge-project-scenario-rates.mjs": {
@@ -3292,7 +3292,7 @@
       "executable": false
     },
     "tests/gauge-project-scenario-scope.mjs": {
-      "sha256": "a92d72a63e0f33ab32eb9e534b49b2edb238e51f5e014033718a0e0c9f153db9",
+      "sha256": "4fb749da67fb144ae3e9d9fcd8952e141ee7f0b66e3fc4fd83f1e4675f3df1bb",
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {

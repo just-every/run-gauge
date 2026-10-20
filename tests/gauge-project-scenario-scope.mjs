@@ -82,10 +82,10 @@ export async function scopeScenarioJourney(h,browser) {
  try {
   await context.addCookies(owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
   for(const width of [1440,390]) {
-   await page.setViewportSize({width,height:1000});await page.goto(`${h.origin}/app/engagements`)
+   await page.setViewportSize({width,height:1000});await page.goto(`${h.origin}/app/engagements?edit=${projects[0].id}`)
    assert.match(await page.locator('main').innerText(),/Focused discovery/)
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Scope fits ${width}`)
-   if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/scope-adopted-${width}.png`,fullPage:true})}
+   if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/scope-adopted-${width}.png`,fullPage:false})}
   }
  } finally {await context.close()}
  console.log('PASS FINANCE-003 scope: two-project effort/terms/cost/margin/cash/utilization, isolated baseline, exact selected native adoption, historical and unselected preservation, fixed commitment/incomplete and invalid source checks; 1440/390')

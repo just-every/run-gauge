@@ -96,8 +96,11 @@ export async function pricingScenarioJourney(h,browser) {
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000});await page.goto(`${h.origin}/app/rates`)
    assert.match(await page.locator('main').innerText(),/Taylor Brooks/)
+   const pricedRow=page.getByRole('row').filter({hasText:'Taylor Brooks'}).filter({hasText:'150% after 8 h/day'})
+   assert.equal(await pricedRow.count(),1);assert.match(await pricedRow.innerText(),/10% write-down/)
+   await pricedRow.scrollIntoViewIfNeeded()
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Pricing fits ${width}`)
-   if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/pricing-adopted-${width}.png`,fullPage:true})}
+   if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/pricing-adopted-${width}.png`,fullPage:false})}
   }
  } finally {await context.close()}
  console.log('PASS FINANCE-003 overtime/write-downs: independent per-project fees/cost/margin/cash, shared daily threshold, tentative ordering, isolated native pricing adoption, frozen actuals, cross-project spillover and agency-day fence; 1440/390')

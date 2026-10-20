@@ -72,6 +72,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
  for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,fixture),'utf8')
  const manifest=JSON.parse(await readFile(new URL('manifest.json',fixture),'utf8'));manifest.namespace='portability-historical-document';manifest.currency=(await state()).agency.currency
  const historicalBytes=Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n')
+ const {capturedForecastPackage}=await import('./fixtures/forecast.mjs'),forecast=await capturedForecastPackage()
+ Object.assign(manifest,{schedulePeople:forecast.manifest.schedulePeople,scheduleProjects:forecast.manifest.scheduleProjects,schedulePlaceholders:forecast.manifest.schedulePlaceholders,forecastApi:forecast.manifest.forecastApi})
+ files['forecast.json']=forecast.files['forecast.json']
  const sourcePackage={manifest,files,archives:[{name:'historical-invoice.pdf',mediaType:'application/pdf',base64:historicalBytes.toString('base64')}]}
  const preview=await cmd('import:preview',{package:sourcePackage})
  let retainedImport=await cmd('import:create',{package:sourcePackage,fingerprint:preview.fingerprint})
@@ -90,6 +93,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const prepared=(await state()).data.specialistHandoffs.find(r=>r.id===handoff.id)
  await cmd('handoff:record-result',{...handoff,result:{handoffId:handoff.id,artifactHash:prepared.value.artifactHash,lines:prepared.value.lines.map((l,i)=>({id:l.id,status:i?'accepted':'rejected',...(i?{}:{reason:'Portable receiver requested supporting evidence'}),currency:l.currency,amountMinor:l.amountMinor,durationSeconds:l.durationSeconds}))}})
  const before=await state()
+ assert.equal(before.data.archives.filter(r=>r.value.forecast).length,4,'MIGRATE-003 source snapshots are available before BASE-002 export')
+ assert(before.data.calendars.some(r=>r.value.source?.externalId==='api:availability:v1'),'MIGRATE-003 captured availability is native before export')
+ assert(before.data.leave.some(r=>r.value.source?.externalId==='api:assignment:a2'),'MIGRATE-003 captured time off is native before export')
  assert(before.data.archives.some(r=>r.value.base64===historicalBytes.toString('base64')),'native historical document is available before export')
  assert.equal(before.data.time.find(r=>r.id===time.id).value.economics.costMinor,6500)
  const completedTask=before.data.tasks.find(r=>r.id===task.id),nextTask=before.data.tasks.find(r=>r.id===completedTask.value.nextOccurrenceId)

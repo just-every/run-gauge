@@ -20,5 +20,5 @@ export function forecastDates(period: Value, totalSeconds: number) {
  need(new Set(days).size===count,'Forecast workingDates must be unique')
  need(days.every((day: string)=>day>=from && day<=to),'Forecast workingDates must fall within the period')
  need(totalSeconds%count===0,'Forecast total must divide into exact whole seconds per working date')
- return days.sort().map((day: string)=>({day,dailySeconds:totalSeconds/count}))
+ return days.sort().map((day: string)=>({day,dailySeconds:integer(totalSeconds/count,'Forecast seconds per date',0,86400)}))
 }

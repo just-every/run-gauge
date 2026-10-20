@@ -7,10 +7,12 @@ actual billing period before switching tools. The fixture package under
 
 Harvest's [export guide](https://support.getharvest.com/hc/en-us/articles/31625325401229-Exporting-data), read 11 October 2026, describes an all-company-time CSV and separate client, project and people exports. Available report columns depend on the report and customization. Gauge therefore requires explicit column/identity mappings; the fixture headers are an adapter shape, not a claim that every Harvest export has those headers. Obtain stable source entry IDs where possible; if absent, supply a reviewed stable source-ID column and retain its derivation with your manifest. Never use a row number as a durable time-entry identity across changed exports.
 
-Forecast's [schedule export guide](https://help.getharvest.com/forecast/schedule/analyze/exporting-data/), read 11 October 2026, describes Project or Team exports with weekly/monthly periods as rows or columns. Gauge currently accepts **Project schedule with periods in columns**. Its identifiers are mapped explicitly; period totals become tentative daily allocations only after the reviewer supplies the exact date range and working dates. Team schedule and periods-as-rows need normalization before this adapter. These aggregate exports do not establish individual daily actuals, leave or calendar history.
+Forecast's [schedule export guide](https://help.getharvest.com/forecast/schedule/analyze/exporting-data/) describes Project or Team exports, weekly/monthly periods in rows or columns. All four layouts are accepted with explicit mappings below. Team totals span projects and are separate controls, never additional project demand. Aggregate periods retain their original total, period and working-day count as downloadable JSON source snapshots on Imports; they create no daily facts until dates are reviewed. Placeholders retain their name and tentative demand without creating a real person, availability or access.
+
+Forecast [has no public documented API](https://help.getharvest.com/forecast/faqs/faq-list/api/). Gauge accepts an owner-authorized, uploaded capture, with explicit units, identities and field mappings; it does not fetch or verify provider authorization, infer an undocumented schema or claim a live connection (CONNECT-013). The capture's original bytes and all entity payloads remain in custody.
 
 Upload `clients.csv`, `people.csv`, `projects.csv`, `time.csv`, optionally
-`forecast.csv`, and optional PDF archives. CSV uploads retain their exact UTF-8
+`forecast.csv`, `forecast.json`, and optional PDF archives. CSV uploads retain their exact UTF-8
 bytes. PDF bytes are retained as binary originals and downloadable historical
 archives; they never become editable invoices, payment state or native authority.
 Each CSV is limited to 2 MiB; PDF to 1 MiB; a package to 1000 rows and an HTTP
@@ -47,28 +49,16 @@ Supply a JSON manifest:
   rounded once per entry to minor units; source duration has no billing increment rounding.
   Gauge refuses disagreement before preview. Compare these independently with the
   source report, not by copying Gauge's calculated answer.
-- Optional `schedulePeople` maps Person labels to source person IDs;
-  `scheduleProjects` maps the client and project labels to source project IDs;
-  `schedulePeriods` maps period headers to `{from,to,workingDays,workingDates}`.
-  `workingDates` is a reviewed list of unique `YYYY-MM-DD` dates inside the
-  inclusive period, and `workingDays` must be its exact positive integer count.
-  For example, 20 hours for 2–8 November 2026 with five working days uses
-  `workingDates: ["2026-11-02","2026-11-03","2026-11-04","2026-11-05","2026-11-06"]`
-  and imports as four hours on each listed day, totaling 20 hours.
-  Forecast [excludes non-work days from spanning assignments](https://support.getharvest.com/hc/en-us/articles/40045640152589-Forecast-Managing-non-work-days);
-  review the person's actual Forecast schedule, excluding weekends and other
-  non-work days unless explicitly scheduled in Forecast. A custom Saturday work
-  day can be listed. For people with different working dates, normalize their
-  totals into separate period columns with the appropriate date mappings and
-  leave other people's columns blank. Count-only manifests are refused: the aggregate cannot
-  identify which dates were worked. Totals must divide into whole seconds per
-  listed day. Each allocation covers only its listed date; native calendars and
-  later calendar changes do not redistribute the imported hours.
+- Optional `schedulePeople` maps CSV person labels or captured person IDs to source person IDs in `people.csv`; `scheduleProjects` maps CSV `Client/Project` labels or captured project IDs to source IDs in `projects.csv`. These reviewed links retain the captured people/projects and avoid creating duplicate identities. `schedulePlaceholders` maps a placeholder label/ID to its descriptive name; it never maps to a real person.
+- `schedulePeriods` maps CSV period labels to inclusive `{from,to,workingDays}`. Omit `workingDates` to retain a labeled aggregate without distributing it. Add the exact reviewed `workingDates` (unique dates inside that period, count equal to positive integer `workingDays`) to distribute a Project total equally into whole seconds on those dates. Those rows are labeled reviewed distributions, not original daily facts. Totals need to divide exactly. Team totals remain aggregate controls even with reviewed dates, because they do not identify a project. Periods span at most one year; totals can exceed 24 hours.
+- `forecast: {view: "project"|"team", orientation: "columns"|"rows", commitment: "tentative"|"committed", columns: {...}}` selects the CSV shape. Default is the original Project/columns door with tentative planning meaning. `columns` maps `person`, `client`, `project`, and for rows `period` and `hours`, to actual export headers; defaults are `Person`, `Client`, `Project`, `Period`, `Hours`. A mapped `commitment` column takes precedence over the package commitment. Never interpret an imported staffing commitment as commercial approval. For columns the period labels are the exported column headers. For rows the named period cell selects `schedulePeriods`. The original Project/columns source/target identities are preserved; changed source rows require explicit reconciliation, never a new namespace to bypass claims.
+- `forecast.json` contains arrays of `people`, `projects`, `assignments` and `availability`. `forecastApi: {authorized: true, durationUnit: "seconds"|"decimal-hours", arrays: {...}, fields: {...}, leaveProjectIds: [...], allocations: {...}}` declares permission to supply the capture and maps its actual schema. `arrays` maps those four roles to top-level array names. `fields` maps semantic keys per array to actual field names. Every array needs unique `id`; people may carry `name`. Assignment fields are `personId`, `projectId`, `from`, `to`, `totalSeconds`, `commitment`; availability fields are `personId`, `from`, `to`, `dailySeconds`, `weekdays` (comma-separated weekday numbers, Sunday=0), `holidays` (explicit date list, empty if none). Both duration-named fields use the explicitly declared `durationUnit`. Date bounds are inclusive. Map captured identities through `schedulePeople`/`scheduleProjects`; include every referenced person/project in the capture. Names and other captured fields remain in original custody, without granting access.
+- `forecastApi.allocations` maps assignment IDs to supplied exact date detail `[{date: "2026-11-02", seconds: 18000}, ...]` (always whole seconds). Dates must be unique, within the captured period and total exactly to its quantity; a one-date assignment already supplies its own exact detail. A multi-date capture without this detail remains an aggregate. No weekday or holiday algorithm invents daily assignment facts. `leaveProjectIds` identifies captured Time Off projects; their date allocations become leave, separately reducing available capacity. Availability preserves explicit workdays and holidays and refuses overlapping native calendars. Placeholders retain unfilled tentative totals only and cannot carry leave/availability. The source view preserves tentative and committed meaning; only named-person exact/reviewed allocations enter the daily staffing calculation. Compare Team and Project controls independently across the same holiday before cutover.
 
 Dates without exported clock instants retain null start/end and explicit work date,
 timezone and whole-second duration. They do not compete with live timer intervals.
 Decimal hours that cannot exactly represent whole seconds are rejected. No implicit
-FX, source approval, invitation, staffing commitment or external action is imported.
+FX, source approval, invitation or external action is imported. Staffing commitment is an explicit reviewed mapping, never an approval.
 Imported notes are inert text, escaped on documents and formula-safe in billing CSV.
 Source billed flags block repeat billing; unbilled work still needs native terms,
 submission and approval.
@@ -108,6 +98,6 @@ new migrations remain forward-only after the first release.
 - Expenses and receipts, project budgets and budget history, task estimates, and approval or lock state of source time (imported time arrives as drafts for native submission and approval).
 - More than one historical rate per person in a package, rate history inferred from today's rates, and per-project or per-task billable rates (supply one reviewed rate per person and period).
 - User accounts, roles, permissions and project managers beyond the reviewed `projectLeads` and `projectMembers` maps; no operator account or grant is created.
-- Timer start and stop clock instants when the export has only dates and hours; Forecast Team schedules, periods as rows, leave, time off and placeholders.
+- Timer start and stop clock instants when the export has only dates and hours; a live Forecast API connection or provider-verified authorization.
 - Packages whose declared currency differs from the saved agency currency,
   currency conversion, and any write back to Harvest or Forecast.

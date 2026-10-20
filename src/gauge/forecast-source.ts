@@ -10,7 +10,7 @@ export interface ForecastContext {
 }
 export function forecastSource(ctx:ForecastContext, rows:Record<string,string>[], capture?:Value) {
  const {manifest:m,people,projects,id,add}=ctx,summary:Value[]=[]
- const person=(key:string)=>{const source=m.schedulePeople?.[key];need(people.has(source)||m.schedulePlaceholders?.[key],`Unresolved Forecast person ${key}`);return {personId:people.get(source)??null,placeholder:m.schedulePlaceholders?.[key]??null}}
+ const person=(key:string)=>{const source=m.schedulePeople?.[key];need(!(people.has(source)&&m.schedulePlaceholders?.[key]),'A Forecast identity cannot be both a person and placeholder');need(people.has(source)||m.schedulePlaceholders?.[key],`Unresolved Forecast person ${key}`);return {personId:people.get(source)??null,placeholder:m.schedulePlaceholders?.[key]??null}}
  const project=(key:string)=>{const source=m.scheduleProjects?.[key];need(projects.has(source),`Unresolved Forecast project ${key}`);return projects.get(source)!}
  const seen=new Set<string>(),legacyRows=new Map<number,{raw:Value,effects:TargetEffect[]}>()
  const save=(file:string,index:number,key:string,raw:Value,entry:Value,effects:TargetEffect[])=>{
@@ -33,13 +33,13 @@ export function forecastSource(ctx:ForecastContext, rows:Record<string,string>[]
    if(rawHours===undefined||rawHours==='')continue
    const period=m.schedulePeriods?.[label];need(period,'Map every Forecast period')
    const from=date(period.from),to=date(period.to);need(to>=from&&Date.parse(to)-Date.parse(from)<366*86400000,'Forecast period must span at most one year')
-   const totalSeconds=forecastSeconds(rawHours),commitment=settings.commitment??'tentative'
+   const totalSeconds=forecastSeconds(rawHours),commitment=(cols.commitment?row[cols.commitment]:settings.commitment)??'tentative'
    need(['tentative','committed'].includes(commitment),'Declare Forecast commitment')
    if(period.workingDays!==undefined)integer(period.workingDays,'Forecast working-day count',1,366)
    const days=period.workingDates===undefined?[]:forecastDates(period,totalSeconds)
    const key=`csv:${view}:${who}:${engagementId??'team'}:${label}`,effects:TargetEffect[]=[]
    if(engagementId&&p.personId)for(const {day,dailySeconds}of days)effects.push({targetKind:'staffing',targetId:id('staffing',m.forecast?`${key}:${day}`:`${index}:${label}:${day}`),value:{personId:p.personId,engagementId,from:day,to:day,dailySeconds,commitment,source:{namespace:`harvest:${m.namespace}`,externalId:key,periodTotalSeconds:totalSeconds,granularity:'reviewed distribution; not original daily facts'}}})
-   save('forecast.csv',index,key,row,{view,person:who,...p,engagementId,period:label,from,to,workingDays:period.workingDays??null,workingDates:period.workingDates??null,totalSeconds,commitment,resolution:effects.length?'Reviewed distribution; not original daily facts':'Aggregate only; excluded from daily staffing'},effects)
+   save('forecast.csv',index,key,row,{view,person:who,...p,engagementId,project:view==='project'?`${row[cols.client??'Client']} / ${row[cols.project??'Project']}`:null,period:label,from,to,workingDays:period.workingDays??null,workingDates:period.workingDates??null,totalSeconds,commitment,resolution:effects.length?'Reviewed distribution; not original daily facts':'Aggregate only; excluded from daily staffing'},effects)
   }
  })
  for(const [index,row]of legacyRows)add('forecast.csv',index,'staffing',String(index),row.raw,row.effects)
@@ -55,7 +55,7 @@ function apiCapture(ctx:ForecastContext,capture:Value,save:(file:string,index:nu
  const arrays:Record<string,Value[]>={}
  for(const kind of ['people','projects','assignments','availability']){const rows=capture[cfg.arrays?.[kind]??kind];need(Array.isArray(rows),`Supply captured Forecast ${kind}`);arrays[kind]=rows;const ids=rows.map(r=>text(String(read(r,kind,'id')??''),`Captured ${kind} id`));need(new Set(ids).size===ids.length,`Duplicate captured ${kind} id`)}
  const personIds=new Set(arrays.people.map(r=>String(read(r,'people','id')))),projectIds=new Set(arrays.projects.map(r=>String(read(r,'projects','id'))))
- const who=(raw:Value,kind:string)=>{const key=String(read(raw,kind,'personId'));need(personIds.has(key),'Assignment/availability person missing from capture');const personId=people.get(m.schedulePeople?.[key]),placeholder=m.schedulePlaceholders?.[key]??null;need(personId||placeholder,'Map captured person or placeholder');return {key,personId:personId??null,placeholder}}
+ const who=(raw:Value,kind:string)=>{const key=String(read(raw,kind,'personId'));need(personIds.has(key),'Assignment/availability person missing from capture');const personId=people.get(m.schedulePeople?.[key]),placeholder=m.schedulePlaceholders?.[key]??null;need(!(personId&&placeholder),'A Forecast identity cannot be both a person and placeholder');need(personId||placeholder,'Map captured person or placeholder');return {key,personId:personId??null,placeholder}}
  arrays.availability.forEach((raw,index)=>{
   const p=who(raw,'availability');need(p.personId&&!p.placeholder,'Placeholders cannot carry availability or leave')
   const from=date(read(raw,'availability','from')),to=date(read(raw,'availability','to'));need(to>=from,'Availability ends before it starts')
@@ -68,17 +68,16 @@ function apiCapture(ctx:ForecastContext,capture:Value,save:(file:string,index:nu
  arrays.assignments.forEach((raw,index)=>{
   const p=who(raw,'assignments'),sourceId=String(read(raw,'assignments','id')),sourceProject=String(read(raw,'assignments','projectId'));need(projectIds.has(sourceProject),'Assignment project missing from capture')
   const leave=(cfg.leaveProjectIds??[]).includes(sourceProject),engagementId=leave?null:projects.get(m.scheduleProjects?.[sourceProject]);need(leave||engagementId,'Map captured project')
-  need(!leave||!p.placeholder,'Placeholders cannot carry leave')
+  need(!leave||!p.placeholder,'Placeholders cannot carry leave');if(p.placeholder)need(read(raw,'assignments','commitment')==='tentative','Placeholder demand must be tentative')
   const from=date(read(raw,'assignments','from')),to=date(read(raw,'assignments','to'));need(to>=from,'Assignment ends before it starts')
   const totalSeconds=forecastSeconds(read(raw,'assignments','totalSeconds'),cfg.durationUnit),commitment=read(raw,'assignments','commitment');need(['committed','tentative'].includes(commitment),'Map captured commitment explicitly')
   const supplied=cfg.allocations?.[sourceId],days:Value[]=supplied??(from===to?[{date:from,seconds:totalSeconds}]:[])
   need(Array.isArray(days),'Supply exact captured date allocations')
   const dates=new Set<string>();let resolved=0;const effects:TargetEffect[]=[],key=`api:assignment:${sourceId}`
   for(const item of days){const day=date(item.date),dailySeconds=integer(item.seconds,'Captured date seconds',0,86400);need(day>=from&&day<=to&&!dates.has(day),'Captured dates must be unique and inside the assignment');dates.add(day);resolved+=dailySeconds
-   if(p.placeholder)need(commitment==='tentative','Placeholder demand must be tentative')
    if(p.personId)effects.push({targetKind:leave?'leave':'staffing',targetId:id(leave?'leave':'staffing',`${key}:${day}`),value:{personId:p.personId,...(leave?{note:'Imported time off'}:{engagementId:engagementId!,commitment}),from:day,to:day,dailySeconds,source:{namespace:`harvest:${m.namespace}`,externalId:key,periodTotalSeconds:totalSeconds,granularity:'captured date allocations'}}})
   }
   need(!days.length||resolved===totalSeconds,'Captured daily allocations do not reconcile to assignment total')
-  save('forecast.json',index,key,raw,{view:leave?'leave':'assignment',person:String(read(arrays.people.find(r=>String(read(r,'people','id'))===p.key)!,'people','name')??p.key),...p,engagementId:engagementId??null,from,to,totalSeconds,commitment,workingDates:[...dates],resolution:effects.length?'Captured date allocations':'Aggregate only; excluded from daily staffing'},effects)
+  save('forecast.json',index,key,raw,{view:leave?'leave':'assignment',person:String(read(arrays.people.find(r=>String(read(r,'people','id'))===p.key)!,'people','name')??p.key),...p,engagementId:engagementId??null,project:String(read(arrays.projects.find(r=>String(read(r,'projects','id'))===sourceProject)!,'projects','name')??sourceProject),from,to,totalSeconds,commitment,workingDates:[...dates],resolution:effects.length?'Captured date allocations':'Aggregate only; excluded from daily staffing'},effects)
  })
 }

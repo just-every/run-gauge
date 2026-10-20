@@ -32,6 +32,10 @@ export async function inspectForecast(h,pack) {
    await page.getByRole('heading',{name:'Staffing',exact:true}).first().waitFor()
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Staffing fits ${width}`)
    if(evidence)await page.screenshot({path:join(evidence,`forecast-staffing-${width}.png`),fullPage:true})
+   await page.goto(h.origin+'/move-in.html')
+   assert((await page.locator('pre').innerText()).includes('forecastApi'))
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Move-in guide fits ${width}`)
+   if(evidence)await page.screenshot({path:join(evidence,`forecast-guide-${width}.png`),fullPage:true})
    await context.close()
   }
  }finally{await browser.close()}

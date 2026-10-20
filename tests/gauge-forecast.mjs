@@ -88,6 +88,16 @@ test('MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API avai
   assert.equal((await state()).data.archives[0].value.forecast.totalSeconds,72000)
   await undo(job)
   const {capturedForecastPackage}=await import('./fixtures/forecast.mjs'),pack=await capturedForecastPackage()
+  const remapped=structuredClone(pack),raw=JSON.parse(remapped.files['forecast.json'])
+  remapped.manifest.forecastApi.durationUnit='decimal-hours'
+  remapped.manifest.forecastApi.arrays={assignments:'bookings'}
+  remapped.manifest.forecastApi.fields={assignments:{totalSeconds:'hours',personId:'person_id'},availability:{dailySeconds:'hours_per_day'}}
+  raw.bookings=raw.assignments.map(({totalSeconds,personId,...r})=>({...r,hours:totalSeconds/3600,person_id:personId}));delete raw.assignments
+  raw.availability=raw.availability.map(({dailySeconds,...r})=>({...r,hours_per_day:dailySeconds/3600}))
+  remapped.files['forecast.json']=JSON.stringify(raw)
+  const mapped=await h.cmd('import:preview',{package:remapped})
+  assert.equal(mapped.schedule.find(r=>r.view==='assignment'&&!r.placeholder).totalSeconds,72000,'mapped capture fields use declared hours units')
+  assert.equal(mapped.schedule.find(r=>r.view==='availability').dailySeconds,28800)
   const captured=await apply(pack),data=await state(),cap=data.capacity[0]
   assert.equal(cap.availableSeconds,30*3600,'four workdays minus two hours of leave')
   assert.equal(cap.committedSeconds,20*3600)

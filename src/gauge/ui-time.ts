@@ -31,7 +31,7 @@ export function timeSection(a: Actor, report: Report, options: Value) {
   { label: 'Person', size: 'name', line: 1, cell: r => e(nameOf(d.people, r.value.personId)) },
   { label: 'Engagement', line: 1, cell: r => e(nameOf(d.engagements, r.value.engagementId)) },
   { label: 'Task', wrap: true, line: 3, cell: r => `${e(nameOf(d.tasks, r.value.taskId))}${r.value.notes ? `<span class="g-sub">${e(r.value.notes)}</span>` : ''}${harvestTimeNote(r.value.source)}` },
-  { label: 'Duration', num: true, size: 'num', line: 2, cell: r => `${r.value.durationSeconds === null ? 'Timer running' : hours(r.value.durationSeconds)}${r.value.billable ? '' : ' <span class="g-tag">not billable</span>'}}` },
+  { label: 'Duration', num: true, size: 'num', line: 2, cell: r => `${r.value.durationSeconds === null ? 'Timer running' : hours(r.value.durationSeconds)}${r.value.billable ? '' : ' <span class="g-tag">not billable</span>'}` },
   { label: 'Status', wrap: true, size: 'status', line: 2, cell: r => `${chip(r.value.status)}${r.value.reviewNote ? `<span class="g-sub">${e(r.value.reviewNote)}</span>` : ''}` },
  ], r => {
   const self = finance(a) || r.value.personId === a.personId, lead = finance(a) || (a.role === 'lead' && d.engagements.some(x => x.id === r.value.engagementId && x.value.leadId === a.personId)) || d.timeDelegations.some(x=>activeDelegation(x,d.engagements.find(e=>e.id===r.value.engagementId)!,a,workDate(Date.now(),a.timezone),r.value.workDate)); let buttons = ''

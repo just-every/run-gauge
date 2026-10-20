@@ -70,6 +70,12 @@ try {
  await page.goto(h.origin + '/app/time?from=2026-09-01&to=2026-09-30')
  assert.match(await page.getByRole('heading', { name: 'Recorded work' }).locator('..').innerText(), /INV-204/)
  await capture('harvest-time')
+ // A reimport with unchanged source identity cannot duplicate historical work.
+ const again = await cmd('import:preview', { package: pack })
+ let replay = await cmd('import:create', { package: pack, fingerprint: again.fingerprint })
+ while (['queued', 'applying'].includes(replay.state)) replay = await cmd('import:resume', { id: replay.id })
+ assert.equal((await state()).data.time.length, 2)
+
  // Source billing flags still refuse re-billing after ordinary native review; source rounding never replaces actual time.
  const engagement = data.data.engagements[0]
  await cmd('budget:approve', await cmd('save:budgets', { engagementId: engagement.id, mode: 'hourly', amountMinor: 100000, effortSeconds: 14400, roundingSeconds: 1, reason: 'Native review of imported history' }))
@@ -83,11 +89,11 @@ try {
  assert(JSON.stringify(history).includes('INV-204'))
  const importPage = await (await request('/app/imports', owner)).text(), retainedPath = importPage.match(/href="(\/api\/gauge\/imports\/[^"]+)"/)[1]
  const originals = await request(retainedPath, owner)
- assert.equal(originals.status, 200); assert((await originals.text()).includes('manifest.json'))
- // A reimport with unchanged source identity cannot duplicate historical work.
- const again = await cmd('import:preview', { package: pack })
- let replay = await cmd('import:create', { package: pack, fingerprint: again.fingerprint })
- while (['queued', 'applying'].includes(replay.state)) replay = await cmd('import:resume', { id: replay.id })
- assert.equal((await state()).data.time.length, 2)
+ assert.equal(originals.status, 200)
+ const retained = await originals.json(), timeOriginal = retained.find(r => r.name === 'time.csv')
+ assert.equal(Buffer.from(timeOriginal.original.base64, 'base64').toString(), pack.files['time.csv'])
+ const afterEdit = await cmd('import:preview', { package: pack })
+ await cmd('import:create', { package: pack, fingerprint: afterEdit.fingerprint }, owner, 409)
+ assert.deepEqual((await state()).data.time.find(r => r.id === final.id), final, 'Reimport preserves later native approval')
  console.log('PASS MIGRATE-002 raw 7596 / rounded 8100 seconds, historical rates, invoice reference, source approval/lock evidence, independent controls, preview/apply, native approval, duplicate-billing refusal and original custody')
 } finally { await browser?.close(); await h.dispose() }

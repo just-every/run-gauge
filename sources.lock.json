@@ -260,7 +260,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4c0ae061a0fe80b378795e34c75da021939746992a5f0c97e79f737c1715768f",
+      "sha256": "5de0393c3e6a34af791eef55097e5cc2d54b0d2ebd4ac24ef59cdcdf8b17707d",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -272,7 +272,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "5f011d67cf40b19b9d88a622c58334d56742e431fafbe4f2cb2f43cfce431d2c",
+      "sha256": "dc1fb3ecf45c94107620955a9da4583580dc0c62dcd97a43aa8851f9c31236fd",
       "executable": false
     },
     "base-copies.json": {
@@ -284,7 +284,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "9211a3db6d041c98ae3cde358f2fe12ea2c13b2e825f711b55c4ff8aa50e4abb",
+      "sha256": "0ccacad35bdbc5bf3953cbd4c33108f202f0a31968e67b974f612a30512dc4ef",
       "executable": false
     },
     "DEMO.md": {
@@ -1107,8 +1107,24 @@
       "sha256": "c54531c0a89a9c9dbdd329a5929f1d5f99c1f5ab2cf020b29b339f71bbc414f3",
       "executable": false
     },
+    "src/gauge/project-scenario-deadlines.ts": {
+      "sha256": "6d67148020c5dfaa65f5f3827d361985536061643cbc67632fc65768ef43a166",
+      "executable": false
+    },
+    "src/gauge/project-scenario-effects.ts": {
+      "sha256": "4efe795dd96f0c37973cb2e6f31604ac1e7d6400a69908f4cdb2d55e3666042a",
+      "executable": false
+    },
+    "src/gauge/project-scenario-rates.ts": {
+      "sha256": "ce8f147d0eb8c9e53243a0fb17c1266c288f3475ae36a919f3185770e4086147",
+      "executable": false
+    },
+    "src/gauge/project-scenario-staffing.ts": {
+      "sha256": "41919948808f536fb5c3ed46ef8245e542d170031faea4e0f4ffa8451ae7bf2d",
+      "executable": false
+    },
     "src/gauge/project-scenarios.ts": {
-      "sha256": "16f2730ca452449037bd5295fae5e7ae87be01a9a02d08ec906c2ee48101f1e5",
+      "sha256": "ceabb614eebebe45a8536fe578bbb4d3117ff422bf853c4676f8b4f548e50405",
       "executable": false
     },
     "src/gauge/proposals.ts": {
@@ -3255,8 +3271,16 @@
       "sha256": "7065a98a592e300af7330666fa42d5e78b44ebe26b239b51a717da92aa95b7ac",
       "executable": false
     },
+    "tests/gauge-project-scenario-deadlines.mjs": {
+      "sha256": "9a31976692fe48f949559b2c588e685f3116174e4a19e46527d0fed9356c478a",
+      "executable": false
+    },
+    "tests/gauge-project-scenario-rates.mjs": {
+      "sha256": "42701607e9f1eac2bcc88b263202cc5695bbded136f2cd66da17fb60c76c8304",
+      "executable": false
+    },
     "tests/gauge-project-scenarios.mjs": {
-      "sha256": "3029a6d0d8bcf97aa4035a5fca58ba121b260dd3239f56d219524ef654b843af",
+      "sha256": "4c1663f0a1527cbe9afd48b945453b3bd136ca2edf1d5c8f1abdf5e9f2423661",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

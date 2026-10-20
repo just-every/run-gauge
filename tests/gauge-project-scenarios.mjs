@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { rateScenarioJourney } from './gauge-project-scenario-rates.mjs'
+import { deadlineScenarioJourney } from './gauge-project-scenario-deadlines.mjs'
 
 // FINANCE-003 staffing slice: real built HTTP doors, two projects, independent arithmetic,
 // exact selected human approval, stale baseline refusal and preserved historical bookings.
@@ -110,5 +112,7 @@ try {
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Capacity fits ${width}`)
   if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/capacity-${width}.png`,fullPage:true})}
  }
+ await rateScenarioJourney(h,browser)
+ await deadlineScenarioJourney(h,browser)
  console.log('PASS FINANCE-003 isolated two-project contractor comparison, exact cost/margin/cash/utilization, named selected future adoption, history, replay and stale/access refusals; capacity browser 1440/390')
 } finally {await browser?.close();await h.dispose()}

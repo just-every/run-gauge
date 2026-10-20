@@ -4,6 +4,8 @@ import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 import { rateScenarioJourney } from './gauge-project-scenario-rates.mjs'
+import { scopeScenarioJourney } from './gauge-project-scenario-scope.mjs'
+import { pricingScenarioJourney } from './gauge-project-scenario-pricing.mjs'
 import { deadlineScenarioJourney } from './gauge-project-scenario-deadlines.mjs'
 
 // FINANCE-003 staffing slice: real built HTTP doors, two projects, independent arithmetic,
@@ -32,6 +34,8 @@ try {
  const staff=await h.invite('scenario-staff');await cmd('grant',{operatorId:staff.id,personId:employee.id,role:'staff',enabled:true})
  const agent=await h.invite('scenario-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true})
  const changes=bookings.map(b=>({...b,personId:contractor.id,effectiveFrom:day(1)})),input={asOf,changes}
+ await cmd('projectScenario:preview',{asOf,changes:[]},owner,400)
+ await cmd('projectScenario:preview',{asOf,changes:Array.from({length:21},(_,i)=>({...changes[0],id:`excess-${i}`}))},owner,400)
  const liveBefore=(await read()).data
  const preview=await cmd('projectScenario:preview',input,fin.cookie)
  assert.equal(preview.asOf,asOf);assert.equal(preview.from,day(1));assert.equal(preview.to,day(3))
@@ -85,7 +89,7 @@ try {
  assert.deepEqual(data.data.staffing.find(r=>r.id===bookings[1].id),liveBefore.staffing.find(r=>r.id===bookings[1].id),'Unselected Beta is unchanged')
  const past=data.data.staffing.find(r=>r.id===bookings[0].id),future=data.data.staffing.find(r=>r.id!==bookings[0].id&&r.value.engagementId===projects[0].id)
  assert.equal(past.value.from,day(-1));assert.equal(past.value.to,asOf);assert.equal(past.value.personId,employee.id)
- assert.equal(future.value.from,day(1));assert.equal(future.value.to,day(3));assert.equal(future.value.personId,contractor.id);assert.equal(future.value.commitment,'committed');assert.equal(future.value.dailySeconds,7200)
+ assert.equal(future.value.from,day(1));assert.equal(future.value.to,day(3));assert.equal(future.value.personId,contractor.id);assert.equal(future.value.commitment,'committed');assert.equal(future.value.dailySeconds,7200);assert.equal(future.value.service,'Build')
  assert(data.data.engagements.find(r=>r.id===projects[0].id).value.members.includes(contractor.id))
  assert(!data.data.engagements.find(r=>r.id===projects[1].id).value.members.includes(contractor.id))
  const adopted=data.data.projectScenarios.find(r=>r.id===prepared.id)
@@ -114,5 +118,7 @@ try {
  }
  await rateScenarioJourney(h,browser)
  await deadlineScenarioJourney(h,browser)
+ await scopeScenarioJourney(h,browser)
+ await pricingScenarioJourney(h,browser)
  console.log('PASS FINANCE-003 isolated two-project contractor comparison, exact cost/margin/cash/utilization, named selected future adoption, history, replay and stale/access refusals; capacity browser 1440/390')
 } finally {await browser?.close();await h.dispose()}

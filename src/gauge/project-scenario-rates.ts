@@ -11,9 +11,6 @@ export async function rateAlternative(env: Bindings, a: Actor, data: Record<Kind
  const card = await rateCard(env, a, tx ?? new Transaction(env, a), change.card)
  need(card.effective > asOf, 'Scenario rates must start after the as-of day', 409)
  need(change.card.currency === undefined || change.card.currency === card.currency, 'Rate currency differs; no implicit FX')
- // These options are priced only at actual-time approval today. Do not pretend
-// the committed forecast already models overtime or prospective write-downs.
- need(card.overtimeAfterSeconds === undefined && !card.writeDownBps, 'Use ordinary rate versions here; overtime and write-down alternatives need their own comparison')
  const keys = ['personId', 'role', 'clientId', 'engagementId', 'service', 'effective']
  need(!activeRates(data.rates, data.rateWithdrawals).some(r => keys.every(k => (r.value[k] ?? null) === (card[k] ?? null))), 'A rate already exists for that scope and date', 409)
  const people = data.people.filter(p => (!card.personId || p.id === card.personId) && (!card.role || p.value.role === card.role))

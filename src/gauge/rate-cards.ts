@@ -16,6 +16,14 @@ export const levelOf = (v: Value): Level => v.engagementId ? 'project' : v.clien
 const half = (n: bigint, d: bigint) => (n + d / 2n) / d
 const bps = (minor: number, basisPoints: number) => Number(half(BigInt(minor) * BigInt(basisPoints), 10000n))
 
+/** Bill-only premium, then negotiated write-down; each amount rounds half up. */
+export function billPricing(seconds: number, rate: number, overtimeSeconds = 0, overtimeBps?: number, writeDownBps = 0) {
+ const overtimeRateMinor = overtimeBps === undefined ? null : bps(rate, overtimeBps)
+ const standardBillMinor = charge(seconds - overtimeSeconds, rate) + (overtimeSeconds ? charge(overtimeSeconds, overtimeRateMinor!) : 0)
+ const writeDownMinor = bps(standardBillMinor, writeDownBps)
+ return { overtimeSeconds, overtimeRateMinor, standardBillMinor, writeDownBps, writeDownMinor, billMinor: standardBillMinor - writeDownMinor }
+}
+
 export async function rateCard(env: Bindings, a: Actor, tx: Transaction, input: Value, previous?: Row): Promise<Value> {
  need(!previous, 'Rates are immutable; add an effective-dated version')
  const v: Value = { personId: input.personId || null, role: input.role ? text(input.role, 'Role', 200) : null, clientId: input.clientId || null, engagementId: input.engagementId || null, service: text(input.service || '*', 'Service') }
@@ -88,13 +96,8 @@ export async function freeze(env: Bindings, tx: Transaction, row: Row, engagemen
   tx.guard("(SELECT COUNT(*) FROM g_time WHERE id<>? AND json_extract(data,'$.status')='approved' AND json_extract(data,'$.personId')=? AND json_extract(data,'$.workDate')=?)=?", row.id, v.personId, v.workDate, earlier.length)
   const before = earlier.reduce((n, t) => n + t.value.durationSeconds, 0)
   overtime = Math.min(rounded, Math.max(0, before + seconds - card.value.overtimeAfterSeconds))
-  priced.overtimeRateMinor = bps(rate, card.value.overtimeBps)
  }
- priced.overtimeSeconds = overtime
- priced.standardBillMinor = charge(rounded - overtime, rate) + (overtime ? charge(overtime, priced.overtimeRateMinor) : 0)
- priced.writeDownBps = override ? override.writeDownBps : card?.value.writeDownBps ?? 0
- priced.writeDownMinor = bps(priced.standardBillMinor, priced.writeDownBps)
- priced.billMinor = priced.standardBillMinor - priced.writeDownMinor
+ Object.assign(priced, billPricing(rounded, rate, overtime, !override && card?.value.overtimeAfterSeconds !== undefined ? card.value.overtimeBps : undefined, override ? override.writeDownBps : card?.value.writeDownBps ?? 0))
  return priced
 }
 

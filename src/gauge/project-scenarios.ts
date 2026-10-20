@@ -8,6 +8,7 @@ import { cashForecast } from './cash-forecast'
 import { retainerStatements } from './retainer-statements'
 import { staffingAlternative } from './project-scenario-staffing'
 import { rateAlternative } from './project-scenario-rates'
+import { scopeAlternative } from './project-scenario-scope'
 import { deadlineAlternative } from './project-scenario-deadlines'
 import type { Alternative, ScenarioEffect } from './project-scenario-effects'
 
@@ -25,9 +26,10 @@ function normalize(input: unknown): Value[] {
  const changes = input.map(c => {
   need(c && typeof c === 'object' && !Array.isArray(c), 'Provide an alternative')
   const type = c.type ?? 'staffing', id = text(c.id, 'Alternative ID', 200)
-  need(['staffing','rate','deadline'].includes(type), 'Choose staffing, rate or deadline')
+  need(['staffing','rate','deadline','scope'].includes(type), 'Choose staffing, rate, deadline or scope')
   if(type === 'rate') return {type,id,card:c.card}
   const revision = text(c.revision, 'Record revision')
+  if(type === 'scope') return {type,id,revision,scope:c.scope,allocations:c.allocations,tasks:c.tasks,terms:c.terms}
   return type === 'staffing' ? {type,id,revision,personId:text(c.personId,'Replacement person'),effectiveFrom:date(c.effectiveFrom)} : {type,id,revision,nodeId:text(c.nodeId,'Delayed work'),delayBusinessDays:c.delayBusinessDays}
  })
  need(new Set(changes.map(c => c.id)).size === changes.length, 'An alternative appears twice')
@@ -37,7 +39,7 @@ async function compare(env: Bindings, a: Actor, data: Record<Kind,Row[]>, change
  const candidate = {...data}, alternatives: Alternative[] = [], effects: ScenarioEffect[] = [], changed = new Set<string>(), digest = hash(data)
  // First plan the dated work; rate applicability then includes a selected replacement.
  for(const change of [...changes.filter(c => c.type !== 'rate'), ...changes.filter(c => c.type === 'rate')]) {
-  const alternative: Alternative = change.type === 'rate' ? await rateAlternative(env,a,candidate,change,asOf,tx) : change.type === 'deadline' ? await deadlineAlternative(env,a,data,change,asOf,tx) : staffingAlternative(data,change,asOf)
+  const alternative: Alternative = change.type === 'rate' ? await rateAlternative(env,a,candidate,change,asOf,tx) : change.type === 'scope' ? scopeAlternative(candidate,change,asOf,a) : change.type === 'deadline' ? await deadlineAlternative(env,a,data,change,asOf,tx) : staffingAlternative(data,change,asOf)
   alternatives.push(alternative)
   for(const [index,effect] of alternative.effects.entries()) {
    if(effect.source) {
@@ -53,8 +55,14 @@ async function compare(env: Bindings, a: Actor, data: Record<Kind,Row[]>, change
  const ids = new Set(alternatives.flatMap(p => p.engagementIds)), peopleIds = new Set(alternatives.flatMap(p => p.peopleIds)), dates = alternatives.flatMap(p => p.dates).sort()
  const from = dates[0] ?? asOf, to = dates.at(-1) ?? asOf
  need(Date.parse(to)-Date.parse(from) <= 366*86400000, 'Compare a window of at most one year')
- const project = (d: typeof data) => {
-  const balances = retainerStatements(d,d.time,undefined,d), forecast = financeForecast(d,asOf,balances)
+ const forecastOf = (d: typeof data) => financeForecast(d,asOf,retainerStatements(d,d.time,undefined,d))
+ const originalForecast = forecastOf(data), candidateForecast = forecastOf(candidate)
+ // Shared-person overtime can change a project outside the edited card or scope.
+ for(const p of candidateForecast.engagements) {
+  const b = originalForecast.engagements.find(e=>e.engagementId===p.engagementId)
+  if(b && hash([p.months,p.incomplete]) !== hash([b.months,b.incomplete]))ids.add(p.engagementId)
+ }
+ const project = (d: typeof data, forecast: ReturnType<typeof financeForecast>) => {
   const cash = cashForecast(d,{...forecast,engagements:forecast.engagements.filter(e => ids.has(e.engagementId)),pipeline:[]})
   const cap = capacity(d,from,to).filter(p => peopleIds.has(p.personId)).map(p => ({personId:p.personId,availableSeconds:p.availableSeconds,knownAvailableSeconds:p.knownAvailableSeconds,committedSeconds:p.committedSeconds,tentativeSeconds:p.tentativeSeconds,remainingSeconds:p.remainingSeconds,missingCalendarDays:p.missingCalendarDays,conflicts:p.conflicts,utilizationPercent:p.availableSeconds ? 100*p.committedSeconds/p.availableSeconds : null}))
   const projectDates = [...ids].sort().map(engagementId => ({
@@ -65,7 +73,7 @@ async function compare(env: Bindings, a: Actor, data: Record<Kind,Row[]>, change
   }))
   return {projects:forecast.engagements.filter(e => ids.has(e.engagementId)).map(e => ({...e,marginMinor:e.complete ? e.marginMinor : null,etcCostMinor:e.complete ? e.etcCostMinor : null,eacCostMinor:e.complete ? e.eacCostMinor : null,eacFeesMinor:e.complete ? e.eacFeesMinor : null})),cash,capacity:cap,dates:projectDates}
  }
- const baseline = project(data), scenario = project(candidate)
+ const baseline = project(data,originalForecast), scenario = project(candidate,candidateForecast)
  const deltas = scenario.projects.map(p => {const b = baseline.projects.find(b => b.engagementId === p.engagementId)!; const delta = (k:'etcCostMinor'|'eacCostMinor'|'eacFeesMinor'|'marginMinor') => p[k] === null || b[k] === null ? null : p[k]!-b[k]!; return {engagementId:p.engagementId,currency:p.currency,etcCostMinor:delta('etcCostMinor'),eacCostMinor:delta('eacCostMinor'),eacFeesMinor:delta('eacFeesMinor'),marginMinor:delta('marginMinor')}})
  return {from,to,asOf,changes,baseline,scenario,deltas,alternatives:alternatives.map(p => p.details),effects}
 }
@@ -104,12 +112,14 @@ export async function projectScenarioCommand(env: Bindings, a: Actor, tx: Transa
  const candidate = await compare(env,a,data,preview.changes,preview.asOf,tx), effects: Value[] = []
  // All guards above precede every write. A selected alternative is one atomic effect set.
  for(const effect of candidate.effects) {
-  const value = effect.kind === 'deliveryPlans' ? {...effect.value,reason,approvedBy:a.session.operator.id,approvedAt:Date.now()} : effect.value
+  const value = effect.kind === 'budgets' ? {...effect.value,createdAt:Date.now(),approvedAt:Date.now(),approvedBy:a.session.operator.id} : effect.kind === 'deliveryPlans' ? {...effect.value,reason,approvedBy:a.session.operator.id,approvedAt:Date.now()} : effect.value
   const row = await tx.record(effect.kind,value,effect.source,effect.id,'projectScenario:adopt')
   effects.push({kind:effect.kind,sourceId:effect.source?.id ?? null,id:row.id,revision:row.revision})
  }
  for(const e of data.engagements) {
+  const current = candidate.effects.find(p=>p.kind==='engagements'&&p.source?.id===e.id)
   const additions = candidate.effects.filter(p => p.kind === 'staffing' && p.value.engagementId === e.id).map(p => p.value.personId), members = [...new Set([...(e.value.members ?? []),...additions])]
+  if(current) { need(additions.length===0,'Compare scope and membership changes separately',409); continue }
   if(additions.length && members.length !== (e.value.members ?? []).length)await tx.record('engagements',{...e.value,members},e,undefined,'projectScenario:assign')
  }
  return tx.record('projectScenarios',{...stored.value,status:'adopted',adoptedBy:a.session.operator.id,adoptedAt:Date.now(),adoptionReason:reason,selectedIds:preview.changes.map(c => c.id),approvedComparison:preview,effects},stored,undefined,action)

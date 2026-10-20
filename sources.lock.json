@@ -260,7 +260,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5de0393c3e6a34af791eef55097e5cc2d54b0d2ebd4ac24ef59cdcdf8b17707d",
+      "sha256": "802e9b74db102f54bd9e43aa68763f5f907ecd9d408faab5d359f1e8b3553cbc",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -272,7 +272,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "dc1fb3ecf45c94107620955a9da4583580dc0c62dcd97a43aa8851f9c31236fd",
+      "sha256": "3f45705761716a42838d0838e18ef18f42d43e000b05cbaaf74e0dffb47dff0f",
       "executable": false
     },
     "base-copies.json": {
@@ -284,7 +284,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0ccacad35bdbc5bf3953cbd4c33108f202f0a31968e67b974f612a30512dc4ef",
+      "sha256": "8ecf04bd8bd6dbfbcc9bad27d910435babc4becade6b8105a8a12a7e46f1dffe",
       "executable": false
     },
     "DEMO.md": {
@@ -1052,7 +1052,11 @@
       "executable": false
     },
     "src/gauge/finance-forecast.ts": {
-      "sha256": "c79438ea4170a26f0122c6df0cf1483dac706ba5ff326426158db858426dbed2",
+      "sha256": "ac3a885ac4d3e15236222d5770ff985c8e858459795e803aa9e39257b90a94bb",
+      "executable": false
+    },
+    "src/gauge/forecast-allocation-pricing.ts": {
+      "sha256": "40542211e3e77b53cea0400260a051af26a9c769843c404bc478e1a58862bbdf",
       "executable": false
     },
     "src/gauge/forecast-source.ts": {
@@ -1116,7 +1120,11 @@
       "executable": false
     },
     "src/gauge/project-scenario-rates.ts": {
-      "sha256": "ce8f147d0eb8c9e53243a0fb17c1266c288f3475ae36a919f3185770e4086147",
+      "sha256": "dc4d9d558f9cdae548a33767fc889f8f23d9a062fda7ed68ca634e495f1875d0",
+      "executable": false
+    },
+    "src/gauge/project-scenario-scope.ts": {
+      "sha256": "63f071f5b210bc809d8a2502d7544bbd5b27ee1a167181f082f9ffba2a6b6d66",
       "executable": false
     },
     "src/gauge/project-scenario-staffing.ts": {
@@ -1124,7 +1132,7 @@
       "executable": false
     },
     "src/gauge/project-scenarios.ts": {
-      "sha256": "ceabb614eebebe45a8536fe578bbb4d3117ff422bf853c4676f8b4f548e50405",
+      "sha256": "284816b2d1968d4bfbf402e6245f99f836cf9e3575906ce8bbff3afe4d545286",
       "executable": false
     },
     "src/gauge/proposals.ts": {
@@ -1132,7 +1140,7 @@
       "executable": false
     },
     "src/gauge/rate-cards.ts": {
-      "sha256": "189670b8172e60d58ac48a0f62aef23b4fc9dabc4e597e736e5a40dbc83bc53a",
+      "sha256": "a410629827449223ce829011ab643633c3c56c74135277cef48f1d312c56a960",
       "executable": false
     },
     "src/gauge/report-export.ts": {
@@ -3275,12 +3283,20 @@
       "sha256": "9a31976692fe48f949559b2c588e685f3116174e4a19e46527d0fed9356c478a",
       "executable": false
     },
+    "tests/gauge-project-scenario-pricing.mjs": {
+      "sha256": "2ed402f9ff2010172b6cdcfa624d5348ed39e3ffba8b85339023913f6d9c06f6",
+      "executable": false
+    },
     "tests/gauge-project-scenario-rates.mjs": {
       "sha256": "42701607e9f1eac2bcc88b263202cc5695bbded136f2cd66da17fb60c76c8304",
       "executable": false
     },
+    "tests/gauge-project-scenario-scope.mjs": {
+      "sha256": "a92d72a63e0f33ab32eb9e534b49b2edb238e51f5e014033718a0e0c9f153db9",
+      "executable": false
+    },
     "tests/gauge-project-scenarios.mjs": {
-      "sha256": "4c1663f0a1527cbe9afd48b945453b3bd136ca2edf1d5c8f1abdf5e9f2423661",
+      "sha256": "e18a3c676371362b2133857d41221968cc52ea9fe0d5f7ad58690a5af941ce4b",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

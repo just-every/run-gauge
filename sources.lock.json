@@ -3236,7 +3236,7 @@
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
-      "sha256": "3ddf659b5fb892c389c0aa1480a281ee4f7a169b67e459acc15535a5f9b175cb",
+      "sha256": "3c808c63183a0094551974d9a8027e0add0ca39dac611f4a7b40ab58743fdffe",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

@@ -27,12 +27,13 @@ try {
  rows[1][4] = 2.11; rows[1][5] = 2.25; rows[2][4] = 1; rows[2][5] = 1
  rows[2][9] = undefined // Sparse optional invoice reference.
  rows[1][12] = { value: rows[1][12], type: 'inlineStr' }
+ rows.splice(2, 0, []) // Original workbook row 4 remains row 4 after a blank row.
  const bytes = workbook(rows, { extraSheets: [{ name: 'Summary', rows: [['Not detailed time']] }] })
  const xlsx = structuredClone(pack); delete xlsx.files['time.csv']
  xlsx.manifest.timeWorksheet = 'Detailed time'; xlsx.workbook = { base64: bytes.toString('base64') }
  const xlsxPreview = await cmd('import:preview', { package: xlsx })
  assert.deepEqual(xlsxPreview.timeControls, pack.manifest.timeReconciliation, 'MIGRATE-002 XLSX controls match independent report')
- assert.deepEqual(xlsxPreview.timeSources, ['brand', 'web'].map((sourceId, i) => ({ sourceId, location: { artifact: 'time.xlsx', row: i + 2, pointer: 'Detailed time' } })), 'MIGRATE-002 worksheet and original row locations')
+ assert.deepEqual(xlsxPreview.timeSources, ['brand', 'web'].map((sourceId, i) => ({ sourceId, location: { artifact: 'time.xlsx', row: [2, 4][i], pointer: 'Detailed time' } })), 'MIGRATE-002 worksheet and original row locations')
  const modern = structuredClone(xlsx), modernRows = structuredClone(rows)
  modernRows[0][3] = 'Work day'; modernRows[1][3] = 44807
  modern.manifest.columns = { time: { date: 'Work day' } }

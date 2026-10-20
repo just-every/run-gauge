@@ -25,11 +25,13 @@ import { rateCommand } from './rate-cards'
 import { conversionCommand } from './sales-conversion'
 import { targetCommand } from './billability'
 import { approvalCommand } from './approval-policy'
+import { projectScenarioCommand, projectScenarioPreview } from './project-scenarios'
 import { demandScenarioCommand } from './demand-scenarios'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
+ if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)
  if(action==='retainer:preview')return retainerPreview(env,a,input)
  if(action==='delivery:preview')return deliveryPreview(env,a,input)
  if(action==='staffing:preview')return schedulePreview(env,a,input)
@@ -53,6 +55,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await rateCommand(env,a,tx,action,input)
  if(!result)result=await targetCommand(env,a,tx,action,input)
  if(!result)result=await approvalCommand(env,a,tx,action,input)
+ if(!result)result=await projectScenarioCommand(env,a,tx,action,input)
  if(!result)result=await demandScenarioCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)
  if(!result&&['budget:approve','milestone:approve'].includes(action))result=await approveTerms(env,a,tx,action==='budget:approve'?'budgets':'milestones',input)

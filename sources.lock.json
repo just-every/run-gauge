@@ -1428,7 +1428,7 @@
       "executable": false
     },
     "src/gauge/ui-time.ts": {
-      "sha256": "ec83ec76741952ab2517caaf1bf4c76c47f82ceb1c3b0582b2b00cc9a8af5981",
+      "sha256": "2f04813473e3c482bfca00f93a54687eea7f67d9ee334d2770cff8f03333a79c",
       "executable": false
     },
     "src/gauge/ui-timesheets.ts": {

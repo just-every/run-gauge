@@ -22,12 +22,36 @@ const blank = (m: string): Month => ({ month: m, actualFeesMinor: 0, etcFeesMino
 export function financeForecast(data: Record<string, Row[]>, asOf: string, retainerBalances: Value[] = []) {
  const rates = activeRates(data.rates ?? [], data.rateWithdrawals ?? []), people = new Map((data.people ?? []).map(p => [p.id, p]))
  const priceAllocation = allocationPricing(data, asOf)
+ // Index threshold evidence once. A person's future source superset is retained
+ // when overtime is priced, including competing projects and nonbillable work.
+ const thresholdSources = new Map<string, { staffing: Row[], time: Row[] }>()
+ for (const kind of ['staffing', 'time'] as const) for (const row of data[kind] ?? []) {
+  const v = row.value
+  if (kind === 'time' ? v.status !== 'approved' || v.workDate <= asOf : v.to <= asOf) continue
+  let group = thresholdSources.get(v.personId)
+  if (!group) { group = { staffing: [], time: [] }; thresholdSources.set(v.personId, group) }
+  group[kind].push(row)
+ }
  const engagements = (data.engagements ?? []).filter(e => e.value.type !== 'internal').map(e => {
   const currency = e.value.currency, mine = (k: string) => (data[k] ?? []).filter(r => r.value.engagementId === e.id)
   const terms = mine('budgets').filter(r => r.value.status === 'approved').sort((x, y) => y.value.approvedAt - x.value.approvedAt)[0]
   const families = mine('retainers'), basis = families.length ? 'retainer' : terms?.value.mode === 'fixed' ? 'fixed' : 'hourly'
   const months = new Map<string, Month>(), at = (m: string) => { if (!months.has(m)) months.set(m, blank(m)); return months.get(m)! }
   const incomplete: string[] = [], unpriced: Value[] = [], sources: Record<string, string[]> = { time: [], expenses: [], staffing: [], rates: [], budgets: terms ? [terms.id] : [], milestones: [], retainerPeriods: [], rateWithdrawals: (data.rateWithdrawals ?? []).map(w => w.id) }
+  const tracedPeople = new Set<string>()
+  const pricedFees = (staffing: Row, day: string, card: Row) => {
+   const personId = staffing.value.personId
+   if (card.value.overtimeAfterSeconds !== undefined && !tracedPeople.has(personId)) {
+    tracedPeople.add(personId)
+    const add = (kind: string, id: string) => { const ids = sources[kind] ??= []; if (!ids.includes(id)) ids.push(id) }
+    add('people', personId)
+    const group = thresholdSources.get(personId)
+    for (const kind of ['staffing', 'time'] as const) for (const row of group?.[kind] ?? []) {
+     add(kind, row.id); add('engagements', row.value.engagementId)
+    }
+   }
+   return priceAllocation(staffing, day, card).billMinor
+  }
   // Actuals: approved time and expenses in their work month.
   for (const t of mine('time').filter(r => r.value.status === 'approved')) {
    const x = t.value.economics ?? {}, m = at(month(t.value.workDate)); sources.time.push(t.id)
@@ -41,7 +65,7 @@ export function financeForecast(data: Record<string, Row[]>, asOf: string, retai
   // ETC: future allocation days, priced at the rate effective on each day.
   const committedDays: string[] = []
   for (const s of mine('staffing')) {
-   const person = people.get(s.value.personId); sources.staffing.push(s.id)
+   const person = people.get(s.value.personId); if (!sources.staffing.includes(s.id)) sources.staffing.push(s.id)
    for (const day of days(s.value.from > asOf ? s.value.from : nextDay(asOf), s.value.to)) {
     const x = person ? explain(rates, person, e, s.value.service ?? 'Unspecified', day) : undefined, bill = x?.bill?.chosen, cost = x?.cost?.chosen
     for (const r of [bill, cost]) if (r && !sources.rates.includes(r.id)) sources.rates.push(r.id)
@@ -49,8 +73,8 @@ export function financeForecast(data: Record<string, Row[]>, asOf: string, retai
     if (!tentative) committedDays.push(day)
     if (basis === 'hourly' && s.value.billable !== false) {
      if (bill?.value.billMinor == null) { unpriced.push({ staffingId: s.id, date: day, missing: 'bill rate' }); if (!tentative) incomplete.push(`staffing:${s.id}: no effective bill rate on ${day}`) }
-     else if (tentative) m.tentativeFeesMinor += priceAllocation(s, day, bill).billMinor
-     else m.etcFeesMinor += priceAllocation(s, day, bill).billMinor
+     else if (tentative) m.tentativeFeesMinor += pricedFees(s, day, bill)
+     else m.etcFeesMinor += pricedFees(s, day, bill)
     }
     if (cost?.value.costMinor == null) { unpriced.push({ staffingId: s.id, date: day, missing: 'cost rate' }); if (!tentative) incomplete.push(`staffing:${s.id}: no effective cost rate on ${day}`) }
     else if ((cost.value.costCurrency ?? cost.value.currency) !== currency) { if (!tentative) incomplete.push(`staffing:${s.id}: cost declared in ${cost.value.costCurrency}; SETUP-003 exchange rates convert it`) }
@@ -87,7 +111,7 @@ export function financeForecast(data: Record<string, Row[]>, asOf: string, retai
      for (const day of days([s.value.from, nextDay(asOf), period.value.activeStart].sort().at(-1)!, s.value.to < period.value.activeEnd ? s.value.to : period.value.activeEnd)) {
       if (t.unit === 'hours') { demand += s.value.dailySeconds; continue }
       const bill = people.get(s.value.personId) && explain(rates, people.get(s.value.personId)!, e, s.value.service ?? 'Unspecified', day).bill?.chosen
-      if (bill?.value.billMinor == null) incomplete.push(`staffing:${s.id}: no effective bill rate on ${day}`); else demand += priceAllocation(s, day, bill).billMinor
+      if (bill?.value.billMinor == null) incomplete.push(`staffing:${s.id}: no effective bill rate on ${day}`); else demand += pricedFees(s, day, bill)
      }
     }
     const excess = Math.max(0, demand - Math.max(0, b.remaining))

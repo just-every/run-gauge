@@ -29,7 +29,7 @@ function normalize(input: unknown): Value[] {
   need(['staffing','rate','deadline','scope'].includes(type), 'Choose staffing, rate, deadline or scope')
   if(type === 'rate') return {type,id,card:c.card}
   const revision = text(c.revision, 'Record revision')
-  if(type === 'scope') return {type,id,revision,scope:c.scope,allocations:c.allocations,tasks:c.tasks,terms:c.terms}
+  if(type === 'scope') return {type,id,revision,scope:c.scope,allocations:c.allocations ?? [],tasks:c.tasks ?? [],...(c.terms===undefined?{}:{terms:c.terms})}
   return type === 'staffing' ? {type,id,revision,personId:text(c.personId,'Replacement person'),effectiveFrom:date(c.effectiveFrom)} : {type,id,revision,nodeId:text(c.nodeId,'Delayed work'),delayBusinessDays:c.delayBusinessDays}
  })
  need(new Set(changes.map(c => c.id)).size === changes.length, 'An alternative appears twice')

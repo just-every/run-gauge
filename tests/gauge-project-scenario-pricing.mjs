@@ -35,6 +35,7 @@ export async function pricingScenarioJourney(h,browser) {
   assert.equal(s.eacFeesMinor,expected,'FINANCE-003 8 ordinary hours across projects, premium on ninth, then 10% write-down')
   assert.equal(s.etcCostMinor,2*(i?3:6)*6000);assert.equal(s.eacCostMinor,b.eacCostMinor,'Billing premium/write-down never changes payroll cost')
   assert.equal(s.marginMinor,s.eacFeesMinor-s.eacCostMinor)
+  for(const booking of bookings)assert(s.sources.staffing.includes(booking.id),'FINANCE-003 overtime traces cross-project threshold sources')
   const delta=preview.deltas.find(p=>p.engagementId===e.id)
   assert.equal(delta.etcCostMinor,0);assert.equal(delta.marginMinor,expected-b.eacFeesMinor)
  }

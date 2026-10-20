@@ -260,7 +260,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f7b0bf2b677ef913ca0eac39eaf000ad7c0fabe4c844e39215a54e2f04d41d47",
+      "sha256": "dd2e6d9abcd4390f6e0ed10b5c0bdf1ecc7082063a938a346d533c37ef6c224a",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -284,7 +284,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "731ba3f4eaca02c41dfda318cd89befb57f60b69ad41d9c6f83aaaf400a023a4",
+      "sha256": "62c4c15816b7283dffdd693780654b92ec6e22cdc030799a93594ed3c74a6818",
       "executable": false
     },
     "DEMO.md": {
@@ -336,7 +336,7 @@
       "executable": false
     },
     "docs/move-in.md": {
-      "sha256": "d4a4d08c3f9431f8603a43a43fac67c98ae33e45aed76575593da77595b89f65",
+      "sha256": "e0e666608d1e4d5146bfbfddf0400d8a7a59bb8d56ca3716537e36bab559e965",
       "executable": false
     },
     "docs/overview.md": {
@@ -508,7 +508,7 @@
       "executable": false
     },
     "MOVE-IN.md": {
-      "sha256": "9605501ddaa8e64cc6a13dd381fbbb61e7f346f73092d1a8c169380cba0a51e4",
+      "sha256": "4b6051d284e6d0b4fc8fa3c2cf2fab175eb6e0690d55041349738f2fd56d6cc9",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -524,7 +524,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "609e163daa49b003860a4f3a4ad5d8f3cf6fc93037ca9438191820812a478839",
+      "sha256": "afe32000cdf506f6971f144a6901b0e0e5267a526a4b7ec701468743a8857851",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -760,7 +760,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "243e549bb64eda37e9ae2585ccd15c54bfd43dd2e2d5b9d665e805e41882dd4b",
+      "sha256": "0b026704ca0a216d31340de963c84762f7ebd6ffc08a09365d8708c17acc0828",
       "executable": false
     },
     "RELEASE.json": {
@@ -1064,7 +1064,7 @@
       "executable": false
     },
     "src/gauge/harvest.ts": {
-      "sha256": "d6832dd82007bc624ab1e720e46d9d082a59152d19bc238d594c19e0477498de",
+      "sha256": "51820ea3506eb32c283451807be7914e7737e3496afa328a1bffe387f3f285e9",
       "executable": false
     },
     "src/gauge/http.ts": {
@@ -1076,7 +1076,7 @@
       "executable": false
     },
     "src/gauge/imports.ts": {
-      "sha256": "0737d91819fe5f88f684dddcb6f84b4c9530d07c53c1decaa996651da2776555",
+      "sha256": "c6c68432bc29035bda3fdc800b71f4c9f2dd10e34f3686f61df0e42d4295cc3c",
       "executable": false
     },
     "src/gauge/margin.ts": {
@@ -1336,7 +1336,7 @@
       "executable": false
     },
     "src/gauge/ui-operations.ts": {
-      "sha256": "ea3710ac9b2627118b3eb1544d61df82965e0d34598b91285a72ad802f80b043",
+      "sha256": "01353051bb77cac14bb0c56b51abf95fa11b75d2ab3923c2a3520814bde18bb4",
       "executable": false
     },
     "src/gauge/ui-performance.ts": {
@@ -1416,7 +1416,7 @@
       "executable": false
     },
     "src/gauge/ui-time.ts": {
-      "sha256": "a12b744d6ba28797433931af3b9f01f2965ab712a9001316d442682128295efb",
+      "sha256": "ec83ec76741952ab2517caaf1bf4c76c47f82ceb1c3b0582b2b00cc9a8af5981",
       "executable": false
     },
     "src/gauge/ui-timesheets.ts": {

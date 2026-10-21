@@ -129,12 +129,11 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/Paid by recorded receipts/)
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/not provider verified/)
  }finally{await browser.close()}
- await receivablesJourney(h,worker)
  console.log('PASS REPORT-003 / INVOICE-006 native invoice-to-paid: source transfer once, as-of receipts, immutable source/client terms, races/replay, exact cash and margin, CSV/lineage, specialist reconciliation and privacy; provider/FX acceptance stays partial')
 }
 
 // INVOICE-006 real issuance and manual allocations, then aging/statement downloads.
-async function receivablesJourney(h,worker) {
+export async function receivablesJourney(h,worker) {
  const {cmd,request,owner}=h, asOf='2026-10-31'
  const read=async(cookie=owner,clientId=null,on=asOf)=>{
   const r=await request('/api/gauge/receivables?'+new URLSearchParams({asOf:on,...(clientId?{clientId}:{})}),cookie)

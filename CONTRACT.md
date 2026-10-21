@@ -407,7 +407,7 @@ The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 20
 
 ## Status
 
-Judged from the code and tests at commit `1e36a654d06f662902e19c087627df610c3ddceb` (21 October 2026).
+Judged from the code and tests at commit `bdd6bb53b4cbcbb3d8481d8532c706c448c19599` (21 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |

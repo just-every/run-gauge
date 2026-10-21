@@ -5,6 +5,7 @@ import type { Report } from './ui-describe'
 import { escape as e, input as i, duration, select as s, choices as c, check, form, table, open } from './ui-forms'
 import { hours, chip, nameOf } from './ui-format'
 import { taskStates } from './tasks'
+import { activeClients } from './ui-clients'
 
 export function taskEditor(a:Actor,report:Report,old?:Row,engagementId?:string) {
  const d=report.data,v=old?.value??{},managed=d.engagements.filter(r=>finance(a)||r.value.leadId===a.personId)
@@ -46,7 +47,7 @@ export function tasksSection(a:Actor,report:Report,options:Value,engagementId?:s
  const d=report.data,view=['list','board','mine'].includes(options.taskView)?options.taskView:'list'
  const client=options.taskClient??'',project=engagementId??options.taskProject??''
  const rows=d.tasks.filter(t=>(!project||t.value.engagementId===project)&&(!client||d.engagements.some(p=>p.id===t.value.engagementId&&p.value.clientId===client))&&(view!=='mine'||t.value.assigneeId===a.personId))
- const filters=`<section class="g-card"><h2>Task views</h2><form class="g-form" method="get" action="/app/engagements">${engagementId?`<input type="hidden" name="edit" value="${e(engagementId)}">`:''}${c('taskView','View',['list','board','mine'],view)}${s('taskClient','Client filter',d.clients,client,true)}${s('taskProject','Project filter',d.engagements,project,true)}<div class="g-actions"><button class="g-btn g-btn--secondary">Show tasks</button></div></form><p class="g-note">Mine shows tasks assigned to you. Recorded time includes the work records you may read. Each task's estimate is its own effort; subtask effort is additional. Recurrence creates the next task tree when its root completes, shifting calendar dates and resetting progress.</p></section>`
+ const filters=`<section class="g-card"><h2>Task views</h2><form class="g-form" method="get" action="/app/engagements">${engagementId?`<input type="hidden" name="edit" value="${e(engagementId)}">`:''}${c('taskView','View',['list','board','mine'],view)}${s('taskClient','Client filter',activeClients(d.clients),client,true)}${s('taskProject','Project filter',d.engagements,project,true)}<div class="g-actions"><button class="g-btn g-btn--secondary">Show tasks</button></div></form><p class="g-note">Mine shows tasks assigned to you. Recorded time includes the work records you may read. Each task's estimate is its own effort; subtask effort is additional. Recurrence creates the next task tree when its root completes, shifting calendar dates and resetting progress.</p></section>`
  const lists=view==='board'?taskBoard(a,report,rows):taskTable(a,report,view==='mine'?'My work':'Tasks',rows)
  return `<div id="delivery-tasks">${filters}${lists}</div>`
 }

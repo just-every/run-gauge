@@ -3,6 +3,7 @@ import { type Value, type Kind, type Row, need, text, integer, money, date, zone
 import { type Actor, Transaction, finance, access, get, all } from './store'
 import { resourceProfile } from './resource-profiles'
 import { rateCard } from './rate-cards'
+import { activeClient, claimIdentities, clientDetails } from './clients'
 export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | Value | null> {
  if (action === 'grant') {
   need(a.role === 'owner', 'Only the owner assigns access', 403)
@@ -30,10 +31,13 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   if (k === 'people') { v.timezone = zone(input.timezone); Object.assign(v,resourceProfile(input,previous?.value)) }
   // FINANCE-002 cash basis (FINANCE-007): payment terms in days (Net N), an approved average days late and a collection probability.
   if (k === 'clients') {
+   need(!previous?.value.merge, 'This client was merged into another client; edit the surviving client', 409)
    const days = (key: string, label: string) => input[key] === undefined ? previous?.value[key] ?? null : input[key] === '' || input[key] === null ? null : integer(input[key], label, 0, 365)
    v.paymentTermsDays = days('paymentTermsDays', 'Payment terms days'); v.daysLate = days('daysLate', 'Days late')
    v.daysLateApprovedBy = v.daysLate === null ? null : v.daysLate === (previous?.value.daysLate ?? null) ? previous?.value.daysLateApprovedBy ?? a.session.operator.id : a.session.operator.id
    v.collectionPercent = input.collectionPercent === undefined ? previous?.value.collectionPercent ?? 100 : input.collectionPercent === '' ? 100 : integer(input.collectionPercent, 'Collection probability percent', 0, 100)
+   // SETUP-002: the client and contact workspace beside those terms.
+   Object.assign(v, clientDetails(input, previous?.value)); await claimIdentities(env, tx, v, previous?.id)
   }
  }
  if (k === 'engagements') {
@@ -41,7 +45,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   need(['client','internal'].includes(v.type),'Choose client or internal work')
   need(!previous || v.type === (previous.value.type ?? 'client'),'Engagement type cannot change; create a separate engagement')
   v.clientId = null
-  if (v.type === 'client') { const client = await get(env,'clients',text(input.clientId,'Client')); tx.observe('clients',client); v.clientId=client.id }
+  if (v.type === 'client') { const client = await activeClient(env,input.clientId); tx.observe('clients',client); v.clientId=client.id }
   else { need(!input.clientId,'Internal work has no client'); need(['admin','sales','training','PTO','other'].includes(input.internalCategory),'Choose an internal category'); v.internalCategory=input.internalCategory }
   const lead = await get(env,'people',text(input.leadId,'Lead')); tx.observe('people',lead)
   v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = previous ? previous.value.currency : a.currency; v.timezone = zone(input.timezone)

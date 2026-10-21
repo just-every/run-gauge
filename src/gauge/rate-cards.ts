@@ -1,6 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, integer, money, date, charge } from './model'
 import { type Actor, Transaction, finance, get, all } from './store'
+import { activeClient } from './clients'
 
 // RATE-002 rate cards. One effective-dated, immutable `rates` row is one card version.
 // Bill precedence, most specific first: an entry override, then project, client-role, client,
@@ -29,7 +30,7 @@ export async function rateCard(env: Bindings, a: Actor, tx: Transaction, input: 
  const v: Value = { personId: input.personId || null, role: input.role ? text(input.role, 'Role', 200) : null, clientId: input.clientId || null, engagementId: input.engagementId || null, service: text(input.service || '*', 'Service') }
  need([v.personId, v.clientId, v.engagementId].filter(Boolean).length <= 1 && !(v.role && (v.personId || v.engagementId)), 'A card belongs to one project, client (optionally one role), role, person or service')
  if (v.personId) tx.observe('people', await get(env, 'people', v.personId))
- if (v.clientId) tx.observe('clients', await get(env, 'clients', v.clientId))
+ if (v.clientId) tx.observe('clients', await activeClient(env, v.clientId))
  if (v.engagementId) { const e = await get(env, 'engagements', v.engagementId); tx.observe('engagements', e); need(e.value.type !== 'internal', 'Internal work has no bill rates') }
  v.scope = levelOf(v)
  need(v.scope !== 'service' || v.service !== '*', 'Choose a project, client, role, person or named service')

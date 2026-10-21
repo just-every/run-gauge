@@ -20,7 +20,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
  const asOf = forecast.asOf, clients = new Map((data.clients ?? []).map(c => [c.id, c]))
  const place = (day: string) => (day < asOf ? asOf : day).slice(0, 7)
  const engagements = forecast.engagements.map(f => {
-  // Unset client terms read "Net 30 assumed" until SETUP-002 client terms ship.
+  // The client's finance-set Net N is used when set; "Net 30 assumed" appears only while it is unset (SETUP-002).
   const e = data.engagements.find(r => r.id === f.engagementId)!, client = clients.get(e.value.clientId), set = client?.value.paymentTermsDays ?? null, terms: number = set ?? 30
   const daysLate = client?.value.daysLate ?? null, percent = client?.value.collectionPercent ?? 100
   const incomplete = [...f.incomplete], sources = { clients: client ? [client.id] : [], milestones: [] as string[], ...f.sources }

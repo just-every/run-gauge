@@ -18,6 +18,7 @@ import { financeForecast } from './finance-forecast'
 import { demandForecast } from './demand-forecast'
 import { projectMargin } from './margin'
 import { cashForecast } from './cash-forecast'
+import { privateClientKeys } from './clients'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 const amounts = ['amountMinor','budgetMinor','totalMinor','costMinor','billMinor']
@@ -26,8 +27,8 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(k==='retainerCloses'||k==='retainerAdjustments')return correctionValue(a,k,value)
  if(a.role==='staff'&&k==='retainers'){const t=value.terms,r=t.rules??{};return {engagementId:value.engagementId,rootId:value.rootId,number:value.number,previousId:value.previousId,terms:{name:t.name,frequency:t.frequency,unit:t.unit,allowance:t.allowance,services:t.services,consumes:t.consumes,proration:t.proration,start:t.start,end:t.end,renewal:t.renewal,noticeDays:t.noticeDays,currency:t.currency,rules:{carryCap:r.carryCap??0,carryPeriods:r.carryPeriods??0,deficit:r.deficit??false}}}}
  if(a.role==='staff'&&k==='retainerPeriods'){const {reason,openedBy,openedAt,...period}=value;return period}
- // Cash assumptions on a client are finance's (FINANCE-002/FINANCE-007).
- if(k==='clients'){const {paymentTermsDays,daysLate,daysLateApprovedBy,collectionPercent,...client}=value;return client}
+ // Cash assumptions (FINANCE-002/FINANCE-007) and the SETUP-002 client workspace are finance's: others see the client's name.
+ if(k==='clients')return Object.fromEntries(Object.entries(value).filter(([key])=>!privateClientKeys.includes(key)))
  const v: Value = { ...value }
  if(a.role==='staff'&&k==='time'){delete v.retainerRootId;delete v.retainerAllocation}
  delete v.economics; delete v.rateOverride; if (v.source) { v.source = { ...v.source }; delete v.source.costMinor; delete v.source.billMinor }

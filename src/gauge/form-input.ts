@@ -38,6 +38,7 @@ export function localValue(ms: number | string | null | undefined, timeZone: str
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
  if(['time:save','timer:start'].includes(String(input.action)))input.billable=form.has('billable')
+ if(input.action==='save:clients')input.poRequired=form.has('poRequired')
  if(form.has('retainerInput'))Object.assign(input,JSON.parse(String(form.get('retainerInput'))))
  if(form.has('deliveryInput'))Object.assign(input,JSON.parse(String(form.get('deliveryInput'))))
  if(input.action==='delivery:preview'&&input.operation==='baseline') {

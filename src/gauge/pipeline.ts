@@ -1,6 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { type Row, type Value, need, text, date, integer, money, sum } from './model'
 import { type Actor, Transaction, finance, get, access } from './store'
+import { activeClient } from './clients'
 
 export async function opportunityCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value) {
  if (action !== 'save:opportunities') return null
@@ -12,7 +13,7 @@ export async function opportunityCommand(env: Bindings, a: Actor, tx: Transactio
  }
  const owner = await get(env, 'people', text(input.ownerId, 'Opportunity owner'))
  need(finance(a) || owner.id === a.personId, 'Leads manage their own opportunities', 403)
- const client = await get(env, 'clients', text(input.clientId, 'Client'))
+ const client = await activeClient(env, input.clientId)
  tx.observe('people', owner); tx.observe('clients', client)
  need(['discovery', 'qualified', 'proposal', 'won', 'lost'].includes(input.stage), 'Choose an opportunity stage')
  const from = date(input.from), to = date(input.to)

@@ -3,6 +3,7 @@ import { finance } from './store'
 import type { Report } from './ui-describe'
 import { escape as e, input, area, amount, duration, select, choices, form, table, decision } from './ui-forms'
 import { hours, money, nameOf, day } from './ui-format'
+import { activeClients } from './ui-clients'
 
 export function pipelineSection(a: Actor, report: Report, opportunityId?: string) {
  if (!finance(a) && a.role !== 'lead') return ''
@@ -10,7 +11,7 @@ export function pipelineSection(a: Actor, report: Report, opportunityId?: string
  const summaries = report.pipeline.map(p => `<section class="g-card"><h3>${e(p.currency)}</h3><dl><dt>Open weighted pipeline</dt><dd>${money(p.weightedMinor, p.currency)}</dd><dt>Open tentative staffing demand</dt><dd>${hours(p.tentativeDemandSeconds)}</dd><dt>Booked backlog · before billing</dt><dd>${money(p.bookedMinor, p.currency)}</dd></dl></section>`).join('')
  const owners = d.people.filter(p => finance(a) || p.id === a.personId)
  const engagements = d.engagements.filter(r => finance(a) || r.value.leadId === a.personId)
- const fields = input('name', 'Opportunity name', v.name) + select('clientId', 'Client', d.clients, v.clientId)
+ const fields = input('name', 'Opportunity name', v.name) + select('clientId', 'Client', activeClients(d.clients), v.clientId)
   + select('ownerId', 'Opportunity owner', owners, v.ownerId) + choices('stage', 'Stage', ['discovery', 'qualified', 'proposal', 'won', 'lost'], v.stage)
   + input('probability', 'Probability (%) · won 100, lost 0', v.probability ?? 50, 'number')
   + input('from', 'Proposed start', v.from, 'date') + input('to', 'Proposed end', v.to, 'date')

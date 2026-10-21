@@ -72,7 +72,7 @@ try {
  // Each month's cash traces to its milestone, client terms and as-of day.
  const figure = data.lineage.find(x => x.id === 'cash:USD:2026-12:expectedMinor')
  assert.equal(figure.value, december.expectedMinor); assert(figure.sources.some(s => s.kind === 'milestones' && s.id === launch.id)); assert(figure.sources.some(s => s.kind === 'clients' && s.id === client.id)); assert.match(figure.formula, /As of 2026-10-20/)
- // A client without payment terms is placed on "Net 30 assumed", labelled, until SETUP-002 client terms ship.
+ // A client without payment terms is placed on "Net 30 assumed", labelled, while its terms are unset.
  const bare = await cmd('save:clients', { name: 'Termless' })
  const termless = await cmd('save:engagements', { name: 'Termless fixed', clientId: bare.id, leadId: worker.id, members: [worker.id], scope: 'Fixed', timezone: 'America/New_York' })
  await cmd('budget:approve', await cmd('save:budgets', { engagementId: termless.id, mode: 'fixed', amountMinor: 500000, effortSeconds: 3600, roundingSeconds: 60, reason: 'Fixed fee' }))

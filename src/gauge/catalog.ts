@@ -69,7 +69,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   // FINANCE-006: an optional billable expense budget, billed and costed at the same pass-through amount, with an optional forecast date.
   if (input.expenseBudgetMinor !== undefined && input.expenseBudgetMinor !== '') { v.expenseBudgetMinor = money(input.expenseBudgetMinor); if (input.expenseDate) v.expenseDate = date(input.expenseDate) } else need(!input.expenseDate,'An expense date needs an expense budget')
  }
- if (k === 'milestones') { v.name = text(input.name,'Milestone'); v.due = date(input.due); v.amountMinor = money(input.amountMinor); v.status = 'draft'; need(!previous || previous.value.status === 'draft','Approved milestone needs a new milestone') }
+ if (k === 'milestones') { if(previous?.value.delivery)v.delivery={...previous.value.delivery,currentDeliveryId:null}; v.name = text(input.name,'Milestone'); v.due = date(input.due); v.amountMinor = money(input.amountMinor); v.status = 'draft'; need(!previous || previous.value.status === 'draft','Approved milestone needs a new milestone') }
  if(k==='milestones'&&previous&&v.due!==previous.value.due){
   const plans=await all(env,'deliveryPlans'),latest=plans.filter(p=>p.value.engagementId===v.engagementId).at(-1)
   if(latest){tx.observe('deliveryPlans',latest);tx.guard('(SELECT COUNT(*) FROM g_deliveryPlans)=?',plans.length)}

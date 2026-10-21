@@ -261,7 +261,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c2964ff4360256e53149329890884331aee9e358990e2353815f28d1f76055c9",
+      "sha256": "bf8a0debcb6989ac6033fa26df542bbbd22f62ebe3a04a51f4ef87607846c894",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -273,7 +273,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "2ae003622038b2aa5caed456821bd6084bdc0add6795aa17d9ec6304894b6332",
+      "sha256": "d6748ed91992f6417f7dc4fe18223795de4ebbfb1f13d23f79e99f1edcdb89af",
       "executable": false
     },
     "base-copies.json": {
@@ -285,7 +285,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "58f8d17cc1b1a0165973b6feafc42d65318fa267a619f764a0f4d183525e1e54",
+      "sha256": "2ca9b4e5be963fcce415d8bae5938017e73598dd53748b0883a5cb9a07400129",
       "executable": false
     },
     "DEMO.md": {
@@ -1021,7 +1021,7 @@
       "executable": false
     },
     "src/gauge/billing.ts": {
-      "sha256": "b3bd51d71ed58db0185035179f461ebf484300861723ae2dc64a79e8b9402743",
+      "sha256": "2e9ea3d78b2d08599c420d73d74e8eb50a06f7e2e725d91f3a72ac3ef0fa61fd",
       "executable": false
     },
     "src/gauge/cash-forecast.ts": {
@@ -1029,7 +1029,7 @@
       "executable": false
     },
     "src/gauge/catalog.ts": {
-      "sha256": "e5226355002693330a6a14515c7a76feb93dae81e3190c66034d8831d8617868",
+      "sha256": "55911b0cc94cc5b8cdc1836009f726bdf63f386f2737d13a13db91c6eafb11ef",
       "executable": false
     },
     "src/gauge/clients.ts": {
@@ -1037,7 +1037,7 @@
       "executable": false
     },
     "src/gauge/commands.ts": {
-      "sha256": "e72683398700189524da579686b9b9fa470ea476ae7edeec3a903754678519ae",
+      "sha256": "b3b17a7a5f2b22451dfa87d6fff4d997e9f3e6b82055f76c7462b5ac04c34b43",
       "executable": false
     },
     "src/gauge/delivery-engine.ts": {
@@ -1373,7 +1373,7 @@
       "executable": false
     },
     "src/gauge/ui-engagements.ts": {
-      "sha256": "3541dfd9bc4aea3f0f31f828823d59a9e3a97829c9a9ef2f268ccf5b5da46c13",
+      "sha256": "b9176a5fe848e8766a8aa0127c01dafe3af3b16f52e326431653ad75e93f4238",
       "executable": false
     },
     "src/gauge/ui-forecast-import.ts": {
@@ -3241,7 +3241,7 @@
       "executable": false
     },
     "tests/gauge-approvals.mjs": {
-      "sha256": "e3bd67f7b7178b917c1e32f4116cd8163da0027511c9c07071d0d50f4a87add1",
+      "sha256": "932c3ebea26ca12575cfaf74e7a5f063123f28dabbde69c284262bafa6b36ddd",
       "executable": false
     },
     "tests/gauge-audit.mjs": {
@@ -3249,7 +3249,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "99ee487478ac6096bb93b055f149c1cd77f96d959ab0d38d30b8bc5e7c3ae9c8",
+      "sha256": "8ee5d66b22c1f461dc8450edd2931a207774e3520a68d8fd2dfc33fe1f23d705",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {
@@ -3269,11 +3269,11 @@
       "executable": false
     },
     "tests/gauge-delivery-templates.mjs": {
-      "sha256": "8c7dc7111e9d8378ac8e2dd979477e65405653dedd4ee0664a4e975f45334c85",
+      "sha256": "5cfdb7e301135efbd6e23cbfb017a1c04721ff49e0f1ab6013481b2bc4e2ecd1",
       "executable": false
     },
     "tests/gauge-delivery.mjs": {
-      "sha256": "742ab26a8d020abd442cede1f433401010b198d798f0ca4931dabc7ba756c376",
+      "sha256": "a977132df599d2aa308d66e0757fd2bd831bbb6bb70bc7e5c35eeb47dcc11ee4",
       "executable": false
     },
     "tests/gauge-demand-forecast.mjs": {
@@ -3297,7 +3297,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "6cbf4e2abef651f43aa933d8153305c6715d3c01524df1224d55d9733a01623c",
+      "sha256": "c7c650cdbc37869ff0cfbf3d3c959d2051ddc36b5257bf96fe7c2540a5cef105",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -3385,7 +3385,7 @@
       "executable": false
     },
     "tests/gauge.mjs": {
-      "sha256": "3c38b491b833bd3e7945343535f971907e0d96ff569c513efdf25541de4abedf",
+      "sha256": "9a434dba3882ab225a0ed829201b0bb3ffe67417af9fb5ce38ad5c9767ffeb4a",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {

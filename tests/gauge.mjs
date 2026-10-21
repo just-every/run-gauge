@@ -1,3 +1,4 @@
+import { recordMilestoneAcceptance } from './gauge-harness.mjs'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {execFileSync} from 'node:child_process'
@@ -89,7 +90,7 @@ try{
   const expense=(await state()).data.expenses[0];const args={action:'packet:create',engagementId:eng.id,title:'October',sources:[`time:${entry.id}`,`expenses:${expense.id}`]}
   const races=await Promise.all([post('/api/gauge/command',{...args,key:randomUUID()},owner),post('/api/gauge/command',{...args,key:randomUUID()},owner)]);assert.deepEqual(races.map(r=>r.status).sort(),[200,409]);packet=(await state()).data.packets[0]
   await cmd('time:correct',{...entry,reason:'Cannot alter allocated work'},leadUser.cookie,409)
-  const fixed=await cmd('save:budgets',{engagementId:eng.id,mode:'fixed',amountMinor:50000,effortSeconds:5000,roundingSeconds:60,reason:'Fixed delivery'});await cmd('budget:approve',fixed);const milestone=await cmd('save:milestones',{engagementId:eng.id,name:'Delivered',due:'2026-10-31',amountMinor:50000});await cmd('milestone:approve',milestone);assert.equal((await request(`/api/gauge/history/milestones/${milestone.id}`,staff.cookie)).status,403,'staff read no milestone history');await cmd('packet:create',{engagementId:eng.id,title:'Milestone preparation',sources:[`milestones:${milestone.id}`]})
+  const fixed=await cmd('save:budgets',{engagementId:eng.id,mode:'fixed',amountMinor:50000,effortSeconds:5000,roundingSeconds:60,reason:'Fixed delivery'});await cmd('budget:approve',fixed);const milestone=await cmd('save:milestones',{engagementId:eng.id,name:'Delivered',due:'2026-10-31',amountMinor:50000});await cmd('milestone:approve',milestone);await recordMilestoneAcceptance({cmd,state,owner},milestone.id);assert.equal((await request(`/api/gauge/history/milestones/${milestone.id}`,staff.cookie)).status,403,'staff read no milestone history');await cmd('packet:create',{engagementId:eng.id,title:'Milestone preparation',sources:[`milestones:${milestone.id}`]})
  })
  await flow('BILLING-002 exact approval, formula-safe repeated exports and linked correction',async()=>{
   await cmd('packet:approve',packet);packet=await record('packets',packet.id);const first=await request(`/api/gauge/packets/${packet.id}`,owner),bytes=await first.text();assert(bytes.includes("'=SUM(1,2)"));assert.equal(await(await request(`/api/gauge/packets/${packet.id}`,owner)).text(),bytes);assert.equal((await request(`/api/gauge/packets/${packet.id}`,staff.cookie)).status,403)

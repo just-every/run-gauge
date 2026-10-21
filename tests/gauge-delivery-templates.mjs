@@ -1,3 +1,4 @@
+import { recordMilestoneAcceptance } from './gauge-harness.mjs'
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 
@@ -51,6 +52,7 @@ export async function deliveryTemplatesJourney(h,browser,{lead,worker,manager,st
   // Template milestones bill through the ordinary commercial gates: approved terms, then the milestone.
   const fee=await cmd('save:budgets',{engagementId:first.id,mode:'fixed',amountMinor:150000,effortSeconds:28800,roundingSeconds:60,reason:'Approved onboarding fee'});await cmd('budget:approve',fee)
   const milestone=(await state()).data.milestones.find(m=>m.id===a.milestones[0].id);await cmd('milestone:approve',{id:milestone.id,revision:milestone.revision})
+  await recordMilestoneAcceptance(h,milestone.id)
   const packet=await cmd('packet:create',{engagementId:first.id,title:'Onboarding sign-off',sources:[`milestones:${milestone.id}`]});assert.equal((await state()).data.packets.find(p=>p.id===packet.id).value.totalMinor,150000)
   // Scope: staff and other leads cannot see or apply agency templates.
   assert.equal((await state(staff.cookie)).data.deliveryTemplates.length,0)

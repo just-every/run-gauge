@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdir,readFile } from 'node:fs/promises'
-import { harness } from './gauge-harness.mjs'
+import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 
 // Extends the existing public financial/import journey rather than duplicating it.
 // The caller closes the source before passing this verifier to portability().
@@ -30,6 +30,14 @@ export async function prepareCurrentPortability(h,{importJob}) {
  // DELIVERY-002 / BASE-002: immutable dependency baselines travel with their source tasks.
  const delivery=await cmd('delivery:preview',{engagementId:internal.id,operation:'baseline',plan:{calendar:{weekdays:[1,2,3,4,5],holidays:['2026-10-05']},nodes:[{id:subtask.id,kind:'task',sourceId:subtask.id,name:'Prepare research notes',start:'2026-10-08',durationDays:1,predecessors:[],staffingIds:[]}]}})
  await cmd('delivery:approve',{...delivery.input,fingerprint:delivery.fingerprint,reason:'Portability delivery baseline',acceptEffects:true})
+ // DELIVERY-005 / BASE-002: risks, dated dependencies, delivered snapshots and attributed client decisions travel with milestone history.
+ const acceptedMilestone=await cmd('save:milestones',{engagementId:engagement.id,name:'Portable delivery decision',due:'2026-10-21',amountMinor:2500})
+ let trackedMilestone=await cmd('milestone:health',{...acceptedMilestone,health:'at-risk',reason:'Waiting for client assets'})
+ trackedMilestone=await cmd('milestone:issue',{...trackedMilestone,name:'Assets missing',ownerId:person.id,mitigation:'Prepare complete source package',status:'open',reason:'Client reported missing work'})
+ trackedMilestone=await cmd('milestone:dependency',{...trackedMilestone,name:'Client brand input',contact:'Casey Client',due:'2026-10-20',status:'received',reason:'Input recorded as received'})
+ await recordMilestoneAcceptance(h,acceptedMilestone.id)
+ const savedDelivery=(await state()).data.milestones.find(r=>r.id===acceptedMilestone.id).value.delivery
+ assert.equal(savedDelivery.decisions[0].notice,'recorded by Test owner, not confirmed by the client','DELIVERY-005 archive includes the honest client-decision label')
  // DELIVERY-003 / BASE-002: immutable template versions and the plan applied from one round-trip.
  const kickoff={key:'kickoff',kind:'task',name:'Portable kickoff',offsetDays:0,durationDays:1,predecessors:[],owner:'lead',effortSeconds:3600}
  const template=await cmd('template:save',{name:'Portable onboarding',purpose:'client-onboarding',items:[kickoff],reason:'Portable onboarding template'})

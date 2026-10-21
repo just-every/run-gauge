@@ -3353,7 +3353,7 @@
       "executable": false
     },
     "tests/fresh-clone.mjs": {
-      "sha256": "8638d55e1bb3125aad9682a951541bb9d1e62c15dbae1c20aa29011ca091313b",
+      "sha256": "2ebfa41e2d7a7e61c84ee852be36596bf1e0be131928e742322741228a2fbbe3",
       "executable": false
     },
     "tests/gauge-agent.mjs": {

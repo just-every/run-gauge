@@ -18,7 +18,7 @@ const DAY = 86400000
 const addDays = (day: string, days: number) => new Date(Date.parse(day) + days * DAY).toISOString().slice(0, 10)
 const nextMonthStart = (month: string) => { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + 1); return d.toISOString().slice(0, 10) }
 type CashMonth = { currency: string, month: string, revenueMinor: number, tentativeMinor: number, pipelineMinor: number, invoicesMinor: number, openMinor: number, expectedMinor: number, historicalOpenMinor: number, historicalExpectedMinor: number, pastDueMinor: number, engagements: string[] }
-type ScheduledInvoice = { source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], creditSnapshots?: Row[], creditedMinor?: number, assumption?: string }
+type ScheduledInvoice = { source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], creditSnapshots?: Row[], creditedMinor?: number, disputedMinor?: number, disputeSnapshot?: Row, assumption?: string }
 const percentOf = (minor: number, percent: number) => Number((BigInt(minor) * BigInt(percent) + 50n) / 100n)
 
 export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
@@ -67,10 +67,13 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const paidMinor = sum(payments.map(p => p.value.amountMinor))
    const openMinor=invoice.value.totalMinor-paidMinor-standing.creditedMinor
    const promise=(data.paymentPromises??[]).filter(p=>p.value.invoiceId===invoice.id).at(-1)
-   const promised=promise?Math.min(openMinor,promise.value.amountMinor):0
+   // INVOICE-006/FINANCE-007: a standing dispute is listed apart and never expected as cash until it is resolved.
+   const dispute=(data.invoiceDisputes??[]).filter(x=>x.value.invoiceId===invoice.id&&x.value.openedDate<=asOf&&(x.value.status==='open'||x.value.resolvedDate>asOf)).at(-1)
+   const disputed=dispute?Math.min(openMinor,dispute.value.amountMinor):0
+   const promised=promise?Math.min(openMinor-disputed,promise.value.amountMinor):0
    if(promised)invoices.push({source:`invoices:${invoice.id}:promise`,revenueMonth:null,invoiceDate:invoice.value.issueDate,amountMinor:0,openMinor:promised,issued:true,invoiceSnapshot:invoice,promiseSnapshot:promise,promised:true,paymentSnapshots:[]})
    invoices.push({ source: `invoices:${invoice.id}`, revenueMonth: null, invoiceDate: invoice.value.issueDate, amountMinor: invoice.value.totalMinor,
-    openMinor: openMinor-promised, issued: true, invoiceSnapshot: invoice, paymentSnapshots: payments, creditSnapshots: standing.credits, creditedMinor: standing.creditedMinor })
+    openMinor: openMinor-promised-disputed, issued: true, invoiceSnapshot: invoice, paymentSnapshots: payments, creditSnapshots: standing.credits, creditedMinor: standing.creditedMinor, disputedMinor: disputed, ...(disputed?{disputeSnapshot:dispute}:{}) })
   }
   const items = invoices.map(x => {
    const receiptDate = x.promiseSnapshot?.value.date ?? x.invoiceSnapshot?.value.dueDate ?? addDays(x.invoiceDate, terms), historicalDate = x.promised ? receiptDate : daysLate === null ? null : addDays(receiptDate, daysLate)
@@ -99,12 +102,12 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
  const issuedItems = engagements.flatMap(e => e.items.filter(i => i.issued).map(i => ({ currency: e.currency, ...i })))
  const issuedTotals = [...new Set(issuedItems.map(i => i.currency))].sort().map(currency => {
   const items = issuedItems.filter(i => i.currency === currency)
-  return { currency, invoicedMinor: sum(items.map(i => i.amountMinor)), creditedMinor: sum(items.map(i => i.creditedMinor ?? 0)), paidMinor: sum(items.map(i => i.paidMinor)), openMinor: sum(items.map(i => i.openMinor)) }
+  return { currency, invoicedMinor: sum(items.map(i => i.amountMinor)), creditedMinor: sum(items.map(i => i.creditedMinor ?? 0)), paidMinor: sum(items.map(i => i.paidMinor)), disputedMinor: sum(items.map(i => i.disputedMinor ?? 0)), openMinor: sum(items.map(i => i.openMinor + (i.disputedMinor ?? 0))) }
  })
  const paymentTotals = issuedTotals.filter(t => issuedItems.some(i => i.currency === t.currency && i.paymentSnapshots.length)).map(t => ({ currency: t.currency, amountMinor: t.paidMinor }))
  const format = (minor: number, currency: string) => `${currency} ${(minor / 100).toFixed(2)}`
  return { asOf, labels: cashLabels, engagements, months: list, issuedTotals, paymentTotals,
-  issuedReceivables: issuedTotals.length ? issuedTotals.map(t => `${format(t.openMinor, t.currency)} open`).join('; ') : cashLabels.issued,
+  issuedReceivables: issuedTotals.length ? issuedTotals.map(t => `${format(t.openMinor, t.currency)} open${t.disputedMinor ? ` (${format(t.disputedMinor, t.currency)} disputed, not expected as cash)` : ''}`).join('; ') : cashLabels.issued,
   recordedCash: paymentTotals.length ? `${paymentTotals.map(t => format(t.amountMinor, t.currency)).join('; ')} user-recorded receipts; not processor-verified or settled` : cashLabels.pending,
   pendingCash: paymentTotals.length ? 'No processor-pending cash recorded; manual receipts are user-recorded' : cashLabels.pending,
   settledCash: paymentTotals.length ? 'No processor-verified settlement; manual receipts are user-recorded' : cashLabels.settled }

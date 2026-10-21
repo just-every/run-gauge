@@ -18,8 +18,8 @@ export async function reserveNumber(env: Bindings, tx: Transaction, table: 'g_in
  return `${prefix}-${String(sequence.value + 1).padStart(6, '0')}`
 }
 /** What a live invoice still owes before this receipt or promise: total less receipts and issued credit notes. */
-const owed = 'COALESCE((SELECT SUM(amount_minor) FROM g_payments WHERE invoice_id=?),0)+COALESCE((SELECT SUM(amount_minor) FROM g_invoiceCorrections WHERE invoice_id=? AND kind<>\'void\' AND status=\'issued\'),0)+? <= (SELECT total_minor FROM g_invoices WHERE id=?) AND NOT EXISTS(SELECT 1 FROM g_invoiceCorrections WHERE invoice_id=? AND kind=\'void\' AND status=\'issued\')'
-async function settledMinor(env: Bindings, invoiceId: string) {
+export const owed = 'COALESCE((SELECT SUM(amount_minor) FROM g_payments WHERE invoice_id=?),0)+COALESCE((SELECT SUM(amount_minor) FROM g_invoiceCorrections WHERE invoice_id=? AND kind<>\'void\' AND status=\'issued\'),0)+? <= (SELECT total_minor FROM g_invoices WHERE id=?) AND NOT EXISTS(SELECT 1 FROM g_invoiceCorrections WHERE invoice_id=? AND kind=\'void\' AND status=\'issued\')'
+export async function settledMinor(env: Bindings, invoiceId: string) {
  const row = await env.DB.prepare("SELECT COALESCE((SELECT SUM(amount_minor) FROM g_payments WHERE invoice_id=?1),0)+COALESCE((SELECT SUM(amount_minor) FROM g_invoiceCorrections WHERE invoice_id=?1 AND kind<>'void' AND status='issued'),0) AS total, EXISTS(SELECT 1 FROM g_invoiceCorrections WHERE invoice_id=?1 AND kind='void' AND status='issued') AS voided").bind(invoiceId).first<{total: number, voided: number}>()
  need(!row?.voided, 'This invoice is void; record against its reissue', 409)
  return row?.total ?? 0
@@ -123,6 +123,8 @@ export async function invoiceCommand(env: Bindings, a: Actor, tx: Transaction, a
  need(input.currency === undefined || input.currency === invoice.value.currency, 'Payment currency differs from invoice; no implicit FX')
  need(amountMinor <= invoice.value.totalMinor - await settledMinor(env, invoice.id), 'Payment exceeds the invoice outstanding amount', 409)
  need(!await env.DB.prepare('SELECT 1 FROM g_payments WHERE invoice_id=? AND reference=?').bind(invoice.id, reference).first(), 'This receipt reference is already recorded for the invoice', 409)
+ need(!await env.DB.prepare('SELECT 1 FROM g_clientReceipts WHERE reference=?').bind(reference).first(), 'This reference belongs to a client receipt; allocate that receipt instead', 409)
+ tx.guard('NOT EXISTS(SELECT 1 FROM g_clientReceipts WHERE reference=?)', reference)
  // Observing an immutable invoice cannot serialize concurrent receipts. Check
  // the live allocation sum inside the same batch that inserts the new receipt.
  tx.guard(owed, invoice.id, invoice.id, amountMinor, invoice.id, invoice.id)

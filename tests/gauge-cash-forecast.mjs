@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 import { receivablesJourney } from './gauge-invoices.mjs'
+import { receiptJourney } from './gauge-receipts.mjs'
 import { revenueDashboardJourney, captureRevenueDashboard } from './gauge-revenue-dashboard.mjs'
 
 // FINANCE-002 revenue and cash forecast as of 20 October 2026, through the command, state and Week in review doors:
@@ -112,5 +113,6 @@ try {
  assert((await page.locator('#report-evidence article').first().innerText()).includes('Expected cash on terms'))
  // Add receivables fixtures after the existing cash/WIP controls have reconciled.
  await receivablesJourney(h,worker)
+ await receiptJourney(h,worker)
  console.log('PASS FINANCE-002 milestone delay moves expected cash as an independent FINANCE-007 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only')
 } finally { await browser?.close(); await h.dispose() }

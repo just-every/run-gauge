@@ -30,6 +30,8 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  const calendar=operation==='periods'?existing!.value.calendar:calendarRow?.value.calendar??{weekdays:[],holidays:[]}
  const from=date(input.from??terms.start),to=date(input.to??from)
  const calculated=retainerPeriods(terms,from,to,calendar)
+ // The fee uses working days even when the included allowance uses calendar days.
+ if(terms.feeMinor!=null)retainerPeriods({...terms,proration:'working'},from,to,calendar)
  need(calculated.length>0,'This window has no authorized retainer period')
  const successor=existing?family.find(r=>r.value.number===existing.value.number+1):undefined
  need(!successor||calculated.every(p=>p.activeEnd<successor.value.terms.start),'A later commercial version governs this period; use that version')

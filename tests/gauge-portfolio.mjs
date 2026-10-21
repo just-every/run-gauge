@@ -111,6 +111,10 @@ export async function portfolioJourney(h,browser) {
   const hourlyFigure=final.lineage.find(r=>r.id===`portfolioLabor:${encodeURIComponent(labor.key)}:hourlyBillableMinor`);assert.equal(hourlyFigure.value,20000);assert(hourlyFigure.sources.some(r=>r.id===hourlyTime.id&&r.value.economics.billMinor===20000));assert.equal(final.lineage.find(r=>r.id==='portfolioFees:USD').value,184091)
   await page.goto(url);await page.getByText('Additive labor and expense costs by team and service',{exact:true}).click();await capture('additive-costs',page.locator('#portfolio-labor'))
   for(const href of await page.locator('#portfolio-labor a').evaluateAll(els=>els.map(el=>el.href))){const calculation=new URL(href).searchParams.get('calculation');assert(final.lineage.some(f=>f.id===calculation),'REPORT-001 every labor/fee cell has a current source drill')}
+  const currentCalendar=(await read()).data.agencyCalendars.at(-1);await cmd('agency:calendar',{previousId:currentCalendar.id,weekdays:[1],holidays:['2026-11-02','2026-11-09','2026-11-16','2026-11-23','2026-11-30'],reason:'No working days in November'})
+  const versionsBefore=(await read()).data.retainers.length
+  await cmd('retainer:preview',{engagementId:hourly.id,operation:'terms',terms:{...terms,start:'2026-11-01',proration:'calendar'}},owner,400)
+  assert.equal((await read()).data.retainers.length,versionsBefore,'REPORT-001 a fee period without working days is refused before saving')
   console.log('PASS REPORT-001: profitable retainer vs fixed loss, day-earned fee, date/team/service/client/project/lead cohorts, monthly trends, frozen source drills/CSV, incomplete costs, immutable finance-only fees and assumed once-only cash schedule')
  }finally{await context.close()}
 }

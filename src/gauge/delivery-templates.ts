@@ -1,3 +1,4 @@
+import { normalizePhases } from './budget-phases'
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, integer, money, date, uuid } from './model'
 import { type Actor, type Transaction, access, all, finance, get } from './store'
@@ -21,7 +22,7 @@ function normalizeItems(raw: unknown, people: Row[]) {
   const named = owner && owner !== 'lead' ? people.filter(p => p.id === owner || p.value.name === owner) : []
   if (owner && owner !== 'lead') need(named.length === 1, 'Task owner must be one saved person or the engagement lead')
   return {
-   key: text(item.key, 'Item key', 100), kind, name: text(item.name, 'Item name', 200),
+   ...(item.phaseKey?{phaseKey:text(item.phaseKey,'Budget phase key',100)}:{}),key: text(item.key, 'Item key', 100), kind, name: text(item.name, 'Item name', 200),
    offsetDays: integer(item.offsetDays ?? 0, 'Business-day offset', 0, 730), durationDays,
    predecessors: (Array.isArray(item.predecessors) ? item.predecessors : []).map((k: unknown) => text(k, 'Predecessor key', 100)),
    owner: owner === 'lead' ? 'lead' : named[0]?.id ?? null, effortSeconds: kind === 'task' ? integer(item.effortSeconds ?? 0, 'Effort seconds') : null,
@@ -58,6 +59,7 @@ export async function templateCommand(env: Bindings, a: Actor, tx: Transaction, 
   need(purposes.includes(purpose), 'Choose a project or client-onboarding template')
   const id = uuid(), number = (previous?.value.number ?? 0) + 1
   const value = { rootId: previous?.value.rootId ?? id, number, previousId: previous?.id ?? null, name: text(input.name ?? previous?.value.name, 'Template name', 200), purpose, currency: a.currency, items: normalizeItems(input.items, await all(env, 'people')), reason: text(input.reason, 'Version reason'), savedBy: a.session.operator.id, savedAt: Date.now() }
+  if(input.budget){const b=input.budget;const budget={mode:b.mode,amountMinor:money(b.amountMinor),effortSeconds:integer(b.effortSeconds,'Template effort'),expenseBudgetMinor:money(b.expenseBudgetMinor??0),roundingSeconds:integer(b.roundingSeconds??60,'Template rounding',1,3600)};need(['hourly','fixed'].includes(budget.mode),'Choose a template billing mode');Object.assign(value,{budget:{...budget,phases:normalizePhases(b.phases,budget)}});const keys=new Set((value as Value).budget.phases.map((p:Value)=>p.key));need(value.items.filter(i=>i.kind!=='phase').every(i=>keys.has(i.phaseKey)),'Every template task and milestone needs a budget phase')}
   return tx.record('deliveryTemplates', value, undefined, id, 'template:save')
  }
  if (action !== 'template:apply') return null
@@ -77,14 +79,15 @@ export async function templateCommand(env: Bindings, a: Actor, tx: Transaction, 
  const calendar: Calendar = agency ? agency.value.calendar : { weekdays: [1, 2, 3, 4, 5], holidays: [] }
  const ids = new Map<string, string>(t.items.filter((i: Value) => i.kind !== 'phase').map((i: Value) => [i.key, uuid()]))
  const schedule = normalizeSchedule({ calendar, nodes: t.items.map((i: Value) => ({ id: i.key, kind: i.kind, sourceId: ids.get(i.key) ?? null, name: i.name, start: businessDay(calendar, start, i.offsetDays), durationDays: i.durationDays, predecessors: i.predecessors, staffingIds: [] })) })
+ if(t.budget){const budgets=await all(env,'budgets');need(!budgets.some(b=>b.value.engagementId===engagement.id),'A budget-bearing template starts an engagement without commercial terms',409);tx.guard('(SELECT COUNT(*) FROM g_budgets)=?',budgets.length);await tx.record('budgets',{...t.budget,currency:engagement.value.currency,engagementId:engagement.id,status:'draft',createdAt:Date.now(),reason:text(input.reason,'Template application reason'),templateId:template.id})}
  for (const item of t.items as Value[]) {
   const node = schedule.nodes.find(n => n.id === item.key)!
   if (item.kind === 'task') {
    const assigneeId = item.owner === 'lead' ? engagement.value.leadId : item.owner
    if (assigneeId) need(assigneeId === engagement.value.leadId || engagement.value.members?.includes(assigneeId), 'A template task owner is not on this engagement; add them first')
-   await tx.record('tasks', { name: item.name, engagementId: engagement.id, remainingSeconds: item.effortSeconds, estimateSeconds: item.effortSeconds, assigneeId: assigneeId ?? null, parentId: null, priority: 'normal', from: node.start, to: node.end, billable: engagement.value.type !== 'internal', checklist: [], repeatEveryDays: 0, repeatUntil: null, status: 'todo', templateItem: item.key }, undefined, ids.get(item.key), 'template:apply')
+   await tx.record('tasks', { ...(item.phaseKey?{phaseKey:item.phaseKey}:{}),name: item.name, engagementId: engagement.id, remainingSeconds: item.effortSeconds, estimateSeconds: item.effortSeconds, assigneeId: assigneeId ?? null, parentId: null, priority: 'normal', from: node.start, to: node.end, billable: engagement.value.type !== 'internal', checklist: [], repeatEveryDays: 0, repeatUntil: null, status: 'todo', templateItem: item.key }, undefined, ids.get(item.key), 'template:apply')
   }
-  if (item.kind === 'milestone') await tx.record('milestones', { engagementId: engagement.id, currency: engagement.value.currency, name: item.name, due: node.end, amountMinor: item.amountMinor, status: 'draft', templateItem: item.key }, undefined, ids.get(item.key), 'template:apply')
+  if (item.kind === 'milestone') await tx.record('milestones', { ...(item.phaseKey?{phaseKey:item.phaseKey}:{}),engagementId: engagement.id, currency: engagement.value.currency, name: item.name, due: node.end, amountMinor: item.amountMinor, status: 'draft', templateItem: item.key }, undefined, ids.get(item.key), 'template:apply')
  }
  return tx.record('deliveryPlans', { engagementId: engagement.id, previousId: null, number: 1, schedule, reason: text(input.reason, 'Template application reason'), approvedBy: a.session.operator.id, approvedAt: Date.now(), template: { id: template.id, rootId: t.rootId, number: t.number, name: t.name, start } }, undefined, undefined, 'template:apply')
 }

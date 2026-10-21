@@ -48,7 +48,7 @@ export function formInput(form: FormData): Value {
 
  if(input.action==='template:save'&&form.has('itemLines')){
   // One item per line: key | kind | name | offset days | duration days | after keys | owner | effort hours | fee.
-  input.items=String(form.get('itemLines')).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{const [key,kind,name,offsetDays,durationDays,after='',owner='',effort='',fee='']=line.split('|').map(s=>s.trim());return {key,kind,name,offsetDays,durationDays,predecessors:after.split(',').map(s=>s.trim()).filter(Boolean),owner:owner||null,effortSeconds:effort===''?0:Math.round(decimal(effort,'Effort hours')*3600),amountMinor:fee===''?(kind==='milestone'?'':null):cents(fee)}})
+  input.items=String(form.get('itemLines')).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{const [key,kind,name,offsetDays,durationDays,after='',owner='',effort='',fee='',phaseKey='']=line.split('|').map(s=>s.trim());return {...(phaseKey?{phaseKey}:{}),key,kind,name,offsetDays,durationDays,predecessors:after.split(',').map(s=>s.trim()).filter(Boolean),owner:owner||null,effortSeconds:effort===''?0:Math.round(decimal(effort,'Effort hours')*3600),amountMinor:fee===''?(kind==='milestone'?'':null):cents(fee)}})
   delete input.itemLines;input.previousId=input.previousId||null
  }
  if(input.action==='fixed:prepare'&&form.has('cumulativePercent')){
@@ -74,5 +74,11 @@ export function formInput(form: FormData): Value {
   input.review={dueWeekday:input.dueWeekday,dueTime:input.dueTime,minimumNotes:input.minimumNotes,maxEntrySeconds:input.maxEntrySeconds,maxDaySeconds:input.maxDaySeconds,reviewLevels:input.reviewLevels,separation:input.separation==='on',serviceBillability}
  }
  if(input.action==='retainer:preview'&&input.operation==='terms'){input.terms={...(input.feeMinor===undefined?{}:{feeMinor:input.feeMinor}),name:input.name,frequency:input.frequency,unit:input.unit,allowance:input.unit==='value'?input.allowanceMinor:input.allowanceSeconds,services:String(input.services??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean),consumes:input.consumes,proration:input.proration,start:input.start,end:input.end||null,renewal:input.renewal,noticeDays:input.noticeDays,rules:{carryCap:input.unit==='value'?input.carryCapMinor:input.carryCapSeconds,carryPeriods:input.carryPeriods,deficit:input.deficit==='on',overage:input.overage,overageRate:input.unit==='value'?Math.round(decimal(String(input.overagePercent),'Overage percent')*100):input.overageRateMinor}}}
+ if(['save:budgets','template:save'].includes(input.action)&&Object.keys(input).some(k=>/^phase\d+Name$/.test(k))){
+  const phases=Object.keys(input).filter(k=>/^phase\d+Name$/.test(k)&&String(input[k]).trim()).map(k=>{const prefix=k.slice(0,-4);return {key:input[prefix+'Key'],name:input[k],service:input[prefix+'Service'],mode:input[prefix+'Mode'],hourBudgetSeconds:input[prefix+'Seconds'],feeBudgetMinor:input[prefix+'FeeMinor'],expenseBudgetMinor:input[prefix+'ExpenseMinor']||0,marginBasisPoints:input[prefix+'MarginPercent']===''?0:cents(String(input[prefix+'MarginPercent']))}})
+  if(input.action==='save:budgets')input.phases=phases
+  else if(input.templateBudget==='on')input.budget={mode:input.templateMode,amountMinor:input.templateAmountMinor,effortSeconds:input.templateEffortSeconds,expenseBudgetMinor:input.templateExpenseBudgetMinor||0,roundingSeconds:input.templateRoundingSeconds,phases}
+ }
+ if(input.action==='budget:transfer')input.amount=input.metric==='hourBudgetSeconds'?input.transferSeconds:input.transferMinor
  return input
 }

@@ -1,3 +1,4 @@
+import { phaseFor } from './budget-phases'
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, integer, date, flag } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
@@ -60,6 +61,7 @@ export async function taskCommand(env: Bindings,a: Actor,tx: Transaction,action:
   repeatUntil:input.repeatUntil?date(input.repeatUntil):null,
   ...(old?.value.previousOccurrenceId?{previousOccurrenceId:old.value.previousOccurrenceId}:{}),
   ...(old?.value.nextOccurrenceId?{nextOccurrenceId:old.value.nextOccurrenceId}:{})}
+ if(!progress){const phase=await phaseFor(env,tx,engagement.id,input.phaseKey??old?.value.phaseKey);if(phase)v.phaseKey=phase.key}
  v.status=input.status??old?.value.status??'todo';need(taskStates.includes(v.status),'Choose a task status')
  if(progress) {
   v.remainingSeconds=integer(input.remainingSeconds??v.remainingSeconds,'Remaining effort seconds')

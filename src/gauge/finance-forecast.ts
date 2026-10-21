@@ -1,3 +1,4 @@
+import { phaseViews } from './budget-phases'
 import { type Row, type Value, charge, sum } from './model'
 import { explain, activeRates } from './rate-cards'
 import { retainerMatches, overageCharge } from './retainer-rules'
@@ -20,9 +21,9 @@ const spread = (minor: number, months: string[]) => months.map((m, i) => [m, Mat
 type Month = { month: string, actualFeesMinor: number, etcFeesMinor: number, expenseFeesMinor: number, periodFeesMinor: number, committedFeesMinor: number, actualCostMinor: number, etcCostMinor: number, expenseCostMinor: number, committedCostMinor: number, tentativeFeesMinor: number, tentativeCostMinor: number }
 const blank = (m: string): Month => ({ month: m, actualFeesMinor: 0, etcFeesMinor: 0, expenseFeesMinor: 0, periodFeesMinor: 0, committedFeesMinor: 0, actualCostMinor: 0, etcCostMinor: 0, expenseCostMinor: 0, committedCostMinor: 0, tentativeFeesMinor: 0, tentativeCostMinor: 0 })
 
-export function financeForecast(data: Record<string, Row[]>, asOf: string, retainerBalances: Value[] = []) {
+export function financeForecastBase(data: Record<string, Row[]>, asOf: string, retainerBalances: Value[] = [],pricingData=data) {
  const rates = activeRates(data.rates ?? [], data.rateWithdrawals ?? []), people = new Map((data.people ?? []).map(p => [p.id, p]))
- const priceAllocation = allocationPricing(data, asOf),periodFees=retainerFees(data,asOf)
+ const priceAllocation = allocationPricing(pricingData, asOf),periodFees=retainerFees(data,asOf)
  // Index threshold evidence once. A person's future source superset is retained
  // when overtime is priced, including competing projects and nonbillable work.
  const thresholdSources = new Map<string, { staffing: Row[], time: Row[] }>()
@@ -145,4 +146,17 @@ export function financeForecast(data: Record<string, Row[]>, asOf: string, retai
  // Totals stay per currency: SETUP-003 exchange rates convert other currencies before any cross-currency total.
  const totals = [...new Set(engagements.map(e => e.currency))].map(currency => { const group = engagements.filter(e => e.currency === currency); return { currency, complete: group.every(e => e.complete), eacFeesMinor: sum(group.map(e => e.eacFeesMinor)), eacCostMinor: sum(group.map(e => e.eacCostMinor)), marginMinor: sum(group.map(e => e.marginMinor)), tentativeFeesMinor: sum(group.map(e => e.tentativeFeesMinor)) } })
  return { asOf, labels: { committed: 'committed', tentative: '+ tentative', pipeline: '+ weighted pipeline' }, engagements, totals, pipeline: Object.entries(pipeline).map(([currency, byMonth]) => ({ currency, months: Object.entries(byMonth).sort().map(([month, weightedMinor]) => ({ month, weightedMinor })) })) }
+}
+
+export function financeForecast(data:Record<string,Row[]>,asOf:string,retainerBalances:Value[]=[]){
+ const base=financeForecastBase(data,asOf,retainerBalances),views=phaseViews(data),phaseForecasts=views.map(p=>({engagementId:p.engagementId,phaseKey:p.phase.key,forecast:financeForecastBase(p.data,asOf,[],data).engagements.find(f=>f.engagementId===p.engagementId)!}))
+ const engagements=base.engagements.map(original=>{
+  const parts=phaseForecasts.filter(p=>p.engagementId===original.engagementId).map(p=>p.forecast);if(!parts.length)return original
+  const combined={...original,basis:parts.every(p=>p.basis===parts[0].basis)?parts[0].basis:'mixed',complete:parts.every(p=>p.complete),incomplete:[...new Set(parts.flatMap(p=>p.incomplete))],unpriced:parts.flatMap(p=>p.unpriced),sources:Object.fromEntries([...new Set(parts.flatMap(p=>Object.keys(p.sources)))].map(k=>[k,[...new Set(parts.flatMap(p=>p.sources[k]??[]))]])),months:[...new Set(parts.flatMap(p=>p.months.map(m=>m.month)))].sort().map(month=>{const rows=parts.flatMap(p=>p.months.filter(m=>m.month===month)),r=blank(month);for(const key of Object.keys(r).filter(k=>k!=='month') as (keyof Omit<Month,'month'>)[])r[key]=sum(rows.map(m=>m[key]));return r})}
+  for(const key of Object.keys(original).filter(k=>typeof original[k as keyof typeof original]==='number'))(combined as Value)[key]=sum(parts.map(p=>(p as Value)[key]))
+  return combined
+ })
+ // Recompute currency totals from the composed projects; keep weighted pipeline separate.
+ const totals=base.totals.map(t=>{const rows=engagements.filter(e=>e.currency===t.currency),r={...t,complete:rows.every(e=>e.complete)};for(const key of Object.keys(t).filter(k=>typeof (t as Value)[k]==='number')){if(rows.every(e=>typeof (e as Value)[key]==='number'))(r as Value)[key]=sum(rows.map(e=>(e as Value)[key]))}return r})
+ return {...base,engagements,totals,phaseForecasts}
 }

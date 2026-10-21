@@ -19,6 +19,9 @@ import { demandForecast } from './demand-forecast'
 import { projectMargin } from './margin'
 import { cashForecast } from './cash-forecast'
 import { portfolio } from './portfolio'
+import { phaseViews } from './budget-phases'
+import { financeForecastBase } from './finance-forecast'
+import { capBalances } from './budget-caps'
 import { revenueDashboard } from './revenue-dashboard'
 import { agentData, agentValue } from './agent-data'
 import { proposalAvailability } from './proposal-sources'
@@ -28,6 +31,7 @@ import { privateClientKeys } from './clients'
 export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
  if (finance(a)) return value
+ if(k==='budgetAlerts'){const {actual,budget,...alert}=value;return alert}
  if(k==='retainerCloses'||k==='retainerAdjustments')return correctionValue(a,k,value)
  if(a.role==='staff'&&k==='retainers'){const t=value.terms,r=t.rules??{};return {engagementId:value.engagementId,rootId:value.rootId,number:value.number,previousId:value.previousId,terms:{name:t.name,frequency:t.frequency,unit:t.unit,allowance:t.allowance,services:t.services,consumes:t.consumes,proration:t.proration,start:t.start,end:t.end,renewal:t.renewal,noticeDays:t.noticeDays,currency:t.currency,rules:{carryCap:r.carryCap??0,carryPeriods:r.carryPeriods??0,deficit:r.deficit??false}}}}
  if(a.role==='staff'&&k==='retainerPeriods'){const {reason,openedBy,openedAt,...period}=value;return period}
@@ -51,9 +55,9 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const ids=new Set([...ordinaryIds,...delegatedIds])
  data.timeFavorites=data.timeFavorites.filter(r=>ids.has(r.value.engagementId)&&r.value.personId===(a.role==='owner'&&favoritePersonId?favoritePersonId:a.personId))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
- for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
+ for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments','budgetAlertPolicies','budgetAlerts'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
-  data.retainerSchedules=[]; data.retainerCharges=[]; data.retainerRuns=[]; data.fixedCharges=[]; data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.projectScenarios=[]; data.paymentPromises=[]; data.invoices=[]; data.payments=[]; data.invoiceCorrections=[]; data.clientReceipts=[]; data.invoiceDisputes=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
+  data.budgetAlertPolicies=[];data.budgetAlerts=data.budgetAlerts.filter(r=>a.role==='lead'&&r.value.leadId===a.personId);data.timeSlices=[]; data.capWriteDowns=[]; data.retainerSchedules=[]; data.retainerCharges=[]; data.retainerRuns=[]; data.fixedCharges=[]; data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.projectScenarios=[]; data.paymentPromises=[]; data.invoices=[]; data.payments=[]; data.invoiceCorrections=[]; data.clientReceipts=[]; data.invoiceDisputes=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
   // Agency delivery templates are planning configuration for those who start projects.
   if(a.role!=='lead')data.deliveryTemplates=[]
   const leadIds=new Set(data.engagements.filter(e=>(a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
@@ -142,6 +146,7 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const forecast=finance(a)?financeForecast(data,forecastDay,retainerBalances):null
  // RESOURCE-005 capacity runs from the day after the forecast day for a year, whatever window the state read shows.
  const forecastCapacity=forecast?capacity(data,new Date(Date.parse(forecastDay)+86400000).toISOString().slice(0,10),new Date(Date.parse(forecastDay)+366*86400000).toISOString().slice(0,10)):[]
- const report={revenueDashboard:finance(a)?revenueDashboard(data,forecastDay):null,portfolio:forecast?portfolio(data,forecast,retainerBalances,from,to,portfolioOptions):null,timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,cash:forecast?cashForecast(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data,finance(a)?forecastDay:null):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
+ const phaseMargins=forecast?phaseViews(data).map(p=>{const f=financeForecastBase(p.data,forecastDay,[],data);return {phase:p.phase,...(projectMargin(p.data,{...f,phaseForecasts:[]}).find(m=>m.engagementId===p.engagementId)!)}}):[]
+ const report={phaseMargins,capBalances:finance(a)?capBalances(data):[],revenueDashboard:finance(a)?revenueDashboard(data,forecastDay):null,portfolio:forecast?portfolio(data,forecast,retainerBalances,from,to,portfolioOptions):null,timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,cash:forecast?cashForecast(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data,finance(a)?forecastDay:null):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

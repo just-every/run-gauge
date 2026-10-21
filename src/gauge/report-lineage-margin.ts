@@ -3,10 +3,10 @@ import { Lineage, type Evidence } from './report-lineage-shared'
 /** FINANCE-001: each margin figure links to its formula, its source rows and every source that makes it unknown. */
 export function marginLineage(c: Lineage) {
  const asOf = c.report.forecast?.asOf
- for (const m of c.report.margin ?? []) {
-  const id = String(m.engagementId), prefix = `margin:${id}:`, f = (c.report.forecast?.engagements ?? []).find((x: any) => x.engagementId === id)
+ for (const m of [...(c.report.margin??[]),...(c.report.phaseMargins??[])]) {
+  const id = String(m.engagementId), prefix = m.phase?`phase-margin:${id}:${m.phase.key}:`:`margin:${id}:`, f = m.phase?(c.report.forecast?.phaseForecasts??[]).find((x:any)=>x.engagementId===id&&x.phaseKey===m.phase.key)?.forecast:(c.report.forecast?.engagements ?? []).find((x: any) => x.engagementId === id)
   const base = () => { const e = c.evidence(); c.row(e, 'engagements', id); return e }
-  const approved = (e: Evidence) => { c.rows('time').filter(r => r.value.engagementId === id && r.value.status === 'approved').forEach(r => c.timeEvidence(e, r)); c.rows('expenses').filter(r => r.value.engagementId === id && r.value.status === 'approved').forEach(r => c.row(e, 'expenses', r.id)) }
+  const approved = (e: Evidence) => { c.rows('time').filter(r => r.value.engagementId === id && r.value.status === 'approved'&&(!m.phase||r.value.phaseKey===m.phase.key)).forEach(r => c.timeEvidence(e, r)); c.rows('expenses').filter(r => r.value.engagementId === id && r.value.status === 'approved'&&(!m.phase||r.value.phaseKey===m.phase.key)).forEach(r => c.row(e, 'expenses', r.id)) }
   const refs = (e: Evidence, sources: string[]) => { for (const s of sources) { const [kind, rowId] = s.split(':'); c.row(e, kind, rowId) } }
   const forecastRows = (e: Evidence) => { for (const [kind, ids] of Object.entries((f?.sources ?? {}) as Record<string, string[]>)) for (const rowId of ids) c.row(e, kind, rowId) }
   const cost = base(); approved(cost); cost.unknown.push(...m.costUnknown)

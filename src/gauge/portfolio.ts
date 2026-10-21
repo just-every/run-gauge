@@ -19,8 +19,8 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
   const costUnknown:string[]=[],feeUnknown:string[]=[],sources:Record<string,string[]>={engagements:[id],clients:[project.value.clientId],people:[],time:time.map(t=>t.id),expenses:expenses.map(t=>t.id),budgets:budget?[budget.id]:[],milestones:[],retainers:[],retainerPeriods:[]}
   let costMinor=sum(expenses.map(r=>r.value.amountMinor)),earnedMinor=sum(expenses.filter(r=>r.value.reimbursable).map(r=>r.value.amountMinor))
   for(const row of time){const x=row.value.economics??{};if(x.costMinor==null)costUnknown.push(`time:${row.id}: frozen cost unknown`);else if((x.costCurrency??x.currency)!==f.currency)costUnknown.push(`time:${row.id}: unconverted ${x.costCurrency??x.currency} cost`);else costMinor+=x.costMinor
-   if(f.basis==='hourly'&&row.value.billable){if(x.billMinor==null)feeUnknown.push(`time:${row.id}: frozen bill value unknown`);else earnedMinor+=x.billMinor}}
-  if(f.basis==='fixed'){earnedMinor+=sum(milestones.map(m=>m.value.amountMinor));sources.milestones=milestones.map(m=>m.id)}
+   if((f.basis==='hourly'||f.basis==='mixed'&&x.mode==='hourly')&&row.value.billable){if(x.billMinor==null)feeUnknown.push(`time:${row.id}: frozen bill value unknown`);else earnedMinor+=x.billMinor}}
+  if(f.basis==='fixed'||f.basis==='mixed'){earnedMinor+=sum(milestones.map(m=>m.value.amountMinor));sources.milestones=milestones.map(m=>m.id)}
   if(f.basis==='retainer'){
    for(const fee of periodFees){sources.retainers.push(fee.retainerId);sources.retainerPeriods.push(fee.periodId);const earned=fee.earnedBetween(from,to);if(earned===null)feeUnknown.push(`retainers:${fee.retainerId}: period fee not recorded`);else earnedMinor+=earned}
    for(const p of mine('retainerPeriods').filter(p=>p.value.periodEnd>=from&&p.value.periodEnd<=end)){
@@ -51,7 +51,7 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
  }
  const projects=slice(from,to),rows=groupRows(projects),trends=[]
  const feesByCurrency=new Map<string,{currency:string;projects:typeof projects;knownMinor:number;minor:number|null}>()
- for(const p of projects.filter(p=>p.basis!=='hourly')){const bucket=feesByCurrency.get(p.currency)??{currency:p.currency,projects:[] as typeof projects,knownMinor:0,minor:0};bucket.projects.push(p);const passThrough=sum(p.sources.expenses.map(id=>data.expenses.find(r=>r.id===id)!).filter(r=>r.value.reimbursable).map(r=>r.value.amountMinor));bucket.knownMinor+=p.knownEarnedMinor-passThrough;if(p.earnedMinor===null)bucket.minor=null;feesByCurrency.set(p.currency,bucket)}
+ for(const p of projects.filter(p=>p.basis!=='hourly')){const bucket=feesByCurrency.get(p.currency)??{currency:p.currency,projects:[] as typeof projects,knownMinor:0,minor:0};bucket.projects.push(p);const passThrough=sum(p.sources.expenses.map(id=>data.expenses.find(r=>r.id===id)!).filter(r=>r.value.reimbursable).map(r=>r.value.amountMinor));const hourly=p.basis==='mixed'?sum(p.sources.time.map(id=>data.time.find(t=>t.id===id)!).filter(t=>t.value.billable&&t.value.economics?.mode==='hourly').map(t=>t.value.economics.billMinor??0)):0;bucket.knownMinor+=p.knownEarnedMinor-passThrough-hourly;if(p.earnedMinor===null)bucket.minor=null;feesByCurrency.set(p.currency,bucket)}
  const unattributedFees=[...feesByCurrency.values()].map(r=>({...r,minor:r.minor===null?null:r.knownMinor}))
  for(let cursor=from.slice(0,7)+'-01';cursor<=to;){
   const date=new Date(cursor+'T00:00:00Z');date.setUTCMonth(date.getUTCMonth()+1);const next=date.toISOString().slice(0,10),last=new Date(Date.parse(next)-86400000).toISOString().slice(0,10)

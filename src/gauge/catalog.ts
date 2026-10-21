@@ -4,6 +4,8 @@ import { type Actor, Transaction, finance, access, get, all } from './store'
 import { saveAgentScope } from './agent-grants'
 import { resourceProfile } from './resource-profiles'
 import { rateCard } from './rate-cards'
+import { normalizePhases, phaseFor } from './budget-phases'
+import { latestBudget } from './budget-caps'
 import { activeClient, claimIdentities, clientDetails } from './clients'
 export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | Value | null> {
  if (action === 'grant') {
@@ -67,10 +69,13 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  if (k === 'budgets') {
   need(!previous, 'Budget versions are append-only; create a change order')
   need(['hourly','fixed'].includes(input.mode),'Choose hourly or fixed terms')
+  const prior=latestBudget(await all(env,'budgets'),v.engagementId);v.notToExceed=input.notToExceed===undefined?prior?.value.notToExceed??false:flag(input.notToExceed);need(!v.notToExceed||input.mode==='hourly','A not-to-exceed cap applies to hourly terms')
   v.mode = input.mode; v.amountMinor = money(input.amountMinor); v.effortSeconds = integer(input.effortSeconds,'Estimated effort seconds'); v.roundingSeconds = integer(input.roundingSeconds,'Billing rounding seconds',1,3600); v.reason = text(input.reason,'Terms / change-order reason'); v.status = 'draft'; v.createdAt = Date.now()
   // FINANCE-006: an optional billable expense budget, billed and costed at the same pass-through amount, with an optional forecast date.
   if (input.expenseBudgetMinor !== undefined && input.expenseBudgetMinor !== '') { v.expenseBudgetMinor = money(input.expenseBudgetMinor); if (input.expenseDate) v.expenseDate = date(input.expenseDate) } else need(!input.expenseDate,'An expense date needs an expense budget')
  }
+ if(k==='budgets'){v.phases=normalizePhases(input.phases??latestBudget(await all(env,'budgets'),v.engagementId)?.value.phases,v);need(!v.notToExceed||v.phases.every((p:Value)=>p.mode==='hourly'),'Not-to-exceed engagement caps require hourly phases')}
+ if(k==='milestones'||k==='staffing'){const phase=await phaseFor(env,tx,v.engagementId,input.phaseKey??previous?.value.phaseKey,k==='milestones'?'fixed':undefined,input.service);if(phase)v.phaseKey=phase.key}
  if (k === 'milestones') { if(previous?.value.delivery)v.delivery={...previous.value.delivery,currentDeliveryId:null}; v.name = text(input.name,'Milestone'); v.due = date(input.due); v.amountMinor = money(input.amountMinor); v.status = 'draft'; need(!previous || previous.value.status === 'draft','Approved milestone needs a new milestone') }
  if(k==='milestones'&&previous&&v.due!==previous.value.due){
   const plans=await all(env,'deliveryPlans'),latest=plans.filter(p=>p.value.engagementId===v.engagementId).at(-1)
@@ -113,20 +118,25 @@ export async function approveTerms(env: Bindings,a: Actor,tx: Transaction, k: 'b
  // Older milestones inherit their engagement's currency; saved historical rows are left intact.
  need((row.value.currency ?? (k === 'milestones' ? e.value.currency : undefined)) === e.value.currency, 'Terms currency differs from engagement; no implicit FX')
  need(input.currency === undefined || input.currency === e.value.currency, 'Currency differs from engagement; no implicit FX')
+ if(k==='budgets'){const prior=latestBudget(await all(env,'budgets'),e.id);if(prior?.value.phases?.length){for(const phase of prior.value.phases){const next=row.value.phases?.find((p:Value)=>p.key===phase.key);need(next&&next.mode===phase.mode&&next.service===phase.service,'Retain each approved phase identity, service and billing basis; transfer allowances with a new version',409)}}}
+ if(k==='budgets'&&row.value.phases?.length){const keys=new Set(row.value.phases.map((p:Value)=>p.key));need(!(await all(env,'retainers')).some(r=>r.value.engagementId===e.id),'Retainer and phase commercial bases must be separate engagements');for(const kind of ['time','expenses','staffing','milestones'] as const){const rows=(await all(env,kind)).filter(r=>r.value.engagementId===e.id);for(const r of rows){if(kind==='time'&&r.value.economics)need(row.value.phases.find((p:Value)=>p.key===r.value.phaseKey)?.mode===r.value.economics.mode,'Keep the frozen billing basis of approved phase time',409);need(keys.has(r.value.phaseKey),'Assign every existing work source to a retained phase before approving phase budgets',409);tx.observe(kind,r)}tx.guard(`(SELECT COUNT(*) FROM g_${kind} WHERE engagement_id=?)=?`,e.id,rows.length)}}
+ if(k==='budgets'){const prior=latestBudget(await all(env,'budgets'),e.id);need(!prior?.value.notToExceed||row.value.notToExceed,'A change order must preserve the not-to-exceed policy');if(row.value.notToExceed){const reserved=await env.DB.prepare("SELECT COALESCE(SUM(json_extract(s.data,'$.amountMinor')),0) AS total FROM g_timeSlices s JOIN g_billing_sources b ON b.kind='timeSlices' AND b.source_id=s.id WHERE json_extract(s.data,'$.engagementId')=?").bind(e.id).first<{total:number}>();need(row.value.amountMinor>=(reserved?.total??0),'The cap cannot fall below its reserved billing portions',409);tx.guard("(SELECT COALESCE(SUM(json_extract(s.data,'$.amountMinor')),0) FROM g_timeSlices s JOIN g_billing_sources b ON b.kind='timeSlices' AND b.source_id=s.id WHERE json_extract(s.data,'$.engagementId')=?)<=?",e.id,row.value.amountMinor)}if(row.value.notToExceed)need(!await env.DB.prepare("SELECT 1 FROM g_billing_sources b JOIN g_time t ON b.kind='time' AND b.source_id=t.id WHERE t.engagement_id=?").bind(e.id).first(),'Resolve existing whole-entry billing before introducing a cap',409)}
+ if(k==='budgets')for(const phase of row.value.phases??[]){if(phase.mode!=='fixed')continue;const charged=await env.DB.prepare("SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) AS total FROM (SELECT data FROM g_milestones WHERE engagement_id=? AND status='approved' UNION ALL SELECT data FROM g_fixedCharges WHERE engagement_id=? AND status='approved') WHERE json_extract(data,'$.phaseKey')=?").bind(e.id,e.id,phase.key).first<{total:number}>();need((charged?.total??0)<=phase.feeBudgetMinor,'Phase allowance cannot fall below its approved fixed billing sources',409);tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM (SELECT data FROM g_milestones WHERE engagement_id=? AND status='approved' UNION ALL SELECT data FROM g_fixedCharges WHERE engagement_id=? AND status='approved') WHERE json_extract(data,'$.phaseKey')=?)<=?",e.id,e.id,phase.key,phase.feeBudgetMinor)}
  const approval: Value = { status: 'approved', approvedBy: a.session.operator.id, approvedAt: Date.now() }
  if (k === 'milestones') {
   const budgets = (await all(env,'budgets')).filter(b => b.value.engagementId === e.id && b.value.status === 'approved').sort((x,y) => y.value.approvedAt-x.value.approvedAt)
-  need(budgets[0]?.value.mode === 'fixed','Approve fixed-fee terms first'); tx.observe('budgets',budgets[0]); approval.budgetId = budgets[0].id
+  const phase=await phaseFor(env,tx,e.id,row.value.phaseKey,'fixed')
+  need((phase?.mode??budgets[0]?.value.mode) === 'fixed','Approve fixed-fee terms first'); tx.observe('budgets',budgets[0]); approval.budgetId = budgets[0].id
   need(budgets[0].value.currency === e.value.currency, 'Budget currency differs from engagement; no implicit FX')
-  const approved = (await all(env,'milestones')).filter(m => m.value.engagementId === e.id && m.value.status === 'approved')
+  const approved = (await all(env,'milestones')).filter(m => m.value.engagementId === e.id && m.value.status === 'approved'&&(!phase||m.value.phaseKey===phase.key))
   for (const milestone of approved) { need((milestone.value.currency ?? e.value.currency) === e.value.currency, 'Milestone currency differs from engagement; no implicit FX'); tx.observe('milestones',milestone) }
-  const charges = (await all(env,'fixedCharges')).filter(c=>c.value.engagementId===e.id&&c.value.status==='approved')
+  const charges = (await all(env,'fixedCharges')).filter(c=>c.value.engagementId===e.id&&c.value.status==='approved'&&(!phase||c.value.phaseKey===phase.key))
   for (const charge of charges) tx.observe('fixedCharges',charge)
   const chargedMinor=sum(charges.map(c=>c.value.amountMinor))
-  tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM g_fixedCharges WHERE engagement_id=? AND status='approved')=?",e.id,chargedMinor)
+  tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM g_fixedCharges WHERE engagement_id=? AND status='approved' AND (?='' OR json_extract(data,'$.phaseKey')=?))=?",e.id,phase?.key??'',phase?.key??'',chargedMinor)
   const approvedMinor = sum(approved.map(m=>m.value.amountMinor))
-  need(sum([approvedMinor,chargedMinor,row.value.amountMinor])<=budgets[0].value.amountMinor,'Milestones exceed the agreed fixed fee')
-  tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM g_milestones WHERE engagement_id=? AND status='approved')=?",e.id,approvedMinor)
+  need(sum([approvedMinor,chargedMinor,row.value.amountMinor])<=(phase?.feeBudgetMinor??budgets[0].value.amountMinor),'Milestones exceed the agreed fixed fee')
+  tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM g_milestones WHERE engagement_id=? AND status='approved' AND (?='' OR json_extract(data,'$.phaseKey')=?))=?",e.id,phase?.key??'',phase?.key??'',approvedMinor)
  }
  return tx.record(k,{...row.value,...approval},row,undefined,'approve')
 }

@@ -90,6 +90,18 @@ export async function prepareCurrentPortability(h,{importJob}) {
  let retainedImport=await cmd('import:create',{package:sourcePackage,fingerprint:preview.fingerprint})
  while(['applying','queued'].includes(retainedImport.state))retainedImport=await cmd('import:resume',{id:retainedImport.id})
  assert.equal(retainedImport.state,'completed')
+ // BUDGET-002: exact capped source slices, alert records and budget-bearing templates round-trip.
+ const capProject=await cmd('save:engagements',{name:'Portable capped service',clientId:engagement.value.clientId,leadId:person.id,members:[person.id],scope:'Portable held excess',timezone:zone})
+ const capBudget=await cmd('budget:approve',await cmd('save:budgets',{engagementId:capProject.id,mode:'hourly',notToExceed:true,amountMinor:7000,effortSeconds:3600,roundingSeconds:1,reason:'Portable cap'}))
+ const capTask=await cmd('save:tasks',{engagementId:capProject.id,name:'Portable capped work',remainingSeconds:0})
+ let capTime=await cmd('time:save',{engagementId:capProject.id,taskId:capTask.id,personId:person.id,service:'Research',timezone:zone,start:'2026-10-20T09:00:00+10:00',end:'2026-10-20T10:00:00+10:00',billable:true,notes:'Portable exact cap source'})
+ capTime=await cmd('time:approve',await cmd('time:submit',capTime))
+ await cmd('cap:draft',{engagementId:capProject.id,budgetId:capBudget.id,budgetRevision:capBudget.revision,title:'Portable half-hour billing slice'})
+ const phaseTemplate=await cmd('template:save',{name:'Portable phase budget',purpose:'project',reason:'Portable immutable phase allowances',budget:{mode:'hourly',amountMinor:30000,effortSeconds:7200,roundingSeconds:60,expenseBudgetMinor:0,phases:[{key:'research',name:'Research',service:'Research',mode:'hourly',hourBudgetSeconds:3600,feeBudgetMinor:10000,expenseBudgetMinor:0,marginBasisPoints:2500},{key:'delivery',name:'Delivery',service:'Delivery',mode:'fixed',hourBudgetSeconds:3600,feeBudgetMinor:20000,expenseBudgetMinor:0,marginBasisPoints:2500}]},items:[{key:'research',kind:'task',name:'Portable phased research',phaseKey:'research',offsetDays:0,durationDays:1,predecessors:[],owner:'lead',effortSeconds:3600},{key:'delivery',kind:'task',name:'Portable phased delivery',phaseKey:'delivery',offsetDays:0,durationDays:1,predecessors:[],owner:'lead',effortSeconds:3600}]})
+ const phaseProject=await cmd('save:engagements',{name:'Portable phased project',clientId:engagement.value.clientId,leadId:person.id,members:[person.id],scope:'Portable phase template application',timezone:zone})
+ await cmd('template:apply',{templateId:phaseTemplate.id,engagementId:phaseProject.id,start:'2026-11-02',reason:'Portable selected phase version'})
+ const phaseBudget=(await state()).data.budgets.find(b=>b.value.engagementId===phaseProject.id)
+ await cmd('budget:approve',phaseBudget)
  // TIME-004 / BASE-002: dated delegations and versioned submission/review policy travel as business records, never authority.
  const portableLead=await h.invite('portable-review-lead'),portableDelegate=await h.invite('portable-review-delegate')
  await cmd('grant',{operatorId:portableLead.id,personId:engagement.value.leadId,role:'lead',enabled:true})

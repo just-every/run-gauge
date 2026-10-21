@@ -194,3 +194,132 @@ export async function receivablesJourney(h,worker) {
  assert.equal((await read(owner,client.id)).totals[0].openMinor,131000)
  console.log('PASS INVOICE-006 dated aging and client statements: independent totals at all bucket edges, inclusive dates, paid invoices, source receipt CSV, safe text, client filtering, current finance authority and stale-export refusal')
 }
+
+// BUDGET-002: exact source slices, through the ordinary finance packet/invoice doors.
+export async function notToExceedJourney(h){
+ const {cmd,state,request,owner}=h,zone='America/New_York'
+ const client=await cmd('save:clients',{name:'Capped hourly client'})
+ const make=async(name,month)=>{
+  const worker=await cmd('save:people',{name:name+' specialist',timezone:zone})
+  const project=await cmd('save:engagements',{name,clientId:client.id,leadId:worker.id,members:[worker.id],scope:'Approved hourly not-to-exceed work',timezone:zone})
+  const budget=await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',notToExceed:true,amountMinor:1000000,effortSeconds:252000,roundingSeconds:1,reason:'Accepted $10,000 cap'}))
+  await cmd('save:rates',{personId:worker.id,service:'Capped service',effective:'2026-01-01',costMinor:9000,billMinor:15000})
+  const task=await cmd('save:tasks',{engagementId:project.id,name:'Capped delivery',remainingSeconds:0}),entries=[]
+  // Save and approve out of work-date order; eligibility must still take the earliest work first.
+  for(let n=10;n>=1;n--){const day=`2026-${month}-${String(n).padStart(2,'0')}`;let time=await cmd('time:save',{engagementId:project.id,taskId:task.id,personId:worker.id,service:'Capped service',timezone:zone,start:`${day}T06:00:00-05:00`,end:`${day}T13:00:00-05:00`,notes:'Approved capped service',billable:true});time=await cmd('time:approve',await cmd('time:submit',time));entries.push(time)}
+  return {worker,project,budget,entries}
+ }
+ const first=await make('Change-order release','01'),before=(await state()).data.time.filter(t=>t.value.engagementId===first.project.id)
+ await cmd('packet:create',{engagementId:first.project.id,title:'Whole-entry cap bypass',sources:[`time:${first.entries[0].id}`]},owner,409)
+ const draft=await cmd('cap:draft',{engagementId:first.project.id,budgetId:first.budget.id,budgetRevision:first.budget.revision,title:'Exactly in cap'})
+ let data=await state(),packet=data.data.packets.find(p=>p.id===draft.id)
+ assert.equal(packet.value.totalMinor,1000000);assert.equal(packet.value.lines.reduce((n,l)=>n+l.durationSeconds,0),240000,'66 h 40 min are eligible')
+ const ordered=packet.value.lines.map(l=>data.data.timeSlices.find(s=>s.id===l.sourceId).value.sourceSnapshot.value.workDate)
+ assert.deepEqual(ordered,[...ordered].sort(),'Cap fills in work-date order regardless of approval order')
+ const held=data.capBalances.find(b=>b.engagementId===first.project.id)
+ assert.equal(held.rows.reduce((n,r)=>n+r.heldSeconds,0),12000);assert.equal(held.rows.reduce((n,r)=>n+r.heldMinor,0),50000,'3 h 20 min / $500 stay held')
+ assert.deepEqual(data.data.time.filter(t=>t.value.engagementId===first.project.id),before,'Splitting billing never changes approved time or its economics')
+ await cmd('cap:draft',{engagementId:first.project.id,budgetId:first.budget.id,budgetRevision:first.budget.revision,title:'No excess billing'},owner,409)
+ const approved=await cmd('packet:approve',packet),invoice=await cmd('invoice:issue',{...approved,issueDate:'2026-01-31',dueDate:'2026-03-02',billTo:'Capped hourly client',remitTo:'Agency',reference:'January cap'})
+ assert.equal((await state()).data.invoices.find(i=>i.id===invoice.id).value.totalMinor,1000000)
+ const report=await(await request('/api/gauge/state?from=2026-01-01&to=2026-01-31&asOf=2026-02-01',owner)).json()
+ assert(!report.cash.engagements.find(e=>e.engagementId===first.project.id).items.some(i=>!i.issued&&i.openMinor>0),'Held excess is excluded from expected cash')
+ const raised=await cmd('budget:approve',await cmd('save:budgets',{engagementId:first.project.id,mode:'hourly',amountMinor:1100000,effortSeconds:252000,roundingSeconds:1,reason:'Accepted $1,000 change order'}))
+ const release=await cmd('cap:draft',{engagementId:first.project.id,budgetId:raised.id,budgetRevision:raised.revision,title:'Released $500 excess'})
+ data=await state();assert.equal(data.data.packets.find(p=>p.id===release.id).value.totalMinor,50000)
+ assert.equal(data.data.packets.find(p=>p.id===release.id).value.lines.reduce((n,l)=>n+l.durationSeconds,0),12000)
+ await cmd('packet:approve',release)
+ assert.deepEqual((await state()).data.time.filter(t=>t.value.engagementId===first.project.id),before)
+ // A cancelled draft releases exactly its ranges, including a gap before a later reservation.
+ const second=await make('Reviewed write-down','02')
+ let cancelled=await cmd('cap:draft',{engagementId:second.project.id,budgetId:second.budget.id,budgetRevision:second.budget.revision,title:'Cancel and recompute'})
+ await cmd('packet:cancel',cancelled)
+ let kept=await cmd('cap:draft',{engagementId:second.project.id,budgetId:second.budget.id,budgetRevision:second.budget.revision,title:'Restored eligible ranges'})
+ assert.equal((await state()).data.packets.find(p=>p.id===kept.id).value.totalMinor,1000000)
+ const secondBefore=(await state()).data.time.filter(t=>t.value.engagementId===second.project.id)
+ const limit=(await state()).data.approvalPolicies[0]
+ await cmd('approval:limit',{...(limit??{}),reviewAboveMinor:100,reason:'Independent approval for cap write-downs'})
+ const financePerson=await cmd('save:people',{name:'Independent cap reviewer',timezone:zone}),reviewer=await h.invite('cap-finance')
+ await cmd('grant',{operatorId:reviewer.id,personId:financePerson.id,role:'finance',enabled:true})
+ for(const row of (await state()).capBalances.find(b=>b.engagementId===second.project.id).rows.filter(r=>r.heldSeconds>0)){
+  const prepared=await cmd('cap:write-down',{engagementId:second.project.id,sourceId:row.sourceId,sourceRevision:row.revision,offsetSeconds:row.offsetSeconds,durationSeconds:row.heldSeconds,reason:'Finance agrees to waive held hourly work'})
+  await cmd('cap:write-down-approve',prepared,owner,403);await cmd('cap:write-down-approve',prepared,reviewer.cookie)
+ }
+ data=await state();assert.equal(data.data.capWriteDowns.filter(w=>w.value.engagementId===second.project.id&&w.value.status==='approved').reduce((n,w)=>n+w.value.amountMinor,0),50000)
+ assert.deepEqual(data.data.time.filter(t=>t.value.engagementId===second.project.id),secondBefore)
+ const next=await cmd('budget:approve',await cmd('save:budgets',{engagementId:second.project.id,mode:'hourly',amountMinor:1100000,effortSeconds:252000,roundingSeconds:1,reason:'Later accepted cap increase'}))
+ await cmd('cap:draft',{engagementId:second.project.id,budgetId:next.id,budgetRevision:next.revision,title:'Written-down time cannot return'},owner,409)
+ const lead=await h.invite('cap-lead');await cmd('grant',{operatorId:lead.id,personId:first.worker.id,role:'lead',enabled:true})
+ const restricted=await state(lead.cookie);assert.deepEqual(restricted.capBalances,[]);assert.deepEqual(restricted.data.timeSlices,[]);assert.deepEqual(restricted.data.capWriteDowns,[])
+ await cmd('cap:draft',{engagementId:first.project.id,budgetId:raised.id,budgetRevision:raised.revision,title:'Lead cannot bill'},lead.cookie,403)
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{const context=await browser.newContext({ignoreHTTPSErrors:true});await context.addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}));const page=await context.newPage();await page.goto(h.origin+'/app/billing')
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('#budget-caps').scrollIntoViewIfNeeded();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Not-to-exceed billing fits ${width}`);if(process.env.GAUGE_BUDGET_SHOTS){await mkdir(process.env.GAUGE_BUDGET_SHOTS,{recursive:true});await page.locator('#budget-caps').screenshot({path:`${process.env.GAUGE_BUDGET_SHOTS}/caps-${width}.png`})}}
+ }finally{await browser.close()}
+ const currentPolicy=(await state()).data.approvalPolicies[0];await cmd('approval:limit',{...currentPolicy,reviewAboveMinor:limit?.value.reviewAboveMinor??null,reason:'Restore the pre-journey review limit after isolated cap proof'})
+ console.log('PASS BUDGET-002 not-to-exceed: $10,000 / 66 h 40 min eligible, $500 / 3 h 20 min held, accepted change-order release, reviewed permanent write-down, exact time preservation, cancellation, source-date order, cash hold, privacy and 1440/390')
+}
+
+export async function phaseBudgetJourney(h){
+ const {cmd,state,request,owner}=h,zone='America/New_York'
+ const worker=await cmd('save:people',{name:'Phase delivery specialist',timezone:zone}),client=await cmd('save:clients',{name:'Phase budget client'})
+ const project=await cmd('save:engagements',{name:'Discovery and delivery',clientId:client.id,leadId:worker.id,members:[worker.id],scope:'$60,000 split into distinct service billing bases',timezone:zone})
+ const phases=[{key:'discovery',name:'Discovery',service:'Discovery',mode:'hourly',hourBudgetSeconds:360000,feeBudgetMinor:2000000,expenseBudgetMinor:100000,marginBasisPoints:3000},{key:'delivery',name:'Delivery',service:'Delivery',mode:'fixed',hourBudgetSeconds:720000,feeBudgetMinor:4000000,expenseBudgetMinor:200000,marginBasisPoints:4000}]
+ const terms={engagementId:project.id,mode:'hourly',amountMinor:6000000,effortSeconds:1080000,expenseBudgetMinor:300000,roundingSeconds:60,reason:'Accepted Discovery and Delivery phase allowances',phases}
+ await cmd('save:budgets',{...terms,amountMinor:5999999},owner,400)
+ const budget=await cmd('budget:approve',await cmd('save:budgets',terms))
+ const manager=await h.invite('phase-manager');await cmd('grant',{operatorId:manager.id,personId:worker.id,role:'lead',enabled:true})
+ await cmd('budget:thresholds',{engagementId:project.id,phaseKey:'discovery',thresholds:[75,90],reason:'Owner-approved phase thresholds'},manager.cookie,403)
+ await cmd('budget:thresholds',{engagementId:project.id,phaseKey:'discovery',thresholds:[75,90],reason:'Owner approves 75% and 90% hour, fee and expense alerts'})
+ for(const service of ['Discovery','Delivery'])await cmd('save:rates',{personId:worker.id,service,effective:'2026-01-01',costMinor:9000,billMinor:15000})
+ const discovery=await cmd('save:tasks',{engagementId:project.id,name:'Discovery work',phaseKey:'discovery',remainingSeconds:7200}),delivery=await cmd('save:tasks',{engagementId:project.id,name:'Delivery work',phaseKey:'delivery',remainingSeconds:7200})
+ const actual=async(day,hours,phase='discovery',approve=true)=>{let t=await cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:phase==='discovery'?discovery.id:delivery.id,service:phase==='discovery'?'Discovery':'Delivery',timezone:zone,notes:'Approved phase actuals',billable:true,start:`2026-10-${String(day).padStart(2,'0')}T06:00:00-04:00`,end:`2026-10-${String(day).padStart(2,'0')}T${String(6+hours).padStart(2,'0')}:00:00-04:00`});t=await cmd('time:submit',t);return approve?cmd('time:approve',t):t}
+ const entries=[];for(let n=1;n<=9;n++)entries.push(await actual(n,8));const submitted76=await actual(10,4,'discovery',false);assert((await state()).data.budgetAlerts.some(a=>a.value.engagementId===project.id&&a.value.phaseKey==='discovery'&&a.value.metric==='hours'&&a.value.threshold===75),'Submitted work already counts toward the 75% crossing');entries.push(await cmd('time:approve',submitted76))
+ let data=await state(),alerts=()=>data.data.budgetAlerts.filter(a=>a.value.engagementId===project.id&&a.value.phaseKey==='discovery'&&a.value.metric==='hours')
+ assert.deepEqual(alerts().map(a=>a.value.threshold),[75],'76 hours cross only 75%')
+ entries.push(await actual(11,8));entries.push(await actual(12,7));data=await state();assert.deepEqual(alerts().map(a=>a.value.threshold),[75,90],'91 hours cross each threshold once')
+ let corrected=await cmd('time:correct',{...entries[0],reason:'Reviewed correction with the same actual interval'});corrected=await cmd('time:approve',await cmd('time:submit',corrected));entries[0]=corrected
+ data=await state();assert.deepEqual(alerts().map(a=>a.value.threshold),[75,90],'Re-approval never duplicates a threshold event')
+ await actual(17,1,'delivery');await actual(16,1,'discovery',false)
+ for(const [taskId,minor] of [[discovery.id,2500],[delivery.id,5000]]){let expense=await cmd('expense:save',{engagementId:project.id,taskId,personId:worker.id,date:'2026-10-18',description:'Phase expense',amountMinor:minor,reimbursable:false});expense=await cmd('expense:submit',expense);await cmd('expense:approve',expense)}
+ for(const [phaseKey,day] of [['discovery','21'],['delivery','22']])await cmd('save:staffing',{engagementId:project.id,personId:worker.id,phaseKey,from:`2026-10-${day}`,to:`2026-10-${day}`,dailySeconds:7200,commitment:'committed',service:phaseKey==='discovery'?'Discovery':'Delivery',billable:true})
+ let milestone=await cmd('milestone:approve',await cmd('save:milestones',{engagementId:project.id,phaseKey:'delivery',name:'Fixed delivery',due:'2026-10-15',amountMinor:4000000}))
+ milestone=await cmd('milestone:deliver',{...milestone,date:'2026-10-15',reason:'Fixed phase delivered'})
+ const delivered=(await state()).data.milestones.find(m=>m.id===milestone.id).value.delivery.deliveries.at(-1)
+ milestone=await cmd('milestone:decision',{...milestone,deliveryId:delivered.id,outcome:'accepted',date:'2026-10-15',contact:'Client sponsor',reason:'Sponsor recorded acceptance'})
+ milestone=await cmd('milestone:authorize',milestone)
+ const hourlyPacket=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Hourly Discovery',sources:entries.map(t=>`time:${t.id}`)}))
+ await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Fixed Delivery',sources:[`milestones:${milestone.id}`]}))
+ const financePerson=await cmd('save:people',{name:'Phase finance reviewer',timezone:zone}),reviewer=await h.invite('phase-finance');await cmd('grant',{operatorId:reviewer.id,personId:financePerson.id,role:'finance',enabled:true})
+ const source=(await state()).data.packets.find(p=>p.id===hourlyPacket.id).value.lines[0]
+ const adjustment=await cmd('packet:adjust',{...hourlyPacket,sourceId:source.sourceId,sourceKind:'time',correctedAmountMinor:source.amountMinor-10000,reason:'Reviewed Discovery write-down'})
+ await cmd('packet:approve',adjustment,reviewer.cookie)
+ const read=async()=>{const r=await request('/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=2026-10-20',owner);assert.equal(r.status,200);return r.json()}
+ data=await read();const margins=data.phaseMargins.filter(m=>m.engagementId===project.id),d=margins.find(m=>m.phase.key==='discovery'),f=margins.find(m=>m.phase.key==='delivery')
+ assert.deepEqual([d.approvedCostMinor,d.provisionalCostMinor,d.earnedValueMinor,d.billedMinor,d.creditsMinor,d.remainingTaskSeconds,d.committedFutureSeconds,d.etcFeesMinor,d.eacFeesMinor,d.etcCostMinor,d.eacCostMinor,d.actualMarginMinor,d.forecastMarginMinor],[821500,9000,1365000,1355000,-10000,7200,7200,30000,1495000,18000,939500,543500,555500],'Independent Discovery FINANCE-001 figures reconcile')
+ assert.deepEqual([f.approvedCostMinor,f.provisionalCostMinor,f.earnedValueMinor,f.billedMinor,f.creditsMinor,f.remainingTaskSeconds,f.committedFutureSeconds,f.etcFeesMinor,f.eacFeesMinor,f.etcCostMinor,f.eacCostMinor,f.actualMarginMinor,f.forecastMarginMinor],[14000,0,4000000,4000000,0,7200,7200,0,4200000,18000,232000,3986000,3968000],'Independent fixed Delivery FINANCE-001 figures reconcile')
+ const forecast=data.forecast.engagements.find(e=>e.engagementId===project.id)
+ const portfolio=data.portfolio.projects.find(p=>p.engagementId===project.id);assert.deepEqual([portfolio.earnedMinor,portfolio.costMinor,portfolio.marginMinor],[5365000,835500,4529500],'Portfolio uses each phase billing basis once')
+ assert.equal(forecast.basis,'mixed');assert.deepEqual([forecast.eacFeesMinor,forecast.eacCostMinor,forecast.marginMinor],[5695000,1171500,4523500])
+ for(const phase of ['discovery','delivery'])for(const field of ['approvedCostMinor','provisionalCostMinor','earnedValueMinor','billedMinor','creditsMinor','actualMarginMinor','forecastMarginMinor'])assert(data.lineage.some(l=>l.id===`phase-margin:${project.id}:${phase}:${field}`),'Phase money has a source drill')
+ const report=await request(`/api/gauge/report.csv?from=${data.from}&to=${data.to}&asOf=2026-10-20&fingerprint=${data.fingerprint}`,owner);assert.equal(report.status,200);assert.match(await report.text(),/phase-margin:/)
+ const moved=await cmd('budget:transfer',{...budget,engagementId:project.id,fromPhase:'discovery',toPhase:'delivery',metric:'feeBudgetMinor',amount:500000,reason:'Approved allowance moves to Delivery'})
+ const before=(await state()).data.budgets.find(b=>b.id===budget.id)
+ await cmd('budget:approve',moved)
+ data=await state();const after=data.data.budgets.find(b=>b.id===moved.id)
+ assert.deepEqual(after.value.phases.map(p=>p.feeBudgetMinor),[1500000,4500000]);assert.equal(after.value.phases.reduce((n,p)=>n+p.feeBudgetMinor,0),6000000);assert.deepEqual(data.data.budgets.find(b=>b.id===budget.id),before)
+ assert.deepEqual(data.data.budgetAlerts.filter(a=>a.value.engagementId===project.id&&a.value.phaseKey==='discovery'&&a.value.metric==='fee').map(a=>a.value.threshold),[75,90],'Fee thresholds use the new approved allowance')
+ await actual(19,8);await actual(20,4);assert((await state()).data.budgetAlerts.some(a=>a.value.engagementId===project.id&&a.value.phaseKey==='discovery'&&a.value.metric==='hours'&&a.value.threshold===100),'Phase overspend is explicit')
+ let expense=await cmd('expense:save',{engagementId:project.id,taskId:discovery.id,personId:worker.id,date:'2026-10-19',description:'Submitted expense threshold',amountMinor:80000,reimbursable:false});expense=await cmd('expense:submit',expense);assert((await state()).data.budgetAlerts.some(a=>a.value.engagementId===project.id&&a.value.phaseKey==='discovery'&&a.value.metric==='expenses'&&a.value.threshold===75),'Submitted expenses count toward their threshold');await cmd('expense:approve',expense)
+ const template=await cmd('template:save',{name:'Phased onboarding',purpose:'project',reason:'Reusable reviewed phase allowances',budget:{...terms,phases},items:[{key:'discovery',kind:'phase',name:'Discovery',offsetDays:0,durationDays:1,predecessors:[]},{key:'delivery',kind:'phase',name:'Delivery',offsetDays:0,durationDays:1,predecessors:[]},{key:'discovery-task',kind:'task',name:'Discovery task',phaseKey:'discovery',offsetDays:0,durationDays:1,predecessors:[],owner:'lead',effortSeconds:3600},{key:'delivery-task',kind:'task',name:'Delivery task',phaseKey:'delivery',offsetDays:0,durationDays:1,predecessors:[],owner:'lead',effortSeconds:3600}]})
+ const fresh=await cmd('save:engagements',{name:'Template phase project',clientId:client.id,leadId:worker.id,members:[worker.id],scope:'Template carries its phase budgets',timezone:zone})
+ await cmd('template:apply',{templateId:template.id,engagementId:fresh.id,start:'2026-11-02',reason:'Apply the exact budget-bearing version'})
+ data=await state();const applied=data.data.budgets.find(b=>b.value.engagementId===fresh.id);assert.equal(applied.value.status,'draft');assert.deepEqual(applied.value.phases,phases);assert(data.data.tasks.filter(t=>t.value.engagementId===fresh.id).every(t=>['discovery','delivery'].includes(t.value.phaseKey)))
+ await cmd('budget:approve',applied)
+ const restricted=await state(manager.cookie);assert.deepEqual(restricted.phaseMargins,[]);assert(restricted.data.budgetAlerts.some(a=>a.value.engagementId===project.id));assert(restricted.data.budgetAlerts.every(a=>a.value.actual===undefined&&a.value.budget===undefined))
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{const context=await browser.newContext({ignoreHTTPSErrors:true});await context.addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}));const page=await context.newPage()
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(`${h.origin}/app/engagements?edit=${project.id}&asOf=2026-10-20`);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Phase budgets fit ${width}`);if(process.env.GAUGE_BUDGET_SHOTS){await mkdir(process.env.GAUGE_BUDGET_SHOTS,{recursive:true});await page.locator('#phase-budgets').screenshot({path:`${process.env.GAUGE_BUDGET_SHOTS}/phases-${width}.png`})}await page.goto(h.origin+'/app/review');assert.match(await page.locator('#budget-alerts').innerText(),/75%/);if(process.env.GAUGE_BUDGET_SHOTS)await page.locator('#budget-alerts').screenshot({path:`${process.env.GAUGE_BUDGET_SHOTS}/alerts-${width}.png`});await page.goto(h.origin+'/app/capacity');assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Phase staffing controls fit ${width}`);if(process.env.GAUGE_BUDGET_SHOTS)await page.screenshot({path:`${process.env.GAUGE_BUDGET_SHOTS}/phase-staffing-${width}.png`,fullPage:true})}
+ }finally{await browser.close()}
+ console.log('PASS BUDGET-002 phase budgets: exact $60,000 rollup and controlled transfer, 76/91 hours cross 75/90 once, corrected approval dedupe, mixed billing, independent complete phase margins/ETC/EAC, source/CSV drills, template inheritance and lead/finance alerts at 1440/390')
+}

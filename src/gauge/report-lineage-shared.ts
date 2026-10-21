@@ -31,6 +31,7 @@ export interface ReportLineageInput {
  retainerBalances?: Value[]
  resourceDemand?: Value[]
  forecast?: Value | null
+ phaseMargins?: Value[]
  margin?: Value[] | null
  portfolio?: Value | null
  revenueDashboard?: Value | null

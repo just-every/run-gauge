@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
-import { receivablesJourney } from './gauge-invoices.mjs'
+import { receivablesJourney, notToExceedJourney, phaseBudgetJourney } from './gauge-invoices.mjs'
 import { progressJourney } from './gauge-progress.mjs'
 import { receiptJourney } from './gauge-receipts.mjs'
 import { revenueDashboardJourney, captureRevenueDashboard } from './gauge-revenue-dashboard.mjs'
@@ -114,6 +114,8 @@ try {
  assert((await page.locator('#report-evidence article').first().innerText()).includes('Expected cash on terms'))
  // Add receivables fixtures after the existing cash/WIP controls have reconciled.
  await receivablesJourney(h,worker)
+ await notToExceedJourney(h)
+ await phaseBudgetJourney(h)
  await receiptJourney(h,worker)
  await progressJourney(h,worker)
  console.log('PASS FINANCE-002 milestone delay moves expected cash as an independent FINANCE-007 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only')

@@ -1,3 +1,4 @@
+import { phasePicker } from './ui-budget-phases'
 import type { Actor } from './store'
 import { finance } from './store'
 import type { Row, Value } from './model'
@@ -9,7 +10,7 @@ import { activeClients } from './ui-clients'
 
 export function taskEditor(a:Actor,report:Report,old?:Row,engagementId?:string) {
  const d=report.data,v=old?.value??{},managed=d.engagements.filter(r=>finance(a)||r.value.leadId===a.personId)
- const fields=s('engagementId','Engagement',managed,v.engagementId??engagementId)+i('name','Task name',v.name)
+ const fields=s('engagementId','Engagement',managed,v.engagementId??engagementId)+phasePicker(report,v.engagementId??engagementId,v.phaseKey)+i('name','Task name',v.name)
   +s('assigneeId','Assignee',d.people,v.assigneeId,true)+s('parentId','Parent task',d.tasks.filter(t=>t.id!==old?.id&&(!engagementId||t.value.engagementId===engagementId)),v.parentId,true)
   +c('status','Task status',taskStates,v.status??'todo')+c('priority','Priority',['low','normal','high','urgent'],v.priority??'normal')
   +i('from','Start date',v.from??'','date',false)+i('to','Due date',v.to??'','date',false)

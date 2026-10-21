@@ -1,3 +1,4 @@
+import { capSection } from './ui-budget-caps'
 import { agentPurposes } from './agent-grants'
 import { fixedChargesSection } from './ui-fixed-charges'
 import { invoicesSection } from './ui-invoices'
@@ -60,7 +61,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
   })
  }
  if(section==='billing')body+=fixedChargesSection(report,today)
- if(section==='billing')body+=invoicesSection(report,today)
+ if(section==='billing')body+=capSection(report)+invoicesSection(report,today)
  if(section==='billing')body+=specialistHandoffSection(a,report)
  if(section==='billing')body+='<section class="g-card"><h2>Business audit</h2><p class="g-note">Search every saved change, decision, grant, key event, packet export and import effect; verify the audit chain and export it.</p><div class="g-actions"><a class="g-btn g-btn--secondary" href="/app/audit">Open the business audit</a></div></section>'
  if(section==='imports'){

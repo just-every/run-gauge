@@ -285,3 +285,59 @@ run receipts cannot execute until finance explicitly saves new consent. Each
 cron transaction rechecks that consent and its configuring owner's or finance
 person's current authority. Disabling, granting-person revocation or a changed
 grant version stops execution at the next transaction.
+
+### Phase budgets, alerts and hourly caps (BUDGET-002)
+
+`save:budgets` accepts `phases`, each with a stable `key`, `name`, `service`,
+`mode` (`hourly` or `fixed`), `hourBudgetSeconds`, `feeBudgetMinor`,
+`expenseBudgetMinor` and `marginBasisPoints`. Phase hours, fees and expenses must
+sum exactly to their engagement totals. Approval retains existing phase identities,
+services and billing bases. Tasks, milestones and staffing use `phaseKey`; time
+and expenses inherit the task's phase. Templates may carry a `budget` with these
+phases and item phase keys; applying that exact version creates a draft budget
+and its scoped work. Its commercial approval remains explicit. Existing work must
+have a retained phase before phase terms can be approved. Fixed billing sources
+remain within their phase fee; transferring a fixed allowance cannot strand
+already approved charges above it.
+
+`budget:transfer` takes the latest approved budget `id`/`revision`,
+`engagementId`, `fromPhase`, `toPhase`, `metric` (`hourBudgetSeconds`,
+`feeBudgetMinor` or `expenseBudgetMinor`), integer `amount` and `reason`. It
+prepares a balanced new draft; `budget:approve` approves that exact version.
+
+The owner uses `budget:thresholds` with `engagementId`, optional `phaseKey`,
+`thresholds` and `reason` (updates bind the policy revision). Default thresholds
+are 75% and 90%; at least one configured threshold stays below 100%. Approved
+plus submitted time/expenses count. Submitted bill value uses current applicable
+rates as a provisional amount; approval freezes the usual economics. Fixed-phase
+fee actuals use approved fixed milestones. Crossing emits one immutable in-app
+alert per engagement/phase, metric and percentage, for its lead and finance.
+Crossing again after a correction never duplicates it. An overspend alert is
+also raised strictly above 100%. No notification is sent externally; FOLLOWUP-003
+inherits delivered notifications and further unattended rule actions. Leads get
+the threshold and source identities, never private calculated amounts.
+
+`notToExceed:true` on hourly terms caps hourly invoice eligibility. Finance calls
+`cap:draft` with `engagementId`, `budgetId`, `budgetRevision` and `title`.
+Work-date/start/id order selects exact portions of approved, unbilled work.
+Immutable `timeSlices` retain the original time revision, quantity offset and
+frozen rate/premium/write-down pricing; cumulative rounding makes portions sum
+exactly to their source. The packet reserves only those ranges. Cancellation
+releases ranges, approved source time stays unchanged, and ordinary whole-entry
+packet creation cannot bypass the cap. The cap cannot fall below reserved slices;
+accepted change orders preserve the cap policy and release newly eligible excess.
+
+`cap:write-down` prepares a review of held work using `engagementId`, `sourceId`,
+`sourceRevision`, optional `offsetSeconds`, `durationSeconds` and `reason`.
+`cap:write-down-approve` binds its `id`/`revision`, rechecks current eligibility
+and applies GOVERN-001's independent review limit. A write-down removes that
+range permanently without altering approved time. Held and written-down amounts
+leave expected cash; issued slices replace their schedule once.
+
+Finance state includes `capBalances` and `phaseMargins`. Each phase carries all
+FINANCE-001 costs, provisional costs, earned value, billed, credits, remaining
+effort, ETC/EAC and margins, with source drills and CSV. Mixed billing keeps
+hourly time separate from fixed fees. Currency stays explicit, unknown inputs
+remain incomplete, and global allocation inputs preserve overtime across phases.
+Whole-installation archives retain budgets, templates, slices, write-downs,
+alerts and history.

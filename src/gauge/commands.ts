@@ -3,6 +3,8 @@ import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Value, need, text } from './model'
 import { type Actor, Transaction, fence, get } from './store'
 import { scheduleCommand as retainerScheduleCommand } from './retainer-schedule'
+import { phaseCommand, observeBudgetAlerts, recordBudgetAlerts } from './budget-phases'
+import { capCommand } from './budget-caps'
 import { catalog, approveTerms } from './catalog'
 import { specialistHandoffCommand } from './specialist-handoff'
 import { timeCommand } from './time'
@@ -50,6 +52,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(previous){need(previous.actor===a.session.operator.id && previous.digest===digest,'Request key already used for different work',409);await fence(env,a);return JSON.parse(previous.result)}
  const tx=new Transaction(env,a)
  tx.key=key;tx.action=action
+ const alertInputs=await observeBudgetAlerts(env,tx,action)
  let result:Value|null=await retainerCommand(env,a,tx,action,input)
  if(!result)result=await retainerScheduleCommand(env,a,tx,action,input)
  if(!result)result=await milestoneDeliveryCommand(env,a,tx,action,input)
@@ -75,6 +78,8 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await receiptCommand(env,a,tx,action,input)
  if(!result)result=await fixedChargeCommand(env,a,tx,action,input)
  if(!result)result=await clientCommand(env,a,tx,action,input)
+ if(!result)result=await phaseCommand(env,a,tx,action,input)
+ if(!result)result=await capCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)
  if(!result&&['budget:approve','milestone:approve'].includes(action))result=await approveTerms(env,a,tx,action==='budget:approve'?'budgets':'milestones',input)
  if(!result)result=await timeCommand(env,a,tx,action,input)
@@ -82,6 +87,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await billingCommand(env,a,tx,action,input)
  if(!result)result=await proposalCommand(env,a,tx,action,input)
  need(result,'Unknown action')
+ await recordBudgetAlerts(tx,alertInputs,action,result)
  const acknowledgement={id:result.id??null,revision:result.revision??null,saved:true};
  tx.sql('INSERT INTO g_receipts(key,actor,digest,result) VALUES(?,?,?,?)',key,a.session.operator.id,digest,JSON.stringify(acknowledgement))
  try {await tx.commit()}catch(error){const retry=await env.DB.prepare('SELECT actor,digest,result FROM g_receipts WHERE key=?').bind(key).first<{actor:string;digest:string;result:string}>();if(retry?.actor===a.session.operator.id&&retry.digest===digest){await fence(env,a);return JSON.parse(retry.result)}throw error}

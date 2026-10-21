@@ -14,7 +14,7 @@ export function portfolioLabor(data:Record<string,Row[]>,projects:{engagementId:
   if(cost==null)group.unknown.push(`${kind}:${row.id}: frozen cost unknown`)
   else if(costCurrency!==currency)group.unknown.push(`${kind}:${row.id}: unconverted ${costCurrency} cost`)
   else {group.knownCostMinor+=cost;if(kind==='time')group.knownLaborCostMinor+=cost;else group.expenseCostMinor+=cost}
-  if(kind==='time'&&basis.get(v.engagementId)==='hourly'&&v.billable){if(v.economics?.billMinor==null)group.billUnknown.push(`time:${row.id}: frozen bill value unknown`);else group.knownHourlyBillableMinor+=v.economics.billMinor}
+  if(kind==='time'&&(basis.get(v.engagementId)==='hourly'||basis.get(v.engagementId)==='mixed'&&v.economics?.mode==='hourly')&&v.billable){if(v.economics?.billMinor==null)group.billUnknown.push(`time:${row.id}: frozen bill value unknown`);else group.knownHourlyBillableMinor+=v.economics.billMinor}
   group.sources.push({kind,id:row.id});if(person)group.sources.push({kind:'people',id:person.id})
   rows.set(key,group)
  }

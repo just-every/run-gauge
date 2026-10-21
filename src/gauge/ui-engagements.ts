@@ -4,12 +4,14 @@
 // change them. Forms keep their actions and field names.
 import { type Actor, finance } from './store'
 import type { Kind, Row, Value } from './model'
-import { escape as e, input as i, amount, duration, area, select as s, choices as c, checks, form, decision, table, open } from './ui-forms'
+import { escape as e, input as i, amount, duration, area, select as s, choices as c, check, checks, form, decision, table, open } from './ui-forms'
 import { hours, money, day, chip, nameOf, yesNo } from './ui-format'
 import { meter } from './ui-meter'
 import type { Report } from './ui-describe'
 import { economicsCard, estimateOf } from './ui-review'
 import { pipelineSection } from './ui-pipeline'
+import { phaseFields,phasePicker,phaseBudgetSection } from './ui-budget-phases'
+import { latestBudget } from './budget-caps'
 import { retainerSection } from './ui-retainers'
 import { deliveryScheduleSection } from './ui-delivery-schedule'
 import { templateApplySection, templatesSection } from './ui-delivery-templates'
@@ -25,10 +27,10 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
  const manager = finance(a) || a.role === 'lead', managed = d.engagements.filter(r => finance(a) || r.value.leadId === a.personId)
  // The detail view: an engagement, or the engagement of the task or milestone being edited.
  const focus = edit('engagements') ?? d.engagements.find(r => r.id === (edit('tasks') ?? edit('milestones'))?.value.engagementId)
- const terms = (engagementId?: string) => form('save:budgets', 'New terms / change order', s('engagementId', 'Engagement', managed, engagementId) + c('mode', 'Billing mode', ['hourly', 'fixed']) + amount('amountDollars', `Budget or fixed fee (${d.engagements.find(r => r.id === engagementId)?.value.currency ?? a.currency})`, '') + duration('effortHours', 'Estimated effort (hours)', '') + duration('roundingMinutes', 'Round billable time up to (minutes)', 60, 60, '1') + area('reason', 'Terms or change-order reason'))
+ const terms = (engagementId?: string) => form('save:budgets', 'New terms / change order', s('engagementId', 'Engagement', managed, engagementId) + c('mode', 'Billing mode', ['hourly', 'fixed']) + amount('amountDollars', `Budget or fixed fee (${d.engagements.find(r => r.id === engagementId)?.value.currency ?? a.currency})`, '') + duration('effortHours', 'Estimated effort (hours)', '') + duration('roundingMinutes', 'Round billable time up to (minutes)', 60, 60, '1') + check('notToExceed','Hourly not-to-exceed cap',!!(engagementId&&report.capBalances.some(b=>b.engagementId===engagementId))) + amount('expenseBudgetDollars','Billable expense budget',0,false) + phaseFields(engagementId?latestBudget(d.budgets,engagementId)?.value.phases??[]:[]) + area('reason', 'Terms or change-order reason'))
  const m = v('milestones')
  const taskForm = (engagementId?: string) => taskEditor(a,report,edit('tasks'),engagementId)
- const milestoneForm = (engagementId?: string) => form('save:milestones', 'Fixed-fee milestone', s('engagementId', 'Engagement', managed, m.engagementId ?? engagementId) + i('name', 'Milestone name', m.name) + i('due', 'Due date', m.due ?? today, 'date') + amount('amountDollars', `Milestone fee (${m.currency ?? d.engagements.find(r => r.id === engagementId)?.value.currency ?? a.currency})`, m.amountMinor ?? ''), edit('milestones'))
+ const milestoneForm = (engagementId?: string) => form('save:milestones', 'Fixed-fee milestone', s('engagementId', 'Engagement', managed, m.engagementId ?? engagementId) + phasePicker(report,m.engagementId??engagementId,m.phaseKey,'fixed') + i('name', 'Milestone name', m.name) + i('due', 'Due date', m.due ?? today, 'date') + amount('amountDollars', `Milestone fee (${m.currency ?? d.engagements.find(r => r.id === engagementId)?.value.currency ?? a.currency})`, m.amountMinor ?? ''), edit('milestones'))
  const x = focus?.value ?? v('engagements')
  const engagementForm = () => form('save:engagements', 'Engagement', i('name', 'Engagement name', x.name) + c('type','Engagement type',['client','internal'],x.type??'client') + c('internalCategory','Internal category',['admin','sales','training','PTO','other'],x.internalCategory??'other') + s('clientId', 'Client', activeClients(d.clients), x.clientId, true) + s('leadId', 'Responsible lead', d.people, x.leadId) + checks('members', 'Assigned people', d.people, x.members) + area('scope', 'Agreed scope', x.scope) + i('timezone', 'Work timezone', x.timezone ?? report.agency.timezone), focus)
  const overspent = new Set(report.exceptions.filter(x => x.type === 'overspend').map(x => x.source.split(':')[1]))
@@ -50,7 +52,7 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   const economics = econ ? `<section class="g-card g-card--strong"><h2>Engagement economics</h2><div class="g-econ-detail">${economicsCard(report, a, econ, false)}<p class="g-big"><span>Remaining effort</span><strong class="g-num">${hours(econ.remainingSeconds)}</strong></p></div></section>` : ''
   const forms = (finance(a) ? engagementForm() : '') + (manager ? (x.type==='internal'?taskForm(id):terms(id) + taskForm(id) + milestoneForm(id)) : '')
   return `<nav class="g-crumbs" aria-label="Breadcrumb"><a href="/app/engagements">Engagements</a><span aria-hidden="true">/</span><span aria-current="page">${e(x.name)}</span></nav><div class="g-titlebar"><h1>${e(x.name)}</h1></div>`
-   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${taskCard}${milestoneCard}${manager?milestoneDeliverySection(a,milestones,d.people,today):''}${templateApplySection(a,report,id,today)}${deliveryScheduleSection(a,report,id,{...options,today})}${retainerSection(a,report,id,{...options,today})}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
+   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${manager?phaseBudgetSection(a,report,id):''}${taskCard}${milestoneCard}${manager?milestoneDeliverySection(a,milestones,d.people,today):''}${templateApplySection(a,report,id,today)}${deliveryScheduleSection(a,report,id,{...options,today})}${retainerSection(a,report,id,{...options,today})}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
  }
  let body = '<div class="g-titlebar"><h1>Engagements and agreed work</h1></div>'
  body += table('Engagements', d.engagements, [

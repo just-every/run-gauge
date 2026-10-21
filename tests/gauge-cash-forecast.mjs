@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
-import { revenueDashboardJourney } from './gauge-revenue-dashboard.mjs'
+import { revenueDashboardJourney, captureRevenueDashboard } from './gauge-revenue-dashboard.mjs'
 
 // FINANCE-002 revenue and cash forecast as of 20 October 2026, through the command, state and Week in review doors:
 // a milestone delayed two weeks through the delivery plan moves expected cash exactly as an independent FINANCE-007
@@ -10,6 +10,7 @@ import { revenueDashboardJourney } from './gauge-revenue-dashboard.mjs'
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
 let browser
 try {
+ await captureRevenueDashboard(h,'empty')
  const { cmd, request, owner } = h, asOf = '2026-10-20'
  const read = async (cookie = owner) => { const r = await request(`/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=${asOf}`, cookie); assert.equal(r.status, 200); return r.json() }
  const worker = await cmd('save:people', { name: 'Ada Ruiz', timezone: 'America/New_York' })
@@ -104,6 +105,8 @@ try {
   const dashboard=page.locator('#revenue-dashboard');assert(await dashboard.isVisible());assert.match(await dashboard.innerText(),/Unverified|unverified/);assert.match(await dashboard.innerText(),/Unknown/)
  }
  await page.setViewportSize({ width: 1440, height: 1000 })
+ await page.locator('#revenue-dashboard').getByRole('row',{name:/USD/}).getByRole('link').last().click()
+ assert.match(await page.locator('#report-evidence article').first().innerText(),/Hourly WIP and reimbursable expenses/)
  await section.getByRole('row', { name: /2027-01/ }).getByRole('link').nth(1).click()
  assert((await page.locator('#report-evidence article').first().innerText()).includes('Expected cash on terms'))
  console.log('PASS FINANCE-002 milestone delay moves expected cash as an independent FINANCE-007 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only')

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import {execFileSync} from 'node:child_process'
+import {mkdir} from 'node:fs/promises'
+import {chromium} from '@playwright/test'
 
 // REPORT-003 native slice, composed into the cash journey rather than a new suite.
 export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
@@ -36,8 +38,9 @@ export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
  assert.equal(figure.value,62500);assert(figure.sources.some(s=>s.id===entry.id));assert(figure.sources.some(s=>s.id===expense.id));assert(figure.sources.some(s=>s.kind==='rates'));assert(figure.sources.some(s=>s.kind==='budgets'))
  const csvPath='/api/gauge/report.csv?'+new URLSearchParams({from:d.from,to:d.to,asOf,fingerprint:d.fingerprint})
  const csv=await request(csvPath,owner);assert.equal(csv.status,200)
- const rows=JSON.parse(execFileSync('python3',['-c','import csv,json,sys; print(json.dumps(list(csv.reader(sys.stdin))))'],{input:await csv.text(),encoding:'utf8'}))
+ const rows=JSON.parse(execFileSync('python3',['-c','import csv,json,sys; print(json.dumps([r for r in csv.reader(sys.stdin) if len(r)>1 and r[1]=="revenue:USD:wipMinor"]))'],{input:await csv.text(),encoding:'utf8'}))
  assert.equal(rows.find(r=>r[0]==='figure'&&r[1]===figure.id)[3],'62500')
+ await captureRevenueDashboard(h,'known')
  const terms={name:'Design care',frequency:'monthly',unit:'hours',allowance:144000,services:['Support'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:'2026-10-31',renewal:'manual',noticeDays:30}
  const preview=await cmd('retainer:preview',{engagementId:hourly.id,operation:'terms',terms})
  await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Reviewed included support'})
@@ -58,4 +61,17 @@ export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
   assert(!(await(await request('/app/review',person.cookie)).text()).includes('id="revenue-dashboard"'))
  }
  console.log('PASS REPORT-003 native pipeline/won/conversion deduplication, exact hourly WIP and expense sources, as-of/retainer exclusions, packet distinction, unknown amounts, stale CSV and finance privacy; invoice/collection/provider acceptance remains partial')
+}
+
+export async function captureRevenueDashboard(h,name) {
+ const shots=process.env.GAUGE_CASH_SHOTS
+ if(!shots)return
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{
+  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
+  await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  await page.goto(h.origin+'/app/review?from=2026-10-01&to=2026-10-31&asOf=2026-10-19')
+  await mkdir(shots,{recursive:true})
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`REPORT-003 ${name} fits ${width}`);await page.locator('#revenue-dashboard').screenshot({path:`${shots}/REPORT-003-${name}-${width}.png`})}
+ }finally{await browser.close()}
 }

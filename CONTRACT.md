@@ -199,7 +199,7 @@ The seventeen released clause IDs remain intact. The original AUD pilot (histori
 
 - **REPORT-004 — Custom reports and scheduled delivery.** Authorized users build saved reports from permitted fields, including SETUP-004 custom fields as filters, groupings and (for number and currency fields) summed measures, choose calculated measures and time/group filters, export CSV/XLSX/PDF and schedule email delivery with recipient scope and freshness checks. Finance can schedule the same permitted datasets to a BI warehouse (Snowflake, BigQuery) or expose them as a read-only feed for Power BI and Looker Studio under the same field permissions. **Acceptance evidence:** Schedule a client profit report to finance and a cost-free status report to a lead; revoke the recipient and verify the next delivery is stopped. Schedule a BigQuery export of the saved report and verify its row count and totals equal the on-screen report.
 
-- **REPORT-005 — Trace every reported amount.** Every report figure identifies its source rows, formula, rate version, currency, approvals and as-of timestamp; export totals equal on-screen totals, and unknowns stay distinct from zero. **Acceptance evidence:** Drill from a project burn amount into frozen rate/time evidence, export it and independently reconcile the same total while one unknown cost stays flagged.
+- **REPORT-005 — Trace every reported amount.** Every report figure identifies its source rows, formula, rate version, currency, approvals and as-of timestamp; export totals equal on-screen totals, and unknowns stay distinct from zero. Resource-demand forecast figures (RESOURCE-005) are covered: each month's committed, unfilled, won, tentative and weighted-pipeline demand, employee and contractor capacity, committed fees, cost and margin, and each approved scenario's capacity, demand, fees, cost and margin delta against the baseline, carries its formula, its source rows (allocations, open requests, opportunities, people, calendars, leave, engagements, the scenario) and a row in the snapshot CSV; a fee or cost figure whose FINANCE-006 forecast is incomplete is unknown, with its known subtotal. Every future clause that adds a reported figure inherits this obligation before it ships. **Acceptance evidence:** Drill from a project burn amount into frozen rate/time evidence, export it and independently reconcile the same total while one unknown cost stays flagged.
 
 - **CLIENT-001 — Scoped client portal.** Client sponsors and collaborators see only invited projects, accepted scope, deliverables, selected budget/burn, milestones and actions; finance chooses which monetary details to share. Cross-client access, revoked links and private staff costs are refused at the handler. Before CLIENT-001 ships, permitted clients must directly approve or reject the exact delivered milestone with a reason under DELIVERY-005, preserving earlier snapshots, rejection issues and separate independent finance authorization; staff-recorded decisions must stay labelled not confirmed by the client and must never become direct confirmations. Before this capability ships, permitted clients receive RETAINER-003 statement parity: opening allowance, rollover, approved consumption, provisional pending projection, linked adjustments, remaining hours/value and authorized source/rule versions, under this clause’s client scope. **Acceptance evidence:** Invite contacts from two clients, expose a budget to one sponsor and attempt direct URL/API access to the other project and internal rates. Reconcile a permitted client’s retainer statement to the corresponding authorized manager statement, trace an approved source and verify pending time changes only the provisional projection; another client and private cost/rate detail remain inaccessible.
 
@@ -407,13 +407,13 @@ The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 20
 
 ## Status
 
-Judged from the code and tests at commit `148af21be24740113a82de484190c7630d1a7b09` (21 October 2026).
+Judged from the code and tests at commit `883a1a98673e8c80967694744ed9c7aa50597841` (21 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 29 | 36 | 56 | 121 |
-| All | 46 | 36 | 56 | 138 |
+| Target and push further | 30 | 35 | 56 | 121 |
+| All | 47 | 35 | 56 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -489,7 +489,7 @@ Judged from the code and tests at commit `148af21be24740113a82de484190c7630d1a7b
 | `REPORT-002` | Utilization and realization dashboard | target | done | `src/gauge/billability.ts`; `src/gauge/ui-performance.ts`; `tests/gauge-realization.mjs` |  |
 | `REPORT-003` | Revenue cash and backlog dashboard | target | partial | `src/gauge/revenue-dashboard.ts`; `src/gauge/ui-revenue-dashboard.ts`; `src/gauge/report-lineage-revenue.ts`; `tests/gauge-revenue-dashboard.mjs` — REPORT-003 through `tests/gauge-cash-forecast.mjs` | Native pipeline-to-issued-open-to-manual-receipt transfer, immutable pre-tax documents, exact source reservations, dated cash/receipts, races/replay, margin, lineage/CSV, specialist reconciliation and archive preservation are asserted. Full invoicing (including retainer overages, credits, tax, sending and client-currency links), provider settlement/accounting freshness and approved USD FX conversion remain unproven. |
 | `REPORT-004` | Custom reports and scheduled delivery | target | missing |  | No report builder, saved reporting or scheduled report exports. |
-| `REPORT-005` | Trace every reported amount | target | partial | `src/gauge/report-lineage.ts`; `src/gauge/report-export.ts`; `src/gauge/ui-report-evidence.ts`; `tests/gauge-report-lineage.mjs` — REPORT-005; `src/gauge/ui-demand.ts`; `src/gauge/report-lineage-shared.ts`; `tests/gauge-demand-forecast.mjs` | Current economics, capacity, utilization, retainer, finance, cash, revenue and portfolio figures have source/formula drills and snapshot CSV. Resource-demand monthly forecast figures and approved demand-scenario deltas lack report lineage, source drills and CSV reconciliation. |
+| `REPORT-005` | Trace every reported amount | target | done | `src/gauge/report-lineage.ts`; `src/gauge/report-export.ts`; `src/gauge/ui-report-evidence.ts`; `tests/gauge-report-lineage.mjs` (REPORT-005); `src/gauge/report-lineage-demand.ts`; `src/gauge/ui-demand.ts`; `tests/gauge-demand-forecast.mjs` (REPORT-005) |  |
 | `CLIENT-001` | Scoped client portal | target | missing |  | No external client identities, project portal or client-specific rights. |
 | `CLIENT-002` | Client status and budget reports | target | missing |  | No publishable client reports, client replies or budget-sharing policy. |
 | `CLIENT-003` | Client financial self-service | target | missing |  | No client invoice/statement/retainer self-service or payment/dispute portal. |

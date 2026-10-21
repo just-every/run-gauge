@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import {execFileSync} from 'node:child_process'
 
 // REPORT-003 native slice, composed into the cash journey rather than a new suite.
-export async function revenueDashboardJourney(h,{read,worker,client,hourly,entry,asOf}) {
- const {cmd,owner,request}=h
+export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
+ const {cmd,owner,request}=h,asOf='2026-10-19'
+ const read=async(cookie=owner)=>{const response=await request(`/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=${asOf}`,cookie);assert.equal(response.status,200);return response.json()}
  const initial=await read(),bucket=d=>d.revenueDashboard.wip.find(w=>w.currency==='USD')
  assert.equal(bucket(initial).amountMinor,60000)
  const opportunityInput={name:'Mobile redesign',clientId:client.id,ownerId:worker.id,stage:'proposal',probability:50,from:'2026-11-01',to:'2026-11-30',services:'Design',amountMinor:400000,demandSeconds:36000}
@@ -27,7 +28,7 @@ export async function revenueDashboardJourney(h,{read,worker,client,hourly,entry
  const nonbillable=await cmd('expense:save',{engagementId:hourly.id,personId:worker.id,date:'2026-10-06',description:'Agency lunch',amountMinor:8000,reimbursable:false})
  await cmd('expense:approve',await cmd('expense:submit',nonbillable))
  const task=(await read()).data.tasks.find(t=>t.value.engagementId===hourly.id)
- const future=await cmd('time:save',{taskId:task.id,personId:worker.id,engagementId:hourly.id,service:'Support',notes:'Later approved interval',timezone:'America/New_York',billable:true,start:'2026-10-28T09:00:00-04:00',end:'2026-10-28T10:00:00-04:00'})
+ const future=await cmd('time:save',{taskId:task.id,personId:worker.id,engagementId:hourly.id,service:'Support',notes:'Later approved interval',timezone:'America/New_York',billable:true,start:'2026-10-20T09:00:00-04:00',end:'2026-10-20T10:00:00-04:00'})
  await cmd('time:approve',await cmd('time:submit',future))
  d=await read();assert.equal(bucket(d).amountMinor,62500,'REPORT-003 as-of excludes future approved work and nonreimbursable expenses')
  assert(!bucket(d).sources.some(s=>s.id===future.id||s.id===nonbillable.id))

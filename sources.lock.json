@@ -3417,7 +3417,7 @@
       "executable": false
     },
     "tests/gauge-revenue-dashboard.mjs": {
-      "sha256": "1c784054a40ef7f9872d1f30d2f013a8fb271aa7601edd55b072061dd35b629d",
+      "sha256": "bda7d5bfe81e745fa6e3bb20fd71636a14043ab0e990e754cb2f9a1c1db3a19c",
       "executable": false
     },
     "tests/gauge-schedule.mjs": {

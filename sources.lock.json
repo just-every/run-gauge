@@ -3501,7 +3501,7 @@
       "executable": false
     },
     "tests/gauge-retainer-statements.mjs": {
-      "sha256": "ee1dbd8fd53637b9616bad349f65a5d119f427e1add7ff1c3fc6ad191eb82622",
+      "sha256": "1f9c66645888ef94b9219a6f6d43c85469c12d21bb51ec828b77e8b2a8a52227",
       "executable": false
     },
     "tests/gauge-retainers.mjs": {

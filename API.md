@@ -228,3 +228,25 @@ Finance corrects an issued invoice only with linked documents (INVOICE-004). `in
 `GET /api/gauge/receivables?asOf=YYYY-MM-DD&clientId=...` is for finance/owner under a current native session. Both parameters are optional: `asOf` defaults to today in the agency timezone, and omitted `clientId` includes every immutable issued client identity. It returns `invoices` with frozen client names, numbers, revisions, dates, dated receipt references and exact `invoicedMinor`, `paidMinor`, `openMinor`, `daysOverdue` and `agingBucket`; `clients` and `totals` aggregate separately per currency. It includes only invoices issued and receipts dated through the inclusive as-of day. Current means due today or later; overdue buckets are 1–30, 31–60, 61–90 and 91+ calendar days after the frozen due date. Paid invoices remain with zero open amount. Merged client records do not rewrite issued client identity.
 
 Download `/api/gauge/receivables.csv` with the same filters and the returned `fingerprint`. Changed dated inputs return 409 and require a fresh read. CSV row types are `invoice`, `receipt`, `credit`, `void`, `client total` and `aging`; sum only one row type at a time. Invoice rows include cumulative paid amounts; receipt rows itemize those same allocations. Every row names its currency, and all amounts are integer minor units. JSON/CSV are internal statement preparation: no client delivery or provider settlement is claimed. INVOICE-004 credit notes and voids issued through the as-of day reduce each invoice's open amount (`creditedMinor`, `voidedMinor`; invoiced = paid + credited + voided + open) and itemize as `credit` and `void` rows. Client receipts (`receipts`: client, date, reference, `amountMinor`, `allocatedMinor`, `unappliedMinor`, each allocation) and disputes (`disputedMinor`, `dispute` on each invoice) are in the same report and CSV (`client receipt` rows; sum only one row type at a time). Other roles receive 403, signed-out requests 401; scoped utilization keys cannot use this door.
+
+
+### INVOICE-002 fixed-fee deposit and percentage schedule (partial)
+
+Finance uses `fixed:prepare` with `engagementId`, `budgetId`, `budgetRevision`,
+`chargeType` (`deposit` or `progress`), `cumulativeBasisPoints` (1–10000), `name`,
+`date` and `reason`. It binds the latest approved fixed budget. The gross target
+is the entire budget times basis points divided by 10000, rounded half up to cents;
+the draft amount deducts every already approved fixed charge and milestone.
+`fixed:approve` takes the exact draft `id` and `revision` and rechecks that basis
+atomically. A deposit is the first approved charge; a zero or negative increment,
+stale budget or competing approved amount is refused. Approved sources do not reset
+after a packet cancellation, invoice credit or void. Prepare a fresh higher
+cumulative target for more billing, never re-create an earlier deposit.
+
+Use `fixedCharges:<id>` as a `packet:create` source for the same engagement;
+ordinary packet approval and `invoice:issue` freeze the exact source and schedule.
+The Billing page accepts percentages such as 20 or 50.25. Charges schedule invoices,
+not delivery or revenue recognition. Their unissued amounts enter expected cash
+on the charge date plus client terms, and an issued invoice replaces its schedule
+once. Ordinary DELIVERY-005 milestone gates remain. Consolidated multi-project
+invoices, time-source splits and recurring retainer principal schedules remain absent.

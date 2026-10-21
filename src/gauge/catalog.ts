@@ -118,8 +118,12 @@ export async function approveTerms(env: Bindings,a: Actor,tx: Transaction, k: 'b
   need(budgets[0].value.currency === e.value.currency, 'Budget currency differs from engagement; no implicit FX')
   const approved = (await all(env,'milestones')).filter(m => m.value.engagementId === e.id && m.value.status === 'approved')
   for (const milestone of approved) { need((milestone.value.currency ?? e.value.currency) === e.value.currency, 'Milestone currency differs from engagement; no implicit FX'); tx.observe('milestones',milestone) }
+  const charges = (await all(env,'fixedCharges')).filter(c=>c.value.engagementId===e.id&&c.value.status==='approved')
+  for (const charge of charges) tx.observe('fixedCharges',charge)
+  const chargedMinor=sum(charges.map(c=>c.value.amountMinor))
+  tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM g_fixedCharges WHERE engagement_id=? AND status='approved')=?",e.id,chargedMinor)
   const approvedMinor = sum(approved.map(m=>m.value.amountMinor))
-  need(sum([approvedMinor,row.value.amountMinor])<=budgets[0].value.amountMinor,'Milestones exceed the agreed fixed fee')
+  need(sum([approvedMinor,chargedMinor,row.value.amountMinor])<=budgets[0].value.amountMinor,'Milestones exceed the agreed fixed fee')
   tx.guard("(SELECT COALESCE(SUM(json_extract(data,'$.amountMinor')),0) FROM g_milestones WHERE engagement_id=? AND status='approved')=?",e.id,approvedMinor)
  }
  return tx.record(k,{...row.value,...approval},row,undefined,'approve')

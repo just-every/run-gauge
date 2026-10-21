@@ -51,6 +51,10 @@ export function formInput(form: FormData): Value {
   input.items=String(form.get('itemLines')).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{const [key,kind,name,offsetDays,durationDays,after='',owner='',effort='',fee='']=line.split('|').map(s=>s.trim());return {key,kind,name,offsetDays,durationDays,predecessors:after.split(',').map(s=>s.trim()).filter(Boolean),owner:owner||null,effortSeconds:effort===''?0:Math.round(decimal(effort,'Effort hours')*3600),amountMinor:fee===''?(kind==='milestone'?'':null):cents(fee)}})
   delete input.itemLines;input.previousId=input.previousId||null
  }
+ if(input.action==='fixed:prepare'&&form.has('cumulativePercent')){
+  const raw=String(input.cumulativePercent).trim();need(/^\d+(\.\d{1,2})?$/.test(raw),'Cumulative percentage: enter up to two decimal places')
+  input.cumulativeBasisPoints=cents(raw);delete input.cumulativePercent
+ }
  if(input.gridDate){input.startLocal=`${input.gridDate}T${input.startClock}`;input.endLocal=`${input.gridDate}T${input.endClock}`;delete input.startClock;delete input.endClock;delete input.gridDate}
  if(form.get('action')==='task:progress')input.completedItems=form.getAll('completedItems')
  for (const name of lists) if (form.getAll(name).length) input[name] = form.getAll(name)

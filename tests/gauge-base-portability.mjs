@@ -113,6 +113,12 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('payment:record',{...portableInvoice,date:'2026-10-12',amountMinor:1000,reference:'Portable bank receipt'})
  // INVOICE-004 credit notes travel with their invoice through BASE-002.
  await cmd('invoice:credit',{...portableInvoice,type:'discount',line:0,amountMinor:500,date:'2026-10-13',reason:'Portable agreed discount'})
+ // INVOICE-002 / BASE-002: percentage schedule, approvals and its exact invoice source travel whole.
+ const fixedProject=await cmd('save:engagements',{name:'Portable percentage billing',clientId:engagement.value.clientId,leadId:engagement.value.leadId,members:[],scope:'Portable deposit and progress',timezone:zone})
+ const fixedTerms=await cmd('budget:approve',await cmd('save:budgets',{engagementId:fixedProject.id,mode:'fixed',amountMinor:100000,effortSeconds:3600,roundingSeconds:60,reason:'Portable fixed terms'}))
+ const fixedCharge=await cmd('fixed:approve',await cmd('fixed:prepare',{engagementId:fixedProject.id,budgetId:fixedTerms.id,budgetRevision:fixedTerms.revision,chargeType:'deposit',cumulativeBasisPoints:2000,name:'Portable deposit',date:'2026-10-11',reason:'Portable billing schedule'}))
+ const fixedPacket=await cmd('packet:approve',await cmd('packet:create',{engagementId:fixedProject.id,title:'Portable deposit packet',sources:[`fixedCharges:${fixedCharge.id}`]}))
+ await cmd('invoice:issue',{...fixedPacket,issueDate:'2026-10-11',dueDate:invoiceDue,billTo:invoiceClient.value.name,remitTo:'Portable agency account',reference:invoiceClient.value.poRequired?invoiceClient.value.poNumbers[0]:'Portable deposit invoice'})
  const before=await state()
  assert.equal(before.data.archives.filter(r=>r.value.forecast).length,4,'MIGRATE-003 source snapshots are available before BASE-002 export')
  assert(before.data.calendars.some(r=>r.value.source?.externalId==='api:availability:v1'),'MIGRATE-003 captured availability is native before export')

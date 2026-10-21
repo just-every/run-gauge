@@ -1,7 +1,7 @@
 import { Lineage } from './report-lineage-shared'
 
 const formulas: Record<string, [string, string]> = {
- invoicesMinor: ['Expected and issued invoices', 'SUM(issued amounts by actual issue date plus remaining unissued amounts by expected invoice date). Issued invoices through the as-of day replace the corresponding source schedule once: hourly time and expenses leave their source work/date month; fixed milestones leave their milestone schedule. Unissued milestones use their due date; other monthly fees use the 1st of the next month; recorded retainer period fees are assumed in advance on active period start. Pre-tax, source currency.'],
+ invoicesMinor: ['Expected and issued invoices', 'SUM(issued amounts by actual issue date plus remaining unissued amounts by expected invoice date). Issued invoices through the as-of day replace the corresponding source schedule once: hourly time and expenses leave their source work/date month; fixed milestones and deposit/progress charges leave their own schedule. Unissued milestones use their due date; other monthly fees use the 1st of the next month; recorded retainer period fees are assumed in advance on active period start. Pre-tax, source currency.'],
  expectedMinor: ['Expected cash on terms', 'SUM(round-half-up(open amount × client collection probability / 100)) by receipt month. Issued receipt date is the immutable invoice due date; open amount is invoice total less user-recorded receipts and issued credit notes dated through the as-of day, and less any standing dispute (listed apart, never expected as cash until resolved) (an invoice voided by then is excluded; its reissue is its own invoice), without a processor-verification or settlement claim. Unissued receipt = expected invoice date + client payment terms days (Net 30 assumed while unset). Future-dated issues and payments are excluded until their date. A receipt before the as-of day is placed in the as-of month, flagged past due if still open.'],
  historicalExpectedMinor: ['Expected cash at historical timing', 'As expected cash on terms, with each receipt date moved by the client\'s approved average days late; equal to on-terms where none is approved.'],
 }
@@ -29,7 +29,7 @@ export function cashLineage(c: Lineage) {
       for (const line of i.invoiceSnapshot.value.lines) c.row(e, line.kind, line.sourceId)
      } else {
       const [kind, id] = i.source.split(':')
-      if (kind === 'milestones') c.row(e, kind, id)
+      if (kind === 'milestones' || kind === 'fixedCharges') c.row(e, kind, id)
       else for (const [k, ids] of Object.entries(x.sources as Record<string, string[]>)) if (!['milestones', 'clients', 'payments'].includes(k)) for (const rowId of ids) c.row(e, k, rowId)
      }
     }

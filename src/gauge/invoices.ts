@@ -32,7 +32,7 @@ async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagem
  const seen = new Set<string>(), lines: Value[] = []
  for (const line of packet.value.lines as Value[]) {
   const kind = line.kind
-  need(kind === 'time' || kind === 'expenses' || kind === 'milestones', 'Invoice issuance supports ordinary hourly time, reimbursable expenses and fixed milestones; retainer issuance is not available', 409)
+  need(kind === 'time' || kind === 'expenses' || kind === 'milestones' || kind === 'fixedCharges', 'Invoice issuance supports hourly time, reimbursable expenses, fixed milestones and approved deposit/progress charges; retainer issuance is not available', 409)
   const sourceId = text(line.sourceId, 'Source ID'), identity = `${kind}:${sourceId}`
   need(!seen.has(identity), 'Packet repeats a source line', 409); seen.add(identity)
   const source = await get(env, kind, sourceId), v = source.value
@@ -54,6 +54,10 @@ async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagem
    amountMinor = integer(v.amountMinor, 'Approved expense amount', 0, Number.MAX_SAFE_INTEGER)
    sourceDate = date(v.date)
    need(issueDate >= sourceDate, 'Invoice issue date precedes its expense source date')
+  } else if (kind === 'fixedCharges') {
+   amountMinor = integer(v.amountMinor, 'Approved fixed charge amount', 1, Number.MAX_SAFE_INTEGER)
+   sourceDate = date(v.date)
+   need(issueDate >= sourceDate, 'Invoice issue date precedes the approved charge date')
   } else {
    need(authorizedDelivery(v), 'Invoice milestone requires current recorded acceptance and finance authorization', 409)
    const budget = await get(env, 'budgets', text(v.budgetId, 'Approved fixed budget'))

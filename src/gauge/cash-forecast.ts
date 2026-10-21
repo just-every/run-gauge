@@ -30,11 +30,11 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   // The client's finance-set Net N is used when set; "Net 30 assumed" appears only while it is unset (SETUP-002).
   const e = data.engagements.find(r => r.id === f.engagementId)!, client = clients.get(e.value.clientId), set = client?.value.paymentTermsDays ?? null, terms: number = set ?? 30
   const daysLate = client?.value.daysLate ?? null, percent = client?.value.collectionPercent ?? 100
-  const incomplete = [...f.incomplete], sources = { ...f.sources, clients: client ? [client.id] : [], milestones: [...(f.sources.milestones ?? [])], invoices: [] as string[], payments: [] as string[], invoiceCorrections: [] as string[] }
+  const incomplete = [...f.incomplete], sources = { ...f.sources, clients: client ? [client.id] : [], milestones: [...(f.sources.milestones ?? [])], invoices: [] as string[], payments: [] as string[], invoiceCorrections: [] as string[], fixedCharges: [] as string[] }
   const actualInvoices = issued.filter(i => i.value.engagementId === e.id)
   const issuedMilestones = new Set<string>(), billedByMonth = new Map<string, number>()
   for (const invoice of actualInvoices.filter(i => !i.value.reissueOf)) for (const line of invoice.value.lines) {
-   if (line.kind === 'milestones') { issuedMilestones.add(line.sourceId); continue }
+   if (line.kind === 'milestones' || line.kind === 'fixedCharges') { issuedMilestones.add(line.sourceId); continue }
    // The issue command supports only hourly time, reimbursable expenses and fixed-fee milestones.
    // Prefer the frozen source date on the invoice over the current source revision.
    const source = (data[line.kind] ?? []).find(r => r.id === line.sourceId)
@@ -52,6 +52,10 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   const schedule = (source: string, revenueMonth: string, invoiceDate: string, amountMinor: number, assumption?: string) => invoices.push({ source, revenueMonth, invoiceDate, amountMinor, openMinor: amountMinor, issued: false, invoiceSnapshot: null, paymentSnapshots: [], ...(assumption ? { assumption } : {}) })
   const milestones = f.basis === 'fixed' ? (data.milestones ?? []).filter(m => m.value.engagementId === e.id && m.value.status === 'approved') : []
   for (const m of milestones) { if (!sources.milestones.includes(m.id)) sources.milestones.push(m.id); if (!issuedMilestones.has(m.id)) schedule(`milestones:${m.id}`, m.value.due.slice(0, 7), m.value.due, m.value.amountMinor) }
+  for (const charge of (data.fixedCharges??[]).filter(c=>c.value.engagementId===e.id&&c.value.status==='approved')) {
+   (sources.fixedCharges??=[]).push(charge.id)
+   if (!issuedMilestones.has(charge.id)) schedule(`fixedCharges:${charge.id}`,charge.value.date.slice(0,7),charge.value.date,charge.value.amountMinor)
+  }
   if(f.basis==='retainer')for(const fee of retainerFees(data,asOf).filter(p=>p.engagementId===e.id&&p.totalMinor!==null)){
    schedule(`retainerPeriods:${fee.periodId}`,fee.periodStart.slice(0,7),fee.activeStart,fee.totalMinor!,'Assumed in advance on active period start, not issued; RETAINER-005 sets the schedule')
   }

@@ -53,7 +53,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
  for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
-  data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.projectScenarios=[]; data.paymentPromises=[]; data.invoices=[]; data.payments=[]; data.invoiceCorrections=[]; data.clientReceipts=[]; data.invoiceDisputes=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
+  data.fixedCharges=[]; data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.projectScenarios=[]; data.paymentPromises=[]; data.invoices=[]; data.payments=[]; data.invoiceCorrections=[]; data.clientReceipts=[]; data.invoiceDisputes=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
   // Agency delivery templates are planning configuration for those who start projects.
   if(a.role!=='lead')data.deliveryTemplates=[]
   const leadIds=new Set(data.engagements.filter(e=>agent || (a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
@@ -128,9 +128,9 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  for(const p of data.people){const expected=cap.find(c=>c.personId===p.id)?.knownAvailableSeconds ?? 0;const recorded=allTime.filter(r=>r.value.personId===p.id && r.value.workDate>=from && r.value.workDate<=to).reduce((n,r)=>n+(r.value.durationSeconds??0),0);if(recorded<expected)exceptions.push({type:'missing time',personId:p.id,expectedSeconds:expected,recordedSeconds:recorded,sources:data.calendars.filter(r=>r.value.personId===p.id).map(r=>r.id)})}
  for(const r of data.proposals)if(r.value.status==='proposed'&&await canDecide(env,a,r))exceptions.push({type:'decision due',source:`proposals:${r.id}`,kind:r.value.kind})
  const reservations=(await env.DB.prepare('SELECT kind,source_id FROM g_billing_sources').all<{kind:string;source_id:string}>()).results
- for(const k of ['time','expenses','milestones','budgets'] as Kind[])for(const r of data[k]){
+ for(const k of ['time','expenses','milestones','budgets','fixedCharges'] as Kind[])for(const r of data[k]){
   if(r.value.status==='submitted'||((k==='milestones'||k==='budgets')&&r.value.status==='draft'))exceptions.push({type:'decision due',source:`${k}:${r.id}`})
-  if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&retainerCovers(data.retainers,r.value)?'retainer billing held':k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
+  if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones'||k==='fixedCharges')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&retainerCovers(data.retainers,r.value)?'retainer billing held':k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
  const retainerEligibility=a.role==='staff'?Object.fromEntries(await Promise.all((['retainers','retainerPeriods'] as const).map(async kind=>[kind,await all(env,kind)]))) as Pick<typeof data,'retainers'|'retainerPeriods'>:data
  const correctionData={retainerCloses:await all(env,'retainerCloses'),retainerAdjustments:await all(env,'retainerAdjustments')}

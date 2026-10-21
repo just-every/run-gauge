@@ -17,7 +17,7 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
   need(selected.length>0 && selected.length<=100,'Select between 1 and 100 approved source lines')
   const lines: Value[]=[]
   for (const source of selected) {
-   const [k,id] = String(source).split(':'); need(['time','expenses','milestones','retainerPeriods'].includes(k),'Unknown source type')
+   const [k,id] = String(source).split(':'); need(['time','expenses','milestones','retainerPeriods','fixedCharges'].includes(k),'Unknown source type')
    const row=await get(env,k as Kind,id),v=row.value; if(k==='retainerPeriods'){need(v.engagementId===e.id,'Period belongs to another engagement');const line=await retainerOverage(env,tx,row);need(line.currency===e.value.currency,'Overage currency differs; no implicit FX');lines.push(line);continue} need(v.engagementId===e.id && v.status==='approved','Only approved work for this engagement is eligible'); tx.observe(k as Kind,row)
    if(k==='milestones')need(authorizedDelivery(v),'Record current delivery acceptance and separate finance authorization before billing',409)
    // Legacy milestones were denominated by their engagement before carrying their own currency.
@@ -27,7 +27,7 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
    if (k==='time') { await assertAdHocTime(env,tx,v); need(v.billable && !v.source?.billed && v.economics?.mode==='hourly' && v.economics.billMinor!==null,'Time needs approved hourly terms and a bill rate and must be unbilled'); amount=v.economics.billMinor; description=v.notes; }
    else if (k==='expenses') { need(v.reimbursable,'Expense is not reimbursable'); amount=v.amountMinor; description=v.description }
    else { amount=v.amountMinor; description=v.name }
-   lines.push({kind:k,sourceId:id,sourceRevision:row.revision,description,amountMinor:amount,currency,durationSeconds:v.durationSeconds ?? null,billRateMinor:v.economics?.billRateMinor??null,roundedBillingSeconds:v.economics?.roundedBillingSeconds??null,roundingSeconds:v.economics?.roundingSeconds??null,roundingPolicy:k==='time'?'ceil duration to increment; round amount half-up to cents':'exact approved minor units',rateUnit:k==='time'?`${currency} cents per hour`:null,rateId:v.economics?.rateId ?? null,budgetId:v.economics?.budgetId ?? v.budgetId ?? null})
+   lines.push({kind:k,sourceId:id,sourceRevision:row.revision,description,amountMinor:amount,currency,durationSeconds:v.durationSeconds ?? null,billRateMinor:v.economics?.billRateMinor??null,roundedBillingSeconds:v.economics?.roundedBillingSeconds??null,roundingSeconds:v.economics?.roundingSeconds??null,roundingPolicy:k==='time'?'ceil duration to increment; round amount half-up to cents':'exact approved minor units',rateUnit:k==='time'?`${currency} cents per hour`:null,rateId:v.economics?.rateId ?? null,budgetId:v.economics?.budgetId ?? v.budgetId ?? null,...(k==='fixedCharges'?{chargeType:v.chargeType,cumulativeBasisPoints:v.cumulativeBasisPoints,grossMinor:v.grossMinor,priorMinor:v.priorMinor}: {})})
   }
   const total=sum(lines.map(l=>l.amountMinor))
   const packet=await tx.record('packets',{engagementId:e.id,title:text(input.title,'Packet title'),status:'draft',currency:e.value.currency,lines,totalMinor:total,createdAt:Date.now(),createdBy:a.session.operator.id})

@@ -1,8 +1,9 @@
 import type { Row, Value } from './model'
-import { escape as e, input as i, area, choices, select, form } from './ui-forms'
+import { escape as e, input as i, area as textArea, choices, select, form } from './ui-forms'
 import { acceptedDelivery } from './milestone-delivery'
 
 // An explicit control name excludes option text from the wrapping label's name.
+const area=(...args:Parameters<typeof textArea>)=>textArea(...args).replace('<textarea ',`<textarea aria-label="${e(args[1])}" `)
 const c=(...args:Parameters<typeof choices>)=>choices(...args).replace('<select ',`<select aria-label="${e(args[1])}" `)
 const s=(...args:Parameters<typeof select>)=>select(...args).replace('<select ',`<select aria-label="${e(args[1])}" `)
 

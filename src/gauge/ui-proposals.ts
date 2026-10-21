@@ -31,10 +31,10 @@ export async function proposalSection(env: Bindings, a: Actor, report: Report) {
  if (!rows.length) return `<section class="g-block"><h2>Agent proposals</h2><p class="g-empty">No agent proposals${a.role === 'agent' ? ' prepared by you' : ' for you to decide'}.</p></section>`
  const cards = []
  for (const p of open) {
-  const decide = await canDecide(env, a, p)
+  const decide = !p.value.availability && await canDecide(env, a, p)
   if (p.value.kind === 'staffing') { cards.push(alternativesPanel(report, a, p, decide, 'g-card')); continue }
   const actions = decide ? `<div class="g-proposal-actions">${form('proposal:approve', `Approve ${proposalLabels[p.value.kind].toLowerCase()}`, approveFields(report, p), p, 'Approve exact proposal', 'g-bare')}<details class="g-reveal">${'<summary class="g-btn g-btn--quiet">Decline proposal</summary>'}${form('proposal:decline', 'Decline', i('reason', 'Reason'), p, 'Decline proposal', 'g-bare')}</details></div>`
-   : a.role === 'agent' ? form('proposal:withdraw', 'Withdraw', '', p, 'Withdraw proposal', 'g-bare') : '<p class="g-note">Awaiting the person, lead or finance this proposal needs.</p>'
+   : p.value.availability ? `<p class="g-note" role="status">${e(p.value.availability)}</p>` : a.role === 'agent' ? form('proposal:withdraw', 'Withdraw', '', p, 'Withdraw proposal', 'g-bare') : '<p class="g-note">Awaiting the person, lead or finance this proposal needs.</p>'
   cards.push(`<article class="g-card g-proposal" id="${e(p.id)}"><h3>${e(proposalLabels[p.value.kind])} · ${e(nameOf(report.data.engagements, p.value.engagementId))}</h3>${planDetails(report, a, p)}<p class="g-evidence">${p.value.evidence.map((x: any) => `Evidence: ${e(x.source)} · ${e(x.summary)}`).join('<br>')}</p><p class="g-note">${e(p.value.assumptions)}</p>${actions}</article>`)
  }
  const timeZone = (p: Row) => report.data.engagements.find(r => r.id === p.value.engagementId)?.value.timezone ?? report.agency.timezone

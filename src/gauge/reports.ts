@@ -20,11 +20,14 @@ import { projectMargin } from './margin'
 import { cashForecast } from './cash-forecast'
 import { portfolio } from './portfolio'
 import { revenueDashboard } from './revenue-dashboard'
+import { agentData, agentValue } from './agent-data'
+import { proposalAvailability } from './proposal-sources'
 import { privateClientKeys } from './clients'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 const amounts = ['amountMinor','budgetMinor','totalMinor','costMinor','billMinor']
 export function redact(a: Actor, k: Kind, value: Value): Value {
+ if (a.role==='agent') return agentValue(a,k,value)
  if (finance(a)) return value
  if(k==='retainerCloses'||k==='retainerAdjustments')return correctionValue(a,k,value)
  if(a.role==='staff'&&k==='retainers'){const t=value.terms,r=t.rules??{};return {engagementId:value.engagementId,rootId:value.rootId,number:value.number,previousId:value.previousId,terms:{name:t.name,frequency:t.frequency,unit:t.unit,allowance:t.allowance,services:t.services,consumes:t.consumes,proration:t.proration,start:t.start,end:t.end,renewal:t.renewal,noticeDays:t.noticeDays,currency:t.currency,rules:{carryCap:r.carryCap??0,carryPeriods:r.carryPeriods??0,deficit:r.deficit??false}}}}
@@ -45,6 +48,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
  // An agent reads every engagement it may prepare for, approved work only, and no amounts.
+ if(a.role==='agent'){const scoped=agentData(a,data);await fence(env,a);return scoped}
  const today=workDate(Date.now(),a.timezone),delegatedIds=new Set(data.engagements.filter(e=>data.timeDelegations.some(d=>activeDelegation(d,e,a,today))).map(e=>e.id))
  data.timeDelegations=data.timeDelegations.filter(d=>finance(a)||d.value.leadId===a.personId||d.value.delegateId===a.personId)
  const agent = a.role==='agent', ordinaryIds = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
@@ -124,16 +128,17 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  for(const c of cap){ for(const conflict of c.conflicts)exceptions.push({type:'capacity conflict',personId:c.personId,...conflict});if(c.missingCalendarDays)exceptions.push({type:'availability missing',personId:c.personId,days:c.missingCalendarDays,demand:c.days.filter(d=>d.calendarId===null&&(d.committedSeconds>0||d.tentativeSeconds>0))}) }
  for(const e of econ) { if('costMinor' in e && e.budgetMinor!==null && e.knownCostMinor>e.budgetMinor)exceptions.push({type:'overspend',source:`engagements:${e.engagementId}`,amountMinor:e.knownCostMinor-e.budgetMinor,currency:e.currency,incomplete:e.missingCostSources.length>0||e.otherCostCurrencies.length>0}); }
  // Recorded time is a per-person total over every entry, not just those this viewer may open, so every viewer reads the same number; no record is exposed.
- const allTime=await all(env,'time')
- for(const p of data.people){const expected=cap.find(c=>c.personId===p.id)?.knownAvailableSeconds ?? 0;const recorded=allTime.filter(r=>r.value.personId===p.id && r.value.workDate>=from && r.value.workDate<=to).reduce((n,r)=>n+(r.value.durationSeconds??0),0);if(recorded<expected)exceptions.push({type:'missing time',personId:p.id,expectedSeconds:expected,recordedSeconds:recorded,sources:data.calendars.filter(r=>r.value.personId===p.id).map(r=>r.id)})}
- for(const r of data.proposals)if(r.value.status==='proposed'&&await canDecide(env,a,r))exceptions.push({type:'decision due',source:`proposals:${r.id}`,kind:r.value.kind})
+ const allTime=a.role==='agent'?data.time:await all(env,'time')
+ for(const p of (a.role==='agent'&&a.agentScope?.purpose!=='time'?[]:data.people)){const expected=cap.find(c=>c.personId===p.id)?.knownAvailableSeconds ?? 0;const recorded=allTime.filter(r=>r.value.personId===p.id && r.value.workDate>=from && r.value.workDate<=to).reduce((n,r)=>n+(r.value.durationSeconds??0),0);if(recorded<expected)exceptions.push({type:'missing time',personId:p.id,expectedSeconds:expected,recordedSeconds:recorded,sources:data.calendars.filter(r=>r.value.personId===p.id).map(r=>r.id)})}
+ for(const p of data.proposals)if(p.value.status==='proposed')p.value.availability=await proposalAvailability(env,p)
+ for(const r of data.proposals)if(r.value.status==='proposed'&&!r.value.availability&&await canDecide(env,a,r))exceptions.push({type:'decision due',source:`proposals:${r.id}`,kind:r.value.kind})
  const reservations=(await env.DB.prepare('SELECT kind,source_id FROM g_billing_sources').all<{kind:string;source_id:string}>()).results
  for(const k of ['time','expenses','milestones','budgets','fixedCharges'] as Kind[])for(const r of data[k]){
   if(r.value.status==='submitted'||((k==='milestones'||k==='budgets')&&r.value.status==='draft'))exceptions.push({type:'decision due',source:`${k}:${r.id}`})
   if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones'||k==='fixedCharges')&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&retainerCovers(data.retainers,r.value)?'retainer billing held':k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
  const retainerEligibility=a.role==='staff'?Object.fromEntries(await Promise.all((['retainers','retainerPeriods'] as const).map(async kind=>[kind,await all(env,kind)]))) as Pick<typeof data,'retainers'|'retainerPeriods'>:data
- const correctionData={retainerCloses:await all(env,'retainerCloses'),retainerAdjustments:await all(env,'retainerAdjustments')}
+ const correctionData=a.role==='agent'?{retainerCloses:[],retainerAdjustments:[]}:{retainerCloses:await all(env,'retainerCloses'),retainerAdjustments:await all(env,'retainerAdjustments')}
  const retainerBalances=a.role==='agent'?[]:retainerStatements(data,allTime,a.role==='staff'?a.personId??undefined:undefined,{...retainerEligibility,...correctionData,time:allTime}).map(b=>a.role==='lead'&&b.unit==='value'?{...correctionBalance(a,b,new Set(data.time.map(t=>t.id))),restrictedEconomics:true}:correctionBalance(a,b,new Set(data.time.map(t=>t.id))))
  const timeReview=reviewQueue(data,a.timezone,allTime)
  const reviewerIds=a.role==='lead'?(await env.DB.prepare("SELECT DISTINCT g.person_id FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id WHERE g.enabled=1 AND g.role IN ('lead','finance') AND o.status='active'").all<{person_id:string}>()).results.map(r=>r.person_id):[]

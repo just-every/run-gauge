@@ -27,7 +27,7 @@ const what = (d: Report['data'], p: Row) => p.value.kind === 'staffing' ? `${p.v
 /** The strip: the newest proposal this person may decide, and how many wait in all. Empty when nothing waits. */
 export async function agentNotice(env: Bindings, a: Actor, report: Report, zone: string, today: string) {
  const waiting: Row[] = []
- for (const p of report.data.proposals) if (p.value.status === 'proposed' && await canDecide(env, a, p)) waiting.push(p)
+ for (const p of report.data.proposals) if (p.value.status === 'proposed' && !p.value.availability && await canDecide(env, a, p)) waiting.push(p)
  const latest = waiting.sort((x, y) => y.value.preparedAt - x.value.preparedAt)[0]
  if (!latest) return ''
  const agent = (await operatorNames(env)).get(latest.value.preparedBy) ?? 'Agent'
@@ -80,7 +80,7 @@ export function alternativesPanel(report: Report, a: Actor, p: Row, decide: bool
   const approve = decide ? decision('proposal:approve', `Approve ${letter(n)}`, p, false, n ? 'secondary' : 'primary', `<input type="hidden" name="choice" value="${n}">${page ? `<input type="hidden" name="page" value="${e(page)}">` : ''}`) : ''
   return `<article class="g-option${n ? '' : ' g-option--first'}"><h3><span class="g-letter" aria-hidden="true">${letter(n)}</span><span><span class="g-hide">Alternative ${letter(n)}: </span>${e(effect.title)}</span></h3><p class="g-option-why">${e(alt.rationale)}</p><dl class="g-metrics">${rows}</dl>${approve}</article>`
  }).join('')
- const decline = decide ? `<details class="g-reveal g-recovery-decline"><summary class="g-btn g-btn--quiet">Decline proposal</summary>${form('proposal:decline', 'Decline', i('reason', 'Reason'), p, 'Decline proposal', 'g-bare')}</details>` : `<p class="g-note">Awaiting the person, lead or finance this proposal needs.</p>`
+ const decline = decide ? `<details class="g-reveal g-recovery-decline"><summary class="g-btn g-btn--quiet">Decline proposal</summary>${form('proposal:decline', 'Decline', i('reason', 'Reason'), p, 'Decline proposal', 'g-bare')}</details>` : `<p class="g-note" role="status">${e(p.value.availability ?? 'Awaiting the person, lead or finance this proposal needs.')}</p>`
  return `<section class="g-recovery${className ? ` ${className}` : ''}" id="${e(p.id)}" aria-labelledby="${e(p.id)}-title"><h2 id="${e(p.id)}-title">${words[alternatives.length] ?? alternatives.length} staffing alternatives</h2><p class="g-recovery-for">${e(clientOf(d, p.value.engagementId))} · ${e(nameOf(d.engagements, p.value.engagementId))}</p><p class="g-recovery-why">${e(p.value.assumptions)}</p>${options}<p class="g-evidence">${p.value.evidence.map((x: any) => `Evidence: ${e(x.source)} · ${e(x.summary)}`).join('<br>')}</p>${decline}</section>`
 }
 
@@ -88,7 +88,7 @@ export function alternativesPanel(report: Report, a: Actor, p: Row, decide: bool
 export async function recoveryPanel(env: Bindings, a: Actor, report: Report, zone: string, today: string) {
  const staffing = report.data.proposals.filter(p => p.value.kind === 'staffing').sort((x, y) => y.value.preparedAt - x.value.preparedAt)
  const open = staffing.find(p => p.value.status === 'proposed')
- if (open) return alternativesPanel(report, a, open, await canDecide(env, a, open), '', 'capacity')
+ if (open) return alternativesPanel(report, a, open, !open.value.availability && await canDecide(env, a, open), '', 'capacity')
  const last = staffing[0]
  if (!last) return `<section class="g-recovery g-recovery--empty"><h2>Staffing alternatives</h2><p class="g-empty">No agent proposals${a.role === 'agent' ? ' prepared by you' : ' for you to decide'}.</p></section>`
  const names = await operatorNames(env), chosen = last.value.choice != null ? last.value.plan.alternatives[last.value.choice] : null

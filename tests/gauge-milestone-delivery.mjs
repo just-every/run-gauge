@@ -7,10 +7,11 @@ export async function milestoneDeliveryJourney(h,browser,{lead,worker,manager,st
  const {cmd,state,request}=h
  const financePerson=await h.invite('delivery-finance')
  await cmd('grant',{operatorId:financePerson.id,personId:lead.id,role:'finance',enabled:true})
- const agent=await h.invite('delivery-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true})
+ const agent=await h.invite('delivery-agent')
  for(const width of [1440,390]) {
   const client=await cmd('save:clients',{name:`Acceptance client ${width}`})
   const engagement=await cmd('save:engagements',{name:`Delivery acceptance ${width}`,clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Deliver complete design and client assets',timezone:'America/New_York'})
+  await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'billing',engagementIds:[engagement.id]})
   const budget=await cmd('save:budgets',{engagementId:engagement.id,mode:'fixed',amountMinor:10000,effortSeconds:3600,roundingSeconds:60,reason:'Agreed design'});await cmd('budget:approve',budget)
   const milestone=await cmd('save:milestones',{engagementId:engagement.id,name:'Design handover',due:'2026-10-21',amountMinor:10000})
   const current=async()=>(await state()).data.milestones.find(r=>r.id===milestone.id)

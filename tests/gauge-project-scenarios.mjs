@@ -32,7 +32,7 @@ try {
  const lead=await h.invite('scenario-lead');await cmd('grant',{operatorId:lead.id,personId:employee.id,role:'lead',enabled:true})
  const fin=await h.invite('scenario-finance');await cmd('grant',{operatorId:fin.id,personId:contractor.id,role:'finance',enabled:true})
  const staff=await h.invite('scenario-staff');await cmd('grant',{operatorId:staff.id,personId:employee.id,role:'staff',enabled:true})
- const agent=await h.invite('scenario-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true})
+ const agent=await h.invite('scenario-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'staffing',engagementIds:projects.map(project=>project.id)})
  const changes=bookings.map(b=>({...b,personId:contractor.id,effectiveFrom:day(1)})),input={asOf,changes}
  await cmd('projectScenario:preview',{asOf,changes:[]},owner,400)
  await cmd('projectScenario:preview',{asOf,changes:Array.from({length:21},(_,i)=>({...changes[0],id:`excess-${i}`}))},owner,400)

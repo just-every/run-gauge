@@ -50,6 +50,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
   }
   const session=await operatorAuth(env).getSession(request);if(!session&&path.startsWith('/app'))return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});need(session,'Sign in required',401)
   const a=await actor(env,session);await fence(env,a)
+  if(a.role==='agent')need(mutation||historyRoute||path==='/api/gauge/state'||path==='/app'||path==='/app/review','Agent read door is outside its purpose',403)
   const allowed=mutation?['POST']:['GET','HEAD']
   if(!allowed.includes(request.method))return Response.json({error:'Method not allowed'},{status:405,headers:{...headers,allow:allowed.join(', ')}})
   if(mutation) {

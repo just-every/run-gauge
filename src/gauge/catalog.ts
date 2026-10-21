@@ -1,6 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { type Value, type Kind, type Row, need, text, integer, money, date, zone, flag, sum } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
+import { saveAgentScope } from './agent-grants'
 import { resourceProfile } from './resource-profiles'
 import { rateCard } from './rate-cards'
 import { activeClient, claimIdentities, clientDetails } from './clients'
@@ -13,10 +14,11 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   // An agent grant is no person: it may only prepare proposals for people to decide.
   let personId: string | null = null
   if (input.role !== 'agent') { const person = await get(env, 'people', text(input.personId, 'Person')); tx.observe('people', person); personId = person.id }
-  tx.sql('INSERT INTO g_grants(operator_id,person_id,role,enabled) VALUES(?,?,?,?) ON CONFLICT(operator_id) DO UPDATE SET person_id=excluded.person_id,role=excluded.role,enabled=excluded.enabled,version=g_grants.version+1', operatorId, personId, input.role, flag(input.enabled) ? 1 : 0)
+  const scope = await saveAgentScope(env,a,tx,input)
+  tx.sql('INSERT INTO g_grants(operator_id,person_id,role,enabled,purpose,engagement_ids,granted_by) VALUES(?,?,?,?,?,?,?) ON CONFLICT(operator_id) DO UPDATE SET person_id=excluded.person_id,role=excluded.role,enabled=excluded.enabled,purpose=excluded.purpose,engagement_ids=excluded.engagement_ids,granted_by=excluded.granted_by,version=g_grants.version+1', operatorId, personId, input.role, flag(input.enabled) ? 1 : 0, scope.purpose,JSON.stringify(scope.engagementIds),scope.grantedBy)
   // GOVERN-001: every grant change is kept with who made it and when.
   tx.sql('INSERT INTO g_grant_audit(operator_id,person_id,role,enabled,actor,at) VALUES(?,?,?,?,?,?)', operatorId, personId, input.role, flag(input.enabled) ? 1 : 0, a.session.operator.id, Date.now())
-  tx.audit('grant', 'grants', operatorId, { personId, role: input.role, enabled: flag(input.enabled) })
+  tx.audit('grant', 'grants', operatorId, { personId, role: input.role, enabled: flag(input.enabled), ...scope })
   return { granted: true }
  }
  if (!action.startsWith('save:')) return null

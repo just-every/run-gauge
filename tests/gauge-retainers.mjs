@@ -16,11 +16,12 @@ try{
  const {cmd,state,request}=h,zone='America/New_York'
  const lead=await cmd('save:people',{name:'Morgan Client Lead',timezone:zone}),worker=await cmd('save:people',{name:'Avery Designer',timezone:zone})
  const manager=await h.invite('retainer-lead'),staff=await h.invite('retainer-worker'),agent=await h.invite('retainer-agent')
- await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:true});await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true});await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true})
+ await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:true});await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true})
  const client=await cmd('save:clients',{name:'Cascade Studio'})
  const project=await cmd('save:engagements',{name:'Ongoing brand partnership',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Monthly design and strategy services',timezone:zone})
  const second=await cmd('save:engagements',{name:'Quarterly strategy support',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Quarterly service allowance',timezone:zone})
  const terms={name:'Brand partnership',frequency:'monthly',unit:'value',allowance:1000000,services:['Design','Strategy'],consumes:'all',proration:'calendar',start:'2026-10-16',end:null,renewal:'automatic',noticeDays:10,currency:'USD'}
+ await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'billing',engagementIds:[project.id,second.id]})
  const preview=(t,engagementId=project.id,extra={},cookie=manager.cookie)=>cmd('retainer:preview',{engagementId,operation:'terms',terms:t,...extra},cookie)
  const save=async(p,reason='Reviewed commercial allowance')=>cmd('retainer:approve',{...p.input,fingerprint:p.fingerprint,reason},manager.cookie)
  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})

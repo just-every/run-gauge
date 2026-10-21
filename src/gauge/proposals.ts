@@ -4,6 +4,8 @@ import { type Actor, Transaction, finance, access, get } from './store'
 import { catalog } from './catalog'
 import { timeCommand } from './time'
 import { assertAdHocTime } from './retainer-eligibility'
+import { requireAgentScope } from './agent-grants'
+import { captureSources, validateCitations, fenceProposal } from './proposal-sources'
 import { billingCommand } from './billing'
 
 // Agent preparation: an agent grant prepares evidence-backed
@@ -14,7 +16,7 @@ export const proposalKinds = ['time', 'staffing', 'billing', 'change-order'] as 
 
 const evidenceList = (value: unknown) => {
  need(Array.isArray(value) && value.length > 0 && value.length <= 20, 'Cite between 1 and 20 evidence items')
- return value.map(item => ({ source: text(item?.source, 'Evidence source', 200), summary: text(item?.summary, 'Evidence summary') }))
+ return value.map(item => ({ source: text(item?.source, 'Evidence source', 200), summary: text(item?.summary, 'Evidence summary'), ...(item?.record?{record:{kind:text(item.record.kind,'Source kind'),id:text(item.record.id,'Source id'),revision:text(item.record.revision,'Source revision')}}:{}) }))
 }
 const sourceList = (value: unknown) => {
  const sources = Array.isArray(value) ? value.map(String) : []
@@ -95,16 +97,21 @@ export async function proposalCommand(env: Bindings, a: Actor, tx: Transaction, 
  if (action === 'proposal:prepare') {
   need(a.role === 'agent', 'Proposals are prepared by an agent grant; people act directly', 403)
   const kind = text(input.kind, 'Proposal kind'); need((proposalKinds as readonly string[]).includes(kind), 'Choose time, staffing, billing or change-order')
-  const engagement = await get(env, 'engagements', text(input.engagementId, 'Engagement')); tx.observe('engagements', engagement)
-  return tx.record('proposals', { kind, engagementId: engagement.id, status: 'proposed', preparedBy: a.session.operator.id, preparedAt: Date.now(), assumptions: text(input.assumptions, 'Assumptions'), evidence: evidenceList(input.evidence), plan: await plan(env, tx, kind, engagement, input) })
+  requireAgentScope(a,kind,text(input.engagementId,'Engagement'))
+  const engagement = await get(env, 'engagements', input.engagementId); tx.observe('engagements', engagement)
+  const evidence=evidenceList(input.evidence);await validateCitations(env,a,evidence)
+  const value={ kind, engagementId: engagement.id, status: 'proposed', preparedBy: a.session.operator.id, agentGrantVersion:a.grantVersion, preparedAt: Date.now(), assumptions: text(input.assumptions, 'Assumptions'), evidence, plan: await plan(env, tx, kind, engagement, input) }
+  return tx.record('proposals', {...value,sources:await captureSources(env,value,tx)})
  }
  const p = await get(env, 'proposals', text(input.id, 'Proposal')); need(p.revision === input.revision, 'Proposal changed; review the current version', 409); need(p.value.status === 'proposed', 'Proposal already decided', 409)
  if (action === 'proposal:withdraw') {
   need(a.role === 'agent' && p.value.preparedBy === a.session.operator.id, 'Only the preparing agent withdraws its proposal', 403)
+  requireAgentScope(a,p.value.kind,p.value.engagementId)
   return tx.record('proposals', { ...p.value, status: 'withdrawn', decidedBy: a.session.operator.id, decidedAt: Date.now() }, p, undefined, action)
  }
  need(['proposal:approve', 'proposal:decline'].includes(action), 'Unknown proposal command')
  need(await canDecide(env, a, p), 'This proposal needs a decision from its own person, the engagement lead or finance', 403)
+ await fenceProposal(env,a,tx,p)
  const decision = { decidedBy: a.session.operator.id, decidedAt: Date.now() }
  if (action === 'proposal:decline') return tx.record('proposals', { ...p.value, ...decision, status: 'declined', reason: text(input.reason, 'Decline reason') }, p, undefined, action)
  const result = await effect(env, a, tx, p, input), row = result.row as Row

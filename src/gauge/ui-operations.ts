@@ -1,10 +1,11 @@
+import { agentPurposes } from './agent-grants'
 import { fixedChargesSection } from './ui-fixed-charges'
 import { invoicesSection } from './ui-invoices'
 import { harvestControls } from './ui-harvest-history'
 import type { Bindings } from '../auth.server'
 import { type Actor, finance } from './store'
 import type { Row, Value } from './model'
-import { escape as e, input as i, amount, area, select as s, choices as c, check, form, decision, table, open } from './ui-forms'
+import { escape as e, input as i, amount, area, select as s, choices as c, check, checks, form, decision, table, open } from './ui-forms'
 import { hours, money, day, chip, nameOf } from './ui-format'
 import { type Report, describeSource } from './ui-describe'
 import { specialistHandoffSection } from './ui-specialist-handoff'
@@ -82,16 +83,17 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
  if(section==='access'){
   const operators=(await env.DB.prepare('SELECT id,email,display_name,role,status FROM oa_operators ORDER BY display_name').all<any>()).results
   const active=operators.filter(o=>o.status==='active')
-  body='<div class="g-titlebar"><h1>People and access</h1></div><p class="g-lede">Invite an operator, let them accept, then connect the operator to a person and a Gauge role. A project lead approves only assigned engagements. An agent grant prepares proposals only and names no person. Revoke access by saving the grant with Enabled cleared.</p>'
-  body+=`<div class="g-pair g-pair--wide">${form('invite','Invite operator',i('email','Email','','email')+i('displayName','Display name'))}${form('grant','Assign or revoke Gauge access',s('operatorId','Active operator',active.map(o=>({id:o.id,revision:'',value:{name:active.filter(x=>x.display_name===o.display_name).length>1?`${o.display_name} (${o.email})`:o.display_name}})))+s('personId','Person (none for an agent)',d.people,undefined,true)+c('role','Gauge role',['staff','lead','finance','agent'])+check('enabled','Enabled',true))}</div>`
-  const grants=(await env.DB.prepare('SELECT g.operator_id,g.person_id,g.role,g.enabled,o.display_name,o.email FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id ORDER BY o.display_name').all<any>()).results
+  body='<div class="g-titlebar"><h1>People and access</h1></div><p class="g-lede">Invite an operator, let them accept, then connect the operator to a person and a Gauge role. A project lead approves only assigned engagements. An agent grant prepares proposals for one purpose and the selected engagements, and names no person. Changing a grant invalidates its open proposals. Revoke access by saving the grant with Enabled cleared.</p>'
+  body+=`<div class="g-pair g-pair--wide">${form('invite','Invite operator',i('email','Email','','email')+i('displayName','Display name'))}${form('grant','Assign or revoke Gauge access',s('operatorId','Active operator',active.map(o=>({id:o.id,revision:'',value:{name:active.filter(x=>x.display_name===o.display_name).length>1?`${o.display_name} (${o.email})`:o.display_name}})))+s('personId','Person (none for an agent)',d.people,undefined,true)+c('role','Gauge role',['staff','lead','finance','agent'])+c('purpose','Agent purpose (agents only)',Object.keys(agentPurposes))+checks('engagementIds','Agent engagements (agents only)',d.engagements)+check('enabled','Enabled',true))}</div>`
+  const grants=(await env.DB.prepare('SELECT g.operator_id,g.person_id,g.role,g.enabled,g.purpose,g.engagement_ids,o.display_name,o.email FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id ORDER BY o.display_name').all<any>()).results
   const rows:Row[]=grants.map(g=>({id:g.operator_id,revision:'',value:g}))
   body+=table('Current grants',rows,[
    {label:'Active operator',wrap: true, cell:r=>`${e(r.value.display_name)}<span class="g-sub">${e(r.value.email)}</span>`},
    {label:'Person',cell:r=>e(r.value.person_id?nameOf(d.people,r.value.person_id):'—')},
    {label:'Gauge role',cell:r=>e(r.value.role.charAt(0).toUpperCase()+r.value.role.slice(1))},
+   {label:'Purpose and engagements',wrap:true,cell:r=>r.value.role==='agent'?e(`${agentPurposes[r.value.purpose as keyof typeof agentPurposes] ?? 'No purpose'} · ${JSON.parse(r.value.engagement_ids).map((id:string)=>nameOf(d.engagements,id)).join(', ')}`):'—'},
    {label:'Enabled',cell:r=>r.value.enabled?'Yes':'No'},
-  ],undefined,'No grants yet. The owner holds finance authority without one.')
+  ],r=>r.value.enabled?form('grant','Revoke access',`<input type="hidden" name="operatorId" value="${e(r.id)}"><input type="hidden" name="role" value="${e(r.value.role)}"><input type="hidden" name="personId" value="${e(r.value.person_id ?? '')}">`,undefined,'Revoke access','g-bare'):'','No grants yet. The owner holds finance authority without one.')
   body+=await approvalPolicySection(env,a,d.people,d.approvalPolicies)
   body+=await apiKeysSection(env,options.createdKey)
  }

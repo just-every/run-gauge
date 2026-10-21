@@ -17,6 +17,7 @@ export function cashLineage(c: Lineage) {
     if (!items.length && x.complete) continue
     c.row(e, 'engagements', x.engagementId); c.row(e, 'clients', x.clientId)
     for (const i of items) {
+     if (i.promiseSnapshot)c.row(e,'paymentPromises',i.promiseSnapshot.id)
      if (i.invoiceSnapshot) {
       // The cash calculation carries the immutable records it actually used. Include those exact
       // snapshots, rather than reconstructing the invoice or its receipts from mutable sources.

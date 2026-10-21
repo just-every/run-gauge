@@ -55,7 +55,7 @@ async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagem
 }
 
 export async function invoiceCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | null> {
- if (action !== 'invoice:issue' && action !== 'payment:record') return null
+ if (!['invoice:issue','invoice:promise','payment:record'].includes(action)) return null
  need(finance(a), 'Finance access required', 403)
  await fence(env, a)
  const privileged = authority(a, true)
@@ -80,12 +80,12 @@ export async function invoiceCommand(env: Bindings, a: Actor, tx: Transaction, a
   const billTo = text(input.billTo, 'Bill-to'), remitTo = text(input.remitTo, 'Remit-to'), reference = text(input.reference, 'Invoice reference')
   need(!client.value.poRequired || (client.value.poNumbers ?? []).some((po: string) => po.toLowerCase() === reference.toLowerCase()), 'This client requires an invoice reference matching a saved PO number')
   const lines = await invoiceLines(env, tx, packet, engagement, issueDate)
-  const sequence = await env.DB.prepare('SELECT value FROM g_invoice_sequence WHERE id=1').first<{value: number}>()
+  const sequence = await env.DB.prepare('SELECT value FROM g_invoice_sequence WHERE id=1').first<{value: number}>() ?? {value:0}
   need(sequence && Number.isSafeInteger(sequence.value) && sequence.value >= 0 && sequence.value < Number.MAX_SAFE_INTEGER, 'Invoice sequence unavailable', 409)
   // Sequence reservation and insertion commit together. A competing reservation
   // fails atomically and can be retried with the same uncommitted request key.
-  tx.guard('EXISTS(SELECT 1 FROM g_invoice_sequence WHERE id=1 AND value=?)', sequence.value)
-  tx.sql('UPDATE g_invoice_sequence SET value=value+1 WHERE id=1')
+  tx.guard('COALESCE((SELECT value FROM g_invoice_sequence WHERE id=1),0)=?', sequence.value)
+  tx.sql('INSERT INTO g_invoice_sequence(id,value) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value',sequence.value+1)
   return tx.record('invoices', {
    packetId: packet.id, packetRevision: packet.revision, engagementId: engagement.id, clientId: client.id,
    number: `INV-${String(sequence.value + 1).padStart(6, '0')}`, issueDate, dueDate, billTo, remitTo, reference,
@@ -98,6 +98,14 @@ export async function invoiceCommand(env: Bindings, a: Actor, tx: Transaction, a
  const invoice = await get(env, 'invoices', text(input.id, 'Invoice'))
  need(invoice.revision === input.revision, 'Invoice revision changed; reload before recording payment', 409)
  tx.observe('invoices', invoice)
+ if(action==='invoice:promise') {
+  const on=date(input.date), amountMinor=integer(input.amountMinor,'Promised amount',1,Number.MAX_SAFE_INTEGER)
+  need(on>=invoice.value.issueDate,'Promise date precedes invoice issue date')
+  tx.guard('COALESCE((SELECT SUM(amount_minor) FROM g_payments WHERE invoice_id=?),0)+? <= (SELECT total_minor FROM g_invoices WHERE id=?)',invoice.id,amountMinor,invoice.id)
+  const previous=await env.DB.prepare("SELECT COUNT(*) AS count FROM g_paymentPromises WHERE json_extract(data,'$.invoiceId')=?").bind(invoice.id).first<{count:number}>()
+  tx.guard("(SELECT COUNT(*) FROM g_paymentPromises WHERE json_extract(data,'$.invoiceId')=?)=?",invoice.id,previous?.count??0)
+  return tx.record('paymentPromises',{invoiceId:invoice.id,engagementId:invoice.value.engagementId,currency:invoice.value.currency,date:on,amountMinor,reference:text(input.reference,'Promise reference'),recordedBy:a.session.operator.id,recordedAt:Date.now()},undefined,undefined,action)
+ }
  const on = date(input.date), amountMinor = integer(input.amountMinor, 'Payment amount', 1, Number.MAX_SAFE_INTEGER), reference = text(input.reference, 'Bank receipt reference')
  need(on >= invoice.value.issueDate, 'Payment date precedes invoice issue date')
  need(input.currency === undefined || input.currency === invoice.value.currency, 'Payment currency differs from invoice; no implicit FX')

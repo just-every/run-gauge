@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
 
-// REPORT-003: production commands, pages, report CSV and specialist reconciliation.
+// REPORT-003 / INVOICE-006: production commands, pages, report CSV and specialist reconciliation.
 export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,packet}) {
  const {cmd,owner,request}=h
  const read=async(asOf='2026-10-19',cookie=owner)=>(await request(`/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=${asOf}`,cookie)).json()
@@ -36,6 +36,15 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
  await cmd('packet:adjust',{...packet,sourceId:entry.id,sourceKind:'time',correctedAmountMinor:50000,reason:'Must use future invoice credit flow'},owner,409)
  await cmd('payment:record',{...invoice,date:'2026-10-09',amountMinor:100,reference:'Before issue'},owner,400)
  await cmd('payment:record',{...invoice,date:'2026-10-11',amountMinor:100,currency:'CAD',reference:'Wrong currency'},owner,400)
+ // FINANCE-002's inherited payment-promise obligation: move only the promised amount's cash month.
+ await cmd('invoice:promise',{...invoice,date:'2026-12-15',amountMinor:10000,reference:'Client AP promise'})
+ let promised=(await read()).cash.engagements.find(x=>x.engagementId===hourly.id).items
+ assert.equal(promised.find(x=>x.promised).cashMonth,'2026-12');assert.equal(promised.find(x=>x.promised).openMinor,10000)
+ assert.equal(promised.reduce((n,x)=>n+x.openMinor,0),60000)
+ await cmd('invoice:promise',{...invoice,date:'2027-01-15',amountMinor:10000,reference:'Client AP revised promise'})
+ promised=(await read()).cash.engagements.find(x=>x.engagementId===hourly.id).items
+ assert.equal(promised.find(x=>x.promised).cashMonth,'2027-01');assert.equal(promised.filter(x=>x.promised).length,1)
+ assert.equal(promised.reduce((n,x)=>n+x.expectedMinor,0),30000,'FINANCE-007 independent recomputation: full open 60000 times client collection probability 50%')
  const paymentKey=randomUUID(),paymentInput={...invoice,date:'2026-10-11',amountMinor:20000,reference:'Bank deposit NW-1'}
  const pay=await cmd('payment:record',{...paymentInput,key:paymentKey})
  assert.deepEqual(await cmd('payment:record',{...paymentInput,key:paymentKey}),pay,'REPORT-003 receipt request replay is exact')
@@ -86,7 +95,7 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
  try{
   const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
   await context.addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
-  const capture=async(name)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`REPORT-003 billing fits ${width}`);if(process.env.GAUGE_CASH_SHOTS){await mkdir(process.env.GAUGE_CASH_SHOTS,{recursive:true});await page.locator('#invoices').screenshot({path:`${process.env.GAUGE_CASH_SHOTS}/REPORT-003-billing-${name}-${width}.png`})}}}
+  const capture=async(name)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`REPORT-003 billing fits ${width}`);if(process.env.GAUGE_CASH_SHOTS){await mkdir(process.env.GAUGE_CASH_SHOTS,{recursive:true});await page.locator('#invoices').screenshot({path:`${process.env.GAUGE_CASH_SHOTS}/REPORT-003-billing-${name}-${width}.png`});await page.locator('#specialist-handoffs').screenshot({path:`${process.env.GAUGE_CASH_SHOTS}/handoffs-${name}-${width}.png`})}}}
   await page.setViewportSize({width:1440,height:1000})
   await page.goto(h.origin+'/app/billing')
   const issueForm=page.locator('form').filter({has:page.locator(`input[name="action"][value="invoice:issue"]`)}).filter({has:page.locator(`input[name="id"][value="${workshop.id}"]`)})
@@ -99,7 +108,7 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
   assert.equal((await read()).cash.engagements.find(x=>x.engagementId===project.id).items.filter(x=>x.issued).length,1)
   assert(!(await read()).cash.engagements.find(x=>x.engagementId===project.id).items.some(x=>x.source===`milestones:${milestone.id}`))
   await capture('issued');await page.setViewportSize({width:390,height:1000})
-  const receipt=page.locator(`#invoice-${workshopInvoice.id}`).locator('form')
+  const receipt=page.locator(`#invoice-${workshopInvoice.id}`).locator('form').filter({has:page.locator('input[name="action"][value="payment:record"]')})
   await receipt.getByLabel('Receipt date').fill('2026-10-11');await receipt.getByLabel('Unique bank receipt reference').fill('Workshop bank receipt')
   await receipt.getByRole('button',{name:'Record receipt'}).click();await page.waitForURL('**/app/billing?saved=1')
   assert.match(await page.locator(`#invoice-${workshopInvoice.id}`).innerText(),/Paid by recorded receipts/)
@@ -108,5 +117,5 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/Paid by recorded receipts/)
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/not provider verified/)
  }finally{await browser.close()}
- console.log('PASS REPORT-003 native invoice-to-paid: source transfer once, as-of receipts, immutable source/client terms, races/replay, exact cash and margin, CSV/lineage, specialist reconciliation and privacy; provider/FX acceptance stays partial')
+ console.log('PASS REPORT-003 / INVOICE-006 native invoice-to-paid: source transfer once, as-of receipts, immutable source/client terms, races/replay, exact cash and margin, CSV/lineage, specialist reconciliation and privacy; provider/FX acceptance stays partial')
 }

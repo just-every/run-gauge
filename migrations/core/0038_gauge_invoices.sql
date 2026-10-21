@@ -1,7 +1,6 @@
 -- Native pre-tax invoice issuance and finance-recorded bank receipts.
 -- No sending, tax calculation or accounting/processor verification is implied.
 CREATE TABLE g_invoice_sequence (id INTEGER PRIMARY KEY CHECK(id=1), value INTEGER NOT NULL CHECK(value>=0));
-INSERT INTO g_invoice_sequence(id,value) VALUES(1,0);
 CREATE TABLE g_invoices (
  id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)),
  packet_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.packetId')) STORED NOT NULL REFERENCES g_packets(id),
@@ -37,3 +36,5 @@ BEGIN SELECT RAISE(ABORT,'issued_invoice_requires_credit'); END;
 CREATE TRIGGER g_issued_packet_correction_update BEFORE UPDATE ON g_packets
 WHEN NEW.status<>'cancelled' AND EXISTS(SELECT 1 FROM g_invoices WHERE packet_id=json_extract(NEW.data,'$.correctsPacketId'))
 BEGIN SELECT RAISE(ABORT,'issued_invoice_requires_credit'); END;
+
+CREATE TABLE g_paymentPromises (id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)));

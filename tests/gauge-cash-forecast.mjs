@@ -101,7 +101,7 @@ try {
  for (const width of [1440, 390]) {
   await page.setViewportSize({ width, height: 1000 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Cash forecast fits ${width}`)
-  if (shots) { await mkdir(shots, { recursive: true }); await section.screenshot({ path: `${shots}/cash-${width}.png` }); await page.locator('#revenue-dashboard').screenshot({path:`${shots}/REPORT-003-${width}.png`}) }
+  if (shots) { await mkdir(shots, { recursive: true }); await section.screenshot({ path: `${shots}/cash-${width}.png` }); await page.locator('#project-margin').screenshot({path:`${shots}/margin-${width}.png`}); await page.locator('#revenue-dashboard').screenshot({path:`${shots}/REPORT-003-${width}.png`}) }
   const dashboard=page.locator('#revenue-dashboard');assert(await dashboard.isVisible());assert.match(await dashboard.innerText(),/Unverified|unverified/);assert.match(await dashboard.innerText(),/Unknown/)
  }
  await page.setViewportSize({ width: 1440, height: 1000 })

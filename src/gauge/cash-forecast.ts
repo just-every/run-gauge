@@ -15,7 +15,7 @@ const DAY = 86400000
 const addDays = (day: string, days: number) => new Date(Date.parse(day) + days * DAY).toISOString().slice(0, 10)
 const nextMonthStart = (month: string) => { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + 1); return d.toISOString().slice(0, 10) }
 type CashMonth = { currency: string, month: string, revenueMinor: number, tentativeMinor: number, pipelineMinor: number, invoicesMinor: number, openMinor: number, expectedMinor: number, historicalOpenMinor: number, historicalExpectedMinor: number, pastDueMinor: number, engagements: string[] }
-type ScheduledInvoice = { source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, paymentSnapshots: Row[], assumption?: string }
+type ScheduledInvoice = { source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], assumption?: string }
 const percentOf = (minor: number, percent: number) => Number((BigInt(minor) * BigInt(percent) + 50n) / 100n)
 
 export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
@@ -60,12 +60,16 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const payments = receipts.filter(p => p.value.invoiceId === invoice.id)
    sources.invoices.push(invoice.id); sources.payments.push(...payments.map(p => p.id))
    const paidMinor = sum(payments.map(p => p.value.amountMinor))
+   const openMinor=invoice.value.totalMinor-paidMinor
+   const promise=(data.paymentPromises??[]).filter(p=>p.value.invoiceId===invoice.id).at(-1)
+   const promised=promise?Math.min(openMinor,promise.value.amountMinor):0
+   if(promised)invoices.push({source:`invoices:${invoice.id}:promise`,revenueMonth:null,invoiceDate:invoice.value.issueDate,amountMinor:0,openMinor:promised,issued:true,invoiceSnapshot:invoice,promiseSnapshot:promise,promised:true,paymentSnapshots:[]})
    invoices.push({ source: `invoices:${invoice.id}`, revenueMonth: null, invoiceDate: invoice.value.issueDate, amountMinor: invoice.value.totalMinor,
-    openMinor: invoice.value.totalMinor - paidMinor, issued: true, invoiceSnapshot: invoice, paymentSnapshots: payments })
+    openMinor: openMinor-promised, issued: true, invoiceSnapshot: invoice, paymentSnapshots: payments })
   }
   const items = invoices.map(x => {
-   const receiptDate = x.invoiceSnapshot?.value.dueDate ?? addDays(x.invoiceDate, terms), historicalDate = daysLate === null ? null : addDays(receiptDate, daysLate)
-   return { ...x, invoiceId: x.invoiceSnapshot?.id ?? null, paidMinor: x.amountMinor - x.openMinor, invoiceMonth: x.invoiceDate.slice(0, 7), receiptDate, cashMonth: place(receiptDate), pastDue: x.openMinor > 0 && receiptDate < asOf, historicalDate, historicalMonth: historicalDate && place(historicalDate), collectionPercent: percent, expectedMinor: percentOf(x.openMinor, percent) }
+   const receiptDate = (x.promiseSnapshot?.value.date>=asOf?x.promiseSnapshot.value.date:null) ?? x.invoiceSnapshot?.value.dueDate ?? addDays(x.invoiceDate, terms), historicalDate = x.promised ? receiptDate : daysLate === null ? null : addDays(receiptDate, daysLate)
+   return { ...x, invoiceId: x.invoiceSnapshot?.id ?? null, paidMinor: x.promised?0:sum(x.paymentSnapshots.map(p=>p.value.amountMinor)), invoiceMonth: x.invoiceDate.slice(0, 7), receiptDate, cashMonth: place(receiptDate), pastDue: x.openMinor > 0 && receiptDate < asOf, historicalDate, historicalMonth: historicalDate && place(historicalDate), collectionPercent: percent, expectedMinor: percentOf(x.openMinor, percent) }
   }).sort((x, y) => x.invoiceDate.localeCompare(y.invoiceDate) || x.source.localeCompare(y.source))
   return { engagementId: e.id, name: e.value.name, clientId: e.value.clientId, currency: f.currency, basis: f.basis, paymentTermsDays: terms, termsLabel: set === null ? 'Net 30 assumed' : `Net ${terms}`, daysLate, daysLateApprovedBy: client?.value.daysLateApprovedBy ?? null, collectionPercent: percent,
    bookedRevenueMinor: f.actualFeesMinor, backlogMinor: f.eacFeesMinor - f.actualFeesMinor, items, complete: incomplete.length === 0, incomplete: [...new Set(incomplete)], sources }

@@ -109,6 +109,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const invoiceClient=(await state()).data.clients.find(r=>r.id===engagement.value.clientId)
  const invoiceDue=new Date(Date.parse('2026-10-11')+(invoiceClient.value.paymentTermsDays??30)*86400000).toISOString().slice(0,10)
  const portableInvoice=await cmd('invoice:issue',{...invoicePacket,issueDate:'2026-10-11',dueDate:invoiceDue,billTo:invoiceClient.value.name,remitTo:'Portable agency account',reference:invoiceClient.value.poRequired?invoiceClient.value.poNumbers[0]:'Portable October invoice'})
+ await cmd('invoice:promise',{...portableInvoice,date:'2026-11-20',amountMinor:1500,reference:'Portable payment promise'})
  await cmd('payment:record',{...portableInvoice,date:'2026-10-12',amountMinor:1000,reference:'Portable bank receipt'})
  const before=await state()
  assert.equal(before.data.archives.filter(r=>r.value.forecast).length,4,'MIGRATE-003 source snapshots are available before BASE-002 export')

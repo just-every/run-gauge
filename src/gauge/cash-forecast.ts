@@ -1,3 +1,5 @@
+import { retainerConsumption } from './retainer-consumption'
+import { retainerIssueDate } from './retainer-schedule'
 import { retainerFees } from './retainer-fees'
 import { type Row, sum } from './model'
 import { liveInvoices } from './invoice-standing'
@@ -22,6 +24,7 @@ type ScheduledInvoice = { source: string, revenueMonth: string | null, invoiceDa
 const percentOf = (minor: number, percent: number) => Number((BigInt(minor) * BigInt(percent) + 50n) / 100n)
 
 export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
+ const balances=retainerConsumption({retainers:data.retainers??[],retainerPeriods:data.retainerPeriods??[],time:data.time??[],retainerCloses:data.retainerCloses??[],retainerAdjustments:data.retainerAdjustments??[]})
  const asOf = forecast.asOf, clients = new Map((data.clients ?? []).map(c => [c.id, c]))
  const issued = (data.invoices ?? []).filter(i => i.value.issueDate <= asOf)
  const receipts = (data.payments ?? []).filter(p => p.value.date <= asOf), live = new Map(liveInvoices(data, asOf).map(s => [s.invoice.id, s]))
@@ -30,11 +33,11 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   // The client's finance-set Net N is used when set; "Net 30 assumed" appears only while it is unset (SETUP-002).
   const e = data.engagements.find(r => r.id === f.engagementId)!, client = clients.get(e.value.clientId), set = client?.value.paymentTermsDays ?? null, terms: number = set ?? 30
   const daysLate = client?.value.daysLate ?? null, percent = client?.value.collectionPercent ?? 100
-  const incomplete = [...f.incomplete], sources = { ...f.sources, clients: client ? [client.id] : [], milestones: [...(f.sources.milestones ?? [])], invoices: [] as string[], payments: [] as string[], invoiceCorrections: [] as string[], fixedCharges: [] as string[] }
+  const incomplete = [...f.incomplete], sources = { ...f.sources, clients: client ? [client.id] : [], milestones: [...(f.sources.milestones ?? [])], invoices: [] as string[], payments: [] as string[], invoiceCorrections: [] as string[], fixedCharges: [] as string[],retainerSchedules:[] as string[],retainerCharges:[] as string[] }
   const actualInvoices = issued.filter(i => i.value.engagementId === e.id)
   const issuedMilestones = new Set<string>(), billedByMonth = new Map<string, number>()
   for (const invoice of actualInvoices.filter(i => !i.value.reissueOf)) for (const line of invoice.value.lines) {
-   if (line.kind === 'milestones' || line.kind === 'fixedCharges') { issuedMilestones.add(line.sourceId); continue }
+   if (line.kind === 'milestones' || line.kind === 'fixedCharges' || line.kind === 'retainerCharges' || line.kind === 'retainerPeriods') { issuedMilestones.add(line.sourceId); continue }
    // The issue command supports only hourly time, reimbursable expenses and fixed-fee milestones.
    // Prefer the frozen source date on the invoice over the current source revision.
    const source = (data[line.kind] ?? []).find(r => r.id === line.sourceId)
@@ -57,10 +60,21 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    if (!issuedMilestones.has(charge.id)) schedule(`fixedCharges:${charge.id}`,charge.value.date.slice(0,7),charge.value.date,charge.value.amountMinor)
   }
   if(f.basis==='retainer')for(const fee of retainerFees(data,asOf).filter(p=>p.engagementId===e.id&&p.totalMinor!==null)){
-   schedule(`retainerPeriods:${fee.periodId}`,fee.periodStart.slice(0,7),fee.activeStart,fee.totalMinor!,'Assumed in advance on active period start, not issued; RETAINER-005 sets the schedule')
+   const period=data.retainerPeriods.find(p=>p.id===fee.periodId)!,configured=(data.retainerSchedules??[]).find(s=>s.value.rootId===period.value.rootId&&period.value.activeStart>=s.value.from)
+   const charge=(data.retainerCharges??[]).find(c=>c.value.periodId===fee.periodId)
+   if(configured)sources.retainerSchedules.push(configured.id);if(charge)sources.retainerCharges.push(charge.id)
+   if(!charge||!issuedMilestones.has(charge.id))schedule(`retainerPeriods:${fee.periodId}`,fee.periodStart.slice(0,7),charge?.value.date??(configured?retainerIssueDate(period,configured.value.basis):fee.activeStart),fee.totalMinor!,configured?'Contractual retainer schedule; not issued':'Assumed in advance on active period start, not issued; RETAINER-005 sets the schedule')
+  }
+  const periodOverages=f.basis==='retainer'?balances.filter(b=>b.engagementId===e.id&&b.overageMinor>0):[]
+  for(const balance of periodOverages){
+   const period=data.retainerPeriods.find(p=>p.id===balance.periodId)!,policy=(data.retainerSchedules??[]).find(s=>s.value.rootId===period.value.rootId)
+   if(policy&&!sources.retainerSchedules.includes(policy.id))sources.retainerSchedules.push(policy.id)
+   if(issuedMilestones.has(period.id))continue
+   const held=policy?.value.heldPeriodIds.includes(period.id)
+   invoices.push({source:`retainerPeriods:${period.id}:overage`,revenueMonth:period.value.periodEnd.slice(0,7),invoiceDate:addDays(period.value.periodEnd,1),amountMinor:balance.overageMinor,openMinor:held?0:balance.overageMinor,issued:false,invoiceSnapshot:null,paymentSnapshots:[],...(held?{disputedMinor:balance.overageMinor,assumption:'Disputed retainer overage held; not expected as cash'}:{})})
   }
   for (const month of f.months) {
-   const cycle = month.committedFeesMinor - month.periodFeesMinor - sum(milestones.filter(m => m.value.due.slice(0, 7) === month.month).map(m => m.value.amountMinor)) - (billedByMonth.get(month.month) ?? 0)
+   const cycle = month.committedFeesMinor - month.periodFeesMinor - sum(periodOverages.filter(b=>data.retainerPeriods.find(p=>p.id===b.periodId)!.value.periodEnd.slice(0,7)===month.month).map(b=>b.overageMinor)) - sum(milestones.filter(m => m.value.due.slice(0, 7) === month.month).map(m => m.value.amountMinor)) - (billedByMonth.get(month.month) ?? 0)
    if (cycle) schedule(`cycle:${month.month}`, month.month, nextMonthStart(month.month), cycle)
   }
   for (const invoice of actualInvoices) {

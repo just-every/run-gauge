@@ -16,7 +16,7 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  if(!persistenceDirectory)execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',env:{...process.env,WRANGLER_SEND_METRICS:'false',CI:'true'}})
  const logs=[]
  const log=new class extends Log {log(message){logs.push(String(message))}}(LogLevel.INFO)
- const mf=new Miniflare({log,...convertV4MiniflareOptions({
+ const mf=new Miniflare({log,unsafeTriggerHandlers:true,...convertV4MiniflareOptions({
   host:'127.0.0.1',port,https:true,
   modulesRoot:server,modules:[config.main,...(await readdir(join(server,'assets'))).filter(f=>f.endsWith('.js')).map(f=>`assets/${f}`)].map(f=>({type:'ESModule',path:join(server,f)})),
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},
@@ -38,7 +38,7 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  const invite=async(name,role='member')=>{const response=await post('/auth/invite',{email:`${name}@example.test`,displayName:name,role},owner);assert.equal(response.status,202);const cookie=await confirmLatest(),session=await(await request('/auth/session',cookie)).json();return {cookie,id:session.operator.id}}
  const cmd=async(action,input={},cookie=owner,expected=200)=>{const response=await post('/api/gauge/command',{key:randomUUID(),action,...input},cookie),body=await response.json();assert.equal(response.status,expected,`${action}: ${JSON.stringify(body)}`);return body}
  const state=async(cookie=owner)=>{const r=await request('/api/gauge/state?from=2026-10-01&to=2026-10-31',cookie);assert.equal(r.status,200);return r.json()}
- return {logs,db:await mf.getD1Database('DB'),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
+ return {logs,scheduled:()=>request('/cdn-cgi/local/scheduled'),db:await mf.getD1Database('DB'),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
  }catch(error){await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true});throw error}
 }
 

@@ -53,7 +53,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
  for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
-  data.fixedCharges=[]; data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.projectScenarios=[]; data.paymentPromises=[]; data.invoices=[]; data.payments=[]; data.invoiceCorrections=[]; data.clientReceipts=[]; data.invoiceDisputes=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
+  data.retainerSchedules=[]; data.retainerCharges=[]; data.retainerRuns=[]; data.fixedCharges=[]; data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.projectScenarios=[]; data.paymentPromises=[]; data.invoices=[]; data.payments=[]; data.invoiceCorrections=[]; data.clientReceipts=[]; data.invoiceDisputes=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
   // Agency delivery templates are planning configuration for those who start projects.
   if(a.role!=='lead')data.deliveryTemplates=[]
   const leadIds=new Set(data.engagements.filter(e=>(a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))

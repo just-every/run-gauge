@@ -3,12 +3,13 @@ import { type AgentScope, liveAgentSql } from './agent-grants'
 import { agency } from './agency'
 import type { Session } from '../modules/operator-auth/index.mjs'
 import { decode, type Kind, type Row, type Value, need, uuid } from './model'
-export interface Actor { session: Session; role: string; personId: string | null; grantVersion: number | null; currency: string; timezone: string; agentScope?: AgentScope }
+export interface Actor { session: Session; role: string; personId: string | null; grantVersion: number | null; currency: string; timezone: string; agentScope?: AgentScope; scheduled?: {id:string;revision:string} }
 export async function actor(env: Bindings, session: Session): Promise<Actor> {
  const grant = await env.DB.prepare('SELECT * FROM g_grants WHERE operator_id=? AND enabled=1').bind(session.operator.id).first<{ role: string; person_id: string; version: number; purpose: string; engagement_ids: string; granted_by: string }>()
  return { ...await agency(env), session, role: session.operator.role === 'owner' ? 'owner' : grant?.role ?? 'none', personId: grant?.person_id ?? null, grantVersion: grant?.version ?? null, ...(grant?.role==='agent'?{agentScope:{purpose:grant.purpose,engagementIds:JSON.parse(grant.engagement_ids),grantedBy:grant.granted_by}}:{}) }
 }
 export function authority(a: Actor, privileged = false) {
+ if(a.scheduled)return {sql:`EXISTS(SELECT 1 FROM g_retainer_schedule_authority c JOIN g_retainerSchedules s ON s.id=c.schedule_id JOIN oa_operators o ON o.id=c.operator_id WHERE c.schedule_id=? AND c.revision=? AND s.revision=c.revision AND json_extract(s.data,'$.enabled')=1 AND o.id=? AND o.status='active' AND (o.role='owner' OR EXISTS(SELECT 1 FROM g_grants g WHERE g.operator_id=o.id AND g.enabled=1 AND g.role='finance' AND g.version=?)))`,params:[a.scheduled.id,a.scheduled.revision,a.session.operator.id,a.grantVersion]}
  const owner = a.role === 'owner'
  return { sql: `EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND s.operator_version=o.version AND o.status='active' AND s.revoked_at IS NULL AND s.expires_at>CAST(unixepoch('subsec')*1000 AS INTEGER) AND ${owner ? "o.role='owner'" : "EXISTS(SELECT 1 FROM g_grants g WHERE g.operator_id=o.id AND g.enabled=1 AND g.version=? AND g.role=? AND g.person_id IS ?)"})${a.role==='agent'?` AND EXISTS(${liveAgentSql} AND g.version=?)`:''}${privileged && !['owner','finance'].includes(a.role) ? ' AND 0' : ''}`, params: [a.session.id, a.session.operator.id, ...(owner ? [] : [a.grantVersion, a.role, a.personId]), ...(a.role==='agent'?[a.session.operator.id,a.grantVersion]:[])] }
 }

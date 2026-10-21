@@ -3,6 +3,7 @@ import { type Row, type Value, need, text, date, integer, sum } from './model'
 import { type Actor, type Transaction, authority, finance, fence, access, get } from './store'
 import { activeClient } from './clients'
 import { authorizedDelivery } from './milestone-delivery'
+import { retainerOverage } from './retainer-overages'
 import { assertAdHocTime } from './retainer-eligibility'
 
 const snapshot = (row: Row) => structuredClone(row)
@@ -32,18 +33,23 @@ async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagem
  const seen = new Set<string>(), lines: Value[] = []
  for (const line of packet.value.lines as Value[]) {
   const kind = line.kind
-  need(kind === 'time' || kind === 'expenses' || kind === 'milestones' || kind === 'fixedCharges', 'Invoice issuance supports hourly time, reimbursable expenses, fixed milestones and approved deposit/progress charges; retainer issuance is not available', 409)
+  need(kind === 'time' || kind === 'expenses' || kind === 'milestones' || kind === 'fixedCharges' || kind === 'retainerCharges' || kind === 'retainerPeriods', 'Invoice issuance supports hourly time, reimbursable expenses, fixed milestones and approved deposit/progress charges; scheduled retainer fees and reviewed overages', 409)
   const sourceId = text(line.sourceId, 'Source ID'), identity = `${kind}:${sourceId}`
   need(!seen.has(identity), 'Packet repeats a source line', 409); seen.add(identity)
   const source = await get(env, kind, sourceId), v = source.value
-  need(source.revision === line.sourceRevision && v.status === 'approved' && v.engagementId === engagement.id, 'Approved packet source changed; issuance requires its exact approved revision', 409)
+  need(source.revision === line.sourceRevision && (kind==='retainerPeriods'||v.status === 'approved') && v.engagementId === engagement.id, 'Approved packet source changed; issuance requires its exact approved revision', 409)
   tx.observe(kind, source)
   tx.guard('EXISTS(SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=? AND packet_id=?)', kind, source.id, source.revision, packet.id)
   need(await env.DB.prepare('SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=? AND packet_id=?').bind(kind, source.id, source.revision, packet.id).first(), 'Packet no longer reserves this exact source', 409)
   const currency = kind === 'time' ? v.economics?.currency : kind === 'milestones' ? v.currency ?? engagement.value.currency : v.currency
   need(currency === packet.value.currency && line.currency === currency, 'Invoice source currencies differ; no implicit FX')
   let sourceDate: string, amountMinor: number
-  if (kind === 'time') {
+  if(kind==='retainerPeriods'){
+   const current=await retainerOverage(env,tx,source)
+   need(current.retainerFingerprint===line.retainerFingerprint&&current.amountMinor===line.amountMinor,'Retainer consumption changed; review a fresh packet',409)
+   amountMinor=current.amountMinor;sourceDate=date(v.activeEnd)
+   need(issueDate>sourceDate,'Issue retainer overages only after the period ends')
+  } else if (kind === 'time') {
    await assertAdHocTime(env, tx, v)
    need(v.billable && !v.source?.billed && v.economics?.mode === 'hourly', 'Invoice requires approved, unbilled ordinary hourly time', 409)
    amountMinor = integer(v.economics.billMinor, 'Approved time amount', 0, Number.MAX_SAFE_INTEGER)
@@ -54,7 +60,7 @@ async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagem
    amountMinor = integer(v.amountMinor, 'Approved expense amount', 0, Number.MAX_SAFE_INTEGER)
    sourceDate = date(v.date)
    need(issueDate >= sourceDate, 'Invoice issue date precedes its expense source date')
-  } else if (kind === 'fixedCharges') {
+  } else if (kind === 'fixedCharges' || kind === 'retainerCharges') {
    amountMinor = integer(v.amountMinor, 'Approved fixed charge amount', 1, Number.MAX_SAFE_INTEGER)
    sourceDate = date(v.date)
    need(issueDate >= sourceDate, 'Invoice issue date precedes the approved charge date')

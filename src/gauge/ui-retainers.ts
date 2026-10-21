@@ -1,3 +1,4 @@
+import { retainerScheduleSection } from './ui-retainer-schedule'
 import type { Actor } from './store'
 import { finance } from './store'
 import type { Value } from './model'
@@ -57,5 +58,5 @@ export function retainerSection(a:Actor,report:Report,engagementId:string,option
   {label:'Renewal',line:3,cell:r=>`Renewal ${e(r.value.renewalDate??'ends')} · notice ${e(r.value.noticeDate??'none')}`},
  ],r=>{const b=report.retainerBalances.find(b=>b.periodId===r.id)!;return `<a href="/app/engagements?edit=${e(engagementId)}&calculation=${e(encodeURIComponent(`retainer:${r.id}:allowance`))}#report-evidence">Calculation and sources</a>${finance(a)&&b.overageMinor>0?form('packet:create','Review retainer overage',hidden('engagementId',engagementId)+hidden('sources',`retainerPeriods:${r.id}`)+i('title','Overage packet title',`Retainer overage ${r.value.periodStart}`)+`<p>${e(quantity(r.value.unit,b.overage,r.value.currency))} excess · ${e(money(b.overageMinor,r.value.currency))}. Creates a draft; finance reviews it before approval.</p>`,undefined,'Draft overage packet'):''}<details><summary>FIFO source allocation</summary><ul>${b.allocation.map((x:Value)=>`<li><a href="/app/time?edit=${e(x.sourceId)}">Source time</a> · ${e(quantity(r.value.unit,x.quantity,r.value.currency))} · ${x.allowancePeriodId?e(periods.find(p=>p.id===x.allowancePeriodId)?.value.periodStart??'Earlier allowance'):'Overage'}</li>`).join('')}</ul></details>${b.pendingSources.length?`<details><summary>Provisional pending sources</summary><ul>${b.pendingSources.map((id:string)=>`<li><a href="/app/time?edit=${e(id)}">Pending time</a></li>`).join('')}</ul></details>`:''}`})
  if(terms.length)body+=`<details><summary>Commercial version history</summary><ul>${terms.map(t=>`<li>${e(t.value.terms.name)} · version ${t.value.number} · ${e(t.value.reason)} · starts ${e(t.value.terms.start)}</li>`).join('')}</ul></details>`
- return body+retainerAllocationForms(report,engagementId)+retainerEvidence(report,engagementId)+'</section>'+retainerCloseSection(a,report,engagementId,options.today)
+ return body+retainerAllocationForms(report,engagementId)+retainerEvidence(report,engagementId)+'</section>'+retainerScheduleSection(a,report,engagementId,options.today)+retainerCloseSection(a,report,engagementId,options.today)
 }

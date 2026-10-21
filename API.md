@@ -255,3 +255,33 @@ not delivery or revenue recognition. Their unissued amounts enter expected cash
 on the charge date plus client terms, and an issued invoice replaces its schedule
 once. Ordinary DELIVERY-005 milestone gates remain. Consolidated multi-project
 invoices, time-source splits and recurring retainer principal schedules remain absent.
+
+### Scheduled retainer drafts (RETAINER-005, partial)
+
+Finance saves `retainer:schedule` with `retainerId`, `basis` (`advance` or
+`arrears`), `from` (first scheduled period), `enabled`, `heldPeriodIds`, and an
+explicit consent/change `reason`. Updates bind the schedule's `id` and
+`revision`. A disputed period in `heldPeriodIds` cannot contribute an overage;
+resolving it requires a new audited schedule revision. The hourly Worker cron
+prepares one due period per enabled schedule per invocation, bounded to 100
+schedules. `retainer:run` with the exact schedule and `asOf` is the finance-only
+public clock/repair door; it processes one due period without changing agency
+time, approved terms or earned history. Repeated invocations catch up in order.
+
+A run atomically records the period, its immutable working-day fee source, a
+reserved draft packet, exceptions and a unique period receipt. Advance fees use
+the active start; arrears fees use the day after the active end. Ended, undisputed
+period overages use the existing agreed quantity/rate and reservation checks.
+Included time is never a packet line. Finance approves packets and issues native
+invoices with the ordinary commands. Issued fees/overages leave expected cash
+once. Existing frozen fee dates and earned amounts survive schedule changes.
+
+Conservative default pending ct review: `autoIssue:true` is refused; scheduling
+creates drafts only. External RETAINER-004 waivers/refunds are not executed or
+silently applied as invoice credits. Automated credit application and the
+configurable automatic issue policy remain unimplemented. Scheduling consent is
+installation authority, excluded from archives; restored business schedules and
+run receipts cannot execute until finance explicitly saves new consent. Each
+cron transaction rechecks that consent and its configuring owner's or finance
+person's current authority. Disabling, granting-person revocation or a changed
+grant version stops execution at the next transaction.

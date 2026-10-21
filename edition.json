@@ -48,7 +48,8 @@
           "migrations/core/0038_gauge_invoices.sql",
           "migrations/core/0039_gauge_invoice_corrections.sql",
           "migrations/core/0041_gauge_fixed_charges.sql",
-          "migrations/core/0042_gauge_agent_scopes.sql"
+          "migrations/core/0042_gauge_agent_scopes.sql",
+          "migrations/core/0043_gauge_retainer_schedule.sql"
         ]
       }
     },

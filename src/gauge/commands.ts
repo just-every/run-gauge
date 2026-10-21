@@ -2,6 +2,7 @@ import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Value, need, text } from './model'
 import { type Actor, Transaction, fence, get } from './store'
+import { scheduleCommand as retainerScheduleCommand } from './retainer-schedule'
 import { catalog, approveTerms } from './catalog'
 import { specialistHandoffCommand } from './specialist-handoff'
 import { timeCommand } from './time'
@@ -50,6 +51,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  const tx=new Transaction(env,a)
  tx.key=key;tx.action=action
  let result:Value|null=await retainerCommand(env,a,tx,action,input)
+ if(!result)result=await retainerScheduleCommand(env,a,tx,action,input)
  if(!result)result=await milestoneDeliveryCommand(env,a,tx,action,input)
  if(!result)result=await deliveryCommand(env,a,tx,action,input)
  if(!result)result=await templateCommand(env,a,tx,action,input)

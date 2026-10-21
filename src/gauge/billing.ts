@@ -17,8 +17,9 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
   need(selected.length>0 && selected.length<=100,'Select between 1 and 100 approved source lines')
   const lines: Value[]=[]
   for (const source of selected) {
-   const [k,id] = String(source).split(':'); need(['time','expenses','milestones','retainerPeriods','fixedCharges'].includes(k),'Unknown source type')
+   const [k,id] = String(source).split(':'); need(['time','expenses','milestones','retainerPeriods','fixedCharges','retainerCharges'].includes(k),'Unknown source type')
    const row=await get(env,k as Kind,id),v=row.value; if(k==='retainerPeriods'){need(v.engagementId===e.id,'Period belongs to another engagement');const line=await retainerOverage(env,tx,row);need(line.currency===e.value.currency,'Overage currency differs; no implicit FX');lines.push(line);continue} need(v.engagementId===e.id && v.status==='approved','Only approved work for this engagement is eligible'); tx.observe(k as Kind,row)
+   if(k==='retainerCharges')need(v.date<=String(input.asOf??v.date),'Retainer fee is not due yet',409)
    if(k==='milestones')need(authorizedDelivery(v),'Record current delivery acceptance and separate finance authorization before billing',409)
    // Legacy milestones were denominated by their engagement before carrying their own currency.
    const currency = k === 'time' ? v.economics?.currency : k === 'milestones' ? v.currency ?? e.value.currency : v.currency

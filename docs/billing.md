@@ -12,4 +12,8 @@ On **Billing**, **Prepare packet** takes an engagement, a **Packet title** and t
 
 An approved packet never changes. If an amount was wrong, **Prepare adjustment** on the latest packet in that line drafts a linked adjustment packet with the difference, which you approve and download like any other.
 
-Gauge prepares billing; it does not send invoices or take payments. Your accounting tool issues the invoice from the packet.
+## Credit or void an issued invoice
+
+An issued invoice never changes either. On its card, **Credit, discount or write off** issues a numbered credit note against one of its lines, with a reason; a line can never be credited beyond what it billed. **Void and reissue** cancels an invoice that has no receipts or credits and issues a new numbered invoice for the lines you keep: lower or zero a line to leave that amount written down. Credited, voided and written-down work never returns to billing. When the owner has set a review limit, a larger correction waits until another owner or finance person issues it.
+
+Gauge does not send invoices, calculate tax or take payments.

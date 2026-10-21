@@ -12,9 +12,9 @@ const controlTotals=(totals:Value[])=>`<ul class="g-lines">${totals.map(t=>`<li>
 export function specialistHandoffSection(a:Actor,report:Report):string {
  if(!finance(a))return ''
  const d=report.data,selected:string[]=[]
- for(const kind of ['time','expenses','packets','invoices','payments'] as const)for(const r of d[kind].filter(r=>kind==='invoices'||kind==='payments'||r.value.status==='approved')){
-  const v=r.value,kindLabel=kind==='time'?'Labor':kind==='expenses'?'Expense':kind==='invoices'?'Issued invoice (pre-tax)':kind==='payments'?'User-recorded receipt':'Billing-preparation revenue input'
-  const detail=kind==='time'?`${nameOf(d.people,v.personId)} · ${v.workDate} · ${hours(v.durationSeconds)}`:kind==='expenses'?`${v.date} · ${money(v.amountMinor,v.currency)}`:kind==='invoices'?`${v.number} · ${v.issueDate} · ${money(v.totalMinor,v.currency)}`:kind==='payments'?`${d.invoices.find(invoice=>invoice.id===v.invoiceId)?.value.number??v.invoiceId} · ${v.date} · ${money(v.amountMinor,v.currency)} · ${v.reference}`:`${v.title} · ${money(v.totalMinor,v.currency)}`
+ for(const kind of ['time','expenses','packets','invoices','invoiceCorrections','payments'] as const)for(const r of d[kind].filter(r=>kind==='invoices'||kind==='payments'||(kind==='invoiceCorrections'?r.value.status==='issued':r.value.status==='approved'))){
+  const v=r.value,kindLabel=kind==='time'?'Labor':kind==='expenses'?'Expense':kind==='invoices'?'Issued invoice (pre-tax)':kind==='invoiceCorrections'?(v.type==='void'?'Issued void':'Issued credit note'):kind==='payments'?'User-recorded receipt':'Billing-preparation revenue input'
+  const detail=kind==='time'?`${nameOf(d.people,v.personId)} · ${v.workDate} · ${hours(v.durationSeconds)}`:kind==='expenses'?`${v.date} · ${money(v.amountMinor,v.currency)}`:kind==='invoices'?`${v.number} · ${v.issueDate} · ${money(v.totalMinor,v.currency)}`:kind==='invoiceCorrections'?`${v.number??'Void'} of ${v.invoiceNumber} · ${v.date} · −${money(v.amountMinor,v.currency)}`:kind==='payments'?`${d.invoices.find(invoice=>invoice.id===v.invoiceId)?.value.number??v.invoiceId} · ${v.date} · ${money(v.amountMinor,v.currency)} · ${v.reference}`:`${v.title} · ${money(v.totalMinor,v.currency)}`
   selected.push(check('handoffSources',`${kindLabel} · ${nameOf(d.engagements,v.engagementId)} · ${detail}`,false,JSON.stringify({kind,id:r.id,revision:r.revision})))
  }
  const fields='<input type="hidden" name="page" value="billing">'+input('recipient','Accountant or payroll recipient')+

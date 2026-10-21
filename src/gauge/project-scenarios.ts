@@ -14,7 +14,7 @@ import type { Alternative, ScenarioEffect } from './project-scenario-effects'
 
 // FINANCE-003: every comparison uses the native committed forecast and cash basis.
 // Full set guards include inserts/deletes as well as revision changes.
-const basisKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','retainers','retainerPeriods','retainerCloses','retainerAdjustments','deliveryPlans','invoices','payments','paymentPromises']
+const basisKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','retainers','retainerPeriods','retainerCloses','retainerAdjustments','deliveryPlans','invoices','payments','paymentPromises','invoiceCorrections']
 const hash = (value: unknown) => sha256(canonicalJson(value))
 async function basis(env: Bindings, tx?: Transaction) {
  const data = Object.fromEntries(await Promise.all(basisKinds.map(async k => [k, await all(env,k)]))) as Record<Kind,Row[]>

@@ -45,7 +45,8 @@
         "migrations/core/0033_gauge_rate_withdrawals.sql",
           "migrations/core/0034_gauge_demand_scenarios.sql",
           "migrations/core/0036_gauge_audit.sql",
-          "migrations/core/0038_gauge_invoices.sql"
+          "migrations/core/0038_gauge_invoices.sql",
+          "migrations/core/0039_gauge_invoice_corrections.sql"
         ]
       }
     },

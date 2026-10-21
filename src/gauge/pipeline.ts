@@ -1,4 +1,5 @@
 import type { Bindings } from '../auth.server'
+import { liveInvoices } from './invoice-standing'
 import { type Row, type Value, need, text, date, integer, money, sum } from './model'
 import { type Actor, Transaction, finance, get, access } from './store'
 import { activeClient } from './clients'
@@ -43,7 +44,8 @@ export async function opportunityCommand(env: Bindings, a: Actor, tx: Transactio
  * work uses its approved commercial terms once; an unconverted win uses its
  * recorded won value. Booked values are before billing, not cash forecasts.
  * With `billedAsOf` (finance only: leads never read invoice amounts), billed
- * is the pre-tax total of native invoices issued on or before that day for the
+ * is the pre-tax total of live native invoices issued on or before that day, less their issued
+ * credit notes (INVOICE-004; a voided original drops out and its reissue counts once), for the
  * engagements that carry booked value, and backlog is booked minus billed in
  * minor units; it goes negative when billing exceeds booked value. */
 export function pipeline(data: Record<string, Row[]>, billedAsOf: string | null = null) {
@@ -60,8 +62,8 @@ export function pipeline(data: Record<string, Row[]>, billedAsOf: string | null 
   for (const r of won.filter(r => r.value.currency === currency && !r.value.engagementId)) booked.push({ source: `opportunities:${r.id}`, engagementId: null, amountMinor: r.value.amountMinor })
   const bookedMinor = sum(booked.map(r => r.amountMinor))
   const engagementIds = new Set(booked.flatMap(r => r.engagementId ? [r.engagementId] : []))
-  const invoices = billedAsOf === null ? [] : data.invoices.filter(r => r.value.currency === currency && r.value.issueDate <= billedAsOf && engagementIds.has(r.value.engagementId))
-  const billing = billedAsOf === null ? { billedMinor: null, backlogMinor: null } : { billedMinor: sum(invoices.map(r => r.value.totalMinor)), backlogMinor: bookedMinor - sum(invoices.map(r => r.value.totalMinor)) }
-  return { currency, ...billing, billedInvoices: invoices.map(r => r.id), weightedMinor: sum(weighted.map(r => r.amountMinor)), tentativeDemandSeconds: sum(weighted.map(r => r.demandSeconds)), bookedMinor, weighted, booked }
+  const standings = billedAsOf === null ? [] : liveInvoices(data, billedAsOf).filter(s => s.invoice.value.currency === currency && engagementIds.has(s.invoice.value.engagementId)), billedMinor = sum(standings.map(s => s.netMinor))
+  const billing = billedAsOf === null ? { billedMinor: null, backlogMinor: null } : { billedMinor, backlogMinor: bookedMinor - billedMinor }
+  return { currency, ...billing, billedInvoices: standings.map(s => s.invoice.id), billedCredits: standings.flatMap(s => s.credits.map(c => c.id)), weightedMinor: sum(weighted.map(r => r.amountMinor)), tentativeDemandSeconds: sum(weighted.map(r => r.demandSeconds)), bookedMinor, weighted, booked }
  })
 }

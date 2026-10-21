@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
+import {invoiceCorrectionJourney} from './gauge-invoice-corrections.mjs'
 
 // REPORT-003 / INVOICE-006: production commands, pages, report CSV and specialist reconciliation.
 export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,packet}) {
@@ -128,5 +129,6 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/Paid by recorded receipts/)
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/not provider verified/)
  }finally{await browser.close()}
+ await invoiceCorrectionJourney(h,{worker})
  console.log('PASS REPORT-003 / INVOICE-006 native invoice-to-paid: source transfer once, as-of receipts, immutable source/client terms, races/replay, exact cash and margin, CSV/lineage, specialist reconciliation and privacy; provider/FX acceptance stays partial')
 }

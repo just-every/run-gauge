@@ -3377,7 +3377,7 @@
       "executable": false
     },
     "tests/gauge-cli-journey.mjs": {
-      "sha256": "6d362cc5b322d0995cb5862c6aed2be84859252946555322bdd8fab2b04d6ba8",
+      "sha256": "8fe0c2a560aa8d245b25925c28d14c21c81cd0a69cdf6af4b0a8951129de1321",
       "executable": false
     },
     "tests/gauge-clients.mjs": {

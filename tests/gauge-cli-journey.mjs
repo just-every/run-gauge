@@ -29,14 +29,22 @@ export function journeyCli(onStage) {
  async function start(cwd,verb,port) {
   assert(!server,'stop the previous runtime before starting another')
   onStage(`rer ${verb} readiness`);origin=`http://127.0.0.1:${port}`
-  server=spawn(process.execPath,[rer,verb,'--host','127.0.0.1','--port',String(port),'--foreground'],{cwd,stdio:['ignore','pipe','pipe'],env})
+  server=spawn(process.execPath,[rer,verb,'--host','127.0.0.1','--port',String(port),'--foreground','--json'],{cwd,stdio:['ignore','pipe','pipe'],env})
   let output='';for(const stream of[server.stdout,server.stderr])stream.on('data',chunk=>output+=chunk)
-  const marker=verb==='dev'?/RER_OPEN\s+(\S+)/:/RER_READY\s+(\S+)/
-  for(let n=0;n<600&&!marker.test(output);n++){
-   assert(server.exitCode===null&&server.signalCode===null,'runtime exited before readiness')
+  const events=()=>output.split('\n').flatMap(line=>{try{return [JSON.parse(line)]}catch{return []}})
+  const ready=()=>events().find(event=>event.event==='ready')
+  for(let n=0;n<600&&!ready();n++){
+   if(server.exitCode!==null||server.signalCode!==null){
+    const failed=events().findLast(event=>event.event==='error')
+    const code=/^[a-z_]{1,60}$/.test(failed?.code??'')?failed.code:'unclassified'
+    const step=/^[a-z_:.-]{1,60}$/.test(failed?.step??'')?failed.step:'startup'
+    onStage(`rer ${verb} readiness: ${code}, ${step}, exit ${server.exitCode}, signal ${server.signalCode}`)
+    assert.fail('runtime exited before readiness; credential-bearing output withheld')
+   }
    await new Promise(resolve=>setTimeout(resolve,500))
   }
-  const entry=output.match(marker)?.[1];assert(entry,'native readiness received without logging credential URLs')
+  const event=ready(),entry=verb==='dev'?event?.openUrl:event?.url
+  assert(entry,'native readiness received without logging credential URLs')
   const health=await fetch(origin+'/health',{signal:AbortSignal.timeout(10000)})
   assert.equal(health.status,200);assert.equal((await health.json()).status,'ok')
   console.log(`PASS rer ${verb} readiness and native health`)

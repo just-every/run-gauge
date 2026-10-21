@@ -3357,7 +3357,7 @@
       "executable": false
     },
     "tests/gauge-agent.mjs": {
-      "sha256": "6208ea726cfd789a5a76b12d1b868d9b19b49f4aef882c335c681de01e308d8a",
+      "sha256": "8d937566cd29d2c8d0d4dd9787ad3c8288a185dabaf2cfb91fc3778565caee73",
       "executable": false
     },
     "tests/gauge-approvals.mjs": {

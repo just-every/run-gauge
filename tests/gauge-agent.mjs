@@ -123,6 +123,30 @@ try{
   const fresh=await cmd('proposal:prepare',{kind:'time',engagementId:eng.id,assumptions:'Current cited task',evidence:[{source:'Current task',summary:instruction,record:{kind:'tasks',id:task.id,revision:taskNow.revision}}],plan:timePlan},agent.cookie)
   // Ordinary confirmation remains available after a fresh preparation.
   await cmd('proposal:approve',await proposal(fresh.id),staff.cookie)
+  // Source fences also cover the concrete allocations and approved billing work used by the other public agent doors.
+  await grantPurpose('staffing')
+  const allocation=(await state()).data.staffing.find(r=>r.value.personId===staffPerson.id)
+  const staffing=await cmd('proposal:prepare',{kind:'staffing',engagementId:eng.id,assumptions:'Quoted current allocation',evidence:[{source:'Current allocation',summary:'Reduce the load',record:{kind:'staffing',id:allocation.id,revision:allocation.revision}}],plan:{alternatives:[{personId:staffPerson.id,from:'2026-11-16',to:'2026-11-16',dailySeconds:3600,rationale:'One review hour'}]}},agent.cookie)
+  await cmd('save:staffing',{...allocation,...allocation.value,dailySeconds:allocation.value.dailySeconds+600})
+  const staffingBefore=(await state()).data.staffing
+  await cmd('proposal:approve',await proposal(staffing.id),lead.cookie,409)
+  assert.deepEqual((await state()).data.staffing,staffingBefore)
+  await grantPurpose('billing')
+  let citedTime=await cmd('time:save',{...timePlan,engagementId:eng.id,start:'2026-10-13T09:00:00+10:00',end:'2026-10-13T10:00:00+10:00',billable:true},staff.cookie)
+  citedTime=await cmd('time:approve',await cmd('time:submit',citedTime,staff.cookie),lead.cookie)
+  const billing=await cmd('proposal:prepare',{kind:'billing',engagementId:eng.id,assumptions:'Current approved time only',evidence:[{source:'Approved work',summary:'A reviewed hour',record:{kind:'time',id:citedTime.id,revision:citedTime.revision}}],plan:{title:'synthetic-gauge-7 billing',sources:[`time:${citedTime.id}`]}},agent.cookie)
+  await cmd('time:correct',{...citedTime,reason:'Reopen incorrect source interval'})
+  const packetsBefore=(await state()).data.packets
+  await cmd('proposal:approve',await proposal(billing.id),finance.cookie,409)
+  assert.deepEqual((await state()).data.packets,packetsBefore)
+  await grantPurpose('change-order')
+  const scopeChange=await prepare('change-order',{mode:'hourly',amountMinor:5000,effortSeconds:3600,roundingSeconds:60,brief:'A literal scope request'})
+  const currentTask=(await state()).data.tasks.find(r=>r.id===task.id)
+  await cmd('save:tasks',{...currentTask,...currentTask.value,remainingSeconds:currentTask.value.remainingSeconds+3600},lead.cookie)
+  const budgetsBefore=(await state()).data.budgets
+  await cmd('proposal:approve',await proposal(scopeChange.id),lead.cookie,409)
+  assert.deepEqual((await state()).data.budgets,budgetsBefore)
+  await grantPurpose('time')
   const pending=await prepare('time',{...timePlan,start:'2026-10-10T09:00:00+10:00',end:'2026-10-10T10:00:00+10:00'})
   const pendingRow=await proposal(pending.id)
   await cmd('grant',{operatorId:agent.id,role:'agent',enabled:false},lead.cookie,403)

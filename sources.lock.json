@@ -1030,7 +1030,7 @@
       "executable": false
     },
     "src/gauge/cash-forecast.ts": {
-      "sha256": "40fd64978f998453554eb7c1f75e55e6f47433504971080b78fcbd54b295112d",
+      "sha256": "544f19df8767814b57d10a8b6b5b738d5fc4a85ccc780085fd223ab0b8edbdb6",
       "executable": false
     },
     "src/gauge/catalog.ts": {

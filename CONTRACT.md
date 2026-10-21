@@ -414,8 +414,8 @@ Judged from the code and tests at commit `57e52b06040615f3725740e5612305b9697784
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 33 | 32 | 57 | 122 |
-| All | 50 | 32 | 57 | 139 |
+| Target and push further | 33 | 33 | 56 | 122 |
+| All | 50 | 33 | 56 | 139 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |

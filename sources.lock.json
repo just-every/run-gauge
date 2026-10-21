@@ -263,7 +263,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a7f8c3abc3c13b88a0279027a2faad0f5d94354e56da19876653bb54a10c09a2",
+      "sha256": "63976a19a8bc66902538a659e6be248d5372537b39b63d6418f37dc3f8ea32cb",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -3383,7 +3383,7 @@
       "executable": false
     },
     "tests/gauge-invoice-corrections.mjs": {
-      "sha256": "3dcd658c3e5ade195fb6e4db89e1303d0a112582cc14d557b2ca42be059af792",
+      "sha256": "b314d234d471c0402071f051fafdf36c324d45a55ef219a160af87b5014ad27a",
       "executable": false
     },
     "tests/gauge-invoices.mjs": {

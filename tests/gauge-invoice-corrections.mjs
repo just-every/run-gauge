@@ -14,7 +14,7 @@ export async function invoiceCorrectionJourney(h,{worker}) {
  const task=await cmd('save:tasks',{engagementId:project.id,name:'Corrected support',remainingSeconds:0})
  const work=async(day,from,hours,notes)=>{const t=await cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'Support',notes,timezone:'America/New_York',billable:true,start:`${day}T${String(from).padStart(2,'0')}:00:00-04:00`,end:`${day}T${String(from+hours).padStart(2,'0')}:00:00-04:00`});return cmd('time:approve',await cmd('time:submit',t))}
  const issue=async(sources,issueDate,dueDate,reference)=>{const p=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:reference,sources}));return {packet:p,invoice:await cmd('invoice:issue',{...p,issueDate,dueDate,billTo:'Correction client AP',remitTo:'Agency operating account',reference})}}
- const before=usd(await read())
+ const before=usd(await read()),billedBefore=(await read()).pipeline.find(x=>x.currency==='USD').billedMinor
  // An independent approver: the owner's limit makes a $300.00 write-off wait for another finance person.
  const approver=await h.invite('correction-finance');await cmd('grant',{operatorId:approver.id,personId:worker.id,role:'finance',enabled:true})
  const policy=await cmd('approval:limit',{reviewAboveMinor:20000,reason:'Two-person review for invoice corrections'})
@@ -74,6 +74,11 @@ export async function invoiceCorrectionJourney(h,{worker}) {
  assert(!d.cash.engagements.find(x=>x.engagementId===project.id).items.some(x=>!x.issued&&x.revenueMonth==='2026-10'),'INVOICE-004 written-down work is never expected again')
  const margin=d.margin.find(x=>x.engagementId===project.id);assert.equal(margin.billedMinor,25000+30000);assert.match(margin.billedLabel,/net of credit notes/)
  const figure=d.lineage.find(x=>x.id==='revenue:USD:creditedMinor');assert.equal(figure.value,after.creditedMinor)
+ // SALES-001 billed against booked value, FINANCE-001 billed and FINANCE-007 cash name the credit notes they net.
+ assert.equal(d.pipeline.find(x=>x.currency==='USD').billedMinor-billedBefore,25000+30000)
+ const credits=id=>d.lineage.find(x=>x.id===id).sources.filter(s=>s.kind==='invoiceCorrections').map(s=>s.id).sort()
+ assert.deepEqual(credits('pipeline:USD:billedMinor'),[credit.id,writeOff.id].sort());assert.deepEqual(credits(`margin:${project.id}:billedMinor`),[credit.id,writeOff.id].sort())
+ assert(credits('cash:USD:2026-11:expectedMinor').includes(credit.id))
  for(const id of [credit.id,writeOff.id])assert(figure.sources.some(s=>s.kind==='invoiceCorrections'&&s.id===id))
  assert(figure.sources.some(s=>s.kind==='expenses'&&s.id===expense.id))
  const csv=await request('/api/gauge/report.csv?'+new URLSearchParams({from:d.from,to:d.to,asOf,fingerprint:d.fingerprint}),owner);assert.equal(csv.status,200);assert.match(await csv.text(),/revenue:USD:creditedMinor/)

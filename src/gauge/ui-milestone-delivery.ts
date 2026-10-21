@@ -1,6 +1,10 @@
 import type { Row, Value } from './model'
-import { escape as e, input as i, area, choices as c, select as s, form } from './ui-forms'
+import { escape as e, input as i, area, choices, select, form } from './ui-forms'
 import { acceptedDelivery } from './milestone-delivery'
+
+// An explicit control name excludes option text from the wrapping label's name.
+const c=(...args:Parameters<typeof choices>)=>choices(...args).replace('<select ',`<select aria-label="${e(args[1])}" `)
+const s=(...args:Parameters<typeof select>)=>select(...args).replace('<select ',`<select aria-label="${e(args[1])}" `)
 
 export function milestoneDeliverySection(rows:Row[],people:Row[],today:string) {
  return `<section id="milestone-delivery"><h2 class="g-subhead">Delivery health and client decisions</h2><p>Client decisions are recorded by the engagement lead or finance, not confirmed by the client. Delivery and recorded acceptance never issue an invoice. Finance must separately approve billing.</p>${rows.map(row=>{

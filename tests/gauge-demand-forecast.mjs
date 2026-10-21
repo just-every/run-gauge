@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 
@@ -62,6 +63,23 @@ try {
  assert.deepEqual(s(hire.id).delta, { capacitySeconds: hireSeconds, demandSeconds: 40 * hour, feesMinor: 1000000, costMinor: hireSeconds / hour * 6000, marginMinor: 1000000 - hireSeconds / hour * 6000 })
  assert.deepEqual(s(delayed.id).delta, { capacitySeconds: 0, demandSeconds: 40 * hour, feesMinor: 1000000, costMinor: 360000, marginMinor: 640000 })
  assert.equal(s(delayed.id).from, '2026-12-14'); assert.equal(month(s(delayed.id).months, '2026-12').dealDemandSeconds, 40 * hour); assert.equal(month(s(delayed.id).months, '2026-11').dealDemandSeconds, 0)
+ // REPORT-005: every month and scenario figure drills to its formula and source rows, and the exported CSV reconciles to the screen.
+ const figure = (id) => data.lineage.find(x => x.id === id)
+ for (const m of f.baseline.months) for (const k of ['committedDemandSeconds', 'unfilledSeconds', 'tentativeSeconds', 'weightedPipelineSeconds', 'employeeCapacitySeconds', 'contractorCapacitySeconds', 'committedFeesMinor', 'marginMinor']) assert.equal(figure(`demand:${m.month}:${k}`).value, m[k], `${m.month} ${k} equals its screen figure`)
+ const novFigure = k => figure(`demand:2026-11:${k}`), kinds = (x, kind) => x.sources.filter(r => r.kind === kind).map(r => r.id)
+ assert.equal(kinds(novFigure('committedSeconds'), 'staffing').length, 1); assert.equal(kinds(novFigure('unfilledSeconds'), 'resourceRequests').length, 1)
+ assert.deepEqual(kinds(novFigure('weightedPipelineSeconds'), 'opportunities'), [deal.id]); assert.deepEqual(kinds(novFigure('committedFeesMinor'), 'engagements'), [eng.id])
+ assert(kinds(novFigure('contractorCapacitySeconds'), 'calendars').length > 0 && kinds(novFigure('contractorCapacitySeconds'), 'people').includes(cy.id))
+ for (const id of [contractor.id, hire.id, delayed.id]) for (const k of ['capacitySeconds', 'demandSeconds', 'feesMinor', 'costMinor', 'marginMinor']) {
+  const x = figure(`demand:scenario:${id}:${k}`); assert.equal(x.value, s(id).delta[k]); assert(kinds(x, 'demandScenarios').includes(id) && kinds(x, 'opportunities').includes(deal.id), 'a scenario delta names its scenario and deal')
+ }
+ const exported = await request('/api/gauge/report.csv?' + new URLSearchParams({ from: data.from, to: data.to, asOf: f.asOf, fingerprint: data.fingerprint }), owner); assert.equal(exported.status, 200)
+ const rows = JSON.parse(execFileSync('python3', ['-c', 'import csv,json,sys; print(json.dumps(list(csv.DictReader(sys.stdin))))'], { input: await exported.text(), encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }))
+ const exportedValue = id => Number(rows.find(r => r.row === 'figure' && r.figure === id).value)
+ assert.equal(exportedValue('demand:2026-11:committedSeconds') + exportedValue('demand:2026-11:unfilledSeconds') + exportedValue('demand:2026-11:wonSeconds'), exportedValue('demand:2026-11:committedDemandSeconds'), 'Exported components reconcile to the exported committed demand')
+ assert.equal(exportedValue('demand:2026-11:committedFeesMinor') - exportedValue('demand:2026-11:committedCostMinor'), exportedValue('demand:2026-11:marginMinor'))
+ assert.equal(exportedValue(`demand:scenario:${contractor.id}:marginMinor`), 600000)
+ assert(rows.some(r => r.row === 'source' && r.figure === 'demand:2026-11:unfilledSeconds' && r['source kind'] === 'resourceRequests'), 'Exported figures carry their source rows')
  const leadView = await read(lead.cookie)
  assert.equal(leadView.demandForecast, null); assert.equal(leadView.data.demandScenarios.length, 0)
  assert.equal((await request(`/api/gauge/history/demandScenarios/${hire.id}`, lead.cookie)).status, 403)
@@ -73,6 +91,10 @@ try {
  await page.goto(h.origin + '/app/review')
  const section = page.locator('#demand-forecast'), text = await section.innerText()
  for (const label of ['Contractor capacity', '+ weighted pipeline', 'Planned hire', 'Delayed start', 'Margin vs baseline']) assert(text.includes(label), `Review shows ${label}`)
+ await section.getByRole('row').filter({ hasText: '2026-11' }).getByRole('link').first().click()
+ const drilled = page.locator('#report-evidence'); await drilled.waitFor()
+ assert((await drilled.innerText()).includes('Committed') && (await drilled.locator('a[href*="/api/gauge/history/"]').count()) > 0, 'A month figure opens its formula and source rows')
+ await page.goto(h.origin + '/app/review')
  for (const width of [1440, 390]) {
   await page.setViewportSize({ width, height: 1000 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Demand forecast fits ${width}`)

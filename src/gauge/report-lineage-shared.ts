@@ -35,6 +35,7 @@ export interface ReportLineageInput {
  portfolio?: Value | null
  revenueDashboard?: Value | null
  cash?: Value | null
+ demandForecast?: Value | null
 }
 
 export interface Evidence { sources: LineageSource[]; unknown: string[] }

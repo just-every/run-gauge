@@ -11,6 +11,7 @@ import { marginLineage } from './report-lineage-margin'
 import { portfolioLineage } from './report-lineage-portfolio'
 import { cashLineage } from './report-lineage-cash'
 import { revenueLineage } from './report-lineage-revenue'
+import { demandLineage } from './report-lineage-demand'
 
 export type { LineageFigure, LineageSource, ReportLineageInput } from './report-lineage-shared'
 
@@ -35,6 +36,7 @@ export function buildLineage(report: ReportLineageInput) {
    c.add(`resourceDemand:${row.engagementId}:${field}`,field,row[field],'seconds',`${field}: daily requested/allocation seconds × covered report dates. Only open requests count as unfilled; filled requests count through their one named staffing allocation.`,e)
   }
  }
+ demandLineage(c)
  pipelineLineage(c)
  exceptionLineage(c)
  correctionLineage(c)

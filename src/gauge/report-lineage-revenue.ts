@@ -12,7 +12,11 @@ export function revenueLineage(c: Lineage) {
   const issued = c.evidence()
   for (const id of w.invoiceIds) { const invoice=c.row(issued,'invoices',id);if(invoice){c.row(issued,'packets',invoice.value.packetId);c.row(issued,'clients',invoice.value.clientId);for(const line of invoice.value.lines)c.row(issued,line.kind,line.sourceId)} }
   for (const id of w.paymentIds) c.row(issued,'payments',id)
-  c.add(`revenue:${w.currency}:openMinor`,'Issued open receivables',w.openMinor,'minor',`SUM(immutable native invoices issued through ${c.report.revenueDashboard!.asOf}) − SUM(user-recorded receipts dated through that day). Pre-tax, no provider reconciliation or FX conversion.`,issued,w.currency)
+  const credited = c.evidence()
+  for (const id of w.creditIds ?? []) { const credit=c.row(credited,'invoiceCorrections',id);if(credit){c.row(issued,'invoiceCorrections',id);c.row(credited,'invoices',credit.value.invoiceId);for(const line of credit.value.lines)c.row(credited,line.kind,line.sourceId)} }
+  for (const id of w.voidIds ?? []) { c.row(issued,'invoiceCorrections',id); c.row(credited,'invoiceCorrections',id) }
+  c.add(`revenue:${w.currency}:openMinor`,'Issued open receivables',w.openMinor,'minor',`SUM(live native invoices issued through ${c.report.revenueDashboard!.asOf}) − SUM(their credit notes issued through that day) − SUM(user-recorded receipts dated through that day). An invoice voided by then is excluded and its reissue counts once. Pre-tax, no provider reconciliation or FX conversion.`,issued,w.currency)
+  c.add(`revenue:${w.currency}:creditedMinor`,'Issued credit notes',w.creditedMinor,'minor',`SUM(immutable credit notes, approved discounts and write-offs issued through ${c.report.revenueDashboard!.asOf} against live native invoices). Each names its invoice lines and sources; voids are listed as sources, not credits. Pre-tax: no tax reversal.`,credited,w.currency)
   c.add(`revenue:${w.currency}:paidMinor`,'Recorded invoice receipts',w.paidMinor,'minor',`SUM(immutable manual receipts dated through ${c.report.revenueDashboard!.asOf}, allocated once to native issued invoices). User-recorded, not provider-verified settlement.`,issued,w.currency)
  }
 }

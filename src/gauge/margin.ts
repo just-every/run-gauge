@@ -1,6 +1,7 @@
 import { type Row, type Value, charge, sum } from './model'
 import { explain, activeRates } from './rate-cards'
 import type { financeForecast } from './finance-forecast'
+import { liveInvoices } from './invoice-standing'
 
 // FINANCE-001 actual and forecast margin per engagement, on the FINANCE-006 basis. Integer cents in the engagement currency.
 // Earned value is FINANCE-006 actual fees: operational, not recognized revenue. Billed is approved billing packets net of
@@ -36,7 +37,8 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    else provisionalLaborMinor += charge(t.value.durationSeconds, cost.value.costMinor)
   }
   for (const x of mine('expenses').filter(r => r.value.status === 'submitted')) { provisionalSources.push(`expenses:${x.id}`); provisionalExpenseMinor += x.value.amountMinor }
-  const invoices = mine('invoices').filter(i=>i.value.issueDate<=forecast.asOf), payments=mine('payments').filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))
+  // Live invoices only: a void removes its original, and issued credit notes (INVOICE-004) are netted out of billed.
+  const standings = liveInvoices(data, forecast.asOf).filter(s => s.invoice.value.engagementId === e.id), invoices = standings.map(s => s.invoice), invoiceCredits = standings.flatMap(s => s.credits), payments=mine('payments').filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))
   const packets = mine('packets').filter(p => p.value.status === 'approved'), credits = packets.filter(p => p.value.correctsPacketId && p.value.totalMinor < 0)
   const approvedExpenseMinor = sum(approvedExpenses.map(x => x.value.amountMinor)), knownApprovedCostMinor = f.actualCostMinor
   const actualUnknown = [...costUnknown, ...feesUnknown], knownActualMarginMinor = f.actualFeesMinor - knownApprovedCostMinor
@@ -50,7 +52,7 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    approvedCostMinor: costUnknown.length ? null : knownApprovedCostMinor, knownApprovedCostMinor, approvedLaborCostMinor: knownApprovedCostMinor - approvedExpenseMinor, approvedExpenseCostMinor: approvedExpenseMinor, costUnknown,
    provisionalCostMinor: provisionalUnknown.length ? null : provisionalLaborMinor + provisionalExpenseMinor, knownProvisionalCostMinor: provisionalLaborMinor + provisionalExpenseMinor, provisionalLaborCostMinor: provisionalLaborMinor, provisionalExpenseCostMinor: provisionalExpenseMinor, provisionalUnknown, provisionalSources,
    earnedValueMinor: feesUnknown.length ? null : f.actualFeesMinor, knownEarnedValueMinor: f.actualFeesMinor, feesUnknown, earnedLabel: marginLabels.earned,
-   billedMinor: invoices.length ? sum(invoices.map(i=>i.value.totalMinor)) : sum(packets.map(p => p.value.totalMinor)), creditsMinor: sum(credits.map(p => p.value.totalMinor)), billedLabel: invoices.length ? 'Invoiced, pre-tax' : marginLabels.billed, packetSources: packets.map(p => p.id), creditSources: credits.map(p => p.id),
+   billedMinor: invoices.length ? sum(standings.map(s => s.netMinor)) : sum(packets.map(p => p.value.totalMinor)), creditsMinor: sum(credits.map(p => p.value.totalMinor)), billedLabel: invoices.length ? (invoiceCredits.length ? 'Invoiced, pre-tax, net of credit notes' : 'Invoiced, pre-tax') : marginLabels.billed, invoiceCreditSources: invoiceCredits.map(c => c.id), packetSources: packets.map(p => p.id), creditSources: credits.map(p => p.id),
    invoiceSources: invoices.map(i=>i.id), paymentSources: payments.map(p=>p.id), paidCashMinor: payments.length ? sum(payments.map(p=>p.value.amountMinor)) : null, paidCashLabel: payments.length ? 'User-recorded receipts, not provider verified' : marginLabels.paid,
    remainingTaskSeconds: sum(mine('tasks').map(t => t.value.remainingSeconds ?? 0)), committedFutureSeconds,
    etcFeesMinor: f.etcFeesMinor, eacFeesMinor: f.eacFeesMinor, etcCostMinor: f.etcCostMinor, eacCostMinor: f.eacCostMinor,

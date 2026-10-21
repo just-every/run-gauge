@@ -111,6 +111,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableInvoice=await cmd('invoice:issue',{...invoicePacket,issueDate:'2026-10-11',dueDate:invoiceDue,billTo:invoiceClient.value.name,remitTo:'Portable agency account',reference:invoiceClient.value.poRequired?invoiceClient.value.poNumbers[0]:'Portable October invoice'})
  await cmd('invoice:promise',{...portableInvoice,date:'2026-11-20',amountMinor:1500,reference:'Portable payment promise'})
  await cmd('payment:record',{...portableInvoice,date:'2026-10-12',amountMinor:1000,reference:'Portable bank receipt'})
+ // INVOICE-004 credit notes travel with their invoice through BASE-002.
+ await cmd('invoice:credit',{...portableInvoice,type:'discount',line:0,amountMinor:500,date:'2026-10-13',reason:'Portable agreed discount'})
  const before=await state()
  assert.equal(before.data.archives.filter(r=>r.value.forecast).length,4,'MIGRATE-003 source snapshots are available before BASE-002 export')
  assert(before.data.calendars.some(r=>r.value.source?.externalId==='api:availability:v1'),'MIGRATE-003 captured availability is native before export')

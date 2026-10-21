@@ -1,11 +1,14 @@
 import { retainerFees } from './retainer-fees'
 import { type Row, sum } from './model'
+import { liveInvoices } from './invoice-standing'
 import type { financeForecast } from './finance-forecast'
 
 // FINANCE-002 revenue and expected cash by month, on the FINANCE-006 revenue basis and the FINANCE-007 cash basis for the
 // records that exist today. Unissued hourly fees, retainer overages and billable expenses are invoiced monthly in arrears on
 // the 1st of the next month; an approved fixed-fee milestone on its due date. Issued invoices replace their source schedule
-// once, use their immutable actual issue/due dates, and deduct user-recorded receipts dated through the as-of day.
+// once, use their immutable actual issue/due dates, and deduct user-recorded receipts and issued credit notes (INVOICE-004)
+// dated through the as-of day. A void dated through the as-of day removes its invoice; its reissue is a separate invoice,
+// and the original lines still leave the schedule once, so written-down amounts are never expected again.
 // Unissued receipt = invoice date + the client's payment terms (Net N days, "Net 30 assumed" while unset);
 // an approved per-client days late adds the "historical timing" date; a date before the as-of day is placed in the as-of month
 // and flagged past due, never in a past month. Expected cash = open amount × collection probability, round half up to the cent.
@@ -15,22 +18,22 @@ const DAY = 86400000
 const addDays = (day: string, days: number) => new Date(Date.parse(day) + days * DAY).toISOString().slice(0, 10)
 const nextMonthStart = (month: string) => { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + 1); return d.toISOString().slice(0, 10) }
 type CashMonth = { currency: string, month: string, revenueMinor: number, tentativeMinor: number, pipelineMinor: number, invoicesMinor: number, openMinor: number, expectedMinor: number, historicalOpenMinor: number, historicalExpectedMinor: number, pastDueMinor: number, engagements: string[] }
-type ScheduledInvoice = { source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], assumption?: string }
+type ScheduledInvoice = { source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], creditSnapshots?: Row[], creditedMinor?: number, assumption?: string }
 const percentOf = (minor: number, percent: number) => Number((BigInt(minor) * BigInt(percent) + 50n) / 100n)
 
 export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
  const asOf = forecast.asOf, clients = new Map((data.clients ?? []).map(c => [c.id, c]))
  const issued = (data.invoices ?? []).filter(i => i.value.issueDate <= asOf)
- const receipts = (data.payments ?? []).filter(p => p.value.date <= asOf)
+ const receipts = (data.payments ?? []).filter(p => p.value.date <= asOf), live = new Map(liveInvoices(data, asOf).map(s => [s.invoice.id, s]))
  const place = (day: string) => (day < asOf ? asOf : day).slice(0, 7)
  const engagements = forecast.engagements.map(f => {
   // The client's finance-set Net N is used when set; "Net 30 assumed" appears only while it is unset (SETUP-002).
   const e = data.engagements.find(r => r.id === f.engagementId)!, client = clients.get(e.value.clientId), set = client?.value.paymentTermsDays ?? null, terms: number = set ?? 30
   const daysLate = client?.value.daysLate ?? null, percent = client?.value.collectionPercent ?? 100
-  const incomplete = [...f.incomplete], sources = { ...f.sources, clients: client ? [client.id] : [], milestones: [...(f.sources.milestones ?? [])], invoices: [] as string[], payments: [] as string[] }
+  const incomplete = [...f.incomplete], sources = { ...f.sources, clients: client ? [client.id] : [], milestones: [...(f.sources.milestones ?? [])], invoices: [] as string[], payments: [] as string[], invoiceCorrections: [] as string[] }
   const actualInvoices = issued.filter(i => i.value.engagementId === e.id)
   const issuedMilestones = new Set<string>(), billedByMonth = new Map<string, number>()
-  for (const invoice of actualInvoices) for (const line of invoice.value.lines) {
+  for (const invoice of actualInvoices.filter(i => !i.value.reissueOf)) for (const line of invoice.value.lines) {
    if (line.kind === 'milestones') { issuedMilestones.add(line.sourceId); continue }
    // The issue command supports only hourly time, reimbursable expenses and fixed-fee milestones.
    // Prefer the frozen source date on the invoice over the current source revision.
@@ -57,15 +60,17 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    if (cycle) schedule(`cycle:${month.month}`, month.month, nextMonthStart(month.month), cycle)
   }
   for (const invoice of actualInvoices) {
+   const standing = live.get(invoice.id)
+   if (!standing) { sources.invoiceCorrections.push(...(data.invoiceCorrections ?? []).filter(c => c.value.invoiceId === invoice.id && c.value.type === 'void' && c.value.status === 'issued').map(c => c.id)); continue }
    const payments = receipts.filter(p => p.value.invoiceId === invoice.id)
-   sources.invoices.push(invoice.id); sources.payments.push(...payments.map(p => p.id))
+   sources.invoices.push(invoice.id); sources.payments.push(...payments.map(p => p.id)); sources.invoiceCorrections.push(...standing.credits.map(c => c.id))
    const paidMinor = sum(payments.map(p => p.value.amountMinor))
-   const openMinor=invoice.value.totalMinor-paidMinor
+   const openMinor=invoice.value.totalMinor-paidMinor-standing.creditedMinor
    const promise=(data.paymentPromises??[]).filter(p=>p.value.invoiceId===invoice.id).at(-1)
    const promised=promise?Math.min(openMinor,promise.value.amountMinor):0
    if(promised)invoices.push({source:`invoices:${invoice.id}:promise`,revenueMonth:null,invoiceDate:invoice.value.issueDate,amountMinor:0,openMinor:promised,issued:true,invoiceSnapshot:invoice,promiseSnapshot:promise,promised:true,paymentSnapshots:[]})
    invoices.push({ source: `invoices:${invoice.id}`, revenueMonth: null, invoiceDate: invoice.value.issueDate, amountMinor: invoice.value.totalMinor,
-    openMinor: openMinor-promised, issued: true, invoiceSnapshot: invoice, paymentSnapshots: payments })
+    openMinor: openMinor-promised, issued: true, invoiceSnapshot: invoice, paymentSnapshots: payments, creditSnapshots: standing.credits, creditedMinor: standing.creditedMinor })
   }
   const items = invoices.map(x => {
    const receiptDate = x.promiseSnapshot?.value.date ?? x.invoiceSnapshot?.value.dueDate ?? addDays(x.invoiceDate, terms), historicalDate = x.promised ? receiptDate : daysLate === null ? null : addDays(receiptDate, daysLate)
@@ -94,7 +99,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
  const issuedItems = engagements.flatMap(e => e.items.filter(i => i.issued).map(i => ({ currency: e.currency, ...i })))
  const issuedTotals = [...new Set(issuedItems.map(i => i.currency))].sort().map(currency => {
   const items = issuedItems.filter(i => i.currency === currency)
-  return { currency, invoicedMinor: sum(items.map(i => i.amountMinor)), paidMinor: sum(items.map(i => i.paidMinor)), openMinor: sum(items.map(i => i.openMinor)) }
+  return { currency, invoicedMinor: sum(items.map(i => i.amountMinor)), creditedMinor: sum(items.map(i => i.creditedMinor ?? 0)), paidMinor: sum(items.map(i => i.paidMinor)), openMinor: sum(items.map(i => i.openMinor)) }
  })
  const paymentTotals = issuedTotals.filter(t => issuedItems.some(i => i.currency === t.currency && i.paymentSnapshots.length)).map(t => ({ currency: t.currency, amountMinor: t.paidMinor }))
  const format = (minor: number, currency: string) => `${currency} ${(minor / 100).toFixed(2)}`

@@ -39,8 +39,9 @@ export function pipelineLineage(c: Lineage) {
     if (row && row.value.currency !== group.currency) e.unknown.push(`invoices:${id}: source currency differs; no implicit FX`)
     include(billed, e)
    }
+   for (const id of group.billedCredits ?? []) c.row(billed, 'invoiceCorrections', id)
    const knownBilled = billed.unknown.length ? null : group.billedMinor
-   c.add(prefix + 'billedMinor', 'Billed against booked value', group.billedMinor, 'minor', 'SUM(totalMinor of native invoices, pre-tax, issued on or before the as-of day for engagements carrying booked value). Credit notes arrive with INVOICE-004; no cash or receipt deduction, no currency conversion.', billed, group.currency, knownBilled ?? 0)
+   c.add(prefix + 'billedMinor', 'Billed against booked value', group.billedMinor, 'minor', 'SUM(totalMinor of native invoices, pre-tax, issued on or before the as-of day for engagements carrying booked value) − SUM(their credit notes issued by then). An invoice voided by then is excluded and its reissue counts once; no cash or receipt deduction, no currency conversion.', billed, group.currency, knownBilled ?? 0)
    const backlog = c.evidence()
    include(backlog, booked); include(backlog, billed)
    c.add(prefix + 'backlogMinor', 'Booked backlog', group.backlogMinor, 'minor', 'Booked value before billing − billed against booked value; negative when billing exceeds booked value. Equals booked value while no invoice is issued.', backlog, group.currency, knownBilled === null ? 0 : sum([knownBooked, -knownBilled]))

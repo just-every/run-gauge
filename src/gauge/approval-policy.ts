@@ -23,7 +23,7 @@ export function needsIndependentReview(policy:Row|undefined,review:MonetaryRevie
 export function needsIndependentApprover(policy:Row|undefined,packet:Value) {
  return !!packet.correctsPacketId&&needsIndependentReview(policy,{amountMinor:packet.totalMinor,currency:packet.currency})
 }
-async function observedApprovalPolicy(env:Bindings,tx:Transaction) {
+export async function observedApprovalPolicy(env:Bindings,tx:Transaction) {
  const [policy]=await all(env,'approvalPolicies')
  if(policy)tx.observe('approvalPolicies',policy)
  else tx.guard('NOT EXISTS(SELECT 1 FROM g_approvalPolicies)')

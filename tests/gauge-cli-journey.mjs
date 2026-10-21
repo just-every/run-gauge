@@ -17,7 +17,7 @@ export async function freePort() {
 }
 
 export function journeyCli(onStage) {
- let server,serverRoot,serverVerb,origin
+ let server,origin
  const env={...process.env,CI:'true',RER_SERVER_JOURNEY:'1',WRANGLER_SEND_METRICS:'false'}
  function run(cwd,args) {
   onStage(`rer ${args[0]}`)
@@ -28,8 +28,8 @@ export function journeyCli(onStage) {
  }
  async function start(cwd,verb,port) {
   assert(!server,'stop the previous runtime before starting another')
-  onStage(`rer ${verb} readiness`);serverRoot=cwd;serverVerb=verb;origin=`http://127.0.0.1:${port}`
-  server=spawn(process.execPath,[rer,verb,'--host','127.0.0.1','--port',String(port),...(verb==='dev'?['--foreground']:[])],{cwd,stdio:['ignore','pipe','pipe'],env})
+  onStage(`rer ${verb} readiness`);origin=`http://127.0.0.1:${port}`
+  server=spawn(process.execPath,[rer,verb,'--host','127.0.0.1','--port',String(port),'--foreground'],{cwd,stdio:['ignore','pipe','pipe'],env})
   let output='';for(const stream of[server.stdout,server.stderr])stream.on('data',chunk=>output+=chunk)
   const marker=verb==='dev'?/RER_OPEN\s+(\S+)/:/RER_READY\s+(\S+)/
   for(let n=0;n<600&&!marker.test(output);n++){
@@ -44,8 +44,9 @@ export function journeyCli(onStage) {
  }
  async function stop() {
   if(!server)return
-  const child=server;let failure
-  try{run(serverRoot,[serverVerb,'--stop'])}catch(error){failure=error;child.kill('SIGTERM')}
+  const child=server
+  // This exact foreground launcher owns its descendants and handles shutdown; never use the shared stop verb.
+  child.kill('SIGTERM')
   await new Promise(resolve=>child.exitCode!==null||child.signalCode!==null?resolve():child.once('exit',resolve))
   server=undefined
   let listening=true
@@ -54,7 +55,6 @@ export function journeyCli(onStage) {
    if(listening)await new Promise(resolve=>setTimeout(resolve,100))
   }
   assert(!listening,'stopped runtime released its public listener')
-  if(failure)throw failure
  }
  async function reset(cwd) {
   const events=run(cwd,['reset','--yes','--json']).trim().split('\n').map(line=>JSON.parse(line))

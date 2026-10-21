@@ -1213,7 +1213,7 @@
       "executable": false
     },
     "src/gauge/proposal-sources.ts": {
-      "sha256": "f802f3f1826afe92a3625c20cb715b2443bb1ede93a9022c28a64af2b7d47f28",
+      "sha256": "36a2c2b8fc70024d3cf77d199fa6be44ea2b8337cd467b7d21bde707996458b7",
       "executable": false
     },
     "src/gauge/proposals.ts": {
@@ -1513,7 +1513,7 @@
       "executable": false
     },
     "src/gauge/ui-operations.ts": {
-      "sha256": "e58ee6ed856003592e8cd031dc5405846b82fe9933898c02e57a795906b03488",
+      "sha256": "4203d8c55cd1957afd576289fb1c071db187c62f674e471618cc171f8e41a19d",
       "executable": false
     },
     "src/gauge/ui-performance.ts": {
@@ -3377,7 +3377,7 @@
       "executable": false
     },
     "tests/gauge-cli-journey.mjs": {
-      "sha256": "d507181cb9a6658fd56c77f1949bc26650c80202a99bba16ad01821ef036af03",
+      "sha256": "6d362cc5b322d0995cb5862c6aed2be84859252946555322bdd8fab2b04d6ba8",
       "executable": false
     },
     "tests/gauge-clients.mjs": {

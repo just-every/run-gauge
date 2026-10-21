@@ -19,9 +19,9 @@ export async function captureSources(env: Bindings, value: Value, tx?: Transacti
  const people=value.kind==='staffing'?value.plan.alternatives.map((x:Value)=>x.personId):value.kind==='time'?[value.plan.personId]:[]
  for(const id of new Set<string>(people)) {
   await capture('people','id=?',[id])
-  for(const kind of ['calendars','leave','staffing','time','rates'] as Kind[])await capture(kind,"json_extract(data,'$.personId')=?",[id])
+  for(const kind of ['calendars','leave','staffing','time'] as Kind[])await capture(kind,"json_extract(data,'$.personId')=?",[id])
  }
- if(people.length)await capture('rateWithdrawals','1=1',[])
+ if(value.kind==='staffing'){await capture('rates','1=1',[]);await capture('rateWithdrawals','1=1',[])}
  if(value.kind==='time')await capture('tasks','id=?',[value.plan.taskId])
  const context:Kind[]=value.kind==='billing'?['budgets','retainers','retainerPeriods','packets']:value.kind==='change-order'?['budgets','tasks','milestones','staffing','time','expenses','deliveryPlans']:[]
  for(const kind of context)await capture(kind,"json_extract(data,'$.engagementId')=?",[value.engagementId])

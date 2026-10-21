@@ -412,8 +412,8 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 30 | 33 | 58 | 121 |
-| All | 47 | 33 | 58 | 138 |
+| Target and push further | 30 | 34 | 57 | 121 |
+| All | 47 | 34 | 57 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -487,7 +487,7 @@ Judged from the code and tests at commit `8702f96fd835a1a9d9875ae407fe918d58fe79
 | `PAYMENT-003` | External payments and bank reconciliation | target | missing |  | No external payment reconciliation or ambiguous payment queue. |
 | `REPORT-001` | Portfolio profitability dashboard | target | done | `src/gauge/portfolio.ts`; `src/gauge/portfolio-labor.ts`; `src/gauge/retainer-fees.ts`; `src/gauge/ui-portfolio.ts`; `tests/gauge-portfolio.mjs` — REPORT-001 through `tests/gauge-report-lineage.mjs`; `tests/gauge-base-portability.mjs` | |
 | `REPORT-002` | Utilization and realization dashboard | target | done | `src/gauge/billability.ts`; `src/gauge/ui-performance.ts`; `tests/gauge-realization.mjs` |  |
-| `REPORT-003` | Revenue cash and backlog dashboard | target | missing |  | No linked pipeline-to-cash dashboard or financial buckets. |
+| `REPORT-003` | Revenue cash and backlog dashboard | target | partial | `src/gauge/revenue-dashboard.ts`; `src/gauge/ui-revenue-dashboard.ts`; `src/gauge/report-lineage-revenue.ts`; `tests/gauge-revenue-dashboard.mjs` — REPORT-003 through `tests/gauge-cash-forecast.mjs` | Native finance-only pipeline/signed-value/hourly-WIP dashboard, current retainer statements and monthly FINANCE-007 cash links with source drills and snapshot CSV. Issued invoice/collection buckets, estimate-to-paid transfer, accounting freshness/reconciliation and approved USD FX conversion remain absent. |
 | `REPORT-004` | Custom reports and scheduled delivery | target | missing |  | No report builder, saved reporting or scheduled report exports. |
 | `REPORT-005` | Trace every reported amount | target | done | `src/gauge/report-lineage.ts`; `src/gauge/report-export.ts`; `src/gauge/ui-report-evidence.ts`; `tests/gauge-report-lineage.mjs` — REPORT-005 | Current economics, capacity, pipeline, correction and exception figures expose formulas, source revisions, frozen rates, currency, approvals and as-of time. CSV export binds the visible input fingerprint; unknown totals retain labeled known subtotals and private sources stay restricted. |
 | `CLIENT-001` | Scoped client portal | target | missing |  | No external client identities, project portal or client-specific rights. |

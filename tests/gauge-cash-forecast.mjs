@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { revenueDashboardJourney } from './gauge-revenue-dashboard.mjs'
 
 // FINANCE-002 revenue and cash forecast as of 20 October 2026, through the command, state and Week in review doors:
 // a milestone delayed two weeks through the delivery plan moves expected cash exactly as an independent FINANCE-007
@@ -88,16 +89,19 @@ try {
  assert.equal(leadView.cash, null); assert(!leadView.lineage.some(x => x.id.startsWith('cash:')))
  assert(leadView.data.clients.every(c => c.value.daysLate === undefined && c.value.collectionPercent === undefined && c.value.paymentTermsDays === undefined))
 
+ await revenueDashboardJourney(h,{read,worker,client,hourly,entry,asOf})
+
  browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
  const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage(), shots = process.env.GAUGE_CASH_SHOTS
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
- await page.goto(h.origin + '/app/review')
+ await page.goto(h.origin + `/app/review?from=2026-10-01&to=2026-10-31&asOf=${asOf}`)
  const section = page.locator('#cash-forecast'), text = await section.innerText()
  for (const label of [/none issued/i, /no payments recorded/i, /historical timing/i, /weighted pipeline/i]) assert.match(text, label)
  for (const width of [1440, 390]) {
   await page.setViewportSize({ width, height: 1000 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Cash forecast fits ${width}`)
-  if (shots) { await mkdir(shots, { recursive: true }); await section.screenshot({ path: `${shots}/cash-${width}.png` }) }
+  if (shots) { await mkdir(shots, { recursive: true }); await section.screenshot({ path: `${shots}/cash-${width}.png` }); await page.locator('#revenue-dashboard').screenshot({path:`${shots}/REPORT-003-${width}.png`}) }
+  const dashboard=page.locator('#revenue-dashboard');assert(await dashboard.isVisible());assert.match(await dashboard.innerText(),/Unverified|unverified/);assert.match(await dashboard.innerText(),/Unknown/)
  }
  await page.setViewportSize({ width: 1440, height: 1000 })
  await section.getByRole('row', { name: /2027-01/ }).getByRole('link').nth(1).click()

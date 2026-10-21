@@ -11,6 +11,7 @@ import { proposalSection } from './ui-proposals'
 import { forecastSection } from './ui-forecast'
 import { marginSection } from './ui-margin'
 import { cashSection } from './ui-cash'
+import { revenueDashboardSection } from './ui-revenue-dashboard'
 import { portfolioSection } from './ui-portfolio'
 import { demandSection } from './ui-demand'
 
@@ -30,11 +31,11 @@ export async function reviewSection(env: Bindings, a: Actor, report: Report) {
  const d = report.data
  const head = `<div class="g-titlebar"><h1>Week in review</h1><form class="g-period" method="get">${i('from', 'From', report.from, 'date')}${i('to', 'Through', report.to, 'date')}<button class="g-btn g-btn--secondary">Review period</button></form></div>`
  const nothing = !d.engagements.length && !d.proposals.length && !report.exceptions.length
- if (nothing) return head + `<section class="g-card g-empty-state"><img src="/brand/mark.svg" alt="" width="40" height="40"><h2>No agent proposals${a.role === 'agent' ? ' prepared by you' : ' for you to decide'}.</h2><p>Create an engagement and approved terms to begin.</p>${a.role === 'agent' ? '' : '<p><a class="g-btn g-btn--primary" href="/app/engagements">Engagements</a></p>'}</section>`
+ if (nothing) return head + revenueDashboardSection(report) + `<section class="g-card g-empty-state"><img src="/brand/mark.svg" alt="" width="40" height="40"><h2>No agent proposals${a.role === 'agent' ? ' prepared by you' : ' for you to decide'}.</h2><p>Create an engagement and approved terms to begin.</p>${a.role === 'agent' ? '' : '<p><a class="g-btn g-btn--primary" href="/app/engagements">Engagements</a></p>'}</section>`
  // Each exception keeps its own row and link, except unbilled approved work: one row per engagement, its lines listed on Billing.
  const unbilled = report.exceptions.filter(x => x.type === 'unbilled approved work')
  const rows = [...report.exceptions.filter(x => x.type !== 'unbilled approved work').map(x => describeException(report, x)), ...unbilledByEngagement(report, unbilled)]
  const exceptions = `<section class="g-block"><h2>Decisions and exceptions</h2>${rows.length ? `<ul class="g-card g-exceptions">${rows.map(x => `<li>${chip(x.type)}<a href="${e(x.href)}">${e(x.text.replaceAll(' · ', '\u00a0· '))}</a></li>`).join('')}</ul>` : '<p class="g-empty">No exceptions in the selected period. Missing calendars mean expected time is unknown.</p>'}</section>`
  const economics = `<section class="g-block"><h2>Engagement economics</h2>${report.economics.length ? `<div class="g-econ-grid">${report.economics.map(x => economicsCard(report, a, x)).join('')}</div>` : '<p class="g-empty">Create an engagement and approved terms to begin.</p>'}</section>`
- return head + `<div class="g-review">${await proposalSection(env, a, report)}${exceptions}</div>${timeReviewSection(report)}${economics}${portfolioSection(report)}${forecastSection(report)}${marginSection(report)}${cashSection(report)}${demandSection(report, a.role === 'owner')}<p class="g-footnote">Exceptions come from your approved records. Operational economics are not accounting revenue.</p>`
+ return head + `<div class="g-review">${await proposalSection(env, a, report)}${exceptions}</div>${timeReviewSection(report)}${economics}${revenueDashboardSection(report)}${portfolioSection(report)}${forecastSection(report)}${marginSection(report)}${cashSection(report)}${demandSection(report, a.role === 'owner')}<p class="g-footnote">Exceptions come from your approved records. Operational economics are not accounting revenue.</p>`
 }

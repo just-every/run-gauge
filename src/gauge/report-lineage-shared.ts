@@ -33,6 +33,7 @@ export interface ReportLineageInput {
  forecast?: Value | null
  margin?: Value[] | null
  portfolio?: Value | null
+ revenueDashboard?: Value | null
  cash?: Value | null
 }
 

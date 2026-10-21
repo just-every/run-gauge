@@ -19,6 +19,7 @@ import { demandForecast } from './demand-forecast'
 import { projectMargin } from './margin'
 import { cashForecast } from './cash-forecast'
 import { portfolio } from './portfolio'
+import { revenueDashboard } from './revenue-dashboard'
 import { privateClientKeys } from './clients'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
@@ -140,6 +141,6 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const forecast=finance(a)?financeForecast(data,forecastDay,retainerBalances):null
  // RESOURCE-005 capacity runs from the day after the forecast day for a year, whatever window the state read shows.
  const forecastCapacity=forecast?capacity(data,new Date(Date.parse(forecastDay)+86400000).toISOString().slice(0,10),new Date(Date.parse(forecastDay)+366*86400000).toISOString().slice(0,10)):[]
- const report={portfolio:forecast?portfolio(data,forecast,retainerBalances,from,to,portfolioOptions):null,timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,cash:forecast?cashForecast(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
+ const report={revenueDashboard:finance(a)?revenueDashboard(data,forecastDay):null,portfolio:forecast?portfolio(data,forecast,retainerBalances,from,to,portfolioOptions):null,timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,cash:forecast?cashForecast(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

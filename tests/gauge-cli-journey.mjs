@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { spawn, execFileSync } from 'node:child_process'
+import { spawn, spawnSync, execFileSync } from 'node:child_process'
 import { createServer } from 'node:net'
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -25,6 +25,16 @@ export function journeyCli(onStage) {
   try{output=execFileSync(process.execPath,[rer,...args],{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe'],env})}catch{throw new Error(`rer ${args[0]} failed; child output and credential URLs are withheld`)}
   console.log(`PASS rer ${args[0]}${args.includes('--dry-run')?' --dry-run':''}${args.includes('--stop')?' --stop':''}`)
   return output
+ }
+ function refuseDeployWithoutCredentials(cwd) {
+  onStage('rer deploy without provider credentials')
+  const isolated=Object.fromEntries(Object.entries(env).filter(([name])=>!name.startsWith('CLOUDFLARE_')))
+  const result=spawnSync(process.execPath,[rer,'deploy','--dry-run','--json'],{cwd,encoding:'utf8',env:isolated})
+  const events=String(result.stdout??'').trim().split('\n').flatMap(line=>{try{return [JSON.parse(line)]}catch{return []}})
+  assert.equal(result.status,3,'A provider-less deploy dry run is refused before provider access')
+  assert.equal(events.find(event=>event.event==='error')?.code,'missing_input')
+  assert.equal(events.find(event=>event.event==='result')?.ok,false)
+  console.log('PASS rer deploy --dry-run refuses absent provider credentials')
  }
  async function start(cwd,verb,port) {
   assert(!server,'stop the previous runtime before starting another')
@@ -70,5 +80,5 @@ export function journeyCli(onStage) {
   assert(result?.ok&&result.paths.length,'reset removed an occupied declared inventory')
   for(const path of result.paths)await assert.rejects(()=>access(join(cwd,path)),{code:'ENOENT'})
  }
- return {run,start,stop,reset}
+ return {run,start,stop,reset,refuseDeployWithoutCredentials}
 }

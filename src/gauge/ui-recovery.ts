@@ -100,7 +100,7 @@ export async function recoveryPanel(env: Bindings, a: Actor, report: Report, zon
 export async function worklog(env: Bindings, report: Report, zone: string, today: string, week: string[]) {
  const d = report.data, names = await operatorNames(env)
  const rows = [...d.proposals].sort((x, y) => y.value.preparedAt - x.value.preparedAt).slice(0, 4).map(p => {
-  const v = p.value, outcome = v.status === 'proposed' ? 'Waiting for a decision' : `${v.status.charAt(0).toUpperCase()}${v.status.slice(1)} by ${names.get(v.decidedBy) ?? 'someone'}${v.choice != null ? ` (option ${letter(v.choice)})` : ''}${v.reason ? `: ${v.reason}` : ''}`
+  const v = p.value, outcome = v.status === 'proposed' ? v.availability ?? 'Waiting for a decision' : `${v.status.charAt(0).toUpperCase()}${v.status.slice(1)} by ${names.get(v.decidedBy) ?? 'someone'}${v.choice != null ? ` (option ${letter(v.choice)})` : ''}${v.reason ? `: ${v.reason}` : ''}`
   return `<li><span class="g-log-icon" aria-hidden="true"><img src="/brand/mark.svg" alt="" width="16" height="16"></span><p><b>${e(proposalLabels[v.kind])} · ${e(clientOf(d, v.engagementId))}</b><span>${e(outcome)}</span></p><time datetime="${new Date(v.preparedAt).toISOString()}">${e(stamp(v.preparedAt, zone, today))}</time></li>`
  })
  let committed = 0, available = 0, tentative = 0, people = 0

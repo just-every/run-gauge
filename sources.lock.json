@@ -1437,7 +1437,7 @@
       "executable": false
     },
     "src/gauge/ui-board.ts": {
-      "sha256": "d72561378716e5c0259dbea00e2a0ebb53364c815a845d8d810925faa7234c5a",
+      "sha256": "a92a52176c239c000e4fe1e752301d1f45ddc304c4e8c7426ef62fab905a745d",
       "executable": false
     },
     "src/gauge/ui-capacity.ts": {
@@ -1541,7 +1541,7 @@
       "executable": false
     },
     "src/gauge/ui-recovery.ts": {
-      "sha256": "ae7ff10d9629beb08960429caf00d81c1f0b72afcf59c35e344c562510071793",
+      "sha256": "9ac826b7491b91bba5c24d2d2ddf658d5d69f07620453fdc1c929c68f18907df",
       "executable": false
     },
     "src/gauge/ui-report-evidence.ts": {
@@ -3353,7 +3353,7 @@
       "executable": false
     },
     "tests/fresh-clone.mjs": {
-      "sha256": "af111520f24a73ccbd064153b48b28c09a06f6fffc5a9557f75a1c732c6adf69",
+      "sha256": "ebce680f5900d56dcc12c4d7ac918c0ea26c2d17f2a55f76a0d53968380d1be6",
       "executable": false
     },
     "tests/gauge-agent.mjs": {
@@ -3377,7 +3377,7 @@
       "executable": false
     },
     "tests/gauge-cli-journey.mjs": {
-      "sha256": "8fe0c2a560aa8d245b25925c28d14c21c81cd0a69cdf6af4b0a8951129de1321",
+      "sha256": "22e1568538b5418e6b35b2053fd871a38f45a1d1fb7b8399bdcd08b91bafaa82",
       "executable": false
     },
     "tests/gauge-clients.mjs": {
@@ -3541,7 +3541,7 @@
       "executable": false
     },
     "tests/journeys/agent-custody-browser.mjs": {
-      "sha256": "2182843b70a1587d373238362a2d9b925f1e32949d983cf7e23562908f922eb3",
+      "sha256": "672d9923d0294939237d4616962d3a6f1028606a90046eb6ec447aaf19d6e764",
       "executable": false
     },
     "tests/journeys/forecast-browser.mjs": {

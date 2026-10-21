@@ -97,7 +97,7 @@ export function lanes(report: Report, cols: Column[], tintOf: (clientId: string)
    if (alt.personId !== person.personId) return
    const at = covered(cols, alt.from, alt.to); if (!at) return
    const total = load({ engagementId: options.proposal!.value.engagementId, commitment: 'tentative', dailySeconds: alt.dailySeconds, ranges: [[alt.from, alt.to]] }, from, to)
-   bars.push({ start: at[0], end: at[1], kind: 'option', tint: tintOf(client(options.proposal!.value.engagementId)), name: `Option ${String.fromCharCode(65 + n)} · takes ${figure(total.seconds)} hrs`, amount: label(options.proposal!.value.engagementId), when: span(total.first, total.last), title: 'Proposed by the agent; not yet approved' })
+   bars.push({ start: at[0], end: at[1], kind: 'option', tint: tintOf(client(options.proposal!.value.engagementId)), name: `Option ${String.fromCharCode(65 + n)} · takes ${figure(total.seconds)} hrs`, amount: label(options.proposal!.value.engagementId), when: span(total.first, total.last), title: options.proposal!.value.availability ?? 'Proposed by the agent; not yet approved' })
   })
   const order: Kind[] = ['booking', 'tentative', 'leave', 'option']
   const placed = pack(bars.sort((x, y) => order.indexOf(x.kind) - order.indexOf(y.kind) || x.start - y.start || y.end - x.end))

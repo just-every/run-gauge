@@ -85,6 +85,8 @@ export async function inspectAgentCustody(h,{agent,staff,eng,other,task,timePlan
    await page.goto(h.origin+'/app/capacity?from=2026-11-09')
    assert((await options.innerText()).includes('Agent revoked'))
    assert.equal(await options.getByRole('button',{name:'Approve A',exact:true}).count(),0)
+   assert((await page.locator('.g-worklog').innerText()).includes('Agent revoked'))
+   assert.equal(await page.locator('.g-worklog').getByText('Waiting for a decision',{exact:true}).count(),0)
    await shot(page,'revoked-staffing',options)
 
    await owner.close();await person.close()

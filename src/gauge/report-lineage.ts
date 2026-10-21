@@ -8,6 +8,7 @@ import { utilizationLineage } from './report-lineage-utilization'
 import { performanceLineage } from './report-lineage-performance'
 import { forecastLineage } from './report-lineage-forecast'
 import { marginLineage } from './report-lineage-margin'
+import { portfolioLineage } from './report-lineage-portfolio'
 import { cashLineage } from './report-lineage-cash'
 
 export type { LineageFigure, LineageSource, ReportLineageInput } from './report-lineage-shared'
@@ -23,6 +24,7 @@ export function buildLineage(report: ReportLineageInput) {
  forecastLineage(c)
  marginLineage(c)
  cashLineage(c)
+ portfolioLineage(c)
  for(const row of report.resourceDemand??[]){
   for(const field of ['unfilledSeconds','staffingSeconds','totalSeconds']){
    const e=c.evidence();c.row(e,'engagements',row.engagementId)

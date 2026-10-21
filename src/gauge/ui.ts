@@ -39,7 +39,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  // Staffing reads its five-week board; every other page reads the week.
  const timeFrom=options.sheetFrom??options.from??week[0]
  const [from,to]=section==='time'?[timeFrom,shift(timeFrom,options.sheetView==='day'?0:6)]:section==='capacity'?boardWindow(options.from??today):[options.from??week[0],options.to??week[1]]
- const report=await reports(env,a,from,to,section==='time'&&a.role==='owner'?options.sheetPerson:undefined)
+ const report=await reports(env,a,from,to,section==='time'&&a.role==='owner'?options.sheetPerson:undefined,options.asOf,options)
  need(tabsFor(a).includes(section),'Page unavailable',404)
  let body=options.error?`<p class="g-alert" role="alert">${e(options.error)}</p>`:options.saved?'<p class="g-saved" role="status">Saved.</p>':''
  if(section==='review')body+=await reviewSection(env,a,report)

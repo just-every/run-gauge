@@ -1,3 +1,4 @@
+import { retainerFees } from './retainer-fees'
 import { type Row, sum } from './model'
 import type { financeForecast } from './finance-forecast'
 
@@ -25,11 +26,14 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   const daysLate = client?.value.daysLate ?? null, percent = client?.value.collectionPercent ?? 100
   const incomplete = [...f.incomplete], sources = { clients: client ? [client.id] : [], milestones: [] as string[], ...f.sources }
   // Expected invoices: milestones on their due dates; every other committed fee of a month on the 1st of the next month.
-  const invoices: { source: string, revenueMonth: string, invoiceDate: string, amountMinor: number }[] = []
+  const invoices: { source: string, revenueMonth: string, invoiceDate: string, amountMinor: number, assumption?:string }[] = []
   const milestones = f.basis === 'fixed' ? (data.milestones ?? []).filter(m => m.value.engagementId === e.id && m.value.status === 'approved') : []
   for (const m of milestones) { sources.milestones.push(m.id); invoices.push({ source: `milestones:${m.id}`, revenueMonth: m.value.due.slice(0, 7), invoiceDate: m.value.due, amountMinor: m.value.amountMinor }) }
+  if(f.basis==='retainer')for(const fee of retainerFees(data,asOf).filter(p=>p.engagementId===e.id&&p.totalMinor!==null)){
+   invoices.push({source:`retainerPeriods:${fee.periodId}`,revenueMonth:fee.periodStart.slice(0,7),invoiceDate:fee.activeStart,amountMinor:fee.totalMinor!,assumption:'Assumed in advance on active period start, not issued; RETAINER-005 sets the schedule'})
+  }
   for (const month of f.months) {
-   const cycle = month.committedFeesMinor - sum(milestones.filter(m => m.value.due.slice(0, 7) === month.month).map(m => m.value.amountMinor))
+   const cycle = month.committedFeesMinor - month.periodFeesMinor - sum(milestones.filter(m => m.value.due.slice(0, 7) === month.month).map(m => m.value.amountMinor))
    if (cycle) invoices.push({ source: `cycle:${month.month}`, revenueMonth: month.month, invoiceDate: nextMonthStart(month.month), amountMinor: cycle })
   }
   const items = invoices.map(x => {

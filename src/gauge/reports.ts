@@ -18,6 +18,7 @@ import { financeForecast } from './finance-forecast'
 import { demandForecast } from './demand-forecast'
 import { projectMargin } from './margin'
 import { cashForecast } from './cash-forecast'
+import { portfolio } from './portfolio'
 import { privateClientKeys } from './clients'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
@@ -30,6 +31,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  // Cash assumptions (FINANCE-002/FINANCE-007) and the SETUP-002 client workspace are finance's: others see the client's name.
  if(k==='clients')return Object.fromEntries(Object.entries(value).filter(([key])=>!privateClientKeys.includes(key)))
  const v: Value = { ...value }
+ if(k==='retainers')v.terms=Object.fromEntries(Object.entries(value.terms).filter(([key])=>key!=='feeMinor'))
  if(a.role==='staff'&&k==='time'){delete v.retainerRootId;delete v.retainerAllocation}
  delete v.economics; delete v.rateOverride; if (v.source) { v.source = { ...v.source }; delete v.source.costMinor; delete v.source.billMinor }
  if (k === 'leave' && v.personId !== a.personId) v.note = 'Private leave'
@@ -115,7 +117,7 @@ export function economics(data: Awaited<ReturnType<typeof visible>>,a: Actor) {
   return {...base,costMinor:missingCostSources.length||otherCostCurrencies.length?null:knownCostMinor,knownCostMinor,missingCostSources,costByCurrency,otherCostCurrencies,billableMinor:missingBillRateSources.length?null:knownBillableMinor,knownBillableMinor,missingBillRateSources}
  })
 }
-export async function reports(env: Bindings,a: Actor,from: string,to: string,favoritePersonId?:string,forecastAsOf?:string|null) {
+export async function reports(env: Bindings,a: Actor,from: string,to: string,favoritePersonId?:string,forecastAsOf?:string|null,portfolioOptions:Value={}) {
  const asOf=new Date().toISOString(),forecastDay=forecastAsOf?date(forecastAsOf):workDate(Date.now(),a.timezone)
  const data=await visible(env,a,favoritePersonId),cap=capacity(data,from,to),econ=economics(data,a),exceptions:any[]=[]
  for(const c of cap){ for(const conflict of c.conflicts)exceptions.push({type:'capacity conflict',personId:c.personId,...conflict});if(c.missingCalendarDays)exceptions.push({type:'availability missing',personId:c.personId,days:c.missingCalendarDays,demand:c.days.filter(d=>d.calendarId===null&&(d.committedSeconds>0||d.tentativeSeconds>0))}) }
@@ -138,6 +140,6 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const forecast=finance(a)?financeForecast(data,forecastDay,retainerBalances):null
  // RESOURCE-005 capacity runs from the day after the forecast day for a year, whatever window the state read shows.
  const forecastCapacity=forecast?capacity(data,new Date(Date.parse(forecastDay)+86400000).toISOString().slice(0,10),new Date(Date.parse(forecastDay)+366*86400000).toISOString().slice(0,10)):[]
- const report={timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,cash:forecast?cashForecast(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
+ const report={portfolio:forecast?portfolio(data,forecast,retainerBalances,from,to,portfolioOptions):null,timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,cash:forecast?cashForecast(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

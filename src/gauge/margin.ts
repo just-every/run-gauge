@@ -23,7 +23,7 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    else if ((x.costCurrency ?? x.currency) !== f.currency) costUnknown.push(`time:${t.id}: cost declared in ${x.costCurrency}; SETUP-003 exchange rates convert it`)
    if (f.basis === 'hourly' && t.value.billable && x.billMinor == null) feesUnknown.push(`time:${t.id}: frozen billMinor unknown`)
   }
-  if (f.basis === 'retainer') feesUnknown.push(`engagements:${e.id}: retainer period fees are not recorded until RETAINER-005`)
+  if (f.basis === 'retainer') feesUnknown.push(...f.incomplete.filter(s=>s.includes('period fee')))
   // Provisional cost: submitted, not yet approved, time at the cost rate effective on its work date, plus submitted expenses.
   const provisionalUnknown: string[] = [], provisionalSources: string[] = []
   let provisionalLaborMinor = 0, provisionalExpenseMinor = 0

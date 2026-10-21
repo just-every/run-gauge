@@ -1,6 +1,7 @@
 import { type Row, type Value, charge, sum } from './model'
 import { explain, activeRates } from './rate-cards'
 import { retainerMatches, overageCharge } from './retainer-rules'
+import { retainerFees } from './retainer-fees'
 import { allocationPricing } from './forecast-allocation-pricing'
 
 // FINANCE-006 committed forecast basis. Every amount is integer cents in the engagement currency.
@@ -8,7 +9,7 @@ import { allocationPricing } from './forecast-allocation-pricing'
 // bill rate effective on each day (RATE-002 precedence, withdrawn cards excluded), including bill-only
 // overtime premiums followed by write-downs, round-half-up per allocation day. Allocation seconds are unrounded.
 // Fixed fees follow approved milestones by due month; retainer revenue is its forecast overages (the period fee
-// itself is unrecorded until RETAINER-005, so retainer revenue is marked incomplete). Cost always uses the allocation formula.
+// is optional on each immutable version, earned ratably in opened periods; missing fees remain incomplete). Cost always uses the allocation formula.
 const DAY = 86400000
 const month = (day: string) => day.slice(0, 7)
 const days = (from: string, to: string) => { const out: string[] = []; for (let ms = Date.parse(from); ms <= Date.parse(to); ms += DAY) out.push(new Date(ms).toISOString().slice(0, 10)); return out }
@@ -16,12 +17,12 @@ const nextDay = (day: string) => new Date(Date.parse(day) + DAY).toISOString().s
 const monthsBetween = (from: string, to: string) => { const out: string[] = []; const d = new Date(`${from.slice(0, 7)}-01T00:00:00Z`); while (d.toISOString().slice(0, 7) <= to.slice(0, 7)) { out.push(d.toISOString().slice(0, 7)); d.setUTCMonth(d.getUTCMonth() + 1) } return out }
 /** Integer cents split evenly; leftover cents go to the earliest months. */
 const spread = (minor: number, months: string[]) => months.map((m, i) => [m, Math.floor(minor / months.length) + (i < minor % months.length ? 1 : 0)] as const)
-type Month = { month: string, actualFeesMinor: number, etcFeesMinor: number, expenseFeesMinor: number, committedFeesMinor: number, actualCostMinor: number, etcCostMinor: number, expenseCostMinor: number, committedCostMinor: number, tentativeFeesMinor: number, tentativeCostMinor: number }
-const blank = (m: string): Month => ({ month: m, actualFeesMinor: 0, etcFeesMinor: 0, expenseFeesMinor: 0, committedFeesMinor: 0, actualCostMinor: 0, etcCostMinor: 0, expenseCostMinor: 0, committedCostMinor: 0, tentativeFeesMinor: 0, tentativeCostMinor: 0 })
+type Month = { month: string, actualFeesMinor: number, etcFeesMinor: number, expenseFeesMinor: number, periodFeesMinor: number, committedFeesMinor: number, actualCostMinor: number, etcCostMinor: number, expenseCostMinor: number, committedCostMinor: number, tentativeFeesMinor: number, tentativeCostMinor: number }
+const blank = (m: string): Month => ({ month: m, actualFeesMinor: 0, etcFeesMinor: 0, expenseFeesMinor: 0, periodFeesMinor: 0, committedFeesMinor: 0, actualCostMinor: 0, etcCostMinor: 0, expenseCostMinor: 0, committedCostMinor: 0, tentativeFeesMinor: 0, tentativeCostMinor: 0 })
 
 export function financeForecast(data: Record<string, Row[]>, asOf: string, retainerBalances: Value[] = []) {
  const rates = activeRates(data.rates ?? [], data.rateWithdrawals ?? []), people = new Map((data.people ?? []).map(p => [p.id, p]))
- const priceAllocation = allocationPricing(data, asOf)
+ const priceAllocation = allocationPricing(data, asOf),periodFees=retainerFees(data,asOf)
  // Index threshold evidence once. A person's future source superset is retained
  // when overtime is priced, including competing projects and nonbillable work.
  const thresholdSources = new Map<string, { staffing: Row[], time: Row[] }>()
@@ -98,7 +99,13 @@ export function financeForecast(data: Record<string, Row[]>, asOf: string, retai
   }
   // Retainer revenue: realised overage in its period month plus committed eligible demand beyond the remaining allowance.
   if (basis === 'retainer') {
-   incomplete.push(`engagements:${e.id}: retainer period fees are not recorded until RETAINER-005`)
+   const feePeriods=periodFees.filter(p=>p.engagementId===e.id)
+   if(!feePeriods.length)incomplete.push(`engagements:${e.id}: no opened retainer period fee`)
+   for(const fee of feePeriods){
+    sources.retainerPeriods.push(fee.periodId);(sources.retainers??=[]).push(fee.retainerId)
+    if(fee.totalMinor===null){incomplete.push(`retainers:${fee.retainerId}: period fee not recorded`);continue}
+    for(const m of fee.months){at(m.month).actualFeesMinor+=m.actualMinor!;at(m.month).etcFeesMinor+=m.etcMinor!;at(m.month).periodFeesMinor+=m.totalMinor!}
+   }
    for (const b of retainerBalances.filter(b => b.engagementId === e.id)) {
     const period = (data.retainerPeriods ?? []).find(p => p.id === b.periodId), family = families.find(r => r.id === b.retainerId)
     if (!period || !family) continue

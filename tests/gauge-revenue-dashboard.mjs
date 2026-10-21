@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {invoiceDashboardJourney} from './gauge-invoices.mjs'
 import {execFileSync} from 'node:child_process'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
@@ -23,7 +24,7 @@ export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
  await cmd('budget:approve',budget)
  d=await read();assert.equal(d.pipeline.find(p=>p.currency==='USD').bookedMinor,beforeWon+400000,'REPORT-003 conversion replaces won source with approved terms once')
  let packet=await cmd('packet:create',{engagementId:hourly.id,title:'Support billing preparation',sources:[`time:${entry.id}`]})
- await cmd('packet:approve',packet)
+ packet=await cmd('packet:approve',packet)
  d=await read();assert.equal(bucket(d).amountMinor,60000,'REPORT-003 packet approval does not issue or remove WIP')
  const expense=await cmd('expense:save',{engagementId:hourly.id,personId:worker.id,date:'2026-10-06',description:'Client materials',amountMinor:2500,reimbursable:true})
  await cmd('expense:approve',await cmd('expense:submit',expense))
@@ -41,6 +42,7 @@ export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
  const rows=JSON.parse(execFileSync('python3',['-c','import csv,json,sys; print(json.dumps([r for r in csv.reader(sys.stdin) if len(r)>1 and r[1]=="revenue:USD:wipMinor"]))'],{input:await csv.text(),encoding:'utf8'}))
  assert.equal(rows.find(r=>r[0]==='figure'&&r[1]===figure.id)[3],'62500')
  await captureRevenueDashboard(h,'known')
+ await invoiceDashboardJourney(h,{worker,client,hourly,entry,packet})
  const terms={name:'Design care',frequency:'monthly',unit:'hours',allowance:144000,services:['Support'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:'2026-10-31',renewal:'manual',noticeDays:30}
  const preview=await cmd('retainer:preview',{engagementId:hourly.id,operation:'terms',terms})
  await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Reviewed included support'})

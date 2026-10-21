@@ -97,7 +97,7 @@ try {
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
  await page.goto(h.origin + `/app/review?from=2026-10-01&to=2026-10-31&asOf=${asOf}`)
  const section = page.locator('#cash-forecast'), text = await section.innerText()
- for (const label of [/none issued/i, /no payments recorded/i, /historical timing/i, /weighted pipeline/i]) assert.match(text, label)
+ for (const label of [/issued receivables/i, /user-recorded/i, /historical timing/i, /weighted pipeline/i]) assert.match(text, label)
  for (const width of [1440, 390]) {
   await page.setViewportSize({ width, height: 1000 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Cash forecast fits ${width}`)
@@ -105,7 +105,7 @@ try {
   const dashboard=page.locator('#revenue-dashboard');assert(await dashboard.isVisible());assert.match(await dashboard.innerText(),/Unverified|unverified/);assert.match(await dashboard.innerText(),/Unknown/)
  }
  await page.setViewportSize({ width: 1440, height: 1000 })
- await page.locator('#revenue-dashboard').getByRole('row',{name:/USD/}).getByRole('link').last().click()
+ await page.locator('#revenue-dashboard').getByRole('row',{name:/USD/}).locator('a[href*="wipMinor"]').click()
  assert.match(await page.locator('#report-evidence article').first().innerText(),/Hourly WIP and reimbursable expenses/)
  await section.getByRole('row', { name: /2027-01/ }).getByRole('link').nth(1).click()
  assert((await page.locator('#report-evidence article').first().innerText()).includes('Expected cash on terms'))

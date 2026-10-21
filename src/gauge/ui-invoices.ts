@@ -1,0 +1,19 @@
+import type { Report } from './ui-describe'
+import { escape as e, form, input, area, amount } from './ui-forms'
+import { money, nameOf } from './ui-format'
+import { sum } from './model'
+
+/** Native documents and manual receipts use the existing Billing cards and forms. */
+export function invoicesSection(report: Report, today: string) {
+ const d = report.data
+ const issue = d.packets.filter(p => p.value.status === 'approved' && !p.value.correctsPacketId && p.value.totalMinor > 0 && !d.invoices.some(i => i.value.packetId === p.id)).map(p => {
+  const project=d.engagements.find(x=>x.id===p.value.engagementId),client=d.clients.find(x=>x.id===project?.value.clientId)
+  const due = new Date(Date.parse(today)+(client?.value.paymentTermsDays??30)*86400000).toISOString().slice(0,10)
+  return `<details class="g-card"><summary>Issue ${e(p.value.title)} · ${money(p.value.totalMinor,p.value.currency)}</summary>${form('invoice:issue','Issue reviewed invoice',`<p>Creates an immutable, numbered pre-tax document from this exact approved packet. No email, payment link or accounting sync is performed. Client workspace, PO and payment terms are frozen with the document.</p>`+input('issueDate','Issue date',today,'date')+input('dueDate','Due date under saved client terms',due,'date')+area('billTo','Bill to',client?.value.legalName??client?.value.name??'')+area('remitTo','Remit to')+input('reference','PO or billing reference',client?.value.poNumbers?.[0]??''),p,'Issue invoice','g-bare')}</details>`
+ }).join('')
+ const invoices=d.invoices.map(r=>{
+  const v=r.value,receipts=d.payments.filter(p=>p.value.invoiceId===r.id),paid=sum(receipts.map(p=>p.value.amountMinor)),open=v.totalMinor-paid
+  return `<article class="g-card" id="invoice-${e(r.id)}"><h3>Invoice ${e(v.number)} · ${e(nameOf(d.engagements,v.engagementId))}</h3><p>Issued ${e(v.issueDate)} · Due ${e(v.dueDate)} · ${e(v.currency)} · ${open===0?'Paid by recorded receipts':paid?'Partially paid by recorded receipts':'Issued, unpaid'}</p><p>Total ${money(v.totalMinor,v.currency)} · Open ${money(open,v.currency)} · Recorded receipts ${money(paid,v.currency)}</p><details><summary>Immutable invoice and sources</summary><p>Bill to: ${e(v.billTo)}</p><p>Remit to: ${e(v.remitTo)}</p><p>Reference: ${e(v.reference)}</p><ul>${v.lines.map((l:any)=>`<li>${e(l.description)} · ${money(l.amountMinor,v.currency)} · approved revision ${e(l.sourceRevision)}</li>`).join('')}</ul><p>Pre-tax. Not sent; no tax calculation, payment link or provider verification.</p></details>${receipts.length?`<ul>${receipts.map(p=>`<li>${e(p.value.date)} · ${money(p.value.amountMinor,p.value.currency)} · ${e(p.value.reference)} · user-recorded, not provider verified</li>`).join('')}</ul>`:''}${open>0?form('payment:record','Record received payment',`<p>Record an actual receipt against this invoice. This does not contact a bank or processor, and does not verify settlement.</p>`+input('date','Receipt date',today,'date')+amount('amountDollars',`Received amount (${v.currency})`,open)+input('reference','Unique bank receipt reference'),r,'Record receipt','g-bare'):''}<a class="g-link" href="/api/gauge/history/invoices/${e(r.id)}">Invoice record history</a></article>`
+ }).join('')
+ return `<section class="g-block" id="invoices"><h2>Issued invoices and recorded receipts</h2><p>Native pre-tax documents and user-recorded payments. Accounting and processor state remain unverified. Corrections, tax, retainer invoices and client-currency payment links remain unavailable.</p>${issue||'<p>No approved packets awaiting issue.</p>'}${invoices||'<p>No invoices issued.</p>'}</section>`
+}

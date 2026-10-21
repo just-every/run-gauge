@@ -4,12 +4,12 @@ import { type Kind, type Row, type Value, csv, integer, need, sum, text, uuid } 
 import { type Actor, Transaction, fence, finance, get } from './store'
 
 const handoffKind = 'specialistHandoffs' as Kind
-export const handoffNotice = 'Prepared PSA inputs only. Gauge has not sent these inputs, filed payroll or tax, or certified profit. Revenue inputs are billing preparation, not issued invoices or recognized revenue.'
+export const handoffNotice = 'Prepared PSA inputs only. Gauge has not sent these inputs, filed payroll or tax, or certified profit. Revenue inputs are billing preparation, not issued invoices or recognized revenue. Invoice rows are issued native pre-tax documents. Payment rows are user-recorded receipts, not provider-verified settlement. Neither category claims recognized revenue.'
 export const receiverNotice = 'User-recorded receiver result; provider acceptance not independently verified.'
 const signedMoney = (v: unknown) => {need(typeof v==='number' && Number.isSafeInteger(v),'Amount must be exact signed integer minor units');return v}
 const currency = (v: unknown) => {need(typeof v==='string'&&/^[A-Z]{3}$/.test(v),'Source currency must be explicit');return v}
 type HandoffLine = {
- id:string; category:'labor'|'expense'|'revenue-input'; sourceKind:string; sourceId:string; sourceRevision:string;
+ id:string; category:'labor'|'expense'|'revenue-input'|'invoice'|'payment'; sourceKind:string; sourceId:string; sourceRevision:string;
  engagementId:string; personId:string|null; date:string|null; currency:string; amountMinor:number|null; durationSeconds:number|null;
  approvedBy:string|null; approvedAt:number|null; details:Value
 }
@@ -28,7 +28,7 @@ function reference(raw:unknown) {
  if(typeof selected==='string'&&selected.trim().startsWith('{')){try{selected=JSON.parse(selected)}catch{need(false,'Invalid selected source JSON')}}
  if(typeof selected==='string'){const parts=selected.split(':');need(parts.length===2,'Use kind:id source identities');selected={kind:parts[0],id:parts[1]}}
  need(selected&&typeof selected==='object'&&!Array.isArray(selected),'Choose an approved source')
- need(['time','expenses','packets'].includes(selected.kind),'Choose time, expenses or packets')
+ need(['time','expenses','packets','invoices','payments'].includes(selected.kind),'Choose time, expenses, packets, invoices or payments')
  return {kind:selected.kind as Kind,id:text(selected.id,'Source ID',200),revision:text(selected.revision,'Exact approved source revision',200)}
 }
 
@@ -41,12 +41,12 @@ async function prepare(env:Bindings,a:Actor,tx:Transaction,input:Value) {
  for(const source of selected){
   const identity=`${source.kind}:${source.id}`;need(!seen.has(identity),'A source appears twice');seen.add(identity)
   const row=await get(env,source.kind,source.id),v=row.value
-  need(v.status==='approved','Only approved inputs can be prepared',409)
+  if(source.kind!=='invoices'&&source.kind!=='payments')need(v.status==='approved','Only approved inputs can be prepared',409)
   need(source.revision===row.revision,'Selected source changed; review it again',409)
   tx.observe(source.kind,row)
   const e=await get(env,'engagements',v.engagementId);tx.observe('engagements',e)
   const base={sourceKind:source.kind,sourceId:row.id,sourceRevision:row.revision,engagementId:e.id,
-   personId:v.personId??null,approvedBy:v.approvedBy??null,approvedAt:v.approvedAt??null}
+   personId:v.personId??null,approvedBy:v.approvedBy??v.issuedBy??v.recordedBy??null,approvedAt:v.approvedAt??v.issuedAt??v.recordedAt??null}
   snapshots.push({kind:source.kind,id:row.id,revision:row.revision})
   if(source.kind==='time'){
    need(v.economics&&typeof v.economics==='object','Approved labor needs its frozen economics')
@@ -58,6 +58,19 @@ async function prepare(env:Bindings,a:Actor,tx:Transaction,input:Value) {
   }else if(source.kind==='expenses'){
    lines.push({...base,id:identity,category:'expense',date:v.date,currency:currency(v.currency),amountMinor:signedMoney(v.amountMinor),durationSeconds:null,
     details:{basis:'Approved actual expense; reimbursement and client recovery remain separate',reimbursable:v.reimbursable===true,taskId:v.taskId??null}})
+  }else if(source.kind==='invoices'){
+   need(Array.isArray(v.lines)&&v.lines.length>0,'Issued invoice has no document lines')
+   need(v.lines.every((line:Value)=>line.currency===v.currency),'Invoice source currencies differ; no implicit FX')
+   need(sum(v.lines.map((line:Value)=>signedMoney(line.amountMinor)))===v.totalMinor,'Invoice source amounts do not reconcile')
+   lines.push({...base,id:identity,category:'invoice',personId:null,date:v.issueDate,currency:currency(v.currency),amountMinor:signedMoney(v.totalMinor),durationSeconds:null,
+    details:{basis:'Issued native pre-tax invoice; not recognized revenue',number:v.number,packetId:v.packetId,issueDate:v.issueDate,dueDate:v.dueDate,
+     issuedBy:v.issuedBy,issuedAt:v.issuedAt,lines:v.lines}})
+  }else if(source.kind==='payments'){
+   const invoice=await get(env,'invoices',v.invoiceId);tx.observe('invoices',invoice)
+   need(invoice.value.engagementId===e.id&&invoice.value.currency===v.currency,'Receipt invoice identity or currency differs',409)
+   lines.push({...base,id:identity,category:'payment',personId:null,date:v.date,currency:currency(v.currency),amountMinor:signedMoney(v.amountMinor),durationSeconds:null,
+    details:{basis:'User-recorded receipt; provider acceptance and settlement not independently verified; not recognized revenue',invoiceId:invoice.id,
+     invoiceRevision:invoice.revision,invoiceNumber:invoice.value.number,reference:v.reference,recordedBy:v.recordedBy,recordedAt:v.recordedAt}})
   }else{
    need(Array.isArray(v.lines)&&v.lines.length>0,'Approved packet has no revenue input lines')
    need(v.lines.every((line:Value)=>line.currency===v.currency),'Packet source currencies differ; no implicit FX')

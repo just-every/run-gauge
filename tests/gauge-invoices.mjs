@@ -1,0 +1,112 @@
+import assert from 'node:assert/strict'
+import {randomUUID} from 'node:crypto'
+import {mkdir} from 'node:fs/promises'
+import {chromium} from '@playwright/test'
+
+// REPORT-003: production commands, pages, report CSV and specialist reconciliation.
+export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,packet}) {
+ const {cmd,owner,request}=h
+ const read=async(asOf='2026-10-19',cookie=owner)=>(await request(`/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=${asOf}`,cookie)).json()
+ const bucket=d=>d.revenueDashboard.wip.find(x=>x.currency==='USD')
+ // Isolate issued work from the separate journey that later adopts retainer terms.
+ hourly=await cmd('save:engagements',{name:'Invoice support',clientId:client.id,leadId:worker.id,members:[worker.id],scope:'Collected support',timezone:'America/New_York'})
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:hourly.id,mode:'hourly',amountMinor:100000,effortSeconds:14400,roundingSeconds:60,reason:'Invoice support terms'}))
+ const task=await cmd('save:tasks',{engagementId:hourly.id,name:'Collected support',remainingSeconds:0})
+ entry=await cmd('time:save',{personId:worker.id,engagementId:hourly.id,taskId:task.id,service:'Support',notes:'Collected support interval',timezone:'America/New_York',billable:true,start:'2026-10-07T09:00:00-04:00',end:'2026-10-07T13:00:00-04:00'})
+ entry=await cmd('time:approve',await cmd('time:submit',entry))
+ packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:hourly.id,title:'Collected support preparation',sources:[`time:${entry.id}`]}))
+ const input={...packet,issueDate:'2026-10-10',dueDate:'2026-11-09',billTo:'Northwind accounts payable',remitTo:'Agency operating account',reference:'Support October'}
+ // Replayed request keys cannot issue twice; racing different keys reserve one packet and one number.
+ const key=randomUUID(),issue=()=>h.post('/api/gauge/command',{key,action:'invoice:issue',...input},owner)
+ const outcomes=await Promise.all([issue(),h.post('/api/gauge/command',{key:randomUUID(),action:'invoice:issue',...input},owner)])
+ assert.equal(outcomes.filter(r=>r.status===200).length,1,'REPORT-003 packet issues once under a race')
+ const invoice=await outcomes.find(r=>r.status===200).json()
+ const persisted=(await read()).data.invoices.find(r=>r.id===invoice.id)
+ assert.equal(persisted.value.totalMinor,60000);assert.equal(persisted.value.lines[0].sourceId,entry.id)
+ assert.equal(persisted.value.clientSnapshot.id,client.id);assert.equal(persisted.value.packetRevision,packet.revision)
+ await cmd('invoice:issue',input,owner,409)
+ let d=await read();assert.equal(bucket(d).amountMinor,62500);assert.equal(bucket(d).openMinor,60000);assert.equal(bucket(d).paidMinor,0)
+ assert.equal(bucket(await read('2026-10-09')).amountMinor,122500,'REPORT-003 as-of before issue retains WIP')
+ const cash=d.cash.engagements.find(x=>x.engagementId===hourly.id)
+ assert.equal(cash.items.filter(x=>x.issued).length,1)
+ assert.equal(cash.items.find(x=>x.issued).receiptDate,'2026-11-09')
+ assert(!cash.items.some(x=>!x.issued&&x.revenueMonth==='2026-10'&&x.amountMinor===60000),'REPORT-003 issuance removes matching expected schedule once')
+ assert.equal(d.margin.find(x=>x.engagementId===hourly.id).billedMinor,60000)
+ assert.match(d.margin.find(x=>x.engagementId===hourly.id).billedLabel,/Invoiced/)
+ await cmd('packet:adjust',{...packet,sourceId:entry.id,sourceKind:'time',correctedAmountMinor:50000,reason:'Must use future invoice credit flow'},owner,409)
+ await cmd('payment:record',{...invoice,date:'2026-10-09',amountMinor:100,reference:'Before issue'},owner,400)
+ await cmd('payment:record',{...invoice,date:'2026-10-11',amountMinor:100,currency:'CAD',reference:'Wrong currency'},owner,400)
+ const paymentKey=randomUUID(),paymentInput={...invoice,date:'2026-10-11',amountMinor:20000,reference:'Bank deposit NW-1'}
+ const pay=await cmd('payment:record',{...paymentInput,key:paymentKey})
+ assert.deepEqual(await cmd('payment:record',{...paymentInput,key:paymentKey}),pay,'REPORT-003 receipt request replay is exact')
+ await cmd('payment:record',paymentInput,owner,409)
+ d=await read();assert.equal(bucket(d).openMinor,40000);assert.equal(bucket(d).paidMinor,20000)
+ const future=await cmd('payment:record',{...invoice,date:'2026-10-20',amountMinor:10000,reference:'Bank deposit NW-2'})
+ assert.equal(bucket(await read()).paidMinor,20000,'REPORT-003 future-dated receipts stay out of as-of totals')
+ assert.equal(bucket(await read('2026-10-20')).paidMinor,30000)
+ // Both competing receipts fit the old balance, but together exceed it: only one commits.
+ const races=await Promise.all(['a','b'].map(reference=>h.post('/api/gauge/command',{key:randomUUID(),action:'payment:record',...invoice,date:'2026-10-12',amountMinor:30000,reference:`Bank deposit ${reference}`},owner)))
+ assert.equal(races.filter(r=>r.status===200).length,1,'REPORT-003 concurrent payments cannot over-allocate')
+ await cmd('payment:record',{...invoice,date:'2026-10-20',amountMinor:1,reference:'Overpayment'},owner,409)
+ d=await read('2026-10-20');assert.equal(bucket(d).openMinor,0);assert.equal(bucket(d).paidMinor,60000)
+ assert.equal(d.cash.issuedTotals[0].openMinor,0);assert.equal(d.cash.paymentTotals[0].amountMinor,60000)
+ assert.equal(d.margin.find(x=>x.engagementId===hourly.id).paidCashMinor,60000)
+ assert.equal(d.lineage.find(x=>x.id==='revenue:USD:paidMinor').value,60000)
+ assert(d.lineage.find(x=>x.id==='revenue:USD:paidMinor').sources.some(s=>s.kind==='payments'&&s.id===future.id))
+ const csv=await request('/api/gauge/report.csv?'+new URLSearchParams({from:d.from,to:d.to,asOf:'2026-10-20',fingerprint:d.fingerprint}),owner)
+ assert.equal(csv.status,200);assert.match(await csv.text(),/revenue:USD:paidMinor/)
+ const sources=[persisted,...d.data.payments].map(r=>({kind:r.id===persisted.id?'invoices':'payments',id:r.id,revision:r.revision}))
+ const handoff=await cmd('handoff:prepare',{purpose:'accounting',recipient:'Northwind accountant',reason:'Reconcile issued document and recorded receipts separately',sources})
+ const prepared=(await read()).data.specialistHandoffs.find(x=>x.id===handoff.id)
+ assert.equal(prepared.value.controlTotals.find(x=>x.category==='invoice').amountMinor,60000)
+ assert.equal(prepared.value.controlTotals.find(x=>x.category==='payment').amountMinor,60000)
+ const result={handoffId:handoff.id,artifactHash:prepared.value.artifactHash,lines:prepared.value.lines.map((l,i)=>({id:l.id,status:i?'accepted':'rejected',...(i?{}:{reason:'Accountant requests issued document'}),currency:l.currency,amountMinor:l.amountMinor,durationSeconds:l.durationSeconds}))}
+ await cmd('handoff:record-result',{...handoff,result})
+ assert.equal((await read()).data.specialistHandoffs.find(x=>x.id===handoff.id).value.result.rejectedCount,1)
+ for(const role of ['staff','lead','agent']){
+  const actor=await h.invite(`invoice-${role}`);await cmd('grant',{operatorId:actor.id,personId:worker.id,role,enabled:true})
+  const restricted=await read('2026-10-20',actor.cookie);assert.deepEqual(restricted.data.invoices,[]);assert.deepEqual(restricted.data.payments,[])
+  for(const kind of ['invoices','payments'])assert.equal((await request(`/api/gauge/history/${kind}/${kind==='invoices'?invoice.id:pay.id}`,actor.cookie)).status,403)
+  await cmd('invoice:issue',input,actor.cookie,403);await cmd('payment:record',paymentInput,actor.cookie,403)
+ }
+ // A second deal traverses won, converted, delivered, invoiced and paid through the native doors.
+ const deal=await cmd('save:opportunities',{name:'Collected workshop',clientId:client.id,ownerId:worker.id,stage:'won',probability:100,from:'2026-10-01',to:'2026-10-31',services:'Workshop',amountMinor:7500,demandSeconds:3600})
+ const project=await cmd('opportunity:convert',deal),before=(await read()).pipeline.find(x=>x.currency==='USD').bookedMinor
+ const budget=(await read()).data.budgets.find(x=>x.value.engagementId===project.id);await cmd('budget:approve',budget)
+ assert.equal((await read()).pipeline.find(x=>x.currency==='USD').bookedMinor,before,'REPORT-003 won conversion counts signed value once')
+ let milestone=await cmd('save:milestones',{engagementId:project.id,name:'Delivered workshop',due:'2026-10-10',amountMinor:7500})
+ milestone=await cmd('milestone:approve',milestone)
+ milestone=await cmd('milestone:deliver',{...milestone,date:'2026-10-10',reason:'Workshop delivered'})
+ const delivery=(await read()).data.milestones.find(x=>x.id===milestone.id).value.delivery.deliveries.at(-1)
+ milestone=await cmd('milestone:decision',{...milestone,deliveryId:delivery.id,outcome:'accepted',date:'2026-10-10',contact:'Northwind sponsor',reason:'Sponsor reported workshop complete'})
+ milestone=await cmd('milestone:authorize',milestone)
+ let workshop=await cmd('packet:create',{engagementId:project.id,title:'Workshop delivery',sources:[`milestones:${milestone.id}`]});workshop=await cmd('packet:approve',workshop)
+ // Use the actual forms at both sizes and inspect the resulting issued/paid states.
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{
+  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
+  await context.addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  const capture=async(name)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`REPORT-003 billing fits ${width}`);if(process.env.GAUGE_CASH_SHOTS){await mkdir(process.env.GAUGE_CASH_SHOTS,{recursive:true});await page.locator('#invoices').screenshot({path:`${process.env.GAUGE_CASH_SHOTS}/REPORT-003-billing-${name}-${width}.png`})}}}
+  await page.setViewportSize({width:1440,height:1000})
+  await page.goto(h.origin+'/app/billing')
+  const issueForm=page.locator('form').filter({has:page.locator(`input[name="action"][value="invoice:issue"]`)}).filter({has:page.locator(`input[name="id"][value="${workshop.id}"]`)})
+  await issueForm.locator('..').locator('..').locator('summary').click()
+  await issueForm.getByLabel('Issue date',{exact:true}).fill('2026-10-10');await issueForm.getByLabel('Due date under saved client terms').fill('2026-11-09')
+  await issueForm.getByLabel('Remit to',{exact:true}).fill('Agency operating account');await issueForm.getByLabel('PO or billing reference').fill('Workshop October')
+  await issueForm.getByRole('button',{name:'Issue invoice',exact:true}).click();await page.waitForURL('**/app/billing?saved=1')
+  const workshopInvoice=(await read()).data.invoices.find(x=>x.value.packetId===workshop.id)
+  assert.equal(workshopInvoice.value.lines[0].sourceId,milestone.id)
+  assert.equal((await read()).cash.engagements.find(x=>x.engagementId===project.id).items.filter(x=>x.issued).length,1)
+  assert(!(await read()).cash.engagements.find(x=>x.engagementId===project.id).items.some(x=>x.source===`milestones:${milestone.id}`))
+  await capture('issued');await page.setViewportSize({width:390,height:1000})
+  const receipt=page.locator(`#invoice-${workshopInvoice.id}`).locator('form')
+  await receipt.getByLabel('Receipt date').fill('2026-10-11');await receipt.getByLabel('Unique bank receipt reference').fill('Workshop bank receipt')
+  await receipt.getByRole('button',{name:'Record receipt'}).click();await page.waitForURL('**/app/billing?saved=1')
+  assert.match(await page.locator(`#invoice-${workshopInvoice.id}`).innerText(),/Paid by recorded receipts/)
+  const transfer=(await read()).revenueDashboard.wip.find(x=>x.currency==='USD');assert.equal(transfer.invoicedMinor,transfer.openMinor+transfer.paidMinor)
+  await capture('paid')
+  assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/Paid by recorded receipts/)
+  assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/not provider verified/)
+ }finally{await browser.close()}
+ console.log('PASS REPORT-003 native invoice-to-paid: source transfer once, as-of receipts, immutable source/client terms, races/replay, exact cash and margin, CSV/lineage, specialist reconciliation and privacy; provider/FX acceptance stays partial')
+}

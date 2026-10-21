@@ -1,6 +1,49 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 
+// REPORT-001: disjoint client/lead identities reconcile within the same whole-engagement scope.
+export async function portfolioIdentityJourney(h) {
+ const {cmd,request,owner}=h,timezone='America/New_York',team='Portfolio identity reconciliation'
+ const cohorts=[]
+ for(const [index,costMinor,billMinor] of [[0,4000,15000],[1,6000,20000]]){
+  // Equal display names are valid; grouping and filtering must use the distinct saved identities.
+  const client=await cmd('save:clients',{name:'Northstar Studio',legalName:index?'Northstar Studio West LLC':'Northstar Studio East LLC'})
+  const lead=await cmd('save:people',{name:'Alex Morgan',timezone,team})
+  const project=await cmd('save:engagements',{name:index?'West fixed campaign':'East hourly strategy',clientId:client.id,leadId:lead.id,members:[lead.id],scope:'Approved regional campaign',timezone})
+  await cmd('save:rates',{personId:lead.id,service:'*',effective:'2026-01-01',costMinor,billMinor})
+  await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:index?'fixed':'hourly',amountMinor:index?10000:30000,effortSeconds:index?7200:3600,roundingSeconds:60,reason:'Signed regional campaign terms'}))
+  if(index)await cmd('milestone:approve',await cmd('save:milestones',{engagementId:project.id,name:'Campaign handover',amountMinor:10000,due:'2026-10-09'}))
+  const task=await cmd('save:tasks',{engagementId:project.id,name:'Regional campaign delivery',remainingSeconds:0})
+  const entry=await cmd('time:save',{engagementId:project.id,taskId:task.id,personId:lead.id,service:'Regional strategy',timezone,start:'2026-10-09T09:00:00-04:00',end:index?'2026-10-09T11:00:00-04:00':'2026-10-09T10:00:00-04:00',notes:'Approved regional campaign work',billable:true})
+  await cmd('time:approve',await cmd('time:submit',entry))
+  cohorts.push({client,lead,project,expected:{budgetMinor:index?10000:30000,earnedMinor:index?10000:15000,costMinor:index?12000:4000,marginMinor:index?-2000:11000}})
+ }
+ const read=async(extra={})=>{
+  const query=new URLSearchParams({from:'2026-10-01',to:'2026-10-31',asOf:'2026-10-16',portfolioTeam:team,...extra})
+  const response=await request('/api/gauge/state?'+query,owner);assert.equal(response.status,200)
+  return (await response.json()).portfolio
+ }
+ const firm=await read({portfolioGroup:'firm'})
+ assert.equal(firm.rows.length,1,'REPORT-001 scoped firm has one USD total')
+ assert.deepEqual(new Set(firm.rows[0].projectIds),new Set(cohorts.map(c=>c.project.id)))
+ for(const field of Object.keys(cohorts[0].expected))assert.equal(firm.rows[0][field],cohorts.reduce((n,c)=>n+c.expected[field],0),`REPORT-001 firm ${field} reconciles to approved regional work`)
+ for(const [group,identity,filter] of [['client','client','portfolioClient'],['lead','lead','portfolioLead']]){
+  const grouped=await read({portfolioGroup:group})
+  assert.equal(grouped.rows.length,2,`REPORT-001 same-name ${group} identities stay separate`)
+  assert.equal(new Set(grouped.rows.map(r=>r.key)).size,2)
+  assert.deepEqual(grouped.rows.flatMap(r=>r.projectIds).sort(),cohorts.map(c=>c.project.id).sort(),`REPORT-001 ${group} projects count once`)
+  for(const cohort of cohorts){
+   const row=grouped.rows.find(r=>r.projectIds.includes(cohort.project.id))
+   assert.deepEqual(row.projectIds,[cohort.project.id],`REPORT-001 ${group} owns only its engagement`)
+   for(const [field,value] of Object.entries(cohort.expected))assert.equal(row[field],value,`REPORT-001 ${group} ${field} uses its approved sources`)
+   const filtered=await read({portfolioGroup:'firm',[filter]:cohort[identity].id})
+   assert.deepEqual(filtered.rows[0].projectIds,[cohort.project.id],`REPORT-001 ${filter} selects one saved identity`)
+   for(const [field,value] of Object.entries(cohort.expected))assert.equal(filtered.rows[0][field],value,`REPORT-001 ${filter} ${field} matches its group`)
+  }
+  for(const field of Object.keys(cohorts[0].expected))assert.equal(grouped.rows.reduce((n,r)=>n+r[field],0),firm.rows[0][field],`REPORT-001 ${group} ${field} equals the scoped firm total`)
+ }
+}
+
 // REPORT-001: public HTTP and native forms compare operational profit with a loss, not accounting revenue.
 export async function portfolioJourney(h,browser) {
  const {cmd,request,owner}=h,zone='America/New_York'
@@ -111,6 +154,7 @@ export async function portfolioJourney(h,browser) {
   const hourlyFigure=final.lineage.find(r=>r.id===`portfolioLabor:${encodeURIComponent(labor.key)}:hourlyBillableMinor`);assert.equal(hourlyFigure.value,20000);assert(hourlyFigure.sources.some(r=>r.id===hourlyTime.id&&r.value.economics.billMinor===20000));assert.equal(final.lineage.find(r=>r.id==='portfolioFees:USD').value,184091)
   await page.goto(url);await page.getByText('Additive labor and expense costs by team and service',{exact:true}).click();await capture('additive-costs',page.locator('#portfolio-labor'))
   for(const href of await page.locator('#portfolio-labor a').evaluateAll(els=>els.map(el=>el.href))){const calculation=new URL(href).searchParams.get('calculation');assert(final.lineage.some(f=>f.id===calculation),'REPORT-001 every labor/fee cell has a current source drill')}
+  await portfolioIdentityJourney(h)
   const currentCalendar=(await read()).data.agencyCalendars.at(-1);await cmd('agency:calendar',{previousId:currentCalendar.id,weekdays:[1],holidays:['2026-11-02','2026-11-09','2026-11-16','2026-11-23','2026-11-30'],reason:'No working days in November'})
   const versionsBefore=(await read()).data.retainers.length
   await cmd('retainer:preview',{engagementId:hourly.id,operation:'terms',terms:{...terms,start:'2026-11-01',proration:'calendar'}},owner,400)

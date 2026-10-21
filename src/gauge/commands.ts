@@ -29,6 +29,7 @@ import { projectScenarioCommand, projectScenarioPreview } from './project-scenar
 import { demandScenarioCommand } from './demand-scenarios'
 import { seal } from './audit'
 import { milestoneDeliveryCommand } from './milestone-delivery'
+import { invoiceCommand } from './invoices'
 import { clientCommand } from './clients'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
@@ -64,6 +65,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await approvalCommand(env,a,tx,action,input)
  if(!result)result=await projectScenarioCommand(env,a,tx,action,input)
  if(!result)result=await demandScenarioCommand(env,a,tx,action,input)
+ if(!result)result=await invoiceCommand(env,a,tx,action,input)
  if(!result)result=await clientCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)
  if(!result&&['budget:approve','milestone:approve'].includes(action))result=await approveTerms(env,a,tx,action==='budget:approve'?'budgets':'milestones',input)

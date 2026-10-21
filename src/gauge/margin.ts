@@ -36,6 +36,7 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    else provisionalLaborMinor += charge(t.value.durationSeconds, cost.value.costMinor)
   }
   for (const x of mine('expenses').filter(r => r.value.status === 'submitted')) { provisionalSources.push(`expenses:${x.id}`); provisionalExpenseMinor += x.value.amountMinor }
+  const invoices = mine('invoices').filter(i=>i.value.issueDate<=forecast.asOf), payments=mine('payments').filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))
   const packets = mine('packets').filter(p => p.value.status === 'approved'), credits = packets.filter(p => p.value.correctsPacketId && p.value.totalMinor < 0)
   const approvedExpenseMinor = sum(approvedExpenses.map(x => x.value.amountMinor)), knownApprovedCostMinor = f.actualCostMinor
   const actualUnknown = [...costUnknown, ...feesUnknown], knownActualMarginMinor = f.actualFeesMinor - knownApprovedCostMinor
@@ -49,8 +50,8 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    approvedCostMinor: costUnknown.length ? null : knownApprovedCostMinor, knownApprovedCostMinor, approvedLaborCostMinor: knownApprovedCostMinor - approvedExpenseMinor, approvedExpenseCostMinor: approvedExpenseMinor, costUnknown,
    provisionalCostMinor: provisionalUnknown.length ? null : provisionalLaborMinor + provisionalExpenseMinor, knownProvisionalCostMinor: provisionalLaborMinor + provisionalExpenseMinor, provisionalLaborCostMinor: provisionalLaborMinor, provisionalExpenseCostMinor: provisionalExpenseMinor, provisionalUnknown, provisionalSources,
    earnedValueMinor: feesUnknown.length ? null : f.actualFeesMinor, knownEarnedValueMinor: f.actualFeesMinor, feesUnknown, earnedLabel: marginLabels.earned,
-   billedMinor: sum(packets.map(p => p.value.totalMinor)), creditsMinor: sum(credits.map(p => p.value.totalMinor)), billedLabel: marginLabels.billed, packetSources: packets.map(p => p.id), creditSources: credits.map(p => p.id),
-   paidCashMinor: null, paidCashLabel: marginLabels.paid,
+   billedMinor: invoices.length ? sum(invoices.map(i=>i.value.totalMinor)) : sum(packets.map(p => p.value.totalMinor)), creditsMinor: sum(credits.map(p => p.value.totalMinor)), billedLabel: invoices.length ? 'Invoiced, pre-tax' : marginLabels.billed, packetSources: packets.map(p => p.id), creditSources: credits.map(p => p.id),
+   invoiceSources: invoices.map(i=>i.id), paymentSources: payments.map(p=>p.id), paidCashMinor: payments.length ? sum(payments.map(p=>p.value.amountMinor)) : null, paidCashLabel: payments.length ? 'User-recorded receipts, not provider verified' : marginLabels.paid,
    remainingTaskSeconds: sum(mine('tasks').map(t => t.value.remainingSeconds ?? 0)), committedFutureSeconds,
    etcFeesMinor: f.etcFeesMinor, eacFeesMinor: f.eacFeesMinor, etcCostMinor: f.etcCostMinor, eacCostMinor: f.eacCostMinor,
    actualMarginMinor: actualUnknown.length ? null : knownActualMarginMinor, knownActualMarginMinor, actualUnknown,

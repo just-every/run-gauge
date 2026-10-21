@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {execFileSync} from 'node:child_process'
 import {randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
@@ -128,5 +129,67 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/Paid by recorded receipts/)
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/not provider verified/)
  }finally{await browser.close()}
+ await receivablesJourney(h,worker)
  console.log('PASS REPORT-003 / INVOICE-006 native invoice-to-paid: source transfer once, as-of receipts, immutable source/client terms, races/replay, exact cash and margin, CSV/lineage, specialist reconciliation and privacy; provider/FX acceptance stays partial')
+}
+
+// INVOICE-006 real issuance and manual allocations, then aging/statement downloads.
+async function receivablesJourney(h,worker) {
+ const {cmd,request,owner}=h, asOf='2026-10-31'
+ const read=async(cookie=owner,clientId=null,on=asOf)=>{
+  const r=await request('/api/gauge/receivables?'+new URLSearchParams({asOf:on,...(clientId?{clientId}:{})}),cookie)
+  assert.equal(r.status,200);return r.json()
+ }
+ const client=await cmd('save:clients',{name:'=Statement agency',paymentTermsDays:30})
+ const project=await cmd('save:engagements',{name:'Aging service',clientId:client.id,leadId:worker.id,members:[worker.id],scope:'Statement controls',timezone:'America/New_York'})
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:200000,effortSeconds:36000,roundingSeconds:60,reason:'Statement control terms'}))
+ const task=await cmd('save:tasks',{engagementId:project.id,name:'Statement service',remainingSeconds:0})
+ const plus=(day,n)=>new Date(Date.parse(day+'T00:00:00Z')+n*86400000).toISOString().slice(0,10)
+ const invoices=[]
+ for(const [index,days] of [0,1,30,31,60,61,90,91,-1,-31].entries()){
+  const day=`2026-01-${String(index+1).padStart(2,'0')}`
+  let time=await cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'Support',notes:'Statement service',timezone:'America/New_York',billable:true,start:day+'T09:00:00-05:00',end:day+'T10:00:00-05:00'})
+  time=await cmd('time:approve',await cmd('time:submit',time))
+  const packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Statement service',sources:[`time:${time.id}`]}))
+  const dueDate=plus(asOf,-days),issueDate=plus(dueDate,-30)
+  invoices.push(await cmd('invoice:issue',{...packet,issueDate,dueDate,billTo:'Statement agency',remitTo:'Agency',reference:'Aging service'}))
+ }
+ await cmd('payment:record',{...invoices[0],date:asOf,amountMinor:3000,reference:'=Receipt on as-of day'})
+ await cmd('payment:record',{...invoices[1],date:'2026-11-01',amountMinor:4000,reference:'Future receipt'})
+ const report=await read(owner,client.id), total=report.totals[0]
+ assert.equal(report.invoices.length,9,'INVOICE-006 future-issued document excluded')
+ assert.deepEqual([total.invoicedMinor,total.paidMinor,total.openMinor],[135000,3000,132000],'INVOICE-006 independent statement total = nine 15000 invoices less 3000 received')
+ assert.deepEqual(total.aging.map(b=>b.amountMinor),[27000,30000,30000,30000,15000],'INVOICE-006 all inclusive aging boundaries reconcile to open balance')
+ assert.equal(total.aging.reduce((n,b)=>n+b.amountMinor,0),total.openMinor)
+ assert(report.invoices.every(i=>i.invoicedMinor===i.paidMinor+i.openMinor))
+ const next=await read(owner,client.id,'2026-11-01')
+ assert.equal(next.invoices.length,10);assert.equal(next.totals[0].paidMinor,7000);assert.equal(next.totals[0].openMinor,143000)
+ const all=await read()
+ assert(all.invoices.some(i=>i.openMinor===0&&i.paidMinor>0),'INVOICE-006 fully paid invoices stay on statements')
+ assert(all.invoices.length>report.invoices.length,'INVOICE-006 client statement excludes other clients')
+ assert.deepEqual(report.clients[0].totals,report.totals)
+ const download=d=>'/api/gauge/receivables.csv?'+new URLSearchParams({asOf,clientId:client.id,fingerprint:d.fingerprint})
+ const response=await request(download(report),owner);assert.equal(response.status,200)
+ const rows=JSON.parse(execFileSync('python3',['-c','import csv,json,sys; print(json.dumps(list(csv.DictReader(sys.stdin))))'],{input:await response.text(),encoding:'utf8'}))
+ const documents=rows.filter(r=>r.row==='invoice'),receipts=rows.filter(r=>r.row==='receipt'),aging=rows.filter(r=>r.row==='aging'),totals=rows.filter(r=>r.row==='client total')
+ assert.equal(documents.reduce((n,r)=>n+Number(r['invoiced minor']),0),135000)
+ assert.equal(receipts.reduce((n,r)=>n+Number(r['paid minor']),0),3000)
+ assert.equal(aging.reduce((n,r)=>n+Number(r['open minor']),0),132000)
+ assert.equal(Number(totals[0]['open minor']),132000)
+ assert.equal(documents[0].client,"'=Statement agency");assert.equal(receipts[0].reference,"'=Receipt on as-of day",'INVOICE-006 statement CSV escapes formula-like names and references')
+ for(const role of ['lead','staff','agent','finance']){
+  const person=await h.invite(`statement-${role}`);await cmd('grant',{operatorId:person.id,personId:worker.id,role,enabled:true})
+  if(role==='finance'){
+   assert.equal((await read(person.cookie,client.id)).totals[0].openMinor,132000)
+   await cmd('grant',{operatorId:person.id,personId:worker.id,role,enabled:false})
+  }
+  for(const path of ['/api/gauge/receivables',download(report)])assert.equal((await request(path,person.cookie)).status,403,'INVOICE-006 statement reads and downloads require current finance authority')
+ }
+ assert.equal((await request('/api/gauge/receivables')).status,401)
+ assert.equal((await request('/api/gauge/receivables?asOf=invalid',owner)).status,400)
+ assert.equal((await request('/api/gauge/receivables?asOf='+asOf,owner,{method:'POST'})).status,405)
+ await cmd('payment:record',{...invoices[0],date:asOf,amountMinor:1000,reference:'Later recorded allocation'})
+ assert.equal((await request(download(report),owner)).status,409,'INVOICE-006 changed allocations require refreshing before statement export')
+ assert.equal((await read(owner,client.id)).totals[0].openMinor,131000)
+ console.log('PASS INVOICE-006 dated aging and client statements: independent totals at all bucket edges, inclusive dates, paid invoices, source receipt CSV, safe text, client filtering, current finance authority and stale-export refusal')
 }

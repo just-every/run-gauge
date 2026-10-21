@@ -1,3 +1,4 @@
+import { receivablesRead, receivablesCsv } from './receivables'
 import { handoffDownload } from './specialist-handoff'
 import { Buffer } from 'node:buffer'
 import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
@@ -27,7 +28,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  const resourceRoute=path.match(/^\/api\/gauge\/resources\/([^/%]+)$/)
  const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports|handoffs)\/([^/%]+)$/)
  const page=path==='/app'?'review':path.match(/^\/app\/(review|engagements|time|expenses|capacity|rates|billing|imports|access)$/)?.[1]
- if((!mutation&&!historyRoute&&!resourceRoute&&!download&&!['/api/gauge/state','/api/gauge/clients','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke','/api/gauge/audit','/api/gauge/audit/export','/api/gauge/audit/verify','/app/audit'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
+ if((!mutation&&!historyRoute&&!resourceRoute&&!download&&!['/api/gauge/receivables','/api/gauge/receivables.csv','/api/gauge/state','/api/gauge/clients','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke','/api/gauge/audit','/api/gauge/audit/export','/api/gauge/audit/verify','/app/audit'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
  const env=runtimeBindings(original)
  // A refused page form shows its reason on the page it came from; programs keep the JSON answer.
  let refused:{a:Actor,action:string}|undefined
@@ -83,6 +84,14 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/gauge/rates/explain'){const q=Object.fromEntries(['personId','engagementId','service','date'].map(k=>[k,url.searchParams.get(k)??''])) as any;const result=await explainRate(env,a,q);await fence(env,a);return Response.json(result,{headers})}
   // SETUP-002: finance searches clients by name, PO or external ID.
   if(path==='/api/gauge/clients')return Response.json(await clientSearchRead(env,a,url.searchParams.get('q')),{headers})
+  if(path==='/api/gauge/receivables'||path==='/api/gauge/receivables.csv'){
+   const report=await receivablesRead(env,a,url.searchParams.get('asOf'),url.searchParams.get('clientId'))
+   if(path.endsWith('.csv')){
+    need(url.searchParams.get('fingerprint')===report.fingerprint,'Receivables changed; refresh the statement before exporting',409)
+    return new Response(receivablesCsv(report),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="gauge-client-statements.csv"'}})
+   }
+   return Response.json(report,{headers})
+  }
   if(path==='/api/gauge/state'){const now=new Date(),from=url.searchParams.get('from')??now.toISOString().slice(0,10),to=url.searchParams.get('to')??from;return Response.json(await reports(env,a,from,to,undefined,url.searchParams.get('asOf'),{portfolioGroup:url.searchParams.get('portfolioGroup'),portfolioClient:url.searchParams.get('portfolioClient'),portfolioProject:url.searchParams.get('portfolioProject'),portfolioTeam:url.searchParams.get('portfolioTeam'),portfolioService:url.searchParams.get('portfolioService'),portfolioLead:url.searchParams.get('portfolioLead'),portfolioPerson:url.searchParams.get('portfolioPerson')}),{headers})}
   if(path==='/api/gauge/report.csv'){
    const report=await reports(env,a,url.searchParams.get('from')??'',url.searchParams.get('to')??'',undefined,url.searchParams.get('asOf'),{portfolioGroup:url.searchParams.get('portfolioGroup'),portfolioClient:url.searchParams.get('portfolioClient'),portfolioProject:url.searchParams.get('portfolioProject'),portfolioTeam:url.searchParams.get('portfolioTeam'),portfolioService:url.searchParams.get('portfolioService'),portfolioLead:url.searchParams.get('portfolioLead'),portfolioPerson:url.searchParams.get('portfolioPerson')})

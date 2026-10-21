@@ -6,6 +6,8 @@ import { escape as e, input as i } from './ui-forms'
 import { hours, money, chip } from './ui-format'
 import { meter } from './ui-meter'
 import { type Report, describeException, unbilledByEngagement } from './ui-describe'
+import { periodCloseSection } from './ui-period-close'
+import type { Value } from './model'
 import { budgetAlertSection } from './ui-budget-phases'
 import { timeReviewSection } from './ui-time-policy'
 import { proposalSection } from './ui-proposals'
@@ -28,7 +30,7 @@ export function economicsCard(report: Report, a: Actor, x: Report['economics'][n
  return `<article class="g-card g-econ">${title ? `<header class="g-card-head"><h3><a href="/app/engagements?edit=${e(x.engagementId)}">${e(x.name)}</a></h3>${billable}</header>` : billable}<p class="g-reading-line g-num">${e(label)}</p>${scale}<a class="g-link" href="/app/engagements?edit=${e(x.engagementId)}&amp;calculation=${e(`economics:${x.engagementId}:${finance(a)?'costMinor':'approvedSeconds'}`)}#report-evidence">Calculation and sources</a></article>`
 }
 
-export async function reviewSection(env: Bindings, a: Actor, report: Report) {
+export async function reviewSection(env: Bindings, a: Actor, report: Report,options:Value={}) {
  const d = report.data
  const head = `<div class="g-titlebar"><h1>Week in review</h1><form class="g-period" method="get">${i('from', 'From', report.from, 'date')}${i('to', 'Through', report.to, 'date')}<button class="g-btn g-btn--secondary">Review period</button></form></div>`
  const nothing = !d.engagements.length && !d.proposals.length && !report.exceptions.length
@@ -38,5 +40,5 @@ export async function reviewSection(env: Bindings, a: Actor, report: Report) {
  const rows = [...report.exceptions.filter(x => x.type !== 'unbilled approved work').map(x => describeException(report, x)), ...unbilledByEngagement(report, unbilled)]
  const exceptions = `<section class="g-block"><h2>Decisions and exceptions</h2>${rows.length ? `<ul class="g-card g-exceptions">${rows.map(x => `<li>${chip(x.type)}<a href="${e(x.href)}">${e(x.text.replaceAll(' · ', '\u00a0· '))}</a></li>`).join('')}</ul>` : '<p class="g-empty">No exceptions in the selected period. Missing calendars mean expected time is unknown.</p>'}</section>`
  const economics = `<section class="g-block"><h2>Engagement economics</h2>${report.economics.length ? `<div class="g-econ-grid">${report.economics.map(x => economicsCard(report, a, x)).join('')}</div>` : '<p class="g-empty">Create an engagement and approved terms to begin.</p>'}</section>`
- return head + `<div class="g-review">${await proposalSection(env, a, report)}${exceptions}</div>${budgetAlertSection(report)}${timeReviewSection(report)}${economics}${revenueDashboardSection(report)}${portfolioSection(report)}${forecastSection(report)}${marginSection(report)}${cashSection(report)}${demandSection(report, a.role === 'owner')}<p class="g-footnote">Exceptions come from your approved records. Operational economics are not accounting revenue.</p>`
+ return head + `<div class="g-review">${await proposalSection(env, a, report)}${exceptions}</div>${periodCloseSection(a,report,options.closePreview)}${budgetAlertSection(report)}${timeReviewSection(report)}${economics}${revenueDashboardSection(report)}${portfolioSection(report)}${forecastSection(report)}${marginSection(report)}${cashSection(report)}${demandSection(report, a.role === 'owner')}<p class="g-footnote">Exceptions come from your approved records. Operational economics are not accounting revenue.</p>`
 }

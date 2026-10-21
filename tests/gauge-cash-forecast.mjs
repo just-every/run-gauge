@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
-import { receivablesJourney, notToExceedJourney, phaseBudgetJourney } from './gauge-invoices.mjs'
+import { receivablesJourney, notToExceedJourney, phaseBudgetJourney, agencyCloseJourney } from './gauge-invoices.mjs'
 import { progressJourney } from './gauge-progress.mjs'
 import { receiptJourney } from './gauge-receipts.mjs'
 import { revenueDashboardJourney, captureRevenueDashboard } from './gauge-revenue-dashboard.mjs'
@@ -118,5 +118,6 @@ try {
  await phaseBudgetJourney(h)
  await receiptJourney(h,worker)
  await progressJourney(h,worker)
+ await agencyCloseJourney(h)
  console.log('PASS FINANCE-002 milestone delay moves expected cash as an independent FINANCE-007 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only')
 } finally { await browser?.close(); await h.dispose() }

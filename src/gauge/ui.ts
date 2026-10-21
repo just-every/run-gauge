@@ -42,7 +42,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  const report=await reports(env,a,from,to,section==='time'&&a.role==='owner'?options.sheetPerson:undefined,options.asOf,options)
  need(tabsFor(a).includes(section),'Page unavailable',404)
  let body=options.error?`<p class="g-alert" role="alert">${e(options.error)}</p>`:options.saved?'<p class="g-saved" role="status">Saved.</p>':''
- if(section==='review')body+=await reviewSection(env,a,report)
+ if(section==='review')body+=await reviewSection(env,a,report,options)
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
  if(section==='time')body+=timeSection(a,report,options)
  body+=await operations(env,a,section,{...options,today,zone},report)

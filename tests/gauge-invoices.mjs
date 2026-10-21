@@ -323,3 +323,79 @@ export async function phaseBudgetJourney(h){
  }finally{await browser.close()}
  console.log('PASS BUDGET-002 phase budgets: exact $60,000 rollup and controlled transfer, 76/91 hours cross 75/90 once, corrected approval dedupe, mixed billing, independent complete phase margins/ETC/EAC, source/CSV drills, template inheritance and lead/finance alerts at 1440/390')
 }
+
+export async function agencyCloseJourney(h){
+ const {cmd,state,request,owner}=h,zone='America/New_York'
+ const initial=await state(),baselineTime=initial.data.time.filter(t=>t.value.status==='approved'&&t.value.workDate>='2026-09-01'&&t.value.workDate<='2026-09-30'),baselineExpenses=initial.data.expenses.filter(e=>e.value.status==='approved'&&e.value.date>='2026-09-01'&&e.value.date<='2026-09-30'),baselineInvoices=initial.data.invoices.filter(i=>i.value.issueDate.slice(0,7)==='2026-09'),net=(i,data)=>{const corrections=data.data.invoiceCorrections.filter(c=>c.value.invoiceId===i.id&&c.value.status==='issued'&&c.value.date<='2026-09-30');return corrections.some(c=>c.value.type==='void')?0:i.value.lines.reduce((n,l)=>n+l.amountMinor,0)-corrections.reduce((n,c)=>n+c.value.amountMinor,0)}
+ const worker=await cmd('save:people',{name:'Period close specialist',timezone:zone}),client=await cmd('save:clients',{name:'Period close client'})
+ const project=await cmd('save:engagements',{name:'September agency close',clientId:client.id,leadId:worker.id,members:[worker.id],scope:'Immutable agency reconciliation',timezone:zone})
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:100000,effortSeconds:10800,roundingSeconds:60,reason:'September service terms'}))
+ const task=await cmd('save:tasks',{engagementId:project.id,name:'Close service and WIP',remainingSeconds:3600})
+ await cmd('save:calendars',{personId:worker.id,from:'2026-09-01',to:'2026-09-02',dailySeconds:3600,weekdays:'1,2,3,4,5',timezone:zone})
+ await cmd('save:rates',{personId:worker.id,service:'Close service',effective:'2026-01-01',costMinor:null,billMinor:15000})
+ const actual=async(day,start='06',end='07')=>{let t=await cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'Close service',timezone:zone,start:`2026-09-${day}T${start}:00:00-04:00`,end:`2026-09-${day}T${end}:00:00-04:00`,notes:'Confirmed period actual',billable:true});return cmd('time:approve',await cmd('time:submit',t))}
+ let first=await actual('01')
+ let invoiceCost=await cmd('expense:save',{engagementId:project.id,personId:worker.id,taskId:task.id,date:'2026-09-03',description:'Approved reimbursable source',amountMinor:10000,reimbursable:true});invoiceCost=await cmd('expense:approve',await cmd('expense:submit',invoiceCost))
+ const packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'September external reconciliation',sources:[`expenses:${invoiceCost.id}`]}))
+ const invoice=await cmd('invoice:issue',{...packet,issueDate:'2026-09-30',dueDate:'2026-10-30',billTo:'Period close client',remitTo:'Agency',reference:'September service'})
+ let unapproved=await cmd('expense:save',{engagementId:project.id,personId:worker.id,taskId:task.id,date:'2026-09-03',description:'Unapproved close cost',amountMinor:500,reimbursable:false})
+ const reviewerPerson=await cmd('save:people',{name:'Independent close reviewer',timezone:zone}),reviewer=await h.invite('period-finance'),staff=await h.invite('period-staff'),lead=await h.invite('period-lead'),agent=await h.invite('period-agent')
+ await cmd('grant',{operatorId:reviewer.id,personId:reviewerPerson.id,role:'finance',enabled:true});await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true});await cmd('grant',{operatorId:lead.id,personId:worker.id,role:'lead',enabled:true});await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'billing',engagementIds:[project.id]})
+ const oldLimit=(await state()).data.approvalPolicies[0]
+ await cmd('approval:limit',{...(oldLimit??{}),reviewAboveMinor:100,reason:'Independent review of material agency close and reopening'})
+ let preview=await cmd('period:preview',{month:'2026-09'})
+ for(const reason of ['Approved labor cost is missing','Missing time against the recorded calendar','Cost is not approved','Unmatched invoice or changed reconciliation basis'])assert(preview.snapshot.checklist.blocking.some(b=>b.reason===reason),reason)
+ await cmd('period:prepare',{...preview.input,fingerprint:preview.fingerprint,acknowledgeWip:true,wipReconciliation:'Pending resolution',reason:'Must not close missing sources'},owner,409)
+ await cmd('period:match',{month:'2026-09',invoiceId:invoice.id,invoiceRevision:invoice.revision,system:'synthetic-gauge-accounting',externalId:'synthetic-gauge-1',amountMinor:9999,currency:'USD',reference:'Synthetic receiver control',reason:'Mismatched total'},owner,409)
+ await cmd('save:rates',{personId:worker.id,service:'Close service',effective:'2026-01-02',costMinor:9000,billMinor:15000})
+ first=await cmd('time:correct',{...first,reason:'Resolve the missing frozen cost before locking'});first=await cmd('time:approve',await cmd('time:submit',first));await actual('02')
+ await cmd('expense:approve',await cmd('expense:submit',unapproved))
+ const match=await cmd('period:match',{month:'2026-09',invoiceId:invoice.id,invoiceRevision:invoice.revision,system:'synthetic-gauge-accounting',externalId:'synthetic-gauge-1',amountMinor:10000,currency:'USD',reference:'synthetic-gauge-close-private',reason:'Finance reconciles the external net amount and currency'})
+ const calendar=(await state()).data.agencyCalendars.at(-1)
+ if(!calendar)await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:[],reason:'Agency service fee calendar'})
+ const families=[]
+ for(const service of ['Retained A','Retained B']){const p=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{name:service,frequency:'monthly',unit:'hours',allowance:36000,feeMinor:100000,services:[service],consumes:'billable',proration:'calendar',start:'2026-09-01',renewal:'automatic',noticeDays:0}});families.push(await cmd('retainer:approve',{...p.input,fingerprint:p.fingerprint,reason:'Reviewed September retainer allowance'}))}
+ let data=await state(),retainerPeriod=data.data.retainerPeriods.find(p=>p.value.rootId===families[0].id)
+ const retainerClose=await cmd('retainer:close',{...retainerPeriod,reason:'Immutable September retainer statement'})
+ const currentPolicy=(await state()).data.timePolicies[0]
+ await cmd('time:policy',{...(currentPolicy??{}),lockThrough:'2026-09-30',reason:'Finance locks time through the September close'})
+ preview=await cmd('period:preview',{month:'2026-09'});assert(preview.snapshot.checklist.blocking.some(b=>b.kind==='retainers'&&b.id===families[1].id),'Open retainer period must be named')
+ const exceptions=Object.fromEntries(preview.snapshot.checklist.blocking.filter(b=>b.kind==='retainers').map(b=>[b.id,'Finance retains this named open retainer exception; no immutable usage close claimed']))
+ preview=await cmd('period:preview',{month:'2026-09',retainerExceptions:exceptions});const existing=await state();for(const mismatch of preview.snapshot.checklist.blocking.filter(b=>b.kind==='invoices')){const source=existing.data.invoices.find(i=>i.id===mismatch.id),old=existing.data.periodMatches.find(m=>m.value.invoiceId===source.id);await cmd('period:match',{...(old??{}),month:'2026-09',invoiceId:source.id,invoiceRevision:source.revision,system:'synthetic-gauge-accounting',externalId:'synthetic-gauge-close-'+source.id,amountMinor:net(source,existing),currency:source.value.currency,reference:'Prior journey invoice control',reason:'Reconcile every existing agency invoice before the close'})}preview=await cmd('period:preview',{month:'2026-09',retainerExceptions:exceptions});assert.deepEqual(preview.snapshot.checklist.blocking,[])
+ assert(preview.snapshot.checklist.wip.some(t=>t.id===task.id));assert(preview.snapshot.checklist.unbilled.some(t=>t.id===first.id))
+ const prepare=async(p=preview)=>cmd('period:prepare',{...p.input,fingerprint:p.fingerprint,acknowledgeWip:true,wipReconciliation:'Approved unbilled time and planned work remain source-linked WIP; fees and retainer open exceptions reconciled',reason:'Finance reviewed the September operational close'})
+ const stale=await prepare();let lateCost=await cmd('expense:save',{engagementId:project.id,personId:worker.id,taskId:task.id,date:'2026-09-04',description:'Cost captured during close review',amountMinor:1000,reimbursable:false})
+ await cmd('period:approve',stale,reviewer.cookie,409);lateCost=await cmd('expense:approve',await cmd('expense:submit',lateCost))
+ preview=await cmd('period:preview',{month:'2026-09',retainerExceptions:exceptions});const draft=await prepare(preview)
+ assert.match(await(await request('/app/review',owner)).text(),/Needs an independent approver/)
+ await cmd('period:approve',draft,owner,403)
+ const close=await cmd('period:approve',draft,reviewer.cookie);data=await state();const original=structuredClone(data.data.periodCloses.find(c=>c.id===close.id))
+ const download=await(await request(`/api/gauge/closes/${close.id}`,owner)).text();assert.deepEqual(JSON.parse(download),original);assert.equal(await(await request(`/api/gauge/closes/${close.id}`,owner)).text(),download,'Repeated reconciliation download is immutable')
+ assert.equal(original.value.snapshot.timeLock.lockThrough,'2026-09-30');assert.equal(original.value.snapshot.totals.approvedSeconds,7200+baselineTime.reduce((n,t)=>n+t.value.durationSeconds,0))
+ assert.equal(original.value.snapshot.totals.laborCostByCurrency.USD,18000+baselineTime.reduce((n,t)=>n+(t.value.economics?.costMinor??0),0));assert.equal(original.value.snapshot.totals.expenseByCurrency.USD,11500+baselineExpenses.reduce((n,e)=>n+e.value.amountMinor,0));assert.equal(original.value.snapshot.totals.netInvoicedByCurrency.USD,10000+baselineInvoices.reduce((n,i)=>n+net(i,initial),0))
+ assert(original.value.snapshot.checklist.retainers.find(r=>r.rootId===families[0].id).periods.some(p=>p.closeId===retainerClose.id))
+ assert(original.value.snapshot.checklist.retainers.find(r=>r.rootId===families[1].id).exception)
+ assert(!JSON.stringify(original.value.snapshot).includes('fifoState'),'Agency close links retainer immutable snapshots without copying them')
+ const timeInput={personId:worker.id,engagementId:project.id,taskId:task.id,service:'Close service',timezone:zone,start:'2026-09-02T10:00:00-04:00',end:'2026-09-02T11:00:00-04:00',notes:'Late confirmed correction',billable:true}
+ await cmd('time:save',timeInput,owner,409)
+ const heldPolicy=data.data.timePolicies[0]
+ await cmd('time:policy',{...heldPolicy,lockThrough:null,reason:'Cannot bypass an agency close'},owner,409)
+ await cmd('expense:save',{engagementId:project.id,personId:worker.id,date:'2026-09-04',description:'Closed expense bypass',amountMinor:1,reimbursable:false},owner,409)
+ await cmd('payment:record',{...invoice,date:'2026-09-30',amountMinor:1,reference:'Closed receipt bypass'},owner,409)
+ for(const user of [staff,lead,agent]){await cmd('period:preview',{month:'2026-09'},user.cookie,403);await cmd('period:reopen-prepare',{...close,reason:'Unauthorized reopening'},user.cookie,403);const view=await state(user.cookie);for(const kind of ['periodMatches','periodCloses','periodCloseDrafts','periodReopenRequests','periodReopens'])assert.deepEqual(view.data[kind],[]);assert.equal((await request(`/api/gauge/history/periodCloses/${close.id}`,user.cookie)).status,403);assert.equal((await request(`/api/gauge/closes/${close.id}`,user.cookie)).status,403)}
+ const reopening=await cmd('period:reopen-prepare',{...close,reason:'Authorize a late September correction with retained original snapshot'})
+ await cmd('period:reopen',reopening,owner,403);await cmd('period:reopen',reopening,reviewer.cookie)
+ assert.equal((await state()).data.timePolicies[0].value.lockThrough,'2026-08-31')
+ let late=await cmd('time:save',timeInput);late=await cmd('time:approve',await cmd('time:submit',late))
+ assert.deepEqual((await state()).data.periodCloses.find(c=>c.id===close.id),original,'Authorized reopen never rewrites the original reconciliation');assert.equal(await(await request(`/api/gauge/closes/${close.id}`,owner)).text(),download)
+ const reopenedPolicy=(await state()).data.timePolicies[0];await cmd('time:policy',{...reopenedPolicy,lockThrough:'2026-09-30',reason:'Relock corrected September time'})
+ preview=await cmd('period:preview',{month:'2026-09',retainerExceptions:exceptions});const revised=await cmd('period:approve',await prepare(preview),reviewer.cookie)
+ assert.equal((await state()).data.periodCloses.find(c=>c.id===revised.id).value.previousCloseId,close.id)
+ assert.equal((await state()).data.periodCloses.find(c=>c.id===revised.id).value.snapshot.totals.approvedSeconds,10800+baselineTime.reduce((n,t)=>n+t.value.durationSeconds,0))
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{const context=await browser.newContext({ignoreHTTPSErrors:true});await context.addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}));const page=await context.newPage();await page.goto(h.origin+'/app/review');const closeForm=page.locator('form').filter({has:page.locator('input[name=action][value="period:preview"]')});await closeForm.getByLabel('Agency month',{exact:true}).fill('2026-09');await closeForm.getByLabel('Open retainer exception: Retained B',{exact:true}).fill('Retained B remains an explicitly named open usage exception');await closeForm.getByRole('button',{name:'Review close checklist',exact:true}).click();await page.waitForURL('**/app/action');assert.match(await page.locator('#period-close').innerText(),/already closed/)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('#period-close').scrollIntoViewIfNeeded();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Agency close fits ${width}`);assert.match(await page.locator('#period-close').innerText(),/September|2026-09/);if(process.env.GAUGE_CLOSE_SHOTS){await mkdir(process.env.GAUGE_CLOSE_SHOTS,{recursive:true});await page.locator('#period-close').screenshot({path:`${process.env.GAUGE_CLOSE_SHOTS}/agency-close-${width}.png`})}}
+ }finally{await browser.close()}
+ const finalPolicy=(await state()).data.approvalPolicies[0];await cmd('approval:limit',{...finalPolicy,reviewAboveMinor:oldLimit?.value.reviewAboveMinor??null,reason:'Restore review policy after isolated close proof'})
+ console.log('PASS FINANCE-004 agency close: missing time/cost/unapproved cost/unmatched invoice refused then resolved; explicit WIP/unbilled reconciliation; held TIME-003 cutoff; immutable retainer links/open exception; stale and independent review; financial-date lock; authorized late reopen and linked reclose; role privacy and 1440/390')
+}

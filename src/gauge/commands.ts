@@ -5,6 +5,7 @@ import { type Actor, Transaction, fence, get } from './store'
 import { scheduleCommand as retainerScheduleCommand } from './retainer-schedule'
 import { phaseCommand, observeBudgetAlerts, recordBudgetAlerts } from './budget-phases'
 import { capCommand } from './budget-caps'
+import { periodCommand,periodPreview } from './period-close'
 import { catalog, approveTerms } from './catalog'
 import { specialistHandoffCommand } from './specialist-handoff'
 import { timeCommand } from './time'
@@ -43,6 +44,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
  // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
  await seal(env,action.startsWith('import:'))
+ if(action==='period:preview')return periodPreview(env,a,input)
  if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)
  if(action==='retainer:preview')return retainerPreview(env,a,input)
  if(action==='delivery:preview')return deliveryPreview(env,a,input)
@@ -78,6 +80,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await receiptCommand(env,a,tx,action,input)
  if(!result)result=await fixedChargeCommand(env,a,tx,action,input)
  if(!result)result=await clientCommand(env,a,tx,action,input)
+ if(!result)result=await periodCommand(env,a,tx,action,input)
  if(!result)result=await phaseCommand(env,a,tx,action,input)
  if(!result)result=await capCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)

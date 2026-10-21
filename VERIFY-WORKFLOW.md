@@ -29,3 +29,11 @@ The action pins were checked against the official
 [checkout v7.0.1 release](https://github.com/actions/checkout/releases/tag/v7.0.1)
 and [setup-node v7.1.0 release](https://github.com/actions/setup-node/releases/tag/v7.1.0).
 Their pinned `action.yml` files declare `runs.using: node24`.
+
+Gauge's Verify uses five required matrix jobs, each with the same pinned build,
+type/source/runtime/site and hosted-asset checks. `test:gauge` selects disjoint
+public-door suites using `GAUGE_TEST_SHARD=1/5` through `5/5`; the runner checks
+that the shard inventory contains every original suite exactly once. No shard
+can substitute for the full workflow conclusion. Each suite job has a 14-minute
+timeout, and the existing `verify` check name is retained by a one-minute
+aggregate job that succeeds only when every shard succeeds. Without the variable, `test:gauge` retains the complete suite.

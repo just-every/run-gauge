@@ -341,3 +341,48 @@ hourly time separate from fixed fees. Currency stays explicit, unknown inputs
 remain incomplete, and global allocation inputs preserve overtime across phases.
 Whole-installation archives retain budgets, templates, slices, write-downs,
 alerts and history.
+
+### Agency monthly close (FINANCE-004)
+
+Finance reads `period:preview` with `month` (`YYYY-MM`) and optional
+`retainerExceptions` keyed by retainer family. It reports missing calendar time,
+unapproved time/costs, missing frozen labor costs, unmatched invoices, source-linked
+WIP and unbilled work. Unknown calendar expectations remain named, never zero.
+Unbilled work includes prepared-but-unissued sources, held cap excess and earned
+retainer fees. Amounts stay in source-currency buckets; net invoice amounts retain
+their issued credits/voids. The record is operational reconciliation, not statutory
+accountant close or provider verification.
+
+`period:match` binds `invoiceId`/`invoiceRevision`, `month`, `system`, `externalId`,
+exact `amountMinor`/`currency`, an evidence `reference` and `reason`. It records a
+manual external identity and exact native net basis, never an accounting write.
+Changed credits invalidate the match. One external identity cannot match two
+native invoices. Updates bind the existing match's `id`/`revision` and retain history.
+
+`period:prepare` binds the preview fingerprint, `acknowledgeWip:true`, a
+`wipReconciliation` note and `reason`. The month must have ended in the agency
+zone, and the TIME-003 finance cutoff must already reach its end. Every retainer
+family active in the month has links to its RETAINER-004 immutable period closes
+or a named open exception; those snapshots are never copied or replaced.
+`period:approve` binds the exact prepared `id`/`revision`, rechecks the reconciliation
+and creates an immutable agency record. Its known monetary review value is the
+largest source-currency gross sum of the reconciliation categories; mixed currency
+or unknown monetary work uses GOVERN-001's independent-review protection whenever
+a limit is set. Above-limit closes/reopens require a different active owner or
+finance approver. No automatic close or reopen exists.
+
+An active agency close holds the TIME-003 cutoff. Native time, costs, invoices,
+receipts, corrections, fixed charges and retainer charges cannot be dated into
+or moved out of it. Current-period linked invoices/credits may still reference
+older sources. Finance uses `period:reopen-prepare` on the exact closed record
+with a reason, then `period:reopen` on that exact request. Approval binds the
+reviewed time-policy revision and proposed cutoff, follows independent review,
+and invokes TIME-003's ordinary audited reopening to the day before the month.
+Later active closes must reopen first. Late work then uses the ordinary time
+submission/approval rules. Relocking and closing again appends a reconciliation
+linked to the previous close; the original remains unchanged.
+
+`GET /api/gauge/closes/<id>` downloads the immutable record for finance/owner.
+Repeated downloads and downloads after a reopen return the original record.
+All close drafts, matches, closes, reopen requests/events and history travel in
+BASE-002 archives, with fresh sign-in required and no automatic action replay.

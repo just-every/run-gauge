@@ -9,11 +9,16 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  checks:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
     env:
       CI: 'true'
+      GAUGE_TEST_SHARD: ${{ matrix.shard }}/5
       WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; action runtime Node 24
@@ -33,3 +38,15 @@ jobs:
       - run: pnpm run deps
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run verify
+
+  verify:
+    name: verify
+    runs-on: ubuntu-24.04
+    needs: checks
+    if: ${{ always() }}
+    timeout-minutes: 1
+    steps:
+      - name: Require every verification shard
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+        run: test "$CHECKS_RESULT" = success

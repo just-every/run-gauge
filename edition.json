@@ -51,7 +51,9 @@
           "migrations/core/0042_gauge_agent_scopes.sql",
           "migrations/core/0043_gauge_retainer_schedule.sql",
           "migrations/core/0044_gauge_budget_caps.sql",
-          "migrations/core/0045_gauge_phase_alerts.sql"
+          "migrations/core/0045_gauge_phase_alerts.sql",
+          "migrations/core/0046_gauge_agency_close.sql",
+          "scripts/gauge-tests.mjs"
         ]
       }
     },

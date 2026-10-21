@@ -1,5 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { type AgentScope, liveAgentSql } from './agent-grants'
+import { assertPeriodWritable } from './period-locks'
 import { agency } from './agency'
 import type { Session } from '../modules/operator-auth/index.mjs'
 import { decode, type Kind, type Row, type Value, need, uuid } from './model'
@@ -27,6 +28,7 @@ export class Transaction {
  /** The command's request key and action, kept on each GOVERN-005 audit row. */
  key: string | null = null
  action: string | null = null
+ reopeningCloseId?:string
  constructor(public env: Bindings, public actor: Actor) {}
  /** GOVERN-005: an append-only audit row in the committing batch; src/gauge/audit.ts seals it into the chain. */
  audit(action: string, k: string, recordId: string, data: Value, link: { previousRevision?: string | null, revision?: string | null } = {}) {
@@ -36,6 +38,7 @@ export class Transaction {
  guard(sql: string, ...params: any[]) { this.sql(`INSERT INTO g_assert(ok) VALUES(CASE WHEN (${sql}) THEN 1 ELSE 0 END)`, ...params); this.sql('DELETE FROM g_assert') }
  observe(k: Kind, row: Row) { this.guard(`EXISTS(SELECT 1 FROM g_${k} WHERE id=? AND revision=? AND data=?)`, row.id, row.revision, JSON.stringify(row.value)) }
  async record(k: Kind, value: Value, previous?: Row, id: string = uuid(), action = 'create'): Promise<Row> {
+  await assertPeriodWritable(this.env,this,k,value,previous?.value)
   if (previous) { this.observe(k, previous); this.sql('INSERT INTO g_history(kind,record_id,revision,data,actor,action,at) VALUES(?,?,?,?,?,?,?)', k, previous.id, previous.revision, JSON.stringify(previous.value), this.actor.session.operator.id, action, Date.now()) }
   const row = { id: previous?.id ?? id, revision: uuid(), value }
   if (previous) this.sql(`UPDATE g_${k} SET revision=?,data=? WHERE id=?`, row.revision, JSON.stringify(value), row.id)

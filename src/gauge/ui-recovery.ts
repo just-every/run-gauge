@@ -12,6 +12,7 @@ import { money, nameOf } from './ui-format'
 import { type Report, proposalLabels } from './ui-describe'
 import { agentStrip, dayName } from './ui-shell'
 import { figure, shift, workedCommitted } from './ui-board'
+import { alternativeBillable } from './alternative-billable'
 
 const letter = (n: number) => String.fromCharCode(65 + n)
 const words = ['No', 'One', 'Two', 'Three', 'Four', 'Five']
@@ -54,6 +55,8 @@ export function alternativeEffect(report: Report, a: Actor, p: Row, alt: any) {
   const own = rate(alt.personId), known = own !== null && covered.every(x => x.rate !== null)
   const cost = known ? Math.round(demand * own! / 3600) - covered.reduce((n, x) => n + Math.round(Math.min(x.seconds, demand) * x.rate! / 3600), 0) : null
   rows.push([covered.length ? 'Additional cost' : 'Cost', cost === null ? 'Unknown: no cost rate' : `${cost > 0 && covered.length ? '+' : ''}${money(cost, latest(alt.personId)?.value.currency ?? report.agency.currency)}`, ''])
+  const engagement = d.engagements.find(x => x.id === p.value.engagementId), value = engagement ? alternativeBillable(d, engagement, alt) : undefined
+  if (value) rows.push(['Billable value', value.internal ? 'Not billable: internal work' : value.minor === null ? `Unknown: ${value.unknown}` : money(value.minor, value.currency!), ''])
  }
  const first = person.value.name.split(' ')[0]
  rows.push([`${first}’s open hours`, before.remainingSeconds === null || after.remainingSeconds === null ? 'Unknown' : `${figure(before.remainingSeconds)} → ${figure(after.remainingSeconds)}`, after.remainingSeconds !== null && after.remainingSeconds < 0 ? 'risk' : ''])

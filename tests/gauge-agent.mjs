@@ -34,6 +34,7 @@ try{
  })
  await flow('AGENT-002 resourcing: tentative alternatives only, the lead approves one',async()=>{
   await prepare('staffing',{commitment:'committed',alternatives:[{personId:spare.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:14400,rationale:'Available contractor'}]},400)
+  await prepare('staffing',{alternatives:Array(6).fill({personId:spare.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:14400,rationale:'Too many'})},400)
   const draft=await prepare('staffing',{alternatives:[{personId:spare.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:14400,rationale:'Contractor calendar shows five free days'},{personId:staffPerson.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:7200,rationale:'Assigned designer keeps continuity'}]})
   const p=await proposal(draft.id);await cmd('proposal:approve',{...p,choice:0},staff.cookie,403)
   assert.equal((await request(`/api/gauge/history/proposals/${p.id}`,staff.cookie)).status,403,'staff read no staffing proposal history');assert.equal((await request(`/api/gauge/history/proposals/${p.id}`,lead.cookie)).status,200)
@@ -41,7 +42,17 @@ try{
   assert.equal(allocation.value.personId,spare.id);assert.equal(allocation.value.commitment,'tentative');assert.equal(decided.value.choice,0)
   const week=await(await request('/api/gauge/state?from=2026-11-02&to=2026-11-06',lead.cookie)).json(),spareWeek=week.capacity.find(c=>c.personId===spare.id);assert.equal(spareWeek.tentativeSeconds,5*14400);assert.equal(spareWeek.committedSeconds,0)
   // On Staffing each alternative approves itself through its own form; the lead picks B there.
+  // Staff has a calendar for the review days and is already fully booked on the second one, so alternative B conflicts there.
+  await cmd('save:calendars',{personId:staffPerson.id,from:'2026-11-09',to:'2026-11-10',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:'Australia/Brisbane'})
+  await cmd('save:staffing',{engagementId:eng.id,personId:staffPerson.id,from:'2026-11-10',to:'2026-11-10',dailySeconds:28800,commitment:'committed'})
   const again=await prepare('staffing',{alternatives:[{personId:spare.id,from:'2026-11-09',to:'2026-11-10',dailySeconds:7200,rationale:'Contractor covers the review days'},{personId:staffPerson.id,from:'2026-11-09',to:'2026-11-10',dailySeconds:3600,rationale:'Assigned designer covers the review days'}]})
+  // Each alternative states its effect on the person's open hours and conflicts for the lead; only finance also sees cost and billable value.
+  const rows=html=>[...html.matchAll(/<article class="g-option[^"]*">([\s\S]*?)<\/article>/g)].map(m=>Object.fromEntries([...m[1].matchAll(/<dt>([^<]*)<\/dt><dd>([^<]*)/g)].map(x=>[x[1],x[2].trim()])))
+  const open=rows(await(await request('/app/capacity?from=2026-11-09',lead.cookie)).text()),paid=rows(await(await request('/app/capacity?from=2026-11-09',finance.cookie)).text())
+  assert.equal(open.length,2);assert.equal(paid.length,2)
+  const [before,after]=open[1][Object.keys(open[1]).find(k=>k.endsWith('open hours'))].split(' → ').map(Number);assert.equal(before-after,2,'B takes two of Staff’s open hours');assert.equal(open[1]['Conflict dates'],'0 → 1')
+  assert(open.every(r=>!('Cost' in r)&&!('Billable value' in r)),'the lead sees no cost or billable value')
+  assert(/120\.00/.test(paid[1].Cost)&&/300\.00/.test(paid[1]['Billable value']),'finance sees B’s two days at the 6000 cost and 15000 bill rates');assert(/^Unknown/.test(paid[0].Cost)&&/^Unknown/.test(paid[0]['Billable value']),'an unpriced person is unknown, never zero')
   const page=await(await request('/app/capacity?from=2026-11-09',lead.cookie)).text(),forms=[...page.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)].map(m=>m[1]).filter(f=>f.includes('value="proposal:approve"')&&f.includes(`name="id" value="${again.id}"`))
   assert.deepEqual(forms.map(f=>f.match(/name="choice" value="(\d)"/)?.[1]),['0','1'],'one approval form per alternative')
   const form=new FormData();for(const m of forms[1].matchAll(/<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"/g))form.set(m[1],m[2])

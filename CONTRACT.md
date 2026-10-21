@@ -57,7 +57,7 @@ The seventeen released clause IDs remain intact. The original AUD pilot (histori
 
 - **AGENT-001 — Time reconstruction.** An agent drafts a time entry for a person from cited, consented evidence (for example a calendar entry), noting any ambiguous client match; only that person confirms the actual interval and billability, which creates their own draft to submit. **Acceptance evidence:** `AGENT-001 time reconstruction: the agent drafts, only the person confirms actual time`.
 
-- **AGENT-002 — Resourcing.** An agent offers up to five tentative staffing alternatives with rationale; the page shows each alternative's effect on the person's remaining capacity and conflicts (and, for finance, estimated cost and billable value); the lead approves one, which becomes a tentative allocation. Agents cannot propose committed staffing. **Acceptance evidence:** `AGENT-002 resourcing: tentative alternatives only, the lead approves one`.
+- **AGENT-002 — Resourcing.** An agent offers up to five tentative staffing alternatives with rationale; the page shows each alternative's effect on the person's remaining capacity and conflicts (and, for finance, estimated cost and billable value); the lead approves one, which becomes a tentative allocation. Agents cannot propose committed staffing. Exact semantics (21 October 2026): an alternative is one person over an inclusive date window; the page shows the person's open hours and conflict dates before and after, as if the alternative were committed. Finance alone also sees the estimated cost and *billable value*: every day of the window priced like a FINANCE-006 allocation day (the bill rate effective that day under RATE-002 precedence with withdrawn cards excluded, overtime premium then write-down after the person's other bookings, rounded half up per day, in the engagement currency); internal work reads "Not billable: internal work", and a day with no bill rate or a bill rate in another currency makes the figure "Unknown" with its reason, never zero. Leads and agents see no cost or billable value. **Acceptance evidence:** `AGENT-002 resourcing: tentative alternatives only, the lead approves one`.
 
 - **AGENT-003 — Billing preparation.** An agent proposes the source lines for a packet; Gauge refuses unapproved, already allocated, duplicated or rate-less sources at preparation; finance approves, which drafts the exact packet, then approves the packet as in BILLING-002. The agent never sees amounts. **Acceptance evidence:** `AGENT-003 billing preparation: eligibility checked, finance approves the exact packet`.
 
@@ -407,13 +407,13 @@ The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 20
 
 ## Status
 
-Judged from the code and tests at commit `a589c6ac100b2c0b91356154db59e1ea07b74aab` (21 October 2026).
+Judged from the code and tests at commit `148af21be24740113a82de484190c7630d1a7b09` (21 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 16 | 1 | 0 | 17 |
+| Published | 17 | 0 | 0 | 17 |
 | Target and push further | 29 | 36 | 56 | 121 |
-| All | 45 | 37 | 56 | 138 |
+| All | 46 | 36 | 56 | 138 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -431,7 +431,7 @@ Judged from the code and tests at commit `a589c6ac100b2c0b91356154db59e1ea07b74a
 | `ACCESS-001` | See only permitted work | published | done | `src/gauge/store.ts`; `src/gauge/reports.ts`; `tests/gauge.mjs` |  |
 | `MOVE-001` | Move in from Harvest and leave whole | published | done | `src/gauge/harvest.ts`; `src/gauge/imports.ts`; `tests/gauge.mjs`; `tests/gauge-portability.mjs` |  |
 | `AGENT-001` | Time reconstruction | published | done | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |  |
-| `AGENT-002` | Resourcing | published | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs`; `src/gauge/ui-recovery.ts` | Tentative alternatives, capacity/conflict effects, finance cost previews and human choice ship. Finance is not shown the required estimated billable value for each alternative. |
+| `AGENT-002` | Resourcing | published | done | `src/gauge/proposals.ts`; `src/gauge/ui-recovery.ts`; `src/gauge/alternative-billable.ts`; `tests/gauge-agent.mjs` (AGENT-002) |  |
 | `AGENT-003` | Billing preparation | published | done | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |  |
 | `AGENT-004` | Delivery exceptions | published | done | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |  |
 | `SETUP-001` | US agency setup | target | partial | `src/gauge/agency.ts`; `src/gauge/setup.ts`; `migrations/core/0019_gauge_agency.sql`; `tests/gauge-currency.mjs`; `src/gauge/invoices.ts`; `tests/gauge-invoices.mjs` | Owner setup saves agency currency (USD by default) and IANA timezone (America/Los_Angeles by default); native amounts preserve currency and refuse mismatches. Owner-versioned workweeks/holidays support immutable retainer calculations, and ordinary pre-tax invoices now issue. Agency legal business/address/EIN/fiscal year, quotes, complete invoice capabilities and approved FX consolidation remain absent. |

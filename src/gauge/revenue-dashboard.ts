@@ -14,5 +14,5 @@ export function revenueDashboard(data: Record<string, Row[]>, asOf: string) {
   const knownMinor = sum([...time.filter(r => r.value.economics?.billMinor != null && r.value.economics.currency === currency).map(r => r.value.economics.billMinor), ...expenses.filter(r => r.value.currency === currency).map(r => r.value.amountMinor)])
   return { currency, amountMinor: unknownSources.length ? null : knownMinor, knownMinor, unknownSources, sources: [...time.map(r => ({kind:'time',id:r.id})), ...expenses.map(r => ({kind:'expenses',id:r.id}))] }
  })
- return { asOf, wip, connectorState: 'Not connected; accounting freshness unverified', invoiceState: 'Invoice issuance unavailable', collectionState: 'No payment records; collections unverified', reconciliation: ['Invoice and payment reconciliation unavailable until accounting and payment connectors ship', 'Other currencies remain separate and unconverted until approved SETUP-003 exchange rates exist'] }
+ return { asOf, wip, connectorState: 'Not connected; accounting freshness unverified', invoiceState: 'Invoice issuance unavailable', collectionState: 'No payment records; collections unverified', reconciliation: ['Invoice and payment reconciliation unavailable until accounting and payment connectors ship', 'Other currencies remain separate and unconverted; approved exchange-rate conversion is unavailable'] }
 }

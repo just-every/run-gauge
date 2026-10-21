@@ -1305,7 +1305,7 @@
       "executable": false
     },
     "src/gauge/revenue-dashboard.ts": {
-      "sha256": "10678014031b1fc881df19e250f8092f3039c25bbb1ba41a4a95ef0462990b5b",
+      "sha256": "38b9268e541e12206011e3edfb9c46e9fbe487f66b0a0e82c57b4ff8a54c1773",
       "executable": false
     },
     "src/gauge/sales-conversion.ts": {

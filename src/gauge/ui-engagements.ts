@@ -15,6 +15,7 @@ import { deliveryScheduleSection } from './ui-delivery-schedule'
 import { templateApplySection, templatesSection } from './ui-delivery-templates'
 import { taskEditor, tasksSection } from './ui-tasks'
 import { resourceProfileFields } from './ui-resource-profiles'
+import { milestoneDeliverySection } from './ui-milestone-delivery'
 import { activeClients, clientForm, clientMergeForm, clientSearchSection, clientsTable } from './ui-clients'
 
 const termsLine = (b: Row) => `${b.value.mode === 'fixed' ? 'Fixed fee' : 'Hourly'} · ${hours(b.value.effortSeconds)}${b.value.amountMinor === undefined ? '' : ` · ${money(b.value.amountMinor, b.value.currency)}`}`
@@ -44,12 +45,12 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   const budgets = own(d.budgets), milestones = own(d.milestones)
   const budgetCard = manager ? `<section class="g-card"><h2>Budget versions</h2>${budgets.length ? `<ul class="g-versions">${budgets.map(b => `<li id="${e(b.id)}"><p class="g-summary">${e(termsLine(b))} · ${chip(b.value.status)}</p><p class="g-note">${e(b.value.reason)}</p>${b.value.status === 'draft' ? decision('budget:approve', 'Approve terms', b) : '<p class="g-note">Immutable approved version</p>'}</li>`).join('')}</ul>` : '<p class="g-empty">No records yet.</p>'}</section>` : ''
   const taskCard = tasksSection(a,report,options,id)
-  const milestoneCard = manager ? `<section class="g-card"><h2>Milestones</h2>${milestones.length ? `<ul class="g-rows">${milestones.map(r => `<li id="${e(r.id)}">${open('engagements', r, r.value.name)}<span class="g-num">due ${e(day(r.value.due))} · ${money(r.value.amountMinor, r.value.currency ?? focus?.value.currency ?? a.currency)} · ${chip(r.value.status)}</span>${r.value.status === 'draft' ? decision('milestone:approve', 'Approve delivered milestone', r) : ''}</li>`).join('')}</ul>` : '<p class="g-empty">No records yet.</p>'}</section>` : ''
+  const milestoneCard = manager ? `<section class="g-card"><h2>Milestones</h2>${milestones.length ? `<ul class="g-rows">${milestones.map(r => `<li id="${e(r.id)}">${open('engagements', r, r.value.name)}<span class="g-num">due ${e(day(r.value.due))} · ${money(r.value.amountMinor, r.value.currency ?? focus?.value.currency ?? a.currency)} · ${chip(r.value.status)}</span>${r.value.status === 'draft' ? decision('milestone:approve', 'Approve milestone for billing', r) : ''}</li>`).join('')}</ul>` : '<p class="g-empty">No records yet.</p>'}</section>` : ''
   const econ = report.economics.find(r => r.engagementId === id)
   const economics = econ ? `<section class="g-card g-card--strong"><h2>Engagement economics</h2><div class="g-econ-detail">${economicsCard(report, a, econ, false)}<p class="g-big"><span>Remaining effort</span><strong class="g-num">${hours(econ.remainingSeconds)}</strong></p></div></section>` : ''
   const forms = (finance(a) ? engagementForm() : '') + (manager ? (x.type==='internal'?taskForm(id):terms(id) + taskForm(id) + milestoneForm(id)) : '')
   return `<nav class="g-crumbs" aria-label="Breadcrumb"><a href="/app/engagements">Engagements</a><span aria-hidden="true">/</span><span aria-current="page">${e(x.name)}</span></nav><div class="g-titlebar"><h1>${e(x.name)}</h1></div>`
-   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${taskCard}${milestoneCard}${templateApplySection(a,report,id,today)}${deliveryScheduleSection(a,report,id,{...options,today})}${retainerSection(a,report,id,{...options,today})}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
+   + `<div class="g-detail-top">${facts}${scope}</div>${budgetCard}${taskCard}${milestoneCard}${manager?milestoneDeliverySection(a,milestones,d.people,today):''}${templateApplySection(a,report,id,today)}${deliveryScheduleSection(a,report,id,{...options,today})}${retainerSection(a,report,id,{...options,today})}${economics}${forms ? `<h2 class="g-subhead">Change this engagement</h2><div class="g-forms">${forms}</div>` : ''}`
  }
  let body = '<div class="g-titlebar"><h1>Engagements and agreed work</h1></div>'
  body += table('Engagements', d.engagements, [

@@ -28,6 +28,7 @@ import { approvalCommand } from './approval-policy'
 import { projectScenarioCommand, projectScenarioPreview } from './project-scenarios'
 import { demandScenarioCommand } from './demand-scenarios'
 import { seal } from './audit'
+import { milestoneDeliveryCommand } from './milestone-delivery'
 import { clientCommand } from './clients'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
@@ -45,6 +46,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  const tx=new Transaction(env,a)
  tx.key=key;tx.action=action
  let result:Value|null=await retainerCommand(env,a,tx,action,input)
+ if(!result)result=await milestoneDeliveryCommand(env,a,tx,action,input)
  if(!result)result=await deliveryCommand(env,a,tx,action,input)
  if(!result)result=await templateCommand(env,a,tx,action,input)
  if(!result)result=await scheduleCommand(env,a,tx,action,input)

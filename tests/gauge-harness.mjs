@@ -39,3 +39,12 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  return {db:await mf.getD1Database('DB'),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
  }catch(error){await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true});throw error}
 }
+
+// Record an explicit, attributed client acceptance through the production HTTP door.
+export async function recordMilestoneAcceptance(h,id,cookie=h.owner) {
+ const row=(await h.state()).data.milestones.find(r=>r.id===id)
+ const delivered=await h.cmd('milestone:deliver',{id,revision:row.revision,date:'2026-12-02',reason:'Completed handover delivered'},cookie)
+ const delivery=(await h.state()).data.milestones.find(r=>r.id===id).value.delivery.deliveries.at(-1)
+ const accepted=await h.cmd('milestone:decision',{...delivered,deliveryId:delivery.id,outcome:'accepted',contact:'Casey Client',date:'2026-12-02',reason:'Client reported all agreed work complete'},cookie)
+ return h.cmd('milestone:authorize',accepted,cookie)
+}

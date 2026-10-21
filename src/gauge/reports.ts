@@ -33,6 +33,8 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(a.role==='staff'&&k==='time'){delete v.retainerRootId;delete v.retainerAllocation}
  delete v.economics; delete v.rateOverride; if (v.source) { v.source = { ...v.source }; delete v.source.costMinor; delete v.source.billMinor }
  if (k === 'leave' && v.personId !== a.personId) v.note = 'Private leave'
+ // DELIVERY-005 snapshots retain commercial terms; agents inherit the same amount boundary as the milestone itself.
+ if(a.role==='agent'&&k==='milestones'&&v.delivery)v.delivery={...v.delivery,deliveries:v.delivery.deliveries.map((delivery:Value)=>({...delivery,snapshot:Object.fromEntries(Object.entries(delivery.snapshot).filter(([key])=>!amounts.includes(key)))}))}
  if (a.role === 'agent' && k !== 'proposals') for (const key of amounts) delete v[key]
  return v
 }

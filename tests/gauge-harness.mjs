@@ -16,13 +16,13 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  if(!persistenceDirectory)execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',env:{...process.env,WRANGLER_SEND_METRICS:'false',CI:'true'}})
  const logs=[]
  const log=new class extends Log {log(message){logs.push(String(message))}}(LogLevel.INFO)
- const mf=new Miniflare({log,unsafeTriggerHandlers:true,...convertV4MiniflareOptions({
+ const mf=new Miniflare({log,...convertV4MiniflareOptions({
   host:'127.0.0.1',port,https:true,
   modulesRoot:server,modules:[config.main,...(await readdir(join(server,'assets'))).filter(f=>f.endsWith('.js')).map(f=>`assets/${f}`)].map(f=>({type:'ESModule',path:join(server,f)})),
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},
   d1Databases:{DB:config.d1_databases[0].database_id},bindings:vars,
   outboundService:async request=>{if(request.url!=='https://api.resend.com/emails')throw Error(`Unexpected test network destination ${new URL(request.url).origin}`);mails.push(await request.json());return Response.json({id:`test-receipt-${mails.length}`})},
- }),resourcePersistencePath:join(directory,'v3')})
+ }),unsafeTriggerHandlers:true,resourcePersistencePath:join(directory,'v3')})
  // Miniflare's fetch does not encode Node's FormData; send it as the browser would.
  const encoded=async options=>{if(!(options.body instanceof FormData))return options;const form=new Request(origin,{method:'POST',body:options.body});return {...options,body:await form.arrayBuffer(),headers:{...options.headers,'content-type':form.headers.get('content-type')}}}
  const request=async(path,cookie='',options={})=>{const sent=await encoded(options);return mf.dispatchFetch(origin+path,{redirect:'manual',...sent,headers:{...(cookie?{cookie}:{}),...sent.headers}})}

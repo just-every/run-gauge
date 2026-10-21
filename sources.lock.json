@@ -266,7 +266,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "74b338b07e0d320c14bee86d8b0f9d34df580b3594e6b274d9dd9d4375e02b1c",
+      "sha256": "a85d465ced0a31845a8c3f8d5f9d6c8f6493bba946e98d14d436f74e21e90351",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -290,7 +290,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "242ad49318851d4412a59be5efe0b43d83fbbfdb0d893c02313e4535c6c11449",
+      "sha256": "0b360f9f3c90603d6a9f9b8408bb800e9e6fe99841a9c261a7056e24b590af56",
       "executable": false
     },
     "DEMO.md": {
@@ -3430,7 +3430,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "8221f09104286e14e0df7f3dcd25da5b7d923fe5ba9273ee1f0db74637b89da1",
+      "sha256": "fab669d1cad2a771c83f493cad2124e7994a80d30a8878c0cf098546b073d328",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -3510,7 +3510,7 @@
       "executable": false
     },
     "tests/gauge-retainer-rules.mjs": {
-      "sha256": "ffb6246a04e7d1a77cd779eb17181fc4c7b64b755dc5ba9d9587ef7b62347dfd",
+      "sha256": "a65d38f9ce0b953af9cc4e630a2c4b1840b7c537ff7741b4b8cd089c425af9be",
       "executable": false
     },
     "tests/gauge-retainer-statements.mjs": {

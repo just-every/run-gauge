@@ -1116,6 +1116,10 @@
       "sha256": "532ba737804f5589b36da471f7d50865fe6ccec9af6c4b7de27a8c51b7b1f5f2",
       "executable": false
     },
+    "src/gauge/milestone-delivery.ts": {
+      "sha256": "31fd6cc8edefbd639e29b64adf6ea2af827367cfdd1c1c6d78dfa44af8aa6b67",
+      "executable": false
+    },
     "src/gauge/model.ts": {
       "sha256": "c5390a4ecd8532ed6140771abd7cfe961f34992aac0bdb29d86250e7046acabb",
       "executable": false
@@ -1402,6 +1406,10 @@
     },
     "src/gauge/ui-meter.ts": {
       "sha256": "400532547c47729b9bec9b96fa1d31486892d2ed7d82ac47b7e5e1f128c51c03",
+      "executable": false
+    },
+    "src/gauge/ui-milestone-delivery.ts": {
+      "sha256": "ec43292e12df9de36bbeafd3b1e2679b13f839240e42b07cfeb7d161f2579198",
       "executable": false
     },
     "src/gauge/ui-operations.ts": {
@@ -3297,11 +3305,15 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "706200e4e8be1082157d2511c53d286898c6592a0f17facee970ac9fbdc0daaa",
+      "sha256": "f7b5151d353e98b460dcb67df86082800f6d2bdc597ae197c9bf0bdb757f78f6",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
       "sha256": "3c808c63183a0094551974d9a8027e0add0ca39dac611f4a7b40ab58743fdffe",
+      "executable": false
+    },
+    "tests/gauge-milestone-delivery.mjs": {
+      "sha256": "e12ec461ad2f318d7c71477d96ad2c7da8fd4ce89ee5466d81f0be906c88bd32",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

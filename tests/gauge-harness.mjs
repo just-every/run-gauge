@@ -46,5 +46,5 @@ export async function recordMilestoneAcceptance(h,id,cookie=h.owner) {
  const delivered=await h.cmd('milestone:deliver',{id,revision:row.revision,date:'2026-12-02',reason:'Completed handover delivered'},cookie)
  const delivery=(await h.state()).data.milestones.find(r=>r.id===id).value.delivery.deliveries.at(-1)
  const accepted=await h.cmd('milestone:decision',{...delivered,deliveryId:delivery.id,outcome:'accepted',contact:'Casey Client',date:'2026-12-02',reason:'Client reported all agreed work complete'},cookie)
- return h.cmd('milestone:authorize',accepted,cookie)
+ return row.value.status==='approved'?h.cmd('milestone:authorize',accepted,cookie):accepted
 }

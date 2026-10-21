@@ -39,14 +39,25 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
  // FINANCE-002's inherited payment-promise obligation: move only the promised amount's cash month.
  await cmd('invoice:promise',{...invoice,date:'2026-12-15',amountMinor:10000,reference:'Client AP promise'})
  let promised=(await read()).cash.engagements.find(x=>x.engagementId===hourly.id).items
- assert.equal(promised.find(x=>x.promised).cashMonth,'2026-12');assert.equal(promised.find(x=>x.promised).openMinor,10000)
+ assert.deepEqual(Object.fromEntries(promised.map(x=>[x.cashMonth,x.expectedMinor])),{'2026-12':5000,'2026-11':25000},'FINANCE-007 independent month-by-month promised cash recomputation');assert.equal(promised.find(x=>x.promised).cashMonth,'2026-12');assert.equal(promised.find(x=>x.promised).openMinor,10000)
  assert.equal(promised.reduce((n,x)=>n+x.openMinor,0),60000)
  await cmd('invoice:promise',{...invoice,date:'2027-01-15',amountMinor:10000,reference:'Client AP revised promise'})
  promised=(await read()).cash.engagements.find(x=>x.engagementId===hourly.id).items
  assert.equal(promised.find(x=>x.promised).cashMonth,'2027-01');assert.equal(promised.filter(x=>x.promised).length,1)
  assert.equal(promised.reduce((n,x)=>n+x.expectedMinor,0),30000,'FINANCE-007 independent recomputation: full open 60000 times client collection probability 50%')
+ const broken=(await read('2027-02-02')).cash.engagements.find(x=>x.engagementId===hourly.id).items.find(x=>x.promised)
+ assert.equal(broken.cashMonth,'2027-02');assert.equal(broken.pastDue,true)
+ // FINANCE-003 inherits invoice/payment/promise basis and refuses stale adoption after a receipt.
+ const contractor=await cmd('save:people',{name:'Invoice scenario contractor',timezone:'America/New_York',employmentType:'contractor'})
+ await cmd('save:rates',{personId:contractor.id,service:'*',effective:'2026-01-01',costMinor:6000,billMinor:17000})
+ const booking=await cmd('save:staffing',{engagementId:hourly.id,personId:worker.id,service:'Support',from:'2026-11-02',to:'2026-11-03',dailySeconds:3600,commitment:'committed'})
+ const scenarioInput={asOf:'2026-10-19',changes:[{...booking,personId:contractor.id,effectiveFrom:'2026-11-02'}]}
+ const preview=await cmd('projectScenario:preview',scenarioInput)
+ assert.equal(preview.baseline.cash.engagements.find(x=>x.engagementId===hourly.id).items.find(x=>x.invoiceId===invoice.id&&!x.promised).openMinor,50000)
+ const preparedScenario=await cmd('projectScenario:prepare',{...scenarioInput,fingerprint:preview.fingerprint,name:'Invoice source scenario',reason:'Keep issued cash while replacing future work'})
  const paymentKey=randomUUID(),paymentInput={...invoice,date:'2026-10-11',amountMinor:20000,reference:'Bank deposit NW-1'}
  const pay=await cmd('payment:record',{...paymentInput,key:paymentKey})
+ await cmd('projectScenario:preview',{...preparedScenario,asOf:'2026-10-19',selectedIds:[booking.id]},owner,409)
  assert.deepEqual(await cmd('payment:record',{...paymentInput,key:paymentKey}),pay,'REPORT-003 receipt request replay is exact')
  await cmd('payment:record',paymentInput,owner,409)
  d=await read();assert.equal(bucket(d).openMinor,40000);assert.equal(bucket(d).paidMinor,20000)

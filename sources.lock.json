@@ -1166,7 +1166,7 @@
       "executable": false
     },
     "src/gauge/project-scenarios.ts": {
-      "sha256": "8f63562766903db01519cb30963ced8d1fcdc2ea5b58cc3e2af6eac0fb3841da",
+      "sha256": "95ca81fa1d95d5affdd5183e718f0ecfd4e53272a01ce7288475d576df6702d9",
       "executable": false
     },
     "src/gauge/proposals.ts": {
@@ -3362,7 +3362,7 @@
       "executable": false
     },
     "tests/gauge-invoices.mjs": {
-      "sha256": "678a0560d031d5f2ae027421f1a7ca12ad7a779a82010f645498a41e4987e24f",
+      "sha256": "47cd03fe4a8200ac91957da9f2da09988c180e3a4fe29fd26c412e14e3bd2150",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {

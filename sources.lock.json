@@ -3432,7 +3432,7 @@
       "executable": false
     },
     "tests/gauge-progress.mjs": {
-      "sha256": "c591ed6b89d62fd19d52521b44da6b73b8b789e64dbd4c7c33819cd9c05d2dc4",
+      "sha256": "ad08563860a20b67f002d100cd317c3db012135789cc08ad17880f7f857611c6",
       "executable": false
     },
     "tests/gauge-project-scenario-deadlines.mjs": {

@@ -62,6 +62,13 @@ export async function milestoneDeliveryJourney(h,browser,{lead,worker,manager,st
    const history=await(await request(`/api/gauge/history/milestones/${row.id}`,manager.cookie)).json();assert(history.history.some(r=>r.value.delivery?.decisions?.[0]?.outcome==='rejected'));assert(history.history.some(r=>r.action==='milestone:issue'&&r.value.delivery?.issues?.[0]?.status==='open'))
    assert.equal((await request(`/api/gauge/history/milestones/${row.id}`,outsider.cookie)).status,403)
    await cmd('packet:create',{engagementId:engagement.id,title:'Lead cannot bill',sources:[`milestones:${row.id}`]},manager.cookie,403)
+   // Editing accepted work invalidates the gate; old acceptance remains historical.
+   const changed=await cmd('milestone:health',{id:row.id,revision:row.revision,health:'at-risk',reason:'Updated delivery assessment'},manager.cookie)
+   await cmd('packet:create',{engagementId:engagement.id,title:'Changed after acceptance',sources:[`milestones:${row.id}`]},financePerson.cookie,409)
+   const refreshed=await cmd('milestone:deliver',{...changed,date:'2026-10-21',reason:'Updated assessment delivered'},manager.cookie)
+   const redelivered=await current()
+   await cmd('milestone:decision',{...refreshed,deliveryId:redelivered.value.delivery.currentDeliveryId,outcome:'accepted',contact:'Casey Client',date:'2026-10-21',reason:'Updated assessment accepted'},financePerson.cookie)
+   row=await current()
    const packet=await cmd('packet:create',{engagementId:engagement.id,title:'Accepted work, finance review',sources:[`milestones:${row.id}`]},financePerson.cookie)
    assert.equal((await packets())[0].value.status,'draft','Acceptance still requires separate finance packet approval')
    await cmd('milestone:health',{id:row.id,revision:row.revision,health:'blocked',reason:'Reserved source edit'},manager.cookie,409)

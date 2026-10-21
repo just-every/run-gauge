@@ -117,6 +117,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const fixedProject=await cmd('save:engagements',{name:'Portable percentage billing',clientId:engagement.value.clientId,leadId:engagement.value.leadId,members:[],scope:'Portable deposit and progress',timezone:zone})
  const fixedTerms=await cmd('budget:approve',await cmd('save:budgets',{engagementId:fixedProject.id,mode:'fixed',amountMinor:100000,effortSeconds:3600,roundingSeconds:60,reason:'Portable fixed terms'}))
  const fixedCharge=await cmd('fixed:approve',await cmd('fixed:prepare',{engagementId:fixedProject.id,budgetId:fixedTerms.id,budgetRevision:fixedTerms.revision,chargeType:'deposit',cumulativeBasisPoints:2000,name:'Portable deposit',date:'2026-10-11',reason:'Portable billing schedule'}))
+ const supersededCharge=await cmd('fixed:prepare',{engagementId:fixedProject.id,budgetId:fixedTerms.id,budgetRevision:fixedTerms.revision,chargeType:'progress',cumulativeBasisPoints:5000,name:'Portable withdrawn progress',date:'2026-10-20',reason:'A reviewed draft schedule'})
+ await cmd('fixed:withdraw',{...supersededCharge,reason:'Portable draft retired after review'})
  const fixedPacket=await cmd('packet:approve',await cmd('packet:create',{engagementId:fixedProject.id,title:'Portable deposit packet',sources:[`fixedCharges:${fixedCharge.id}`]}))
  await cmd('invoice:issue',{...fixedPacket,issueDate:'2026-10-11',dueDate:invoiceDue,billTo:invoiceClient.value.name,remitTo:'Portable agency account',reference:invoiceClient.value.poRequired?invoiceClient.value.poNumbers[0]:'Portable deposit invoice'})
  const before=await state()

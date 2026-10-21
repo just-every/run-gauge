@@ -264,7 +264,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b8057ae5abda474c91ce80a77a1d3937d383ac966f05f5b30bbcc8179ddb45cc",
+      "sha256": "58fcb7dc552a10d4cf645386827ff9e98ec6ff7ea61b7bea744e47d61c35e9b0",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -3352,7 +3352,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "fce1db31593b69c021ba7754162f74a9375c0ea58815cc02648ada239a508896",
+      "sha256": "3d6f4053874d8588032741648ee3226fdf990a8b5b35e47d1e4264640980a938",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {

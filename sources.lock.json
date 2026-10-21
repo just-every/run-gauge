@@ -276,7 +276,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "070c472385844a237cee10bbe8728b7a1bb818c3eec93b7b6ea726984df34bdd",
+      "sha256": "57a77a76ca0c053ff19f48c81d2e47c91d82c3a2774d77a3cb2e91067a8a3e9d",
       "executable": false
     },
     "base-copies.json": {
@@ -288,7 +288,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "846a232e4cf10f5a15b5084ea5ca0b15bef0c4f7b111f11c1154fd6e1b5b39af",
+      "sha256": "38453a523eac33ff09d6eaaa40b23cc7d99f163112218f45153957763671848c",
       "executable": false
     },
     "DEMO.md": {
@@ -532,7 +532,7 @@
       "executable": false
     },
     "migrations/core/0041_gauge_fixed_charges.sql": {
-      "sha256": "fd6d5d7456b9250d4459b0a9be8de778f6bcb553f5e4279ea695cd7179fb7a49",
+      "sha256": "8786a63453a5690c187cadc59791247d3345834ec4d07868177e8cdea8cef0f4",
       "executable": false
     },
     "MOVE-IN.md": {
@@ -1092,7 +1092,7 @@
       "executable": false
     },
     "src/gauge/fixed-charges.ts": {
-      "sha256": "3dadd2759eeca434db24f051936782aad4a4427cbdc2ffd0914c78e7b1564030",
+      "sha256": "469febc59f224242492497abe77a954c31dc272a6a3d3d8d513b4e120e99859e",
       "executable": false
     },
     "src/gauge/forecast-allocation-pricing.ts": {
@@ -1456,7 +1456,7 @@
       "executable": false
     },
     "src/gauge/ui-fixed-charges.ts": {
-      "sha256": "0d39a91e81cad6713218060f4f26d36606f50e130e8c7d638f06e4b6fe4d48cc",
+      "sha256": "22586bd186e64bf9fd92d152ac167ebd04b28fd72f0f41c210cf1db87726b112",
       "executable": false
     },
     "src/gauge/ui-forecast-import.ts": {
@@ -3432,7 +3432,7 @@
       "executable": false
     },
     "tests/gauge-progress.mjs": {
-      "sha256": "ad08563860a20b67f002d100cd317c3db012135789cc08ad17880f7f857611c6",
+      "sha256": "994a6e8bf51a27a748582b53a5df215d28c231186dbeec8baed3c76773f02ee1",
       "executable": false
     },
     "tests/gauge-project-scenario-deadlines.mjs": {

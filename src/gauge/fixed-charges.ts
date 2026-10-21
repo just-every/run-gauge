@@ -43,7 +43,7 @@ function firstDeposit(tx: Transaction, engagementId: string, count: number) {
 }
 
 export async function fixedChargeCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | null> {
- if (action !== 'fixed:prepare' && action !== 'fixed:approve') return null
+ if (action !== 'fixed:prepare' && action !== 'fixed:approve' && action !== 'fixed:withdraw') return null
  need(finance(a), 'Finance access required', 403)
  const permission = authority(a, true); tx.guard(permission.sql, ...permission.params)
  if (action === 'fixed:prepare') {
@@ -69,6 +69,7 @@ export async function fixedChargeCommand(env: Bindings, a: Actor, tx: Transactio
  need(row.value.status === 'draft', 'Charge already approved', 409)
  const engagement = await access(env, a, row.value.engagementId, true); tx.observe('engagements', engagement)
  need(engagement.value.type !== 'internal', 'Internal work has no commercial charges')
+ if(action==='fixed:withdraw') return tx.record(charges,{...row.value,status:'withdrawn',withdrawnBy:a.session.operator.id,withdrawnAt:Date.now(),withdrawalReason:text(input.reason,'Withdrawal reason')},row,undefined,action)
  const v = row.value, budget = await fixedBudget(env, tx, engagement, v.budgetId, v.budgetRevision)
  need(v.currency === engagement.value.currency && (input.currency === undefined || input.currency === v.currency), 'Charge currency differs from engagement; no implicit FX')
  const prior = await priorCharges(env, tx, engagement)

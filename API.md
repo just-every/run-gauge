@@ -237,6 +237,7 @@ Finance uses `fixed:prepare` with `engagementId`, `budgetId`, `budgetRevision`,
 `date` and `reason`. It binds the latest approved fixed budget. The gross target
 is the entire budget times basis points divided by 10000, rounded half up to cents;
 the draft amount deducts every already approved fixed charge and milestone.
+`fixed:withdraw` retires an exact unapproved `id`/`revision` with a `reason`, preserving history without changing approved amounts.
 `fixed:approve` takes the exact draft `id` and `revision` and rechecks that basis
 atomically. A deposit is the first approved charge; a zero or negative increment,
 stale budget or competing approved amount is refused. Approved sources do not reset

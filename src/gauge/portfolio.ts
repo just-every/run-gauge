@@ -3,11 +3,11 @@ import { portfolioLabor } from './portfolio-labor'
 import { retainerFees } from './retainer-fees'
 import type { financeForecast } from './finance-forecast'
 
-const groups=['firm','client','project','team','service','lead']
+const groups=['firm','client','project','team','service','lead','person']
 /** REPORT-001: whole-engagement cohorts; team/service cohorts can overlap and are never summed into the firm total. */
 export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof financeForecast>,balances:Value[],from:string,to:string,options:Value={}) {
  const group=options.portfolioGroup||'project';need(groups.includes(group),'Choose a portfolio grouping')
- const fees=retainerFees(data,forecast.asOf),filters=Object.fromEntries(['Client','Project','Team','Service','Lead'].map(k=>[k.toLowerCase(),String(options['portfolio'+k]??'')]))
+ const fees=retainerFees(data,forecast.asOf),filters=Object.fromEntries(['Client','Project','Team','Service','Lead','Person'].map(k=>[k.toLowerCase(),String(options['portfolio'+k]??'')]))
  const slice=(from:string,to:string)=>forecast.engagements.map(f=>{
   const project=data.engagements.find(e=>e.id===f.engagementId)!,id=project.id,end=to<forecast.asOf?to:forecast.asOf
   const mine=(kind:string)=>(data[kind]??[]).filter(r=>r.value.engagementId===id)
@@ -33,15 +33,16 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
   const teams=[...new Set(people.map(p=>String(p.value.team||'Unassigned')))].sort()
   const services=[...new Set([...mine('time'),...mine('staffing')].map(r=>String(r.value.service||'Unspecified')))].sort()
   const unknown=[...costUnknown,...feeUnknown]
-  return {engagementId:id,name:project.value.name,clientId:project.value.clientId,leadId:project.value.leadId,teams,services:services.length?services:['Unspecified'],currency:f.currency,basis:f.basis,budgetMinor:budget?.value.amountMinor??null,costMinor:costUnknown.length?null:costMinor,knownCostMinor:costMinor,earnedMinor:feeUnknown.length?null:earnedMinor,knownEarnedMinor:earnedMinor,marginMinor:unknown.length?null:earnedMinor-costMinor,knownMarginMinor:earnedMinor-costMinor,eacFeesMinor:f.complete?f.eacFeesMinor:null,eacCostMinor:f.complete?f.eacCostMinor:null,forecastMarginMinor:f.complete?f.marginMinor:null,forecastUnknown:f.incomplete,forecastSources:f.sources,sources,unknown}
- }).filter(p=>(!filters.client||p.clientId===filters.client)&&(!filters.project||p.engagementId===filters.project)&&(!filters.lead||p.leadId===filters.lead)&&(!filters.team||p.teams.includes(filters.team))&&(!filters.service||p.services.includes(filters.service)))
- const dimensions=(p:ReturnType<typeof slice>[number])=>group==='firm'?['Firm']:group==='project'?[p.name]:group==='client'?[data.clients.find(c=>c.id===p.clientId)?.value.name??'Unknown client']:group==='lead'?[data.people.find(c=>c.id===p.leadId)?.value.name??'Unassigned']:group==='team'?p.teams:p.services
+  return {engagementId:id,name:project.value.name,peopleIds:people.map(p=>p.id),clientId:project.value.clientId,leadId:project.value.leadId,teams,services:services.length?services:['Unspecified'],currency:f.currency,basis:f.basis,budgetMinor:budget?.value.amountMinor??null,costMinor:costUnknown.length?null:costMinor,knownCostMinor:costMinor,earnedMinor:feeUnknown.length?null:earnedMinor,knownEarnedMinor:earnedMinor,marginMinor:unknown.length?null:earnedMinor-costMinor,knownMarginMinor:earnedMinor-costMinor,eacFeesMinor:f.complete?f.eacFeesMinor:null,eacCostMinor:f.complete?f.eacCostMinor:null,forecastMarginMinor:f.complete?f.marginMinor:null,forecastUnknown:f.incomplete,forecastSources:f.sources,sources,unknown}
+ }).filter(p=>(!filters.client||p.clientId===filters.client)&&(!filters.project||p.engagementId===filters.project)&&(!filters.lead||p.leadId===filters.lead)&&(!filters.team||p.teams.includes(filters.team))&&(!filters.service||p.services.includes(filters.service))&&(!filters.person||p.peopleIds.includes(filters.person)))
+ const dimensions=(p:ReturnType<typeof slice>[number])=>group==='firm'?['Firm']:group==='project'?[p.name]:group==='client'?[data.clients.find(c=>c.id===p.clientId)?.value.name??'Unknown client']:group==='lead'?[data.people.find(c=>c.id===p.leadId)?.value.name??'Unassigned']:group==='team'?p.teams:group==='person'?p.peopleIds:p.services
  const groupRows=(projects:ReturnType<typeof slice>)=>{
-  const rows=new Map<string,{key:string,label:string,currency:string,projects:typeof projects}>()
+  const rows=new Map<string,{key:string,label:string,subject:string,currency:string,projects:typeof projects}>()
   for(const p of projects)for(const label of dimensions(p)){
    // Client/project/lead group identity is the stable id; equal display names never merge unrelated records.
    const identity=group==='project'?p.engagementId:group==='client'?p.clientId:group==='lead'?p.leadId:label
-   const key=JSON.stringify([group,identity,p.currency]),row=rows.get(key)??{key,label,currency:p.currency,projects:[] as typeof projects};row.projects.push(p);rows.set(key,row)
+   const subject=group==='person'?(data.people.find(r=>r.id===label)?.value.name??'Unassigned'):label,display=['team','service','person'].includes(group)?`Engagements involving ${subject}`:subject
+   const key=JSON.stringify([group,identity,p.currency]),row=rows.get(key)??{key,label:display,subject,currency:p.currency,projects:[] as typeof projects};row.projects.push(p);rows.set(key,row)
   }
   return [...rows.values()].map(r=>{
    const total=(field:'budgetMinor'|'costMinor'|'earnedMinor'|'marginMinor'|'eacFeesMinor'|'eacCostMinor'|'forecastMarginMinor')=>r.projects.some(p=>p[field]===null)?null:sum(r.projects.map(p=>p[field]!))
@@ -49,10 +50,13 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
   })
  }
  const projects=slice(from,to),rows=groupRows(projects),trends=[]
+ const feesByCurrency=new Map<string,{currency:string;projects:typeof projects;knownMinor:number;minor:number|null}>()
+ for(const p of projects.filter(p=>p.basis!=='hourly')){const bucket=feesByCurrency.get(p.currency)??{currency:p.currency,projects:[] as typeof projects,knownMinor:0,minor:0};bucket.projects.push(p);const passThrough=sum(p.sources.expenses.map(id=>data.expenses.find(r=>r.id===id)!).filter(r=>r.value.reimbursable).map(r=>r.value.amountMinor));bucket.knownMinor+=p.knownEarnedMinor-passThrough;if(p.earnedMinor===null)bucket.minor=null;feesByCurrency.set(p.currency,bucket)}
+ const unattributedFees=[...feesByCurrency.values()].map(r=>({...r,minor:r.minor===null?null:r.knownMinor}))
  for(let cursor=from.slice(0,7)+'-01';cursor<=to;){
   const date=new Date(cursor+'T00:00:00Z');date.setUTCMonth(date.getUTCMonth()+1);const next=date.toISOString().slice(0,10),last=new Date(Date.parse(next)-86400000).toISOString().slice(0,10)
   const monthFrom=cursor<from?from:cursor,monthTo=last>to?to:last
   trends.push({month:cursor.slice(0,7),from:monthFrom,to:monthTo,rows:groupRows(slice(monthFrom,monthTo))});cursor=next
  }
- return {from,to,asOf:forecast.asOf,group,filters,projects,rows,trends,labor:portfolioLabor(data,projects.map(p=>p.engagementId),from,to<forecast.asOf?to:forecast.asOf)}
+ return {from,to,asOf:forecast.asOf,group,filters,projects,rows,trends,unattributedFees,labor:portfolioLabor(data,projects,from,to<forecast.asOf?to:forecast.asOf)}
 }

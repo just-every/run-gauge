@@ -261,7 +261,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f6dc13c04ffe210966699d6d9115531ce11f543ccdfacebb623d8b3a9136cf10",
+      "sha256": "8d03c7b8294ec3ff7693b047a86b23b376e82d6a7580b4187326a3cb80a8e890",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -273,7 +273,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "3237ab6b7fe869b84f03b0b1333dc5e0200ded77eb02328d344cc5c5da231fd9",
+      "sha256": "74b64599e1fa474dcbce9130c380972078a5ebaa4c6529d6576af8815923f4f5",
       "executable": false
     },
     "base-copies.json": {
@@ -285,7 +285,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1185cc90c276cc9494b8c2a8a1494fefdf2032e35d59b63c8161bebab5860c6d",
+      "sha256": "facadd3549674a850e88e5c4a14f6f8c6ba9e17ab18d9b51b782228936194185",
       "executable": false
     },
     "DEMO.md": {
@@ -1101,7 +1101,7 @@
       "executable": false
     },
     "src/gauge/http.ts": {
-      "sha256": "72ae3405b0968623af58710126da358e69578d8fb801ec6fbc672fac1e617ff2",
+      "sha256": "37cc7987dcc9c971dd218d399826c768db8e6e19ac0606b99c8a93f437204b0d",
       "executable": false
     },
     "src/gauge/import-targets.ts": {
@@ -1129,11 +1129,11 @@
       "executable": false
     },
     "src/gauge/portfolio-labor.ts": {
-      "sha256": "5c59cf83c7d99522d284c71c8c92955b28708c743d79e8a09d3260a4fde158bd",
+      "sha256": "bab43e9b86cfbb767c65118175da1e072c7714ded179d60bd1aba81747044a57",
       "executable": false
     },
     "src/gauge/portfolio.ts": {
-      "sha256": "7f297d1a40967469f769907b5d94d249b3c45c68b9fa124c6fff4c6c30d25399",
+      "sha256": "62cd0cbfde3303f1d42ef6d8bbd1f9c02032d6fbc4906bde0a280e4632a6f1db",
       "executable": false
     },
     "src/gauge/project-scenario-deadlines.ts": {
@@ -1205,7 +1205,7 @@
       "executable": false
     },
     "src/gauge/report-lineage-portfolio.ts": {
-      "sha256": "f7a4b16c3161dceb12db9e845dd4a040bdb4f0dc5711cf8a926fb8a02c77590e",
+      "sha256": "d3dc5cf90cd9978a2fdc99448e2ba11fe8cf0e9ad6a49ab12eb4160b04ed4147",
       "executable": false
     },
     "src/gauge/report-lineage-retainers.ts": {
@@ -1441,11 +1441,11 @@
       "executable": false
     },
     "src/gauge/ui-portfolio-labor.ts": {
-      "sha256": "02434ac57bb4e8d3b6d50d7e52279b0857b95d29e240586b9313390f62cf098a",
+      "sha256": "5074e7d7e10d4f5c5a21bd8e7ddf1bc434cabe7c6d17243bb673194e2447088a",
       "executable": false
     },
     "src/gauge/ui-portfolio.ts": {
-      "sha256": "c5d9697263b5b11bfefb3faf4daba3b1cad646983253940fb822b98611e73812",
+      "sha256": "14cf6e1e4d438c0986a0516159b075dbde01fdbb9caf13d4e00faba486aa4a02",
       "executable": false
     },
     "src/gauge/ui-proposals.ts": {
@@ -3349,7 +3349,7 @@
       "executable": false
     },
     "tests/gauge-portfolio.mjs": {
-      "sha256": "b376bcee30ae5d97270d99bb8a5de230acf0a088630c9fafce63392886538228",
+      "sha256": "a28952b109a2eac5af887446294d57f5c92256699c97b472040e8db4dd681474",
       "executable": false
     },
     "tests/gauge-project-scenario-deadlines.mjs": {

@@ -1213,7 +1213,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "677fb11327d4cb2993b715d26772d39c04f4c656e00d88cc0c649a848cefb026",
+      "sha256": "f476891fc5cecbe5b0d9567280f5b1f07aa13528db1424482114abcdb67e9c7e",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -3313,7 +3313,7 @@
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
-      "sha256": "9e54ce5b4172fc172086775f37bd594650587d124487c04e154470a10e7c7fd0",
+      "sha256": "bf27a74661f4a82c87dad2947d101a4aee92448181e061c5e97d31ab39ed579e",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

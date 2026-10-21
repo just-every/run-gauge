@@ -26,7 +26,7 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  if(previous)need(terms.unit===previous.value.terms.unit&&terms.frequency===previous.value.terms.frequency,'Keep the unit and calendar frequency within one retainer; create a separate retainer to change them')
  if(previous)need(terms.start>previous.value.terms.start,'A new commercial version starts after the previous version')
  const calendarRow=rows('agencyCalendars').at(-1)
- need(terms.proration!=='working'||(operation==='periods'?existing!.value.calendar:calendarRow),'The owner must save the agency workweek and holidays before working-day proration')
+ need((terms.proration!=='working'&&terms.feeMinor==null)||(operation==='periods'?existing!.value.calendar?.weekdays?.length:calendarRow),'The owner must save the agency workweek and holidays before working-day proration or period fees')
  const calendar=operation==='periods'?existing!.value.calendar:calendarRow?.value.calendar??{weekdays:[],holidays:[]}
  const from=date(input.from??terms.start),to=date(input.to??from)
  const calculated=retainerPeriods(terms,from,to,calendar)
@@ -55,7 +55,7 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  const fingerprint=sha256(canonicalJson({input:normalized,engagement,observed,operator:a.session.operator.id,role:a.role}))
  if(tx){tx.observe('engagements',engagement);for(const {kind,rows:records} of observed){for(const row of records)tx.observe(kind,row);tx.guard(`(SELECT COUNT(*) FROM g_${kind})=?`,records.length)}}
  await fence(env,a)
- const visibleTerms=!finance(a)&&!tx?Object.fromEntries(Object.entries(terms).filter(([key])=>key!=='feeMinor')):terms
+ const visibleTerms=!finance(a)&&!tx?Object.fromEntries(Object.entries(terms).filter(([key])=>!['feeMinor','feeBasis'].includes(key))):terms
  const visibleInput=!finance(a)&&!tx&&operation==='terms'?{...normalized,terms:visibleTerms}:normalized
  return {input:visibleInput,engagementId:engagement.id,rootId,number:(previous?.value.number??0)+1,terms:visibleTerms,calendar,calendarId:operation==='periods'?existing!.value.calendarId:calendarRow?.id??null,periods,fingerprint}
 }

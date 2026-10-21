@@ -10,10 +10,12 @@ export function retainerFees(data:Record<string,Row[]>,asOf:string) {
   const p=period.value,version=(data.retainers??[]).find(r=>r.id===p.retainerId)
   need(version,'Retainer period has no commercial version',409)
   const t=version.value.terms,fee:number|null=t.feeMinor??null,calendar=version.value.calendar
-  const eligible=(day:string)=>t.proration!=='working'||(calendar.weekdays.includes(new Date(day+'T00:00:00Z').getUTCDay())&&!calendar.holidays.includes(day))
-  const count=(through:string)=>{let n=0;for(let at=Date.parse(p.activeStart);at<=Math.min(Date.parse(through),Date.parse(p.activeEnd));at+=DAY)if(eligible(new Date(at).toISOString().slice(0,10)))n++;return n}
-  const earnedThrough=(day:string)=>fee===null?null:halfUp(fee,count(day),p.denominatorDays)
-  const totalMinor=fee===null?null:halfUp(fee,p.numeratorDays,p.denominatorDays)
+  const eligible=(day:string)=>calendar.weekdays.includes(new Date(day+'T00:00:00Z').getUTCDay())&&!calendar.holidays.includes(day)
+  const count=(from:string,through:string)=>{let n=0;for(let at=Date.parse(from);at<=Date.parse(through);at+=DAY)if(eligible(new Date(at).toISOString().slice(0,10)))n++;return n}
+  const denominator=fee===null?null:count(p.periodStart,p.periodEnd)
+  need(fee===null||denominator!>0,'The saved workweek has no working days for this period fee',409)
+  const earnedThrough=(day:string)=>fee===null?null:halfUp(fee,count(p.activeStart,day<p.activeEnd?day:p.activeEnd),denominator!)
+  const totalMinor=fee===null?null:halfUp(fee,count(p.activeStart,p.activeEnd),denominator!)
   const months=[]
   const first=new Date(p.activeStart+'T00:00:00Z');first.setUTCDate(1)
   for(let start=first.toISOString().slice(0,10);start<=p.activeEnd;){

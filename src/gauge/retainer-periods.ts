@@ -11,6 +11,7 @@ export interface RetainerTerms {
   allowance: number
   /** Optional finance-only cents per full commercial period, separate from allowance. */
   feeMinor?: number
+  feeBasis?: 'working'
   services: string[]
   consumes: 'all' | 'billable' | 'nonbillable'
   proration: 'calendar' | 'working'
@@ -66,7 +67,7 @@ export function normalizeRetainer(input: unknown, currency: string): RetainerTer
   need(end === null || end >= start, 'Retainer end must be on or after its start')
   need(value.renewal === 'automatic' || value.renewal === 'manual', 'Choose automatic or manual renewal')
   return {
-    ...(value.feeMinor===undefined||value.feeMinor===null||value.feeMinor===''?{}:{feeMinor:integer(value.feeMinor,'Period fee',0)}),
+    ...(value.feeMinor===undefined||value.feeMinor===null||value.feeMinor===''?{}:{feeMinor:integer(value.feeMinor,'Period fee',0),feeBasis:'working' as const}),
     rules: normalizeRetainerRules(value.rules, value.unit),
     name: text(value.name, 'Retainer name', 200), frequency: value.frequency, unit: value.unit, allowance,
     services, consumes: value.consumes, proration, start, end, renewal: value.renewal,

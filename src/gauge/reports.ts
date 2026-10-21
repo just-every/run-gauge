@@ -31,7 +31,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  // Cash assumptions (FINANCE-002/FINANCE-007) and the SETUP-002 client workspace are finance's: others see the client's name.
  if(k==='clients')return Object.fromEntries(Object.entries(value).filter(([key])=>!privateClientKeys.includes(key)))
  const v: Value = { ...value }
- if(k==='retainers')v.terms=Object.fromEntries(Object.entries(value.terms).filter(([key])=>key!=='feeMinor'))
+ if(k==='retainers')v.terms=Object.fromEntries(Object.entries(value.terms).filter(([key])=>!['feeMinor','feeBasis'].includes(key)))
  if(a.role==='staff'&&k==='time'){delete v.retainerRootId;delete v.retainerAllocation}
  delete v.economics; delete v.rateOverride; if (v.source) { v.source = { ...v.source }; delete v.source.costMinor; delete v.source.billMinor }
  if (k === 'leave' && v.personId !== a.personId) v.note = 'Private leave'

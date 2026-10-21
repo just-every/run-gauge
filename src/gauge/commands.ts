@@ -37,6 +37,7 @@ import { invoiceCommand } from './invoices'
 import { invoiceCorrectionCommand } from './invoice-corrections'
 import { receiptCommand } from './receipts'
 import { fixedChargeCommand } from './fixed-charges'
+import { customCommand,customPreview } from './custom-fields'
 import { clientCommand } from './clients'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
@@ -44,6 +45,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
  // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
  await seal(env,action.startsWith('import:'))
+ if(action==='field:import-preview')return customPreview(env,a,input)
  if(action==='period:preview')return periodPreview(env,a,input)
  if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)
  if(action==='retainer:preview')return retainerPreview(env,a,input)
@@ -54,6 +56,8 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(previous){need(previous.actor===a.session.operator.id && previous.digest===digest,'Request key already used for different work',409);await fence(env,a);return JSON.parse(previous.result)}
  const tx=new Transaction(env,a)
  tx.key=key;tx.action=action
+ if(['save:clients','save:people','save:engagements','save:tasks'].includes(action))tx.customWrite={scope:action.slice(5),id:input.id,values:input.customFields}
+ if(action==='opportunity:convert')tx.customWrite={scope:'engagements',values:input.customFields}
  const alertInputs=await observeBudgetAlerts(env,tx,action)
  let result:Value|null=await retainerCommand(env,a,tx,action,input)
  if(!result)result=await retainerScheduleCommand(env,a,tx,action,input)
@@ -83,6 +87,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await periodCommand(env,a,tx,action,input)
  if(!result)result=await phaseCommand(env,a,tx,action,input)
  if(!result)result=await capCommand(env,a,tx,action,input)
+ if(!result)result=await customCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)
  if(!result&&['budget:approve','milestone:approve'].includes(action))result=await approveTerms(env,a,tx,action==='budget:approve'?'budgets':'milestones',input)
  if(!result)result=await timeCommand(env,a,tx,action,input)

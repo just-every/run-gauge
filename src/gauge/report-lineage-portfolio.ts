@@ -1,3 +1,4 @@
+import { fieldRecords } from './custom-report'
 import { Lineage } from './report-lineage-shared'
 
 export function portfolioLineage(c:Lineage) {
@@ -5,6 +6,7 @@ export function portfolioLineage(c:Lineage) {
  const append=(period:string,rows:any[])=>{
   for(const row of rows)for(const field of ['budgetMinor','costMinor','earnedMinor','marginMinor','eacFeesMinor','eacCostMinor','forecastMarginMinor']){
    const e=c.evidence(),forecast=field.startsWith('eac')||field==='forecastMarginMinor'
+   if(p.customField){c.row(e,'customFields',p.customField.id);for(const r of fieldRecords(c.report.data,p.customField,row.projectIds))c.row(e,p.customField.value.scope,r.id)}
    for(const project of row.projects){
     for(const [kind,ids]of Object.entries(project.sources as Record<string,string[]>))for(const id of ids){const source=c.row(e,kind,id);if(kind==='time'&&source)c.timeEvidence(e,source)}
     if(forecast){for(const [kind,ids]of Object.entries(project.forecastSources as Record<string,string[]>))for(const id of ids)c.row(e,kind,id);e.unknown.push(...project.forecastUnknown)}

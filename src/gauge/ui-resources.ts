@@ -1,3 +1,4 @@
+import { customFilterInputs } from './ui-custom-fields'
 import type { Bindings } from '../auth.server'
 import { type Actor, all, finance } from './store'
 import type { Value, Row } from './model'
@@ -17,7 +18,7 @@ export async function resourcesSection(env:Bindings,a:Actor,report:Report,option
   +s('employmentType','Employment filter',[{id:'employee',revision:'',value:{name:'Employee'}},{id:'contractor',revision:'',value:{name:'Contractor'}}],v.employmentType,true)
   +'<input type="hidden" name="billable" value="false">'+check('billable','Billable request',v.billable??true)
  let body=`<details class="g-records" id="resource-requests" open><summary>Skills and resource requests</summary><p class="g-lede">Create an unfilled role, search qualified people and approve one person. Hours apply to every requested date, including weekends. Candidate availability deducts all committed work and time off; competing project details and leave reasons remain private. Missing calendars prevent approval. Tentative bookings remain separate.</p><p>Skills catalogue: ${skills.length?skills.map(e).join(', '):'Add skills and proficiency to people on Engagements.'}</p>`
- body+=form('save:resourceRequests',open?'Change resource request':'New resource request',fields,open)
+ body+=form('save:resourceRequests',open?'Change resource request':'New resource request',fields+customFilterInputs(report,undefined,v.customFilters??{}),open)
  body+=table('Resource requests',report.data.resourceRequests,[
   {label:'Role',line:1,wrap:true,cell:r=>`<a href="/app/capacity?resourceRequest=${e(r.id)}#resource-requests">${e(r.value.role)}</a>`},
   {label:'Engagement',line:1,wrap:true,cell:r=>e(nameOf(report.data.engagements,r.value.engagementId))},

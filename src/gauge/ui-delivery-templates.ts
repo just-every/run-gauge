@@ -1,3 +1,4 @@
+import { fieldInputs } from './ui-custom-fields'
 // Delivery templates: versioned agency plans (phases, dependent tasks with owners and
 // effort, priced milestones) that start a new engagement's baseline on a chosen date.
 import { phaseFields } from './ui-budget-phases'
@@ -21,7 +22,7 @@ function editor(report: Report, previous?: Row) {
   + `<label class="g-field g-field--wide"><span>Template items</span><textarea name="itemLines" rows="6" required>${e(itemLines(report, t))}</textarea></label><p class="g-note">One item per line: key | phase, task or milestone | name | business-day offset | business-day duration | after keys | owner (lead or a person) | effort hours | fee | budget phase key.</p>`
   + check('templateBudget','Include phase budgets',!!t?.budget)+choices('templateMode','Budget billing mode',['hourly','fixed'],t?.budget?.mode)+amount('templateAmountDollars','Template total fee',t?.budget?.amountMinor??'',false)+i('templateEffortHours','Template total effort hours',t?.budget?.effortSeconds==null?'':t.budget.effortSeconds/3600,'number',false)+amount('templateExpenseBudgetDollars','Template expense budget',t?.budget?.expenseBudgetMinor??0,false)+i('templateRoundingMinutes','Template rounding minutes',t?.budget?.roundingSeconds==null?1:t.budget.roundingSeconds/60,'number',false)+phaseFields(t?.budget?.phases??[])
   + i('reason', 'Version reason', '')
- return form('template:save', previous ? `Revise ${label(previous)}` : 'New delivery template', fields, undefined, previous ? 'Save new version' : 'Save template')
+ return form('template:save', previous ? `Revise ${label(previous)}` : 'New delivery template', fields+check('applyTemplateDefaults','Set these custom defaults on every task item')+fieldInputs(report,'tasks',{},false), undefined, previous ? 'Save new version' : 'Save template')
 }
 
 export function templatesSection(a: Actor, report: Report) {

@@ -53,7 +53,8 @@
           "migrations/core/0044_gauge_budget_caps.sql",
           "migrations/core/0045_gauge_phase_alerts.sql",
           "migrations/core/0046_gauge_agency_close.sql",
-          "scripts/gauge-tests.mjs"
+          "scripts/gauge-tests.mjs",
+          "migrations/core/0047_gauge_custom_fields.sql"
         ]
       }
     },

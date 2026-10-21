@@ -12,6 +12,8 @@ const find = (rows: Row[], id: string) => rows.find(r => r.id === id)
 /** "Mia Chen · Workshop · 6.5 h · 6 Oct 2026" for one source line "time:ID" (or expenses, milestones, budgets, proposals). */
 export function describeSource(d: Data, source: string): { text: string; href: string } {
  const [kind, id] = source.split(':') as [string, string]
+ if(kind==='customFields'){const row=d.customFields.find(f=>f.id===id);return {text:row?.value.name??'Custom field',href:`/api/gauge/history/customFields/${id}`}}
+ if(kind==='clients'||kind==='tasks'){const row=d[kind].find(r=>r.id===id);return {text:row?.value.name??'Record',href:`/app/engagements?edit=${id}#custom-values`}}
  if(kind==='retainers'||kind==='retainerPeriods'){const r=find(d[kind],id);const t=kind==='retainers'?r:find(d.retainers,r?.value.retainerId);return {text:t?.value.terms.name??'Retainer period',href:`/app/engagements?edit=${r?.value.engagementId??''}#retainers`}}
  if (kind === 'opportunities') { const r = find(d.opportunities, id); return { text: r ? `${r.value.name} · ${r.value.stage}` : 'Opportunity', href: `/app/engagements?opportunity=${id}#pipeline-title` } }
  if (kind === 'resourceRequests') {const r=find(d.resourceRequests,id);return {text:r?`${r.value.role} · ${r.value.status}`:'Resource request',href:`/app/capacity?resourceRequest=${id}#resource-requests`}}

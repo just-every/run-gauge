@@ -9,7 +9,7 @@ import { hours, period, weekdays, chip, nameOf } from './ui-format'
 import type { Report } from './ui-describe'
 import { columns, lanes, board, mondayOf, shift } from './ui-board'
 import { recoveryPanel, worklog } from './ui-recovery'
-import { reports, capacity } from './reports'
+import { reports, capacity,redact } from './reports'
 import { utilizationSection } from './ui-utilization'
 import { performanceSection } from './ui-performance'
 import { resourcesSection } from './ui-resources'
@@ -28,7 +28,7 @@ export async function capacitySection(env: Bindings, a: Actor, report: Report, o
  const [clients, roster] = await Promise.all([all(env, 'clients'), manager ? Promise.all([all(env, 'people'), all(env, 'calendars'), all(env, 'leave'), all(env, 'staffing')]) : undefined])
  const order = clients.map(r => r.id), tintOf = (id: string) => order.includes(id) ? order.indexOf(id) % 6 + 1 : 0
  // Global capacity exposes totals only. Bars and records still use the viewer's permitted source data.
- const boardReport = roster ? { ...report, data: { ...d, people: roster[0]! }, capacity: capacity({ people: roster[0]!, calendars: roster[1]!, leave: roster[2]!, staffing: roster[3]! }, report.from, report.to) } : report
+ const boardReport = roster ? { ...report, data: { ...d, people: roster[0]!.map(p=>({...p,value:redact(a,'people',p.value)})) }, capacity: capacity({ people: roster[0]!, calendars: roster[1]!, leave: roster[2]!, staffing: roster[3]! }, report.from, report.to) } : report
  const matchingPeople = schedulePeople(boardReport, options)
  const cols = columns(monday, weeks), rows = lanes(boardReport, cols, tintOf, { proposal }).filter(r => matchingPeople.has(r.personId))
  const week = [0, 1, 2, 3, 4, 5, 6].map(n => shift(monday, n))

@@ -5,8 +5,8 @@ import type { LineageFigure } from './report-lineage'
 // Capture the visible inputs and computed figures, excluding the read timestamp.
 // An export refuses a changed snapshot instead of silently exporting new totals.
 export function reportFingerprint(report: Record<string, unknown>) {
- const {data,retainerBalances,capacity,resourceDemand,utilization,performance,economics,pipeline,exceptions,correctionReviews,forecast,margin,cash,portfolio,revenueDashboard,demandForecast,from,to}=report
- return sha256(canonicalJson({data,retainerBalances,capacity,resourceDemand,utilization,performance,economics,pipeline,exceptions,correctionReviews,forecast,margin,cash,portfolio,revenueDashboard,demandForecast,from,to}))
+ const {customPerformance,data,retainerBalances,capacity,resourceDemand,utilization,performance,economics,pipeline,exceptions,correctionReviews,forecast,margin,cash,portfolio,revenueDashboard,demandForecast,from,to}=report
+ return sha256(canonicalJson({customPerformance,data,retainerBalances,capacity,resourceDemand,utilization,performance,economics,pipeline,exceptions,correctionReviews,forecast,margin,cash,portfolio,revenueDashboard,demandForecast,from,to}))
 }
 export function reportCsv(report: {lineage: LineageFigure[]; asOf: string; from: string; to: string}) {
  const rows: unknown[][] = [['row', 'figure', 'label', 'value', 'known subtotal', 'complete', 'unit', 'currency', 'formula', 'as of', 'source kind', 'source id', 'source revision', 'source values', 'unknown sources']]

@@ -2,6 +2,7 @@
 // their estimate, clients and people, and one engagement's detail (?edit=<id>):
 // its facts, scope, terms, tasks, milestones and economics, with the forms that
 // change them. Forms keep their actions and field names.
+import { fieldInputs } from './ui-custom-fields'
 import { type Actor, finance } from './store'
 import type { Kind, Row, Value } from './model'
 import { escape as e, input as i, amount, duration, area, select as s, choices as c, check, checks, form, decision, table, open } from './ui-forms'
@@ -32,7 +33,7 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
  const taskForm = (engagementId?: string) => taskEditor(a,report,edit('tasks'),engagementId)
  const milestoneForm = (engagementId?: string) => form('save:milestones', 'Fixed-fee milestone', s('engagementId', 'Engagement', managed, m.engagementId ?? engagementId) + phasePicker(report,m.engagementId??engagementId,m.phaseKey,'fixed') + i('name', 'Milestone name', m.name) + i('due', 'Due date', m.due ?? today, 'date') + amount('amountDollars', `Milestone fee (${m.currency ?? d.engagements.find(r => r.id === engagementId)?.value.currency ?? a.currency})`, m.amountMinor ?? ''), edit('milestones'))
  const x = focus?.value ?? v('engagements')
- const engagementForm = () => form('save:engagements', 'Engagement', i('name', 'Engagement name', x.name) + c('type','Engagement type',['client','internal'],x.type??'client') + c('internalCategory','Internal category',['admin','sales','training','PTO','other'],x.internalCategory??'other') + s('clientId', 'Client', activeClients(d.clients), x.clientId, true) + s('leadId', 'Responsible lead', d.people, x.leadId) + checks('members', 'Assigned people', d.people, x.members) + area('scope', 'Agreed scope', x.scope) + i('timezone', 'Work timezone', x.timezone ?? report.agency.timezone), focus)
+ const engagementForm = () => form('save:engagements', 'Engagement', i('name', 'Engagement name', x.name) + c('type','Engagement type',['client','internal'],x.type??'client') + c('internalCategory','Internal category',['admin','sales','training','PTO','other'],x.internalCategory??'other') + s('clientId', 'Client', activeClients(d.clients), x.clientId, true) + s('leadId', 'Responsible lead', d.people, x.leadId) + checks('members', 'Assigned people', d.people, x.members) + area('scope', 'Agreed scope', x.scope) + i('timezone', 'Work timezone', x.timezone ?? report.agency.timezone)+fieldInputs(report,'engagements',x), focus)
  const overspent = new Set(report.exceptions.filter(x => x.type === 'overspend').map(x => x.source.split(':')[1]))
  const reading = (r: Row) => {
   const econ = report.economics.find(x => x.engagementId === r.id), estimate = econ ? estimateOf(report, econ.budgetId) : null, approved = econ?.approvedSeconds ?? 0
@@ -64,7 +65,7 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
  if (finance(a)) {
   const p = v('people')
   body += `<div class="g-pair"><div>${clientsTable(d)}${clientSearchSection(d, options.clientSearch)}</div>${table('People', d.people, [{ label: 'Name', cell: r => open('engagements', r, r.value.name) }, { label: 'Work timezone', cell: r => e(r.value.timezone) }, { label: 'Contractor', cell: r => yesNo(r.value.contractor) }])}</div>`
-  body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${engagementForm()}${clientForm(edit('clients'))}${clientMergeForm(d, edit('clients'))}${form('save:people', 'Person', i('name', 'Name', p.name) + i('timezone', 'Work timezone', p.timezone ?? report.agency.timezone) + resourceProfileFields(p), edit('people'))}${terms()}${taskForm()}${milestoneForm()}</div>`
+  body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${engagementForm()}${clientForm(edit('clients'),fieldInputs(report,'clients',v('clients')))}${clientMergeForm(d, edit('clients'))}${form('save:people', 'Person', i('name', 'Name', p.name) + i('timezone', 'Work timezone', p.timezone ?? report.agency.timezone) + resourceProfileFields(p)+fieldInputs(report,'people',p), edit('people'))}${terms()}${taskForm()}${milestoneForm()}</div>`
  } else if (manager) body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${terms()}${taskForm()}${milestoneForm()}</div>`
  return body + tasksSection(a,report,options) + templatesSection(a,report) + pipelineSection(a, report, options.opportunity)
 }

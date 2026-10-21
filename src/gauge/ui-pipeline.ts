@@ -1,3 +1,4 @@
+import { fieldInputs } from './ui-custom-fields'
 import type { Actor } from './store'
 import { finance } from './store'
 import type { Report } from './ui-describe'
@@ -25,6 +26,6 @@ export function pipelineSection(a: Actor, report: Report, opportunityId?: string
    { label: 'Owner', line: 2, cell: r => e(nameOf(d.people, r.value.ownerId)) },
    { label: 'Expected value', line: 2, cell: r => money(r.value.amountMinor, r.value.currency) },
    { label: 'Services and demand', line: 3, cell: r => `${e(r.value.services)} · ${hours(r.value.demandSeconds)} · ${e(day(r.value.from))}–${e(day(r.value.to))}` },
-  ], r => (finance(a) && r.value.stage === 'won' && !r.value.engagementId ? decision('opportunity:convert', 'Convert to engagement', r) : r.value.conversion ? `<a class="g-link" href="/app/engagements?edit=${e(r.value.engagementId)}">Open converted engagement</a>${r.value.conversion.unplacedSeconds ? `<span class="g-sub">${e(r.value.conversion.unplacedSeconds)} seconds of demand unplaced</span>` : ''}` : '') + `<a class="g-link" href="/api/gauge/history/opportunities/${e(r.id)}">Revision history</a>`)
+  ], r => (finance(a) && r.value.stage === 'won' && !r.value.engagementId ? decision('opportunity:convert', 'Convert to engagement', r,false,'primary',fieldInputs(report,'engagements')) : r.value.conversion ? `<a class="g-link" href="/app/engagements?edit=${e(r.value.engagementId)}">Open converted engagement</a>${r.value.conversion.unplacedSeconds ? `<span class="g-sub">${e(r.value.conversion.unplacedSeconds)} seconds of demand unplaced</span>` : ''}` : '') + `<a class="g-link" href="/api/gauge/history/opportunities/${e(r.id)}">Revision history</a>`)
   + form('save:opportunities', row ? 'Update opportunity' : 'New opportunity', fields, row) + (row ? '<p><a class="g-link" href="/app/engagements#pipeline-title">New opportunity</a></p>' : '') + '</section>'
 }

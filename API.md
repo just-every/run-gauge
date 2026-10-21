@@ -386,3 +386,79 @@ linked to the previous close; the original remains unchanged.
 Repeated downloads and downloads after a reopen return the original record.
 All close drafts, matches, closes, reopen requests/events and history travel in
 BASE-002 archives, with fresh sign-in required and no automatic action replay.
+
+### Typed custom fields and reviewed Kantata field packages (SETUP-004)
+
+The owner uses `field:define` with `scope` (`clients`, `engagements`, `people`,
+`tasks`), `name`, `type`, `visibility` (`everyone`, `lead-finance`,
+`finance-only`), `required`, `retired` and a reason. Updates bind `id` and
+`revision`. Scope/type/currency are immutable. Select options have stable `id`,
+`name` and `retired`; add or retire them, never delete their identities. Number
+values are signed exact decimal strings with at most six places; currency
+values are signed integer minor units of the definition's ISO currency (JPY has
+zero decimal places, BHD three). These fields do not convert currencies or
+change native commercial terms.
+
+Native `save:clients`, `save:people`, `save:engagements`, `save:tasks` and
+`opportunity:convert` accept `customFields: {"<field-id>": value}`. `field:values`
+edits only custom values on an exact `scope`, `id`, `revision`, using the
+record's ordinary editing role. Omitted fields retain their values. Empty
+values remove optional fields. Required fields hold every current creation
+door, including imported native rows and each task in template application;
+legacy records are not rewritten when a field becomes required. Template task
+items accept typed `customFields` defaults. Later definition changes preserve
+stored values and original definition revisions. Current visibility and the
+value's definition-version visibility both apply to non-finance history and
+reads; explicitly saving a value republishes it under the current definition.
+Agents gain no custom-field authority.
+
+`field:import-preview` accepts this fields-only, synthetic/export-normalization
+format with an explicit native relationship mapping:
+
+```json
+{
+  "package": {
+    "format": "kantata-ox-custom-fields-v1",
+    "namespace": "synthetic-gauge-kantata-1",
+    "fields": [{"id":"project-practice","scope":"engagements","name":"Practice","type":"single-select","options":[{"id":"Brand","name":"Brand"},{"id":"Web","name":"Web"}]}],
+    "records": [{"id":"project-1","scope":"engagements","values":{"project-practice":"Brand"}}],
+    "controls": {"Practice":{"Brand":{"marginMinor":60000}}}
+  },
+  "mapping": {"engagements":{"project-1":"<existing-native-engagement-id>"}},
+  "policies": {"project-practice":{"visibility":"everyone","required":false}}
+}
+```
+
+The owner supplies field policy separately; source records never grant access.
+New fields default to finance-only and optional. Definitions/source IDs, exact
+original package, mappings, independent controls and each value's provenance
+are retained. Undefined options (including `Legacy`), type failures and unmapped
+relationships appear in the read-only preview; apply refuses every finding.
+`field:import` adds the preview `fingerprint` and a review reason. Both definitions
+and exact native revisions participate in the fingerprint and committing guards.
+The bounded batch is atomic (at most 100 fields and 100 target records); an
+identical package/mapping/policy digest returns its original receipt and
+preserves later native edits. This adapter adds fields to existing native
+records; the broader OX/SX migration and cutover remain MIGRATE-004's.
+
+Reports accept `customGroup=<field-id>`, `portfolioGroup=custom:<field-id>`,
+`customFilters=<JSON field/value object>` and `customMeasures=<JSON field-id
+array>`. Every readable field groups/filters utilization and whole-engagement
+profitability; number/currency fields sum distinct cohort records with unknown
+values explicit. Shared-project and multi-select cohorts overlap and must not
+be summed into a firm total. Currency measures keep their own ISO currency;
+there is no implicit FX. Figure sources/CSV include exact definitions and
+record revisions. Resource requests accept the same `customFilters`; person
+fields match the candidate directly, other scopes match their visible project
+relationships. The calendar offers the same filters without altering totals.
+
+`saved:save` stores name, dataset (`profitability` or `utilization`), group,
+filters, measures and dates. `GET /api/gauge/saved/<id>` recomputes with current
+roles, record scope and field policies; it stores no result snapshot. Definitions
+are private to their creator and finance; any inaccessible referenced field
+hides the saved definition, including filter literals, and refuses execution.
+Profitability remains finance-only. REPORT-004 inherits these same checks for
+future scheduled reports, XLSX/PDF exports and BI feeds, and CLIENT-001 inherits
+them for its portal. All definitions, value history, original imports and saved
+reports travel in BASE-002 archives; restore grants no session or automatic
+execution authority.

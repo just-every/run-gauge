@@ -1,3 +1,4 @@
+import { fieldInputs } from './ui-custom-fields'
 import { phasePicker } from './ui-budget-phases'
 import type { Actor } from './store'
 import { finance } from './store'
@@ -18,7 +19,7 @@ export function taskEditor(a:Actor,report:Report,old?:Row,engagementId?:string) 
   +'<input type="hidden" name="billable" value="false">'+check('billable','Billable task',v.billable??d.engagements.find(t=>t.id===engagementId)?.value.type!=='internal','true')
   +`<label class="g-field g-field--wide"><span>Checklist (one item per line)</span><textarea name="checklist" rows="3">${e((v.checklist??[]).map((item:Value)=>item.label).join('\n'))}</textarea></label>`
   +i('repeatEveryDays','Repeat every calendar days (0 = once)',v.repeatEveryDays??0,'number')+i('repeatUntil','Last recurring start date',v.repeatUntil??'','date',false)
- return form('save:tasks','Task and remaining effort',fields,old)
+ return form('save:tasks','Task and remaining effort',fields+fieldInputs(report,'tasks',v),old)
 }
 function taskTable(a:Actor,report:Report,title:string,rows:Row[]) {
  const d=report.data

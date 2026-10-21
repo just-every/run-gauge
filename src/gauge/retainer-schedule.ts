@@ -103,7 +103,7 @@ export async function runRetainerSchedules(env:Bindings,asOf?:string){
   const schedule=await get(env,'retainerSchedules',grant.schedule_id)
   const a={...settings,session:{operator:{id:grant.operator_id},id:''},role:'finance',personId:null,grantVersion:schedule.value.grantVersion,scheduled:{id:grant.schedule_id,revision:grant.revision}} as Actor
   try{await fence(env,a);const tx=new Transaction(env,a);tx.action='retainer:scheduled-run';await runPeriod(env,a,tx,schedule,day);await tx.commit()}catch(error){
-   // A failed job has made no partial financial writes; retain a reason for finance.
+   // A refused run has made no partial financial writes. Durable owned failures remain FOLLOWUP-004; the manual run returns the refusal.
    if(!(error instanceof Fault))throw error
   }
  }

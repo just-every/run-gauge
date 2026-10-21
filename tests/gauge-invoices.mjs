@@ -224,6 +224,7 @@ export async function notToExceedJourney(h){
  assert.equal((await state()).data.invoices.find(i=>i.id===invoice.id).value.totalMinor,1000000)
  const report=await(await request('/api/gauge/state?from=2026-01-01&to=2026-01-31&asOf=2026-02-01',owner)).json()
  assert(!report.cash.engagements.find(e=>e.engagementId===first.project.id).items.some(i=>!i.issued&&i.openMinor>0),'Held excess is excluded from expected cash')
+ const cappedRealization=report.performance.byPerson.find(p=>p.id===first.worker.id).money.find(b=>b.currency==='USD');assert.equal(cappedRealization.standardMinor,1000000);assert.equal(cappedRealization.billedMinor,1000000);assert.equal(cappedRealization.billedSeconds,240000);assert.equal(cappedRealization.unbilledStandardMinor,50000);assert.equal(cappedRealization.realizationPercent,100,'Capped portions use their original frozen standard rather than the whole held entry')
  const raised=await cmd('budget:approve',await cmd('save:budgets',{engagementId:first.project.id,mode:'hourly',amountMinor:1100000,effortSeconds:252000,roundingSeconds:1,reason:'Accepted $1,000 change order'}))
  const release=await cmd('cap:draft',{engagementId:first.project.id,budgetId:raised.id,budgetRevision:raised.revision,title:'Released $500 excess'})
  data=await state();assert.equal(data.data.packets.find(p=>p.id===release.id).value.totalMinor,50000)
@@ -398,4 +399,117 @@ export async function agencyCloseJourney(h){
  }finally{await browser.close()}
  const finalPolicy=(await state()).data.approvalPolicies[0];await cmd('approval:limit',{...finalPolicy,reviewAboveMinor:oldLimit?.value.reviewAboveMinor??null,reason:'Restore review policy after isolated close proof'})
  console.log('PASS FINANCE-004 agency close: missing time/cost/unapproved cost/unmatched invoice refused then resolved; explicit WIP/unbilled reconciliation; held TIME-003 cutoff; immutable retainer links/open exception; stale and independent review; financial-date lock; authorized late reopen and linked reclose; role privacy and 1440/390')
+}
+
+// SETUP-004: typed source fields, native creation doors, reports and scoped resource search.
+export async function customFieldJourney(h) {
+ const {cmd,request,owner}=h
+ const base='/api/gauge/state?from=2026-10-05&to=2026-10-09&asOf=2026-10-20'
+ const read=async(extra='',cookie=owner)=>{const r=await request(base+extra,cookie);assert.equal(r.status,200,await r.clone().text());return r.json()}
+ const native=async(scope,id)=>(await read()).data[scope].find(r=>r.id===id)
+ const define=async(scope,name,type,extra={})=>cmd('field:define',{scope,name,type,visibility:'everyone',reason:'Reviewed agency field policy',...extra})
+ const a=await cmd('save:people',{name:'Fields NYC',timezone:'America/New_York',skills:[{name:'Design',proficiency:4}]}),b=await cmd('save:people',{name:'Fields Austin',timezone:'America/New_York',skills:[{name:'Design',proficiency:4}]})
+ const client=await cmd('save:clients',{name:'Custom fields client'})
+ for(const person of [a,b]){await cmd('save:calendars',{personId:person.id,from:'2026-10-05',to:'2026-10-09',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:'America/New_York'});await cmd('save:rates',{personId:person.id,service:'*',effective:'2026-01-01',costMinor:9000,billMinor:15000})}
+ const projects=[]
+ for(const [n,person]of [a,b].entries()){
+  const e=await cmd('save:engagements',{name:['Fields Brand','Fields Web'][n],clientId:client.id,leadId:person.id,members:[person.id],scope:'Source-controlled field reporting',timezone:'America/New_York'});projects.push(e)
+  await cmd('budget:approve',await cmd('save:budgets',{engagementId:e.id,mode:'hourly',amountMinor:1000000,effortSeconds:144000,roundingSeconds:60,reason:'Custom report baseline'}))
+  const sourceTask=await cmd('save:tasks',{engagementId:e.id,name:'Source report effort',remainingSeconds:0})
+  for(const day of [5,6,7,8,9]){const start=`2026-10-0${day}T09:00:00-04:00`,end=`2026-10-0${day}T${n?'13':'11'}:00:00-04:00`;await cmd('time:approve',await cmd('time:submit',await cmd('time:save',{engagementId:e.id,personId:person.id,taskId:sourceTask.id,start,end,timezone:'America/New_York',service:'Design',billable:true,notes:'Source report controlled hours'})))}
+ }
+ // Independent controls are literal source report totals, not values read back from Gauge.
+ const pkg={format:'kantata-ox-custom-fields-v1',namespace:'synthetic-gauge-kantata-1',fields:[{id:'project-practice',scope:'engagements',name:'Practice',type:'single-select',options:[{id:'Brand',name:'Brand'},{id:'Web',name:'Web'}]},{id:'user-office',scope:'people',name:'Office',type:'single-select',options:[{id:'NYC',name:'NYC'},{id:'Austin',name:'Austin'}]}],records:[{scope:'engagements',id:'p-brand',values:{'project-practice':'Brand'}},{scope:'engagements',id:'p-web',values:{'project-practice':'Web'}},{scope:'people',id:'u-nyc',values:{'user-office':'NYC'}},{scope:'people',id:'u-austin',values:{'user-office':'Austin'}}],controls:{Practice:{Brand:{billableSeconds:36000,availableSeconds:144000,utilizationPercent:25,earnedMinor:150000,costMinor:90000,marginMinor:60000},Web:{billableSeconds:72000,availableSeconds:144000,utilizationPercent:50,earnedMinor:300000,costMinor:180000,marginMinor:120000}},Office:{NYC:{billableSeconds:36000,availableSeconds:144000,utilizationPercent:25,earnedMinor:150000,costMinor:90000,marginMinor:60000},Austin:{billableSeconds:72000,availableSeconds:144000,utilizationPercent:50,earnedMinor:300000,costMinor:180000,marginMinor:120000}}}}
+ const mapping={engagements:{'p-brand':projects[0].id,'p-web':projects[1].id},people:{'u-nyc':a.id,'u-austin':b.id}},policies={'project-practice':{visibility:'everyone'},'user-office':{visibility:'everyone'}}
+ const bad=structuredClone(pkg);bad.records[0].values['project-practice']='Legacy';const rejected=await cmd('field:import-preview',{package:bad,mapping,policies});assert.equal(rejected.canApply,false);assert(rejected.findings.some(f=>f.sourceId==='p-brand'&&/Undefined/.test(f.reason)&&f.reason.includes('Legacy')));assert.equal((await read()).data.customImports.length,0)
+ await cmd('field:import',{package:bad,mapping,policies,fingerprint:rejected.fingerprint,reason:'Undefined values must never disappear'},owner,400)
+ const input={package:pkg,mapping,policies},preview=await cmd('field:import-preview',input),job=await cmd('field:import',{...input,fingerprint:preview.fingerprint,reason:'Independent source report reconciliation'})
+ let d=await read();const practice=d.data.customFields.find(f=>f.value.sourceId==='project-practice'),office=d.data.customFields.find(f=>f.value.sourceId==='user-office')
+ assert.equal(d.data.customImports.find(j=>j.id===job.id).value.package.controls.Office.Austin.marginMinor,120000)
+ for(const field of [practice,office]){
+  d=await read(`&portfolioGroup=custom:${field.id}&customGroup=${field.id}`)
+  const expected=pkg.controls[field.value.name]
+  for(const [label,c]of Object.entries(expected)){const profit=d.portfolio.rows.find(r=>r.subject===label),util=d.customPerformance.rows.find(r=>r.name===label);assert(profit&&util);for(const key of ['earnedMinor','costMinor','marginMinor'])assert.equal(profit[key],c[key],`${field.value.name} ${label} independent ${key}`);for(const key of ['billableSeconds','availableSeconds','utilizationPercent'])assert.equal(util[key],c[key],`${field.value.name} ${label} independent ${key}`)}
+ }
+ // All seven field types, decimal exactness, private measures, value history and immutable option identity.
+ const contract=await define('engagements','Contract value','currency',{currency:'USD',visibility:'finance-only'}),number=await define('engagements','Complexity','number'),note=await define('clients','Reference note','text'),when=await define('clients','Renewal date','date'),person=await define('clients','Sponsor','person'),multi=await define('tasks','Channels','multi-select',{options:[{id:'web',name:'Web'},{id:'print',name:'Print'}]})
+ for(const [n,e]of projects.entries()){const row=await native('engagements',e.id);await cmd('field:values',{scope:'engagements',...row,customFields:{[contract.id]:[100001,200002][n],[number.id]:['1.25','2.75'][n]}})}
+ let row=await native('clients',client.id);await cmd('field:values',{scope:'clients',...row,customFields:{[note.id]:'synthetic-gauge-1',[when.id]:'2026-02-30',[person.id]:a.id}},owner,400)
+ row=await native('clients',client.id);await cmd('field:values',{scope:'clients',...row,customFields:{[note.id]:'synthetic-gauge-1',[when.id]:'2026-11-30',[person.id]:a.id}})
+ const task=await cmd('save:tasks',{engagementId:projects[0].id,name:'Custom channels',remainingSeconds:0,customFields:{[multi.id]:['web','print']}})
+ await cmd('field:values',{scope:'tasks',...task,customFields:{[multi.id]:['unknown']}},owner,400)
+ const currentMulti=await native('customFields',multi.id);await cmd('field:define',{...currentMulti,...currentMulti.value,options:[{id:'web',name:'Web'},{id:'print',name:'Print',retired:true},{id:'social',name:'Social'}],reason:'Retire print without erasing source history'})
+ assert.deepEqual((await native('tasks',task.id)).value.customFields[multi.id],['web','print']);await cmd('save:tasks',{engagementId:projects[0].id,name:'No retired new assignment',remainingSeconds:0,customFields:{[multi.id]:['print']}},owner,400)
+ d=await read(`&portfolioGroup=custom:${practice.id}&customMeasures=${encodeURIComponent(JSON.stringify([contract.id,number.id]))}`)
+ const customFigure=d.lineage.find(f=>f.id.startsWith('customPortfolio:')&&f.id.endsWith(':'+contract.id)&&f.value===100001);assert(customFigure);assert(customFigure.sources.some(s=>s.kind==='customFields'&&s.id===contract.id));const customExport=await request(base.replace('/state','/report.csv')+`&portfolioGroup=custom:${practice.id}&customMeasures=${encodeURIComponent(JSON.stringify([contract.id,number.id]))}&fingerprint=${d.fingerprint}`,owner);assert.equal(customExport.status,200);assert((await customExport.text()).includes('100001'))
+ assert.equal(d.portfolio.rows.find(r=>r.subject==='Brand').customMeasures.find(m=>m.fieldId===contract.id).value,100001)
+ assert.equal(d.portfolio.rows.find(r=>r.subject==='Web').customMeasures.find(m=>m.fieldId===contract.id).value,200002)
+ assert.equal(d.portfolio.rows.reduce((n,r)=>n+r.customMeasures.find(m=>m.fieldId===number.id).value,0),4)
+ // Every currently permitted field type and record scope groups and filters both report datasets.
+ for(const [field,value,expectedProjects]of [[practice,'Brand',1],[office,'Austin',1],[contract,100001,1],[number,'1.25',1],[note,'synthetic-gauge-1',2],[when,'2026-11-30',2],[person,a.id,2],[multi,'web',1]]){
+  const result=await read(`&portfolioGroup=custom:${field.id}&customGroup=${field.id}&customFilters=${encodeURIComponent(JSON.stringify({[field.id]:value}))}`)
+  assert.equal(result.portfolio.projects.length,expectedProjects,`Permitted ${field.id} profitability filter`)
+  assert(result.portfolio.rows.some(r=>r.projectIds.length===expectedProjects))
+  assert(result.customPerformance.rows.length>0,`Permitted ${field.id} utilization grouping`)
+  const sourceIds=new Set(result.portfolio.projects.map(p=>p.engagementId));assert([...sourceIds].every(id=>projects.some(p=>p.id===id)))
+  const savedReport=await cmd('saved:save',{name:`Typed report ${field.id}`,dataset:'profitability',group:field.id,customFilters:{[field.id]:value},from:'2026-10-05',to:'2026-10-09'})
+  assert.equal((await request(`/api/gauge/saved/${savedReport.id}`,owner)).status,200)
+ }
+ const yen=await define('clients','Yen allowance','currency',{currency:'JPY'}),dinar=await define('clients','Dinar allowance','currency',{currency:'BHD'})
+ await cmd('field:values',{scope:'clients',...await native('clients',client.id),customFields:{[yen.id]:1234,[dinar.id]:12345}})
+ const foreignMeasures=await read(`&portfolioGroup=custom:${practice.id}&customMeasures=${encodeURIComponent(JSON.stringify([yen.id,dinar.id]))}`);for(const label of ['Brand','Web']){const cohort=foreignMeasures.portfolio.rows.find(r=>r.subject===label);assert(cohort);assert.equal(cohort.customMeasures.find(m=>m.fieldId===yen.id).value,1234);assert.equal(cohort.customMeasures.find(m=>m.fieldId===dinar.id).value,12345)}assert(foreignMeasures.portfolio.rows.filter(r=>!['Brand','Web'].includes(r.subject)).every(r=>r.customMeasures.every(m=>m.value===null&&m.knownValue===0)),'Other clients have unset currency values, never zero totals')
+ const financeSaved=await cmd('saved:save',{name:'Finance contracts by practice',dataset:'profitability',group:practice.id,measures:[contract.id],from:'2026-10-05',to:'2026-10-09'});assert.equal((await request(`/api/gauge/saved/${financeSaved.id}`,owner)).status,200)
+ const lead=await h.invite('field-lead');await cmd('grant',{operatorId:lead.id,personId:a.id,role:'lead',enabled:true})
+ const staff=await h.invite('field-staff');await cmd('grant',{operatorId:staff.id,personId:a.id,role:'staff',enabled:true})
+ const leadData=await read('',lead.cookie),encoded=JSON.stringify(leadData);assert(!encoded.includes(contract.id));assert(!Object.values(leadData.data.engagements).some(e=>Object.values(e.value.customFields??{}).includes(100001)));assert(!encoded.includes('Contract value'))
+ for(const path of [`/app/engagements?edit=${projects[0].id}`,`/api/gauge/history/engagements/${projects[0].id}`]){const r=await request(path,lead.cookie);assert.equal(r.status,200);const text=await r.text();assert(!text.includes(contract.id));assert(!text.includes('Contract value'))}
+ const exported=await request(`/api/gauge/report.csv?from=2026-10-05&to=2026-10-09&asOf=2026-10-20&fingerprint=${leadData.fingerprint}`,lead.cookie);assert.equal(exported.status,200);assert(!(await exported.text()).includes(contract.id))
+ assert.equal((await request(`/api/gauge/saved/${financeSaved.id}`,lead.cookie)).status,403)
+ await cmd('saved:save',{name:'Forbidden private measure',dataset:'utilization',group:practice.id,measures:[contract.id],from:'2026-10-05',to:'2026-10-09'},lead.cookie,403)
+ assert.equal((await request(base+`&customFilters=${encodeURIComponent(JSON.stringify({[contract.id]:100001}))}`,lead.cookie)).status,403)
+ await cmd('field:values',{scope:'engagements',...await native('engagements',projects[0].id),customFields:{[contract.id]:1}},lead.cookie,403)
+ await cmd('field:define',{scope:'people',name:'No grant',type:'text',reason:'Not owner'},lead.cookie,403)
+ const saved=await cmd('saved:save',{name:'Lead practice utilization',dataset:'utilization',group:practice.id,from:'2026-10-05',to:'2026-10-09'},lead.cookie);assert.equal((await request(`/api/gauge/saved/${saved.id}`,lead.cookie)).status,200)
+ assert(!(await read('',staff.cookie)).data.customFields.some(f=>f.id===contract.id))
+ // Required fields are enforced in all current creation doors, including SQL-backed adapters.
+ const unclassified=await cmd('save:engagements',{name:'Legacy unclassified engagement',clientId:client.id,leadId:a.id,members:[a.id],scope:'Existing record remains intact until a creation door needs classification',timezone:'America/New_York'})
+ const practiceDef=await native('customFields',practice.id);await cmd('field:define',{...practiceDef,...practiceDef.value,required:true,reason:'Every new engagement needs a practice'})
+ const newInput={name:'Required practice',clientId:client.id,leadId:a.id,members:[a.id],scope:'Typed required door',timezone:'America/New_York'}
+ await cmd('save:engagements',newInput,owner,400)
+ const required=await cmd('save:engagements',{...newInput,customFields:{[practice.id]:'Brand'}})
+ const opp=await cmd('save:opportunities',{name:'Required won deal',clientId:client.id,ownerId:a.id,stage:'won',probability:100,amountMinor:50000,demandSeconds:3600,from:'2026-11-02',to:'2026-11-03',services:'Design'})
+ await cmd('opportunity:convert',opp,owner,400);const converted=await cmd('opportunity:convert',{...opp,customFields:{[practice.id]:'Web'}});assert.equal((await cmd('opportunity:convert',opp)).id,converted.id)
+ const requiredTask=await define('tasks','Task handover','text',{required:true})
+ const template=await cmd('template:save',{name:'Required handover template',reason:'Required fields on template creation',items:[{key:'task',kind:'task',name:'Handover',offsetDays:0,durationDays:1,owner:'lead',effortSeconds:3600}]})
+ const noClassification=await cmd('template:apply',{templateId:template.id,engagementId:unclassified.id,start:'2026-11-02',reason:'A legacy engagement still needs its required classification'},owner,400);assert.match(noClassification.error,/Practice/)
+ await cmd('template:apply',{templateId:template.id,engagementId:required.id,start:'2026-11-02',reason:'Missing task field'},owner,400)
+ await cmd('save:tasks',{engagementId:required.id,name:'Missing required task field',remainingSeconds:0},owner,400)
+ const corrected=await cmd('template:save',{previousId:template.id,name:'Required handover template',reason:'Reviewed task field default',items:[{key:'task',kind:'task',name:'Handover',offsetDays:0,durationDays:1,owner:'lead',effortSeconds:3600,customFields:{[requiredTask.id]:'Client handover prepared'}}]})
+ const revisedTemplate=await cmd('template:save',{previousId:corrected.id,name:'Revised handover template',reason:'Keep typed defaults when revising other template facts',items:[{key:'task',kind:'task',name:'Handover',offsetDays:0,durationDays:1,owner:'lead',effortSeconds:3600}]})
+ assert.equal((await native('deliveryTemplates',revisedTemplate.id)).value.items[0].customFields[requiredTask.id],'Client handover prepared')
+ await cmd('template:apply',{templateId:revisedTemplate.id,engagementId:required.id,start:'2026-11-02',reason:'Typed task defaults'})
+ // Native resource search and the calendar use the same permitted person field.
+ const resource=await cmd('save:resourceRequests',{engagementId:projects[0].id,role:'Designer',skill:'Design',minProficiency:3,from:'2026-10-05',to:'2026-10-09',dailySeconds:3600,service:'Design',customFilters:{[office.id]:'Austin'}})
+ const candidates=await(await request(`/api/gauge/resources/${resource.id}`,owner)).json();assert.deepEqual(candidates.candidates.map(c=>c.personId),[b.id]);assert.equal(candidates.unavailable.length,0)
+ for(const [field,value,expected]of [[practice,'Brand',[a.id]],[contract,100001,[a.id]],[number,'1.25',[a.id]],[note,'synthetic-gauge-1',[a.id,b.id]],[when,'2026-11-30',[a.id,b.id]],[person,a.id,[a.id,b.id]],[multi,'web',[a.id]]]){const r=await cmd('save:resourceRequests',{engagementId:projects[0].id,role:'Designer',skill:'Design',minProficiency:3,from:'2026-10-05',to:'2026-10-09',dailySeconds:3600,service:'Design',customFilters:{[field.id]:value}});const found=await(await request(`/api/gauge/resources/${r.id}`,owner)).json();assert.deepEqual(found.candidates.map(c=>c.personId).sort(),expected.sort(),`Resource filter on ${field.id}`)}
+ // Replay retains native edits; original package, source IDs and exact definition revisions remain in custody.
+ row=await native('people',b.id);await cmd('field:values',{scope:'people',...row,customFields:{[office.id]:'NYC'}})
+ const replay=await cmd('field:import',{...input,fingerprint:preview.fingerprint,reason:'Replay must preserve native edits'});assert.equal(replay.id,job.id);assert.equal((await native('people',b.id)).value.customFields[office.id],'NYC')
+ const officeHistory=await(await request(`/api/gauge/history/people/${b.id}`,owner)).json();assert(officeHistory.history.some(r=>r.value.customFields?.[office.id]==='Austin'&&r.value.customFieldSources?.[office.id].sourceId==='u-austin'))
+ // Narrowing and subsequent broadening never reveal earlier private values or saved filter literals.
+ const privateOffice=await cmd('field:define',{...await native('customFields',office.id),...(await native('customFields',office.id)).value,visibility:'finance-only',reason:'Restrict office fields'})
+ assert(!(await read('',lead.cookie)).data.customFields.some(f=>f.id===office.id));assert.equal((await request(`/api/gauge/resources/${resource.id}`,lead.cookie)).status,403)
+ await cmd('field:values',{scope:'people',...await native('people',a.id),customFields:{[office.id]:'Austin'}})
+ await cmd('field:define',{...privateOffice,...(await native('customFields',office.id)).value,visibility:'everyone',reason:'Reopen definition without republishing private values'})
+ assert.equal((await read('',lead.cookie)).data.people.find(p=>p.id===a.id).value.customFields?.[office.id],undefined,'An earlier finance-only value stays private after a broader definition')
+ const privateHistory=await(await request(`/api/gauge/history/people/${a.id}`,lead.cookie)).json();assert(privateHistory.history.filter(h=>h.value.customFieldVersions?.[office.id]===privateOffice.revision).every(h=>h.value.customFields?.[office.id]===undefined))
+ // Browser proof at both mandatory widths; native owner and lead pages are independently asserted.
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage();await context.addCookies(owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
+ const shots=process.env.GAUGE_FIELDS_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+ await page.goto(h.origin+`/app/engagements?edit=${client.id}`);const valueForm=page.locator('#custom-values form');await valueForm.getByLabel('Yen allowance (JPY)').fill('4321');await valueForm.getByLabel('Dinar allowance (BHD)').fill('12.345');await valueForm.getByRole('button',{name:'Save',exact:true}).click();assert.equal((await native('clients',client.id)).value.customFields[yen.id],4321);assert.equal((await native('clients',client.id)).value.customFields[dinar.id],12345)
+ for(const width of [1440,390]){await page.setViewportSize({width,height:1000});for(const [path,selector,name]of [['/app/access','#custom-definitions','definitions'],[`/app/engagements?edit=${projects[0].id}`,'#custom-values','values'],[`/app/review?from=2026-10-05&to=2026-10-09&asOf=2026-10-20&customGroup=${practice.id}&portfolioGroup=custom:${practice.id}&customMeasures=${encodeURIComponent(JSON.stringify([contract.id]))}`,'#custom-reports','reports'],[`/app/capacity?from=2026-10-05&filter:${office.id}=NYC`,'main','resources']]){await page.goto(h.origin+path);assert.equal(await page.locator(selector).count(),1);if(name==='resources'){const boardText=await page.locator('.g-board').innerText();assert(boardText.includes('Fields Austin'));assert(!boardText.includes('Fields NYC'))}assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);if(shots){await page.locator(selector).screenshot({path:`${shots}/${name}-${width}.png`});if(name==='reports')await page.locator('#portfolio-profitability').screenshot({path:`${shots}/profitability-${width}.png`})}}}
+ await context.clearCookies();await context.addCookies(lead.cookie.split('; ').map(part=>{const i=part.indexOf('=');return{name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}));await page.goto(h.origin+`/app/engagements?edit=${projects[0].id}`);assert(!((await page.locator('main').innerText()).includes('Contract value')))
+ }finally{await browser.close()}
+ console.log('PASS SETUP-004 typed Kantata fields, Legacy preview refusal, independent Practice/Office profitability and utilization, required direct/conversion/template doors, private measures/page/API/CSV/saved/history, resource filtering, option retirement, native-edit replay and 1440/390')
 }

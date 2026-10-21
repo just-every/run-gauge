@@ -1,3 +1,4 @@
+import { mergeCustomValues } from './custom-values'
 // SETUP-002 client and contact workspace. Finance keeps each client's legal name, billing and project contacts,
 // addresses, tax and exemption references, PO requirement and numbers, tags and external IDs beside the FINANCE-002
 // payment terms, searches clients by name, PO or external ID, and merges a duplicate into a surviving client.
@@ -108,7 +109,7 @@ export async function clientCommand(env: Bindings, a: Actor, tx: Transaction, ac
   externalIds: [...(s.externalIds ?? []), ...identities(d)].filter((x, i, xs) => !own.some(o => same(o, x)) && xs.findIndex(y => same(x, y)) === i),
   mergedFrom: [...(s.mergedFrom ?? []), duplicate.id],
  }
- const result = await tx.record('clients', merged, survivor, undefined, action)
+ const custom=mergeCustomValues(s,d,input.customFieldChoices);const result = await tx.record('clients', merged, survivor, undefined, action,custom)
  await tx.record('clients', { ...d, merge: { into: survivor.id, reason, terms: agreed ? 'same' : input.terms, by: a.session.operator.id, at: new Date().toISOString() } }, duplicate, undefined, action)
  return result
 }

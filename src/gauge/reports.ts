@@ -25,11 +25,18 @@ import { capBalances } from './budget-caps'
 import { revenueDashboard } from './revenue-dashboard'
 import { agentData, agentValue } from './agent-data'
 import { proposalAvailability } from './proposal-sources'
+import { filters,visibleCustom,canField } from './custom-values'
+import { customPerformance } from './custom-report'
+import { savedVisible } from './custom-fields'
 import { privateClientKeys } from './clients'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
+ if(k==='customFields'&&!canField(a,{id:'',revision:'',value}))return {}
+ value=visibleCustom(a,k,value)
+ if(k==='deliveryTemplates')value={...value,items:value.items.map((item:Value)=>visibleCustom(a,'tasks',item))}
+ if(k==='savedReports'&&!savedVisible(a,value))return {}
  if (finance(a)) return value
  if(k==='budgetAlerts'){const {actual,budget,...alert}=value;return alert}
  if(k==='retainerCloses'||k==='retainerAdjustments')return correctionValue(a,k,value)
@@ -46,6 +53,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
 }
 export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
+ data.customFields=data.customFields.filter(f=>canField(a,f));data.customImports=finance(a)?data.customImports:[];data.savedReports=data.savedReports.filter(r=>savedVisible(a,r.value))
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
  // Agents use their own closed purpose projection; ordinary visibility follows person and finance rights.
  if(a.role==='agent'){const scoped=agentData(a,data);await fence(env,a);return scoped}
@@ -71,7 +79,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   const hourPeriods=new Set(data.retainerPeriods.filter(p=>p.value.unit==='hours').map(p=>p.id))
   data.retainerCloses=data.retainerCloses.filter(r=>hourPeriods.has(r.value.periodId));data.retainerAdjustments=data.retainerAdjustments.filter(r=>hourPeriods.has(r.value.periodId))
   data.budgets=data.budgets.filter(r=>leadIds.has(r.value.engagementId)); data.milestones=data.milestones.filter(r=>leadIds.has(r.value.engagementId))
-  data.resourceRequests=data.resourceRequests.filter(r=>a.role==='lead'&&leadIds.has(r.value.engagementId))
+  data.resourceRequests=data.resourceRequests.filter(r=>Object.keys(r.value.customFilters??{}).every(id=>data.customFields.some(f=>f.id===id))&&a.role==='lead'&&leadIds.has(r.value.engagementId))
   // People staffed or proposed for staffing on visible engagements are visible too, so a lead can weigh their capacity.
   const staffed=new Set([...data.staffing.map(r=>r.value.personId),...data.proposals.flatMap(r=>r.value.kind==='staffing'?r.value.plan.alternatives.map((x:any)=>x.personId):[])])
   data.people=data.people.filter(r=>r.id===a.personId || staffed.has(r.id) || data.engagements.some(e=>e.value.leadId===r.id || e.value.members?.includes(r.id)))
@@ -146,7 +154,9 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const forecast=finance(a)?financeForecast(data,forecastDay,retainerBalances):null
  // RESOURCE-005 capacity runs from the day after the forecast day for a year, whatever window the state read shows.
  const forecastCapacity=forecast?capacity(data,new Date(Date.parse(forecastDay)+86400000).toISOString().slice(0,10),new Date(Date.parse(forecastDay)+366*86400000).toISOString().slice(0,10)):[]
+ portfolioOptions={...portfolioOptions,customFilters:filters(a,portfolioOptions.customFilters)};if(portfolioOptions.customGroup)need(data.customFields.some(f=>f.id===portfolioOptions.customGroup),'Custom group unavailable',403);need(Array.isArray(portfolioOptions.customMeasures??[])&&(portfolioOptions.customMeasures??[]).length<=100,'Choose at most 100 custom measures');for(const id of portfolioOptions.customMeasures??[])need(data.customFields.some(f=>f.id===id&&['number','currency'].includes(f.value.type)),'Custom measure unavailable',403)
+ const customPerformanceReport=customPerformance(data,cap,from,to,finance(a),portfolioOptions)
  const phaseMargins=forecast?phaseViews(data).map(p=>{const f=financeForecastBase(p.data,forecastDay,[],data);return {phase:p.phase,...(projectMargin(p.data,{...f,phaseForecasts:[]}).find(m=>m.engagementId===p.engagementId)!)}}):[]
- const report={phaseMargins,capBalances:finance(a)?capBalances(data):[],revenueDashboard:finance(a)?revenueDashboard(data,forecastDay):null,portfolio:forecast?portfolio(data,forecast,retainerBalances,from,to,portfolioOptions):null,timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,cash:forecast?cashForecast(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data,finance(a)?forecastDay:null):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
+ const report={customOptions:portfolioOptions,customPerformance:customPerformanceReport,phaseMargins,capBalances:finance(a)?capBalances(data):[],revenueDashboard:finance(a)?revenueDashboard(data,forecastDay):null,portfolio:forecast?portfolio(data,forecast,retainerBalances,from,to,portfolioOptions):null,timeReviewers,timeReview,retainerBalances,agency:{currency:a.currency,timezone:a.timezone},data,capacity:cap,resourceDemand:finance(a)||a.role==='lead'?resourceDemand(data,from,to):[],utilization:utilization(data,cap,from,to),performance:targetPerformance(data,cap,from,to,finance(a)),economics:econ,margin:forecast?projectMargin(data,forecast):null,cash:forecast?cashForecast(data,forecast):null,pipeline:finance(a)||a.role==='lead'?pipeline(data,finance(a)?forecastDay:null):[],exceptions,correctionReviews:finance(a)?correctionReviews(data.packets):[],forecast,demandForecast:forecast?demandForecast(data,forecastDay,a.currency,forecast,forecastCapacity):null,from,to,asOf}
  await fence(env,a);return {...report,fingerprint:reportFingerprint(report),lineage:buildLineage(report)}
 }

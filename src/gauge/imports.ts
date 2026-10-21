@@ -1,6 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { planD1Import, createD1ImportJob, applyD1ImportBatches, resumeD1Import, rollbackD1Import, undoD1Import, readD1ImportJob, readD1ImportOriginals, type D1ImportContext } from '../modules/import-kit/src/d1/index'
-import { type Actor, authority, finance, fence } from './store'
+import { type Actor, authority, finance, fence, all } from './store'
 import { need, text, type Value } from './model'
 import { harvest, type HarvestInput } from './harvest'
 import { targets } from './import-targets'
@@ -9,8 +9,10 @@ export async function importCommand(env: Bindings,a: Actor,action:string,input:V
  need(finance(a),'Finance access required',403)
  if(action==='import:preview'||action==='import:create') {
   const source=input.package as HarvestInput;need(source?.files,'Upload a Harvest package');const parsed=harvest(source,a.currency),ctx=importContext(env,a,parsed.namespace),plan=await planD1Import(parsed.bundle,parsed.mapping,ctx)
+  const required=(await all(env,'customFields')).filter(f=>f.value.required&&!f.value.retired),fieldFindings=parsed.bundle.records.flatMap(r=>required.filter(f=>f.value.scope===r.kind).map(f=>({sourceId:r.sourceId,field:f.id,name:f.value.name,reason:'Required custom value has no reviewed mapping in this import format'})))
+  need(action==='import:preview'||!fieldFindings.length,'Map required custom values before creating native import records')
   need(plan.counts.rejected===0,'Resolve rejected source rows')
-  if(action==='import:preview')return {fingerprint:plan.fingerprint,counts:plan.counts,totals:parsed.totals,timeControls:parsed.timeControls,timeSources:parsed.bundle.records.filter(r=>r.kind==='time').map(r=>({sourceId:r.sourceId,location:r.location})),schedule:parsed.schedule,memberships:parsed.memberships,omissions:parsed.omissions,package:source}
+  if(action==='import:preview')return {customFieldFindings:fieldFindings,fingerprint:plan.fingerprint,counts:plan.counts,totals:parsed.totals,timeControls:parsed.timeControls,timeSources:parsed.bundle.records.filter(r=>r.kind==='time').map(r=>({sourceId:r.sourceId,location:r.location})),schedule:parsed.schedule,memberships:parsed.memberships,omissions:parsed.omissions,package:source}
   need(input.fingerprint===plan.fingerprint,'Preview changed; review it again',409)
   const job=await createD1ImportJob(plan,{...ctx,reviewedFingerprint:plan.fingerprint,operationKey:text(input.key,'Request key')});return applyD1ImportBatches(job.id,ctx)
  }

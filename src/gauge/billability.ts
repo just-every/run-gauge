@@ -42,8 +42,8 @@ export function targetPerformance(data: Data, cap: Capacity, from: string, to: s
  const billable = (r: Row) => engagement(r.value.engagementId)?.value.type !== 'internal' && r.value.billable !== false
  const approved = data.time.filter(r => r.value.status === 'approved' && r.value.workDate >= from && r.value.workDate <= to && r.value.durationSeconds)
  // The current approved amount of each billed time source, after every approved correction on its branch.
- const billed = new Map<string, { amountMinor: number; packets: string[] }>()
- if (money) for (const review of correctionReviews(data.packets)) for (const s of review.sources) if (s.kind === 'time') billed.set(s.sourceId, { amountMinor: s.currentAmountMinor, packets: [...new Set([review.originalPacketId, review.packetId])] })
+ const billed = new Map<string, { amountMinor: number; standardMinor?:number;seconds?:number;packets: string[] }>()
+ if (money) for (const review of correctionReviews(data.packets)) for (const s of review.sources) if (s.kind === 'time') billed.set(s.sourceId, { amountMinor: s.currentAmountMinor, packets: [...new Set([review.originalPacketId, review.packetId])] });else if(s.kind==='timeSlices'){const slice=data.timeSlices.find(r=>r.id===s.sourceId);if(slice){const id=slice.value.sourceId,old=billed.get(id)??{amountMinor:0,standardMinor:0,seconds:0,packets:[]};billed.set(id,{amountMinor:sum([old.amountMinor,s.currentAmountMinor]),standardMinor:sum([old.standardMinor??0,slice.value.amountMinor]),seconds:sum([old.seconds??0,slice.value.durationSeconds]),packets:[...new Set([...old.packets,review.originalPacketId,review.packetId])]})}}
  const people = new Map(data.people.map(p => [p.id, p]))
  const months: string[] = []
  for (let m = from.slice(0, 7); m <= to.slice(0, 7);) { months.push(m); const [y, mo] = m.split('-').map(Number); m = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}` }
@@ -68,7 +68,7 @@ export function targetPerformance(data: Data, cap: Capacity, from: string, to: s
    if (e.billMinor == null) { b.missingBillRate.push(r.id); continue }
    const line = billed.get(r.id)
    if (!line) { b.unbilledStandardMinor = sum([b.unbilledStandardMinor, e.billMinor]); continue }
-   b.standardMinor = sum([b.standardMinor, e.billMinor]); b.billedMinor = sum([b.billedMinor, line.amountMinor]); b.billedSeconds = sum([b.billedSeconds, r.value.durationSeconds])
+   b.standardMinor = sum([b.standardMinor, line.standardMinor??e.billMinor]);if(line.standardMinor!==undefined)b.unbilledStandardMinor=sum([b.unbilledStandardMinor,Math.max(0,e.billMinor-line.standardMinor)]); b.billedMinor = sum([b.billedMinor, line.amountMinor]); b.billedSeconds = sum([b.billedSeconds, line.seconds??r.value.durationSeconds])
    for (const p of line.packets) if (!b.packets.includes(p)) b.packets.push(p)
   }
   result.money = [...buckets.values()].sort((x, y) => x.currency.localeCompare(y.currency)).map(b => ({ ...b, writeOffMinor: b.standardMinor - b.billedMinor,

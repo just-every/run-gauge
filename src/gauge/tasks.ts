@@ -31,7 +31,7 @@ async function save(env: Bindings, tx: Transaction, value: Value, old: Row | und
    from:row.value.from?shift(row.value.from,value.repeatEveryDays):null,to:row.value.to?shift(row.value.to,value.repeatEveryDays):null,
    parentId:ids.get(row.value.parentId) ?? row.value.parentId ?? null,previousOccurrenceId:row.id}
   delete v.nextOccurrenceId
-  await tx.record('tasks',v,undefined,ids.get(row.id))
+  await tx.record('tasks',v,undefined,ids.get(row.id),'task:repeat',row.value)
  }
  result.value.nextOccurrenceId=ids.get(result.id)
  // The row is still being created in this batch; update without a second stale observation.

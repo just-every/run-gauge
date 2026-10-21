@@ -21,6 +21,7 @@ export interface ReportLineageInput {
  from: string
  to: string
  data: Record<string, Row[]>
+ customPerformance?:Value|null
  economics: Value[]
  capacity: Value[]
  pipeline: Value[]

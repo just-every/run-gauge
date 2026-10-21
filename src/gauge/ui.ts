@@ -1,3 +1,4 @@
+import { customDefinitionSection,customRecordSection,customReportsSection,customImportSection } from './ui-custom-fields'
 import type { Bindings } from '../auth.server'
 import type { Actor } from './store'
 import { finance, fence } from './store'
@@ -45,6 +46,10 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  if(section==='review')body+=await reviewSection(env,a,report,options)
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
  if(section==='time')body+=timeSection(a,report,options)
+ if(section==='access')body+=customDefinitionSection(a,report,options)
+ if(section==='engagements')body+=customRecordSection(a,report,options)
+ if(section==='review'||section==='capacity')body+=customReportsSection(a,report,options)
+ if(section==='imports')body+=customImportSection(a,options)
  body+=await operations(env,a,section,{...options,today,zone},report)
  if(['review','engagements','capacity','billing'].includes(section))body+=reportEvidence(report,options.calculation)
  const notice=await agentNotice(env,a,report,zone,today)

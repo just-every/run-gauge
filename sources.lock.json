@@ -3429,7 +3429,7 @@
       "executable": false
     },
     "tests/gauge-invoices.mjs": {
-      "sha256": "ca590c44c41e52c332c40e0409fa98e3d31165f02f8fe19d0eb3895032d89543",
+      "sha256": "2150835e24e9dfaedf3f94ed6479067f2b216d5aa30a0cd84dba785168d8bfac",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
@@ -3481,7 +3481,7 @@
       "executable": false
     },
     "tests/gauge-receipts.mjs": {
-      "sha256": "dcfbd6cfa59d15dfaca44b5dd68feeda7fbe91fa1417afdc7424df287ec5eedd",
+      "sha256": "3b7d4760c1b349f9d570384e3c28755777ad2e97951e864b97d533fe5748e456",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {
@@ -3509,7 +3509,7 @@
       "executable": false
     },
     "tests/gauge-revenue-dashboard.mjs": {
-      "sha256": "e7372e287a5a111cb30bb909546d8e1903ef345a9e56af53c25bc61c0638e333",
+      "sha256": "32f970448e480738ac5c1e8b17ce3792d36fa5dc76e13be7fe161805c1844fe5",
       "executable": false
     },
     "tests/gauge-schedule.mjs": {

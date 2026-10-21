@@ -86,7 +86,7 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
  await cmd('handoff:record-result',{...handoff,result})
  assert.equal((await read()).data.specialistHandoffs.find(x=>x.id===handoff.id).value.result.rejectedCount,1)
  for(const role of ['staff','lead','agent']){
-  const actor=await h.invite(`invoice-${role}`);await cmd('grant',{operatorId:actor.id,personId:worker.id,role,enabled:true})
+  const actor=await h.invite(`invoice-${role}`);await cmd('grant',{operatorId:actor.id,personId:worker.id,role,enabled:true,...(role==='agent'?{purpose:'billing',engagementIds:[hourly.id]}:{})})
   const restricted=await read('2026-10-20',actor.cookie);assert.deepEqual(restricted.data.invoices,[]);assert.deepEqual(restricted.data.payments,[])
   for(const kind of ['invoices','payments'])assert.equal((await request(`/api/gauge/history/${kind}/${kind==='invoices'?invoice.id:pay.id}`,actor.cookie)).status,403)
   await cmd('invoice:issue',input,actor.cookie,403);await cmd('payment:record',paymentInput,actor.cookie,403)
@@ -179,7 +179,7 @@ export async function receivablesJourney(h,worker) {
  assert.equal(Number(totals[0]['open minor']),132000)
  assert.equal(documents[0].client,"'=Statement agency");assert.equal(receipts[0].reference,"'=Receipt on as-of day",'INVOICE-006 statement CSV escapes formula-like names and references')
  for(const role of ['lead','staff','agent','finance']){
-  const person=await h.invite(`statement-${role}`);await cmd('grant',{operatorId:person.id,personId:worker.id,role,enabled:true})
+  const person=await h.invite(`statement-${role}`);await cmd('grant',{operatorId:person.id,personId:worker.id,role,enabled:true,...(role==='agent'?{purpose:'billing',engagementIds:[project.id]}:{})})
   if(role==='finance'){
    assert.equal((await read(person.cookie,client.id)).totals[0].openMinor,132000)
    await cmd('grant',{operatorId:person.id,personId:worker.id,role,enabled:false})

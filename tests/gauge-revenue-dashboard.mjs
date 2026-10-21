@@ -58,7 +58,7 @@ export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
  await cmd('time:approve',await cmd('time:submit',missing))
  d=await read();assert.equal(bucket(d).amountMinor,null);assert.equal(bucket(d).knownMinor,2500);assert.deepEqual(bucket(d).unknownSources,[`time:${missing.id}`]);assert.equal(d.lineage.find(f=>f.id==='revenue:USD:wipMinor').value,null)
  for(const role of ['lead','staff','agent']){
-  const person=await h.invite(`revenue-${role}`);await cmd('grant',{operatorId:person.id,personId:worker.id,role,enabled:true})
+  const person=await h.invite(`revenue-${role}`);await cmd('grant',{operatorId:person.id,personId:worker.id,role,enabled:true,...(role==='agent'?{purpose:'billing',engagementIds:[hourly.id]}:{})})
   const view=await read(person.cookie);assert.equal(view.revenueDashboard,null);assert(!view.lineage.some(f=>f.id.startsWith('revenue:')))
   assert(!(await(await request('/app/review',person.cookie)).text()).includes('id="revenue-dashboard"'))
  }

@@ -127,7 +127,7 @@ export async function receiptJourney(h,worker) {
 
  // Finance only: no other role reads receipts or disputes, records them or opens their history.
  for(const role of ['staff','lead','agent']){
-  const actor=await h.invite(`receipt-${role}`);await cmd('grant',{operatorId:actor.id,personId:worker.id,role,enabled:true})
+  const actor=await h.invite(`receipt-${role}`);await cmd('grant',{operatorId:actor.id,personId:worker.id,role,enabled:true,...(role==='agent'?{purpose:'billing',engagementIds:[mine.project.id]}:{})})
   const restricted=await state(actor.cookie);assert.deepEqual([restricted.data.clientReceipts,restricted.data.invoiceDisputes],[[],[]])
   await cmd('receipt:record',{...input,reference:`NOPE-${role}`},actor.cookie,403);await cmd('receipt:allocate',{...wire,invoiceId:loser.id,date:'2026-10-27',amountMinor:100},actor.cookie,403)
   await cmd('invoice:dispute',{...c,date:'2026-10-27',amountMinor:100,reason:'No'},actor.cookie,403)

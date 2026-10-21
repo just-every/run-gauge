@@ -14,10 +14,11 @@ export async function inspectAgentCustody(h,{agent,staff,eng,other,task,timePlan
    const person=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
    for(const [context,cookie] of [[owner,h.owner],[person,staff.cookie]])await context.addCookies(cookie.split('; ').map(c=>{const at=c.indexOf('=');return {name:c.slice(0,at),value:c.slice(at+1),url:h.origin}}))
    const page=await owner.newPage(),review=await person.newPage()
-   const shot=async(p,name)=>{
+   const shot=async(p,name,target)=>{
+    if(target)await target.scrollIntoViewIfNeeded()
     await p.evaluate(()=>document.fonts.ready)
     assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`)
-    if(output)await p.screenshot({path:join(output,`agent-${name}-${width}.png`),fullPage:true})
+    if(output){await p.screenshot({path:join(output,`agent-${name}-${width}.png`),fullPage:true});await p.screenshot({path:join(output,`agent-${name}-${width}-viewport.png`)})}
    }
    await page.goto(h.origin+'/app/access')
    const grant=page.locator('section').filter({has:page.getByRole('heading',{name:'Assign or revoke Gauge access',exact:true})}).locator('form')
@@ -28,7 +29,7 @@ export async function inspectAgentCustody(h,{agent,staff,eng,other,task,timePlan
    await grant.locator(`input[name=engagementIds][value="${eng.id}"]`).check()
    assert(!(await grant.locator(`input[name=engagementIds][value="${other.id}"]`).isChecked()))
    await grant.getByRole('checkbox',{name:'Enabled',exact:true}).check()
-   await shot(page,'grant')
+   await shot(page,'grant',grant)
    await grant.getByRole('button',{name:'Save',exact:true}).click()
    await page.waitForURL('**/app/access?saved=1')
    let sources=(await h.state()).data.tasks.find(r=>r.id===task.id)
@@ -38,12 +39,12 @@ export async function inspectAgentCustody(h,{agent,staff,eng,other,task,timePlan
    const card=review.locator(`[id="${literal.id}"]`)
    assert((await card.innerText()).includes(instruction))
    assert.equal(await card.locator('script').count(),0)
-   await shot(review,'quoted-proposal')
+   await shot(review,'quoted-proposal',card)
    const updated=await h.cmd('save:tasks',{...sources,...sources.value,remainingSeconds:sources.value.remainingSeconds+3600})
    await review.reload()
    assert((await card.innerText()).includes('Stale inputs; request a fresh proposal'))
    assert.equal(await card.getByRole('button',{name:'Approve exact proposal',exact:true}).count(),0)
-   await shot(review,'stale-proposal')
+   await shot(review,'stale-proposal',card)
    sources=(await h.state()).data.tasks.find(r=>r.id===updated.id)
    const current=await prep()
    await review.reload()
@@ -61,7 +62,7 @@ export async function inspectAgentCustody(h,{agent,staff,eng,other,task,timePlan
    const blocked=review.locator(`[id="${pending.id}"]`)
    assert((await blocked.innerText()).includes('Agent revoked'))
    assert.equal(await blocked.getByRole('button',{name:'Approve exact proposal',exact:true}).count(),0)
-   await shot(review,'revoked-proposal')
+   await shot(review,'revoked-proposal',blocked)
    assert.equal((await h.request('/api/gauge/state',agent.cookie)).status,403)
    await owner.close();await person.close()
   }

@@ -1025,7 +1025,7 @@
       "executable": false
     },
     "src/gauge/agent-data.ts": {
-      "sha256": "11df788fc2d8aeb7de8fc7dee8bc1fb50d9c6270201aed8b1d076e02fc0e9e2d",
+      "sha256": "70bf6f47c9b850d96081cacc96c21e362706f4a3a13a4019f9f490efbb4b5e31",
       "executable": false
     },
     "src/gauge/agent-grants.ts": {
@@ -1297,7 +1297,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "a659e15665fa7b3c22f8698812d1b1172d7b1704a9f35952a4a3306a23793737",
+      "sha256": "8a1abd6e6bbf3e717c5ec873870662d43fe0dff0d4e5fef27648bfed0ef60ed4",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -3541,7 +3541,7 @@
       "executable": false
     },
     "tests/journeys/agent-custody-browser.mjs": {
-      "sha256": "3f7194a5c6ff0e8e47465efea49203a759838e02e45d18b4c5b9707fc598e5b2",
+      "sha256": "81a1286eebd5dfd9b57a876cd12d2f0bae198b75787962a8924b388fac93b414",
       "executable": false
     },
     "tests/journeys/forecast-browser.mjs": {

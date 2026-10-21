@@ -25,7 +25,6 @@ import { proposalAvailability } from './proposal-sources'
 import { privateClientKeys } from './clients'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
-const amounts = ['amountMinor','budgetMinor','totalMinor','costMinor','billMinor']
 export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
  if (finance(a)) return value
@@ -39,19 +38,16 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(a.role==='staff'&&k==='time'){delete v.retainerRootId;delete v.retainerAllocation}
  delete v.economics; delete v.rateOverride; if (v.source) { v.source = { ...v.source }; delete v.source.costMinor; delete v.source.billMinor }
  if (k === 'leave' && v.personId !== a.personId) v.note = 'Private leave'
- // DELIVERY-005 snapshots retain commercial terms; agents inherit the same amount boundary as the milestone itself.
- if(a.role==='agent'&&k==='milestones'&&v.delivery)v.delivery={...v.delivery,deliveries:v.delivery.deliveries.map((delivery:Value)=>({...delivery,snapshot:Object.fromEntries(Object.entries(delivery.snapshot).filter(([key])=>!amounts.includes(key)))}))}
- if (a.role === 'agent' && k !== 'proposals') for (const key of amounts) delete v[key]
  return v
 }
 export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
- // An agent reads every engagement it may prepare for, approved work only, and no amounts.
+ // Agents use their own closed purpose projection; ordinary visibility follows person and finance rights.
  if(a.role==='agent'){const scoped=agentData(a,data);await fence(env,a);return scoped}
  const today=workDate(Date.now(),a.timezone),delegatedIds=new Set(data.engagements.filter(e=>data.timeDelegations.some(d=>activeDelegation(d,e,a,today))).map(e=>e.id))
  data.timeDelegations=data.timeDelegations.filter(d=>finance(a)||d.value.leadId===a.personId||d.value.delegateId===a.personId)
- const agent = a.role==='agent', ordinaryIds = new Set(data.engagements.filter(e=>agent || finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
+ const ordinaryIds = new Set(data.engagements.filter(e=>finance(a) || (a.role==='lead' && e.value.leadId===a.personId) || e.value.members?.includes(a.personId)).map(e=>e.id))
  const ids=new Set([...ordinaryIds,...delegatedIds])
  data.timeFavorites=data.timeFavorites.filter(r=>ids.has(r.value.engagementId)&&r.value.personId===(a.role==='owner'&&favoritePersonId?favoritePersonId:a.personId))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
@@ -60,14 +56,14 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   data.fixedCharges=[]; data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.projectScenarios=[]; data.paymentPromises=[]; data.invoices=[]; data.payments=[]; data.invoiceCorrections=[]; data.clientReceipts=[]; data.invoiceDisputes=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
   // Agency delivery templates are planning configuration for those who start projects.
   if(a.role!=='lead')data.deliveryTemplates=[]
-  const leadIds=new Set(data.engagements.filter(e=>agent || (a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
-  // Agents see what they prepared; leads see staffing, time and change orders on their engagements; everyone sees time drafted for them. Billing proposals are finance's.
-  data.proposals=data.proposals.filter(r=>agent ? r.value.preparedBy===a.session.operator.id : (leadIds.has(r.value.engagementId) && r.value.kind!=='billing') || (r.value.kind==='time' && r.value.plan.personId===a.personId))
-  for (const k of ['time','expenses'] as Kind[]) data[k]=data[k].filter(r=>agent ? r.value.status==='approved' : r.value.personId===a.personId || leadIds.has(r.value.engagementId) || (k==='time'&&delegatedIds.has(r.value.engagementId)&&data.timeDelegations.some(d=>activeDelegation(d,data.engagements.find(e=>e.id===r.value.engagementId)!,a,today,r.value.workDate))))
+  const leadIds=new Set(data.engagements.filter(e=>(a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
+  // Leads see staffing, time and change orders on their engagements; everyone sees time drafted for them. Billing proposals are finance's.
+  data.proposals=data.proposals.filter(r=>(leadIds.has(r.value.engagementId) && r.value.kind!=='billing') || (r.value.kind==='time' && r.value.plan.personId===a.personId))
+  for (const k of ['time','expenses'] as Kind[]) data[k]=data[k].filter(r=>r.value.personId===a.personId || leadIds.has(r.value.engagementId) || (k==='time'&&delegatedIds.has(r.value.engagementId)&&data.timeDelegations.some(d=>activeDelegation(d,data.engagements.find(e=>e.id===r.value.engagementId)!,a,today,r.value.workDate))))
   // Time delegation supplies review context, never project planning authority.
   for(const k of ['staffing','deliveryPlans'] as const)data[k]=data[k].filter(r=>ordinaryIds.has(r.value.engagementId))
   data.tasks=data.tasks.filter(r=>ordinaryIds.has(r.value.engagementId)||data.time.some(t=>t.value.taskId===r.id))
-  data.agencyCalendars=[];data.retainers=agent?[]:data.retainers.filter(r=>leadIds.has(r.value.engagementId)||(a.role==='staff'&&r.value.terms.unit==='hours'));data.retainerPeriods=agent?[]:data.retainerPeriods.filter(r=>data.retainers.some(t=>t.id===r.value.retainerId))
+  data.agencyCalendars=[];data.retainers=data.retainers.filter(r=>leadIds.has(r.value.engagementId)||(a.role==='staff'&&r.value.terms.unit==='hours'));data.retainerPeriods=data.retainerPeriods.filter(r=>data.retainers.some(t=>t.id===r.value.retainerId))
   const hourPeriods=new Set(data.retainerPeriods.filter(p=>p.value.unit==='hours').map(p=>p.id))
   data.retainerCloses=data.retainerCloses.filter(r=>hourPeriods.has(r.value.periodId));data.retainerAdjustments=data.retainerAdjustments.filter(r=>hourPeriods.has(r.value.periodId))
   data.budgets=data.budgets.filter(r=>leadIds.has(r.value.engagementId)); data.milestones=data.milestones.filter(r=>leadIds.has(r.value.engagementId))
@@ -77,7 +73,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   data.people=data.people.filter(r=>r.id===a.personId || staffed.has(r.id) || data.engagements.some(e=>e.value.leadId===r.id || e.value.members?.includes(r.id)))
   const personIds=new Set(data.people.map(r=>r.id)); data.calendars=data.calendars.filter(r=>personIds.has(r.value.personId)); data.leave=data.leave.filter(r=>personIds.has(r.value.personId))
   // Billability targets are planning goals, not pay: a viewer sees those for the people and roles they can already see.
-  data.billabilityTargets=agent?[]:data.billabilityTargets.filter(r=>r.value.scope==='person'?personIds.has(r.value.personId):data.people.some(p=>String(p.value.role??'').trim()===r.value.role))
+  data.billabilityTargets=data.billabilityTargets.filter(r=>r.value.scope==='person'?personIds.has(r.value.personId):data.people.some(p=>String(p.value.role??'').trim()===r.value.role))
   for (const k of Object.keys(data) as Kind[]) data[k]=data[k].map(r=>({...r,value:redact(a,k,r.value)}))
  }
  const clientIds=new Set([...data.engagements,...data.opportunities].map(r=>r.value.clientId)); if(!finance(a))data.clients=data.clients.filter(r=>clientIds.has(r.id))

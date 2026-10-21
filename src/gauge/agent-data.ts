@@ -11,7 +11,7 @@ const common = {
 const work = {
  time: ['personId','engagementId','taskId','service','start','end','timezone','workDate','durationSeconds','notes','billable','status'],
  expenses: ['personId','engagementId','date','description','reimbursable','status'],
- milestones: ['engagementId','name','date','status'],
+ milestones: ['engagementId','name','due','status'],
 }
 const scheduling = {
  calendars: ['personId','from','to','dailySeconds','weekdays','holidays','timezone'],
@@ -22,7 +22,7 @@ export const agentFields: Record<string, Partial<Record<Kind, readonly string[]>
  time: { ...common, time: work.time, calendars: scheduling.calendars },
  staffing: { ...common, ...scheduling },
  billing: { ...common, ...work },
- 'change-order': { ...common, ...work, ...scheduling, budgets: ['engagementId','mode','effortSeconds','roundingSeconds','status'] },
+ 'change-order': { ...common, ...work, ...scheduling, budgets: ['engagementId','currency','mode','effortSeconds','roundingSeconds','status'] },
 }
 const pick = (value: Value, keys: readonly string[]) => Object.fromEntries(keys.filter(k=>Object.hasOwn(value,k)).map(k=>[k,value[k]]))
 export function agentValue(a: Actor, k: Kind, value: Value): Value {

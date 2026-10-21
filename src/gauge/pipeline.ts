@@ -41,19 +41,27 @@ export async function opportunityCommand(env: Bindings, a: Actor, tx: Transactio
 
 /** Open demand is never written into the signed staffing calendar. Linked won
  * work uses its approved commercial terms once; an unconverted win uses its
- * recorded won value. Booked values are before billing, not cash forecasts. */
-export function pipeline(data: Record<string, Row[]>) {
+ * recorded won value. Booked values are before billing, not cash forecasts.
+ * With `billedAsOf` (finance only: leads never read invoice amounts), billed
+ * is the pre-tax total of native invoices issued on or before that day for the
+ * engagements that carry booked value, and backlog is booked minus billed in
+ * minor units; it goes negative when billing exceeds booked value. */
+export function pipeline(data: Record<string, Row[]>, billedAsOf: string | null = null) {
  const open = data.opportunities.filter(r => !['won', 'lost'].includes(r.value.stage))
  const won = data.opportunities.filter(r => r.value.stage === 'won')
  const currencies = [...new Set([...data.opportunities.map(r => r.value.currency), ...data.engagements.map(r => r.value.currency)])]
  return currencies.map(currency => {
   const weighted = open.filter(r => r.value.currency === currency).map(r => ({ id: r.id, revision: r.revision, amountMinor: Number((BigInt(r.value.amountMinor) * BigInt(r.value.probability) + 50n) / 100n), demandSeconds: r.value.demandSeconds }))
-  const booked = data.engagements.filter(e => e.value.currency === currency).flatMap(e => {
+  const booked: { source: string, engagementId: string | null, amountMinor: number }[] = data.engagements.filter(e => e.value.currency === currency).flatMap(e => {
    const terms = data.budgets.filter(b => b.value.engagementId === e.id && b.value.status === 'approved').sort((a, b) => b.value.approvedAt - a.value.approvedAt)[0]
    const opportunity = won.find(r => r.value.engagementId === e.id)
-   return terms ? [{ source: `budgets:${terms.id}`, amountMinor: terms.value.amountMinor }] : opportunity ? [{ source: `opportunities:${opportunity.id}`, amountMinor: opportunity.value.amountMinor }] : []
+   return terms ? [{ source: `budgets:${terms.id}`, engagementId: e.id, amountMinor: terms.value.amountMinor }] : opportunity ? [{ source: `opportunities:${opportunity.id}`, engagementId: e.id, amountMinor: opportunity.value.amountMinor }] : []
   })
-  for (const r of won.filter(r => r.value.currency === currency && !r.value.engagementId)) booked.push({ source: `opportunities:${r.id}`, amountMinor: r.value.amountMinor })
-  return { currency, weightedMinor: sum(weighted.map(r => r.amountMinor)), tentativeDemandSeconds: sum(weighted.map(r => r.demandSeconds)), bookedMinor: sum(booked.map(r => r.amountMinor)), weighted, booked }
+  for (const r of won.filter(r => r.value.currency === currency && !r.value.engagementId)) booked.push({ source: `opportunities:${r.id}`, engagementId: null, amountMinor: r.value.amountMinor })
+  const bookedMinor = sum(booked.map(r => r.amountMinor))
+  const engagementIds = new Set(booked.flatMap(r => r.engagementId ? [r.engagementId] : []))
+  const invoices = billedAsOf === null ? [] : data.invoices.filter(r => r.value.currency === currency && r.value.issueDate <= billedAsOf && engagementIds.has(r.value.engagementId))
+  const billing = billedAsOf === null ? { billedMinor: null, backlogMinor: null } : { billedMinor: sum(invoices.map(r => r.value.totalMinor)), backlogMinor: bookedMinor - sum(invoices.map(r => r.value.totalMinor)) }
+  return { currency, ...billing, billedInvoices: invoices.map(r => r.id), weightedMinor: sum(weighted.map(r => r.amountMinor)), tentativeDemandSeconds: sum(weighted.map(r => r.demandSeconds)), bookedMinor, weighted, booked }
  })
 }

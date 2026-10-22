@@ -59,6 +59,7 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
  const row=await get(env,'packets',text(input.id,'Packet')); need(row.revision===input.revision,'Packet changed; approve the version you reviewed',409); need(row.value.status==='draft','Packet already finalized',409)
  if (action==='packet:cancel') { tx.observe('packets',row); tx.sql('DELETE FROM g_billing_sources WHERE packet_id=?',row.id); return tx.record('packets',{...row.value,status:'cancelled'},row,undefined,action) }
  need(action==='packet:approve','Unknown packet command')
+ need(!row.value.deferredSources,'Resolve the scheduling exception and run this period again before approving sources',409)
  await assertIndependentApproval(env,a,tx,row)
  need(input.currency === undefined || input.currency === row.value.currency, 'Currency differs from packet; no implicit FX')
  const e=await access(env,a,row.value.engagementId);tx.observe('engagements',e)

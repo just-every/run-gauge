@@ -6,6 +6,7 @@ import { retainerFees } from './retainer-fees'
 import { retainerOverage } from './retainer-overages'
 import { retainerConsumption } from './retainer-consumption'
 import { agency } from './agency'
+import { autoIssueConsent, autoIssueCheck, scheduleAuthority, scheduleLocks, issueScheduledInvoice } from './retainer-auto-issue'
 
 const next=(day:string)=>new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().slice(0,10)
 export function retainerIssueDate(period:Row,basis:string){return basis==='arrears'?next(period.value.activeEnd):period.value.activeStart}
@@ -23,7 +24,8 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  const schedules=await all(env,'retainerSchedules'),old=schedules.find(s=>s.value.rootId===term.value.rootId)
  need(!old||(old.id===input.id&&old.revision===input.revision),'Schedule changed; reload',409)
  const basis=text(input.basis,'Billing basis');need(['advance','arrears'].includes(basis),'Choose advance or arrears')
- need(!flag(input.autoIssue),'Automatic invoice issue is disabled; finance must review each draft',403)
+ const autoIssue=flag(input.autoIssue),consent=autoIssue?await autoIssueConsent(env,tx,input,term.value.terms.currency):{}
+ const billTo=String(input.billTo??'').trim(),remitTo=String(input.remitTo??'').trim(),reference=String(input.reference??'').trim()
  const from=date(input.from),reason=text(input.reason,'Scheduling consent or change reason')
  const runs=await all(env,'retainerRuns')
  need(!old||(!runs.some(r=>r.value.rootId===term.value.rootId)||from===old.value.from),'The first scheduled period cannot move after a run; preserve its history',409)
@@ -31,7 +33,7 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  const periods=await all(env,'retainerPeriods')
  for(const id of holds){const period=periods.find(p=>p.id===id&&p.value.rootId===term.value.rootId);need(period,'Choose a period in this retainer family');tx.observe('retainerPeriods',period)}
  tx.guard('(SELECT COUNT(*) FROM g_retainerSchedules)=?',schedules.length)
- const schedule=await tx.record('retainerSchedules',{rootId:term.value.rootId,engagementId:term.value.engagementId,basis,from,enabled:flag(input.enabled),autoIssue:false,heldPeriodIds:[...new Set(holds)],reason,configuredBy:a.session.operator.id,grantVersion:a.grantVersion,configuredAt:Date.now()},old)
+ const schedule=await tx.record('retainerSchedules',{rootId:term.value.rootId,engagementId:term.value.engagementId,basis,from,enabled:flag(input.enabled),autoIssue,...consent,billTo,remitTo,reference,number:(old?.value.number??0)+1,consentTermsNumber:term.value.number,consentTermsRevision:term.revision,heldPeriodIds:[...new Set(holds)],reason,configuredBy:a.session.operator.id,grantVersion:a.grantVersion,configuredAt:Date.now()},old)
  tx.sql('DELETE FROM g_retainer_schedule_authority WHERE schedule_id=?',schedule.id)
  if(schedule.value.enabled)tx.sql('INSERT INTO g_retainer_schedule_authority(schedule_id,revision,operator_id) VALUES(?,?,?)',schedule.id,schedule.revision,a.session.operator.id)
  return schedule
@@ -40,12 +42,13 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
 /** One bounded atomic job. The unique period receipt and source reservation make retries safe. */
 async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:string):Promise<Row>{
  need(schedule.value.enabled,'This schedule is disabled',409);tx.observe('retainerSchedules',schedule)
+ await scheduleAuthority(env,tx,schedule)
  const kinds:Kind[]=['retainers','retainerPeriods','retainerRuns','retainerAdjustments','retainerCloses']
  const data=Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  for(const k of kinds){for(const row of data[k])tx.observe(k,row);tx.guard(`(SELECT COUNT(*) FROM g_${k})=?`,data[k].length)}
  const versions=data.retainers.filter(t=>t.value.rootId===schedule.value.rootId).sort((a,b)=>a.value.terms.start.localeCompare(b.value.terms.start))
  const latestLifecycle=data.retainerAdjustments.filter(r=>r.value.rootId===schedule.value.rootId&&r.value.status==='approved'&&['cancellation','renewal','pause'].includes(r.value.kind)).at(-1)
- need(!latestLifecycle||latestLifecycle.value.kind==='renewal','Resolve the retainer lifecycle exception before scheduling',409)
+
  let selected:{period:Row;term:Row}|undefined
  for(const term of versions){
   let cursor=term.value.terms.start<schedule.value.from?schedule.value.from:term.value.terms.start
@@ -71,8 +74,22 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
   if(!balance||balance.overageMinor===0)continue
   if(await env.DB.prepare("SELECT 1 FROM g_billing_sources WHERE kind='retainerPeriods' AND source_id=?").bind(previous.id).first())continue
   if(schedule.value.heldPeriodIds.includes(previous.id)){exceptions.push({periodId:previous.id,reason:'Disputed overage held'});continue}
+  if(schedule.value.autoIssue&&!schedule.value.includeOverages){exceptions.push({periodId:previous.id,reason:'Overage inclusion is outside the automatic issue consent'});continue}
   try{lines.push(await retainerOverage(env,tx,previous))}catch(error){if(!(error instanceof Fault))throw error;exceptions.push({periodId:previous.id,reason:error.message})}
  }
+ if(schedule.value.heldPeriodIds.includes(period.id))exceptions.push({periodId:period.id,reason:'Scheduled period is held or disputed'})
+ if(latestLifecycle&&latestLifecycle.value.kind!=='renewal')exceptions.push({periodId:period.id,reason:'Retainer lifecycle exception: '+latestLifecycle.value.kind})
+ const ranges=[{from:period.value.activeStart,to:period.value.activeEnd},{from:issueDate,to:issueDate},...lines.filter(l=>l.kind==='retainerPeriods').map(l=>{const p=data.retainerPeriods.find(p=>p.id===l.sourceId)!;return {from:p.value.activeStart,to:p.value.activeEnd}})]
+ const locks=await scheduleLocks(env,tx,ranges)
+ if(schedule.value.autoIssue&&locks.time)exceptions.push({periodId:period.id,reason:'TIME-003 locked period through '+locks.time.value.lockThrough})
+ if(locks.close)exceptions.push({periodId:period.id,reason:'FINANCE-004 closed period '+locks.close.value.month})
+ const deferred=(await all(env,'packets')).find(p=>p.value.scheduleId===schedule.id&&p.value.scheduledPeriodStart===period.value.periodStart&&p.value.deferredSources&&p.value.status==='draft')
+ if(locks.close||latestLifecycle&&latestLifecycle.value.kind!=='renewal'){
+  if(deferred)return deferred
+  tx.guard("NOT EXISTS(SELECT 1 FROM g_packets WHERE json_extract(data,'$.scheduleId')=? AND json_extract(data,'$.scheduledPeriodStart')=? AND json_extract(data,'$.deferredSources')=1 AND status='draft')",schedule.id,period.value.periodStart)
+  return tx.record('packets',{engagementId:schedule.value.engagementId,title:term.value.terms.name+': scheduling exception',status:'draft',currency:term.value.terms.currency,lines:[],totalMinor:0,createdAt:Date.now(),createdBy:a.session.operator.id,scheduleId:schedule.id,scheduledPeriodStart:period.value.periodStart,scheduledIssueDate:issueDate,deferredSources:true,exceptions,proposedPeriod:period,proposedFeeMinor:retainerFees({retainers:[term],retainerPeriods:[period]},asOf)[0].totalMinor})
+ }
+ if(deferred)await tx.record('packets',{...deferred.value,status:'cancelled'},deferred,undefined,'retainer:exception-resolved')
  // Opening follows the ordinary immutable family/calendar entitlement, without replacing saved history.
  if(!data.retainerPeriods.some(p=>p.id===period.id)){
   const previous=data.retainerPeriods.filter(p=>p.value.rootId===schedule.value.rootId).sort((a,b)=>a.value.periodStart.localeCompare(b.value.periodStart)).at(-1)
@@ -80,18 +97,24 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
   need(!data.retainerCloses.some(c=>c.value.rootId===schedule.value.rootId&&c.value.period.value.periodEnd>=period.value.periodStart),'Cannot open inside closed retainer history',409)
   period=await tx.record('retainerPeriods',period.value,undefined,period.id)
  }
+ const sources:Row[]=[...data.retainerPeriods]
  const fee=retainerFees({retainers:[term],retainerPeriods:[period]},asOf)[0]
  if(fee.totalMinor!==null&&fee.totalMinor>0){
   const charge=await tx.record('retainerCharges',{engagementId:schedule.value.engagementId,rootId:schedule.value.rootId,periodId:period.id,retainerId:term.id,periodSnapshot:period,termsSnapshot:term,amountMinor:fee.totalMinor,currency:term.value.terms.currency,date:issueDate,status:'approved',name:`${term.value.terms.name}: ${period.value.periodStart} period fee`,scheduleId:schedule.id,scheduleRevision:schedule.revision})
+  sources.push(charge)
   lines.push({kind:'retainerCharges',sourceId:charge.id,sourceRevision:charge.revision,description:charge.value.name,amountMinor:charge.value.amountMinor,currency:charge.value.currency,durationSeconds:null,billRateMinor:null,rateId:term.id,budgetId:null,roundingPolicy:'Immutable working-day period fee; separate from included allowance'})
  }
- let packet:Row|undefined
+ let packet:Row|undefined,invoice:Row|undefined
+ const checked=schedule.value.autoIssue?await autoIssueCheck(env,tx,schedule,term,sum(lines.map(l=>l.amountMinor))):null
+ if(checked)exceptions.push(...checked.reasons.map(reason=>({periodId:period.id,reason})))
+ const autoIssue=!!checked&&!exceptions.length
  if(lines.length){
   need(lines.length<=100,'Review accumulated overages before running this schedule',409)
-  packet=await tx.record('packets',{engagementId:schedule.value.engagementId,title:`${term.value.terms.name}: scheduled ${period.value.periodStart}`,status:'draft',currency:term.value.terms.currency,lines,totalMinor:sum(lines.map(l=>l.amountMinor)),createdAt:Date.now(),createdBy:a.session.operator.id,scheduleId:schedule.id,scheduledIssueDate:issueDate})
+  packet=await tx.record('packets',{engagementId:schedule.value.engagementId,title:`${term.value.terms.name}: scheduled ${period.value.periodStart}`,status:autoIssue?'approved':'draft',...(autoIssue?{approvedBy:schedule.value.configuredBy,approvedAt:Date.now()}:{}),currency:term.value.terms.currency,lines,totalMinor:sum(lines.map(l=>l.amountMinor)),createdAt:Date.now(),createdBy:a.session.operator.id,scheduleId:schedule.id,scheduledIssueDate:issueDate,exceptions})
   for(const line of lines)tx.sql('INSERT INTO g_billing_sources(kind,source_id,packet_id,source_revision) VALUES(?,?,?,?)',line.kind,line.sourceId,packet.id,line.sourceRevision)
+  if(autoIssue&&checked){const balance=balances.find(b=>b.periodId===period.id);invoice=await issueScheduledInvoice(env,tx,schedule,period,term,packet,sources,checked.engagement,checked.client,balance?.consumed??0)}
  }
- return tx.record('retainerRuns',{engagementId:schedule.value.engagementId,rootId:schedule.value.rootId,periodId:period.id,scheduleSnapshot:schedule,asOf,issueDate,packetId:packet?.id??null,exceptions,autoIssue:false,ranBy:a.session.operator.id,ranAt:Date.now()})
+ return tx.record('retainerRuns',{engagementId:schedule.value.engagementId,rootId:schedule.value.rootId,periodId:period.id,scheduleSnapshot:schedule,asOf,issueDate,packetId:packet?.id??null,exceptions,autoIssue,invoiceId:invoice?.id??null,ranBy:a.session.operator.id,ranAt:Date.now()})
 }
 
 /** Cron holds no session or reusable credential. Each committing batch rechecks

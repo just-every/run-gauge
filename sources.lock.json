@@ -1156,7 +1156,7 @@
       "executable": false
     },
     "src/gauge/estimates.ts": {
-      "sha256": "1058ee93437e6e13d7ee636981657f9b486d7cf917ed1ae56eb58cbf37479939",
+      "sha256": "f3c90d6f6a6a898edf3bd43a117a7ea8d8ed4b75e0dad9a0c75ce43c5b7595c1",
       "executable": false
     },
     "src/gauge/expenses.ts": {
@@ -1564,7 +1564,7 @@
       "executable": false
     },
     "src/gauge/ui-estimates.ts": {
-      "sha256": "9aec64468905b610989ad290d550275e7b0b4daf26b1a0a19d2e614b5b137dfa",
+      "sha256": "7268abde4dba3da21ac1537681ef2c3941aa140333581b215fd0614113744c6a",
       "executable": false
     },
     "src/gauge/ui-fixed-charges.ts": {
@@ -3532,7 +3532,7 @@
       "executable": false
     },
     "tests/gauge-invoices.mjs": {
-      "sha256": "cc672cd9a182df6b37114aa52447e7f8d53836f0597ad440a391962b29732453",
+      "sha256": "c4ba9b738cca01f9ffdea7a980615fd799cdad6d337d9bc40d8cf43dbf75817d",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {

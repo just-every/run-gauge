@@ -52,6 +52,7 @@ export async function estimateCommand(env:Bindings,a:Actor,tx:Transaction,action
  }
  const row=await get(env,'estimates',text(input.id,'Estimate'));need(row.revision===input.revision,'Estimate revision changed',409);tx.observe('estimates',row)
  const opportunity=await estimateAccess(env,a,row.value.opportunityId,tx),rows=(await all(env,'estimates')).filter(r=>r.value.rootId===row.value.rootId).sort((a,b)=>a.value.number-b.value.number);need(row.id===rows.at(-1)?.id||action==='estimate:convert','A newer estimate version needs review',409)
+ tx.guard("(SELECT COUNT(*) FROM g_estimates WHERE json_extract(data,'$.rootId')=?)=?",row.value.rootId,rows.length)
  need(finance(a),'Finance or the owner records acceptance and converts it',403)
  if(action==='estimate:approve'){
   need(a.role==='owner','Only the owner records the adopted external-acceptance attestation default',403)

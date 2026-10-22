@@ -302,7 +302,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b14b6bd36a206f0eb088a3d182bf80e520768aa11550990cfc611fbc04e806cd",
+      "sha256": "a17adc1cfd23ab0acc47a35c281c692bf31a848c6749d34f25d9a03998f035bd",
       "executable": false
     },
     "DEMO.md": {
@@ -1330,7 +1330,7 @@
       "executable": false
     },
     "src/gauge/privacy.ts": {
-      "sha256": "0926a39d652aa79a006b5790ac53dc432306b8ccdd650cdc15235193e47c166a",
+      "sha256": "b37f01b6c415dd037fc15f5a50a603833d840e4eebe087445b729b99d0c06482",
       "executable": false
     },
     "src/gauge/project-scenario-deadlines.ts": {
@@ -3710,7 +3710,7 @@
       "executable": false
     },
     "tests/gauge-privacy.mjs": {
-      "sha256": "8c3ac79100bb34e36a54b97c475b131d8ef8c3308ee39b2596581505f57d2943",
+      "sha256": "d584b0eea27123fbe567e78413d0fc4fabf0279c8831639595bad1d33d3e5bfc",
       "executable": false
     },
     "tests/gauge-progress.mjs": {

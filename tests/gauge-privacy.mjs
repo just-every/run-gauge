@@ -55,7 +55,7 @@ export async function privacyJourney(){
   assert.match(await page.locator('#erasure-preview').innerText(),/Retain 1 time records, 1 expense records/)
   // The browser performs the same explicit bounded destructive confirmation.
   const erase=page.locator('form').filter({has:page.locator('[name=action][value="privacy:erase"]')});await erase.locator('[name=confirm]').check();await erase.locator('[name=lawfulReceiptRemoval]').check();await erase.getByLabel('Erasure authorization reason').fill('Owner authorizes only the displayed native scope');await erase.getByRole('button',{name:'Erase reviewed scope'}).click();await capture('completion')
-  const after=await h.state();assert.equal(after.data.privacyErasures.length,1);assert.equal(after.data.privacyErasures[0].value.status,'native-scope-complete');assert.match(after.data.privacyErasures[0].value.meaning,/Not a certificate/)
+  const after=await h.state();assert.equal(after.data.privacyErasures.length,1,JSON.stringify({alert:await page.locator('[role=alert]').allTextContents(),diagnostics:h.logs.filter(s=>s.includes('privacy '))}));assert.equal(after.data.privacyErasures[0].value.status,'native-scope-complete');assert.match(after.data.privacyErasures[0].value.meaning,/Not a certificate/)
   assert.equal(after.data.people.find(p=>p.id===person.id).value.name,'Erased worker');assert(after.data.people.find(p=>p.id===person.id).value.privacyErased)
   assert.equal((await request('/api/gauge/files/'+receiptId,owner)).status,404)
   assert(!JSON.stringify(after.data.leave).includes('synthetic-gauge-4103'))

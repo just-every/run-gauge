@@ -1,4 +1,5 @@
 import type { Bindings } from '../auth.server'
+import { portabilityPolicy } from '../../scripts/installer/portability-policy.mjs'
 import { createPortability } from '@runeditrun/rer/modules/portability'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Actor, Transaction, all, get, fence } from './store'
@@ -70,7 +71,7 @@ export async function privacyCommand(env:Bindings,a:Actor,tx:Transaction,action:
  tx.sql("DELETE FROM g_history WHERE kind='people' AND record_id=?",person.id)
  // The irreversible redaction checkpoint invalidates in-progress exports and
  // makes an old archive refuse restoration when the later trusted journal is supplied.
- const portability=await createPortability({db:env.DB,policy:{product:'professional-services/gauge'}})
+ const portability=await createPortability({db:env.DB,policy:portabilityPolicy})
  tx.statements.push(...await portability.redactionStatements(),...await portability.invalidateTransfersStatements())
  const receipt=await tx.record('privacyErasures',{personId:person.id,policyId:policy.id,policyRevision:policy.revision,exitId:exit.id,fingerprint:p.fingerprint,removed:p.remove,retained:p.retain,reason,by:a.session.operator.id,at:erasedAt,status:'native-scope-complete',meaning:'Bounded native scope complete; financial/audit legal holds and external/source-copy gaps remain. Not a certificate of complete personal-data erasure.'},undefined,undefined,action)
  tx.audit(action,'people',person.id,{privacyErased:true,receiptId:receipt.id})

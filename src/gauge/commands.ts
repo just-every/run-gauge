@@ -37,6 +37,7 @@ import { invoiceCommand } from './invoices'
 import { invoiceCorrectionCommand } from './invoice-corrections'
 import { receiptCommand } from './receipts'
 import { fixedChargeCommand } from './fixed-charges'
+import { estimateCommand,estimateCompare } from './estimates'
 import { customCommand,customPreview } from './custom-fields'
 import { clientCommand } from './clients'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
@@ -45,6 +46,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
  // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
  await seal(env,action.startsWith('import:'))
+ if(action==='estimate:compare')return estimateCompare(env,a,input)
  if(action==='field:import-preview')return customPreview(env,a,input)
  if(action==='period:preview')return periodPreview(env,a,input)
  if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)
@@ -87,6 +89,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await periodCommand(env,a,tx,action,input)
  if(!result)result=await phaseCommand(env,a,tx,action,input)
  if(!result)result=await capCommand(env,a,tx,action,input)
+ if(!result)result=await estimateCommand(env,a,tx,action,input)
  if(!result)result=await customCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)
  if(!result&&['budget:approve','milestone:approve'].includes(action))result=await approveTerms(env,a,tx,action==='budget:approve'?'budgets':'milestones',input)

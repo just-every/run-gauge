@@ -2,6 +2,7 @@
 // their estimate, clients and people, and one engagement's detail (?edit=<id>):
 // its facts, scope, terms, tasks, milestones and economics, with the forms that
 // change them. Forms keep their actions and field names.
+import { estimateSection } from './ui-estimates'
 import { fieldInputs } from './ui-custom-fields'
 import { type Actor, finance } from './store'
 import type { Kind, Row, Value } from './model'
@@ -67,5 +68,5 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
   body += `<div class="g-pair"><div>${clientsTable(d)}${clientSearchSection(d, options.clientSearch)}</div>${table('People', d.people, [{ label: 'Name', cell: r => open('engagements', r, r.value.name) }, { label: 'Work timezone', cell: r => e(r.value.timezone) }, { label: 'Contractor', cell: r => yesNo(r.value.contractor) }])}</div>`
   body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${engagementForm()}${clientForm(edit('clients'),fieldInputs(report,'clients',v('clients')))}${clientMergeForm(d, edit('clients'))}${form('save:people', 'Person', i('name', 'Name', p.name) + i('timezone', 'Work timezone', p.timezone ?? report.agency.timezone) + resourceProfileFields(p)+fieldInputs(report,'people',p), edit('people'))}${terms()}${taskForm()}${milestoneForm()}</div>`
  } else if (manager) body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${terms()}${taskForm()}${milestoneForm()}</div>`
- return body + tasksSection(a,report,options) + templatesSection(a,report) + pipelineSection(a, report, options.opportunity)
+ return body+estimateSection(a,report,options) + tasksSection(a,report,options) + templatesSection(a,report) + pipelineSection(a, report, options.opportunity)
 }

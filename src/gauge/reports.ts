@@ -27,12 +27,14 @@ import { agentData, agentValue } from './agent-data'
 import { proposalAvailability } from './proposal-sources'
 import { filters,visibleCustom,canField } from './custom-values'
 import { customPerformance } from './custom-report'
+import { estimatePublic } from './estimates'
 import { savedVisible } from './custom-fields'
 import { privateClientKeys } from './clients'
 // What one record's value shows this actor: costs and rates stay with finance, other people's leave reasons stay private,
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
+ if(k==='estimates')return estimatePublic(a,value)
  if(k==='customFields'&&!canField(a,{id:'',revision:'',value}))return {}
  value=visibleCustom(a,k,value)
  if(k==='deliveryTemplates')value={...value,items:value.items.map((item:Value)=>visibleCustom(a,'tasks',item))}
@@ -55,6 +57,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  data.customFields=data.customFields.filter(f=>canField(a,f));data.customImports=finance(a)?data.customImports:[];data.savedReports=data.savedReports.filter(r=>savedVisible(a,r.value))
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
+ const opportunityIds=new Set(data.opportunities.map(r=>r.id));data.estimates=data.estimates.filter(r=>finance(a)||opportunityIds.has(r.value.opportunityId));data.estimateApprovals=finance(a)?data.estimateApprovals:[];data.estimateConversions=data.estimateConversions.filter(r=>finance(a)||opportunityIds.has(r.value.opportunityId))
  // Agents use their own closed purpose projection; ordinary visibility follows person and finance rights.
  if(a.role==='agent'){const scoped=agentData(a,data);await fence(env,a);return scoped}
  const today=workDate(Date.now(),a.timezone),delegatedIds=new Set(data.engagements.filter(e=>data.timeDelegations.some(d=>activeDelegation(d,e,a,today))).map(e=>e.id))

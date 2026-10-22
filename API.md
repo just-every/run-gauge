@@ -462,3 +462,57 @@ future scheduled reports, XLSX/PDF exports and BI feeds, and CLIENT-001 inherits
 them for its portal. All definitions, value history, original imports and saved
 reports travel in BASE-002 archives; restore grants no session or automatic
 execution authority.
+
+### Costed estimate versions (SALES-002, partial)
+
+`estimate:save` is available to finance or the opportunity's lead, with a unique
+request key, `opportunityId`, name, reason, phases and lines. Subsequent versions
+name the latest `previousId`; converted work uses a commercial change order.
+Each phase has key/name/service, hourly or fixed mode, from/to dates. Each line
+has a stable key, phaseKey, name, kind (`labor`, `subcontractor`, `expense`), role,
+optional native person, effortSeconds and customer billRateMinor. Expenses use
+quantity and unitBillMinor. Finance may supply a private costRateMinor or total
+expense costMinor with a costReference; otherwise named labor uses the native
+cost card effective at the phase start. An unmatched or foreign-currency cost
+stays unknown; no implicit FX occurs. All amounts are in the opportunity's
+agency currency.
+
+`contingencyBasisPoints` adds a fee and estimated-cost risk reserve; it does not
+invent work hours. `discountBasisPoints` discounts customer price after fee
+contingency. Final cents allocate by differences of cumulative proportional
+half-up totals, so lines, phases and the document reconcile exactly. Fee and
+expense allowances are separate. Versions preserve prices, original cost
+assumptions, projected margin and calendar-only named-person feasibility,
+including global committed demand without exposing competing projects or leave
+reasons. Role-only lines retain unknown capacity. These simulations never
+commit staffing.
+
+`estimate:compare` takes beforeId/afterId from one version family. Costs, their
+sources, and margin are omitted recursively for every non-finance read,
+comparison, history and page. Staff/agents gain no estimate authority. Native
+current roles and exact source revisions guard writes.
+
+Default ADOPTED pending ct: `estimate:approve` is owner-only, binds id/revision
+and the unchanged pricing/calendar inputs, and requires
+`attest: "owner-recorded-external-acceptance"`, evidenceRef and a reason. It
+records reported external acceptance; client identity is explicitly unverified.
+Unknown cost, infeasible dates and a newer version refuse approval. This is the
+remaining policy gap: SALES-002 stays partial until ct approves this carrier or
+SALES-003/CLIENT-001 supplies verified client confirmation.
+
+Finance/owner uses `estimate:convert` on that exact attested version. It creates
+one linked client engagement, a draft phase budget, tasks, draft fixed-phase
+completion milestones, and open role requests (daily whole seconds over each
+inclusive phase window; any remainder stays named). Nothing invoices, sends a
+message or commits staffing. Required engagement customFields and per-line
+taskCustomFields (or taskCustomFieldsDefault) are enforced before the atomic
+batch. Customer fees reconcile to budget.amountMinor and fixed-phase
+milestones; the separate expense allowance reconciles to expenseBudgetMinor.
+The combined estimate total is their sum. Booked opportunity fees exclude the
+separate expense allowance. Native budget and milestone approvals remain
+separate public decisions. Replays through either conversion carrier return
+the same engagement; an earlier converted version needs a change order.
+
+Versions, attestations, conversions, exact source links and native records all
+travel in BASE-002 archives. Restoring history never executes a conversion or
+replays an acceptance.

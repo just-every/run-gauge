@@ -68,6 +68,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
   body='<div class="g-titlebar"><h1>Harvest move-in</h1></div><p class="g-lede">Preview a Harvest export without changing anything; nothing is applied until you choose to. <a href="/move-in.html">Read the move-in guide</a>.</p>'
   const preview=options.preview
   if(preview){
+   if(preview.customFieldFindings?.length)body+=`<section class="g-card" role="alert"><h2>Required custom fields need mapping</h2><ul>${preview.customFieldFindings.map((f:Value)=>`<li>${e(f.scope)} · ${e(f.sourceId)} · ${e(f.name)}: ${e(f.reason)}</li>`).join('')}</ul></section>`
    const rows=(o:Record<string,unknown>)=>Object.entries(o??{}).map(([k,v])=>`<tr><th scope="row">${e(k)}</th><td class="g-num">${e(typeof v==='number'?v.toLocaleString('en-US'):Array.isArray(v)?v.length:v&&typeof v==='object'?Object.keys(v).length:v)}</td></tr>`).join('')
    const month=(key:string)=>{const [client,m]=key.split('/');return `Client ${client} · ${m?new Date(`${m}-01T00:00:00Z`).toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'}):''}`}
    const totals=Object.entries(preview.totals??{}).map(([k,t]:[string,any])=>`<tr><th scope="row">${e(month(k))}</th><td class="g-num">${(t.count??0).toLocaleString('en-US')}</td><td class="g-num">${hours(t.seconds)}</td><td class="g-num">${money(t.amountMinor,t.currency??preview.package.manifest.currency)}</td></tr>`).join('')

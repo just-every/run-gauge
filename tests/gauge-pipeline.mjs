@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
+import { estimateJourney } from './gauge-invoices.mjs'
 import { harness } from './gauge-harness.mjs'
 
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
@@ -136,5 +137,6 @@ try {
  assert(backlog.sources.some(x => x.kind === 'invoices' && x.id === invoice.id) && backlog.sources.some(x => x.kind === 'budgets'))
  await cmd('grant', { operatorId: lead.id, personId: person.id, role: 'lead', enabled: false })
  assert.equal((await request(`/api/gauge/history/opportunities/${first.id}`, lead.cookie)).status, 403)
+ await estimateJourney(h)
  console.log('PASS SALES-001 two probabilities, won/lost history, separate tentative demand, exact replay, scoped access and booked backlog without double counting')
 } finally { await browser?.close(); await h.dispose() }

@@ -1319,7 +1319,7 @@
       "executable": false
     },
     "src/gauge/operational-cases.ts": {
-      "sha256": "a7a7e53b1f35d147827fb8a52fbf6c1bff37a0f006d8bf369de585baaff20d8a",
+      "sha256": "33f7a755c8101d624d912b16741312abb0c63c0d399ea951a7285114a1817238",
       "executable": false
     },
     "src/gauge/period-close.ts": {
@@ -1759,7 +1759,7 @@
       "executable": false
     },
     "src/gauge/ui-operational-cases.ts": {
-      "sha256": "6cb6b828d858da9d225cae80d1ce6b79547be844f3158c0d934f68ee6e424643",
+      "sha256": "89ee02fcd4525a0be1fdc7d46b1d6cd074b6686c20b9707d9c8da3850ec268fc",
       "executable": false
     },
     "src/gauge/ui-operations.ts": {

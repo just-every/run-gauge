@@ -33,7 +33,7 @@ export async function caseForecast(env:Bindings,a:Actor,value:Value,tx?:Transact
  for(const k of ['engagements','opportunities','budgets','milestones','time','expenses','staffing','rates','rateWithdrawals','people','calendars','leave','retainers','retainerPeriods','retainerCloses','retainerAdjustments','invoices','invoiceCorrections','payments','paymentPromises','clients','agencyCalendars','retainerSchedules','retainerCharges','retainerRuns','fixedCharges','timeSlices','capWriteDowns'] as Kind[]){
   // Every actual input is fenced, including rate/calendar additions. Use the
   // ordinary report's permitted full input set, never a caller's forecast value.
-  const rows=await all(env,k);inputs.push({kind:k,rows:rows.map(x=>({id:x.id,revision:x.revision}))})
+  const rows=r.data[k];inputs.push({kind:k,rows:rows.map(x=>({id:x.id,revision:x.revision}))})
   if(tx){for(const row of rows)tx.observe(k,row);tx.guard(`(SELECT COUNT(*) FROM g_${k})=?`,rows.length)}
  }
  const economicHash=sha256(canonicalJson(projection)),fingerprint=sha256(canonicalJson({projection,inputs}))

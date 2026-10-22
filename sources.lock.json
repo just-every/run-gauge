@@ -1744,7 +1744,7 @@
       "executable": false
     },
     "src/gauge/ui.ts": {
-      "sha256": "73da4e1ef55ab68276f759b310df531267edba7e68c3f9ecd10add51ae4a22b2",
+      "sha256": "4de60c386873a3c2fc076b1f48226c6f46fbe7a542f033ed92f5e43a22c3ae0c",
       "executable": false
     },
     "src/gauge/utilization.ts": {

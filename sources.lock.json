@@ -1087,6 +1087,10 @@
       "sha256": "9daa19b80e92954c27c0b38391df9abf7303cd86973a765ca2504cd306af369e",
       "executable": false
     },
+    "src/gauge/billing-artifact.ts": {
+      "sha256": "38b2c919cd84059010ba1c8d6e17bc5ea99e3de6d5b8d2e8263483674ab385a5",
+      "executable": false
+    },
     "src/gauge/billing-corrections.ts": {
       "sha256": "3bb40127322b9f925be96dbc8ac254df27da985a70c4eb8f3b7b3e7cc8e8f027",
       "executable": false
@@ -3612,7 +3616,7 @@
       "executable": false
     },
     "tests/gauge-retainer-rules.mjs": {
-      "sha256": "9b3c4c0487cfd5946f2273614b7728b639674a73fb98212ec17de6ecb8f66313",
+      "sha256": "a1da5ea403363c436eac9ac8282f9130a11d20b8ef90b666f9d85d13f3f3ae41",
       "executable": false
     },
     "tests/gauge-retainer-statements.mjs": {

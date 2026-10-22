@@ -249,6 +249,7 @@ async function retainerRestartAndCloseJourney(){
  const h=await harness({currency:'USD',timezone:'America/New_York'});let restarted
  try{
   const {cmd,state}=h
+  await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:[],reason:'Saved advisory workweek'})
   const client=await cmd('save:clients',{name:'Northline monthly advisory',paymentTermsDays:14})
   const person=await cmd('save:people',{name:'Avery Finance',timezone:'America/New_York'})
   const project=await cmd('save:engagements',{name:'Northline advisory',clientId:client.id,leadId:person.id,members:[],scope:'Monthly advisory',timezone:'America/New_York'})

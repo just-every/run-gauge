@@ -1325,7 +1325,7 @@
       "executable": false
     },
     "src/gauge/kantata.ts": {
-      "sha256": "267954b19088a7c92eb8e6596f64dbb63141cfcb08602b47ac69b665d4849318",
+      "sha256": "66c5327c20728258cd18117a5397bf5f37444689714ff54932d35db8a8560815",
       "executable": false
     },
     "src/gauge/margin.ts": {
@@ -1769,7 +1769,7 @@
       "executable": false
     },
     "src/gauge/ui-kantata.ts": {
-      "sha256": "f46b990414fc995224fcac4b01a72d8ecf4c6d06be2f128439c4017546b9a328",
+      "sha256": "fa7690e7a9cf84f4383a8d5372cdbba900f5b1630a9ac8a45e69f426410ccc04",
       "executable": false
     },
     "src/gauge/ui-margin.ts": {

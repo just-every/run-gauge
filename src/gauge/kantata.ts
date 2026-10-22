@@ -16,7 +16,7 @@ export async function kantataCommand(env:Bindings,a:Actor,action:string,input:Va
  need(finance(a),'Finance or the owner manages Kantata source evidence',403);await fence(env,a)
  if(['kantata:preview','kantata:create'].includes(action)){
   const p=kantataPackage(input.package),ctx=context(env,a,p.namespace),plan=await planD1Import(p.bundle,p.mapping,ctx)
-  if(action==='kantata:preview')return {flavor:p.flavor,namespace:p.namespace,fingerprint:plan.fingerprint,counts:p.counts,financial:p.financial,findings:p.findings,canApply:p.canApply,meaning:'Reviewed historical evidence import; native adoption and cutover remain unavailable.',package:input.package}
+  if(action==='kantata:preview')return {flavor:p.flavor,namespace:p.namespace,fingerprint:plan.fingerprint,counts:p.counts,financial:p.financial,findings:p.findings,canApply:p.canApply,meaning:'Reviewed historical evidence import. Native draft adoption requires a separate owner review; financial cutover remains unavailable.',package:input.package}
   need(p.canApply,'Resolve every object permission, window, relationship, custom value and control-total finding before applying source evidence')
   need(input.fingerprint===plan.fingerprint,'Kantata source or mapping changed; review again',409)
   const job=await createD1ImportJob(plan,{...ctx,reviewedFingerprint:plan.fingerprint,operationKey:text(input.key,'Unique request key')});return applyD1ImportBatches(job.id,ctx)

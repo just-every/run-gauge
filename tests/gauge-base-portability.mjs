@@ -50,7 +50,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableRetainer=await cmd('retainer:approve',{...retainer.input,fingerprint:retainer.fingerprint,reason:'Reviewed quarterly research allowance'})
  const portableClient=(await state()).data.clients.find(c=>c.id===engagement.value.clientId)
  await cmd('save:clients',{...portableClient,...portableClient.value,paymentTermsDays:30})
- await cmd('approval:limit',{limitMinor:300000,reason:'Portable bounded automatic invoice consent'})
+ const portableApprovalPolicy=(await state()).data.approvalPolicies[0]
+ await cmd('approval:limit',{...portableApprovalPolicy,reviewAboveMinor:300000,reason:'Portable bounded automatic invoice consent'})
  const portableSchedule=await cmd('retainer:schedule',{retainerId:portableRetainer.id,basis:'advance',from:'2026-10-16',enabled:true,heldPeriodIds:[],autoIssue:true,capMinor:300000,includeOverages:true,billTo:'Portable client',remitTo:'Portable agency',reference:'Portable service',reason:'Portable automatic schedule with fresh installation consent'})
  await cmd('retainer:run',{...portableSchedule,asOf:'2026-10-16'})
  // RETAINER-002/003 / BASE-002: exact overage source/artifact and pending projection survive restore.

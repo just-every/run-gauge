@@ -1,3 +1,4 @@
+import { privacyJourney } from './gauge-privacy.mjs'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {createHash} from 'node:crypto'
@@ -102,3 +103,5 @@ try{
  for(const fragment of ['Business audit','Chain intact',`Checkpoint ${checkpoint.seq} matches`,'time:correct','Approved by lead'])assert(page.includes(fragment),fragment)
  console.log('PASS GOVERN-005 corrected time traced through approval, billing adjustment, import and export with a verified chain')
 }finally{await h.dispose()}
+
+await privacyJourney()

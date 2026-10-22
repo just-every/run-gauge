@@ -1,3 +1,4 @@
+import { privacySection } from './ui-privacy'
 import { customDefinitionSection,customRecordSection,customReportsSection,customImportSection } from './ui-custom-fields'
 import type { Bindings } from '../auth.server'
 import type { Actor } from './store'
@@ -52,6 +53,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  if(section==='review'||section==='capacity')body+=customReportsSection(a,report,options)
  if(section==='imports')body+=customImportSection(a,options)
  body+=await operations(env,a,section,{...options,today,zone},report)
+ if(section==='access')body+=privacySection(a,report,options)
  if(['review','engagements','capacity','billing'].includes(section))body+=reportEvidence(report,options.calculation)
  const notice=await agentNotice(env,a,report,zone,today)
  await fence(env,a)

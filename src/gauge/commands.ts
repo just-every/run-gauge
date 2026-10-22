@@ -1,3 +1,4 @@
+import { privacyCommand,privacyPreview } from './privacy'
 import { verifyProviderFollowup,applyProviderFollowup } from './provider-followups'
 import { syncCommand, advanceProviderSync } from './provider-health'
 import { readCommercialDelivery, readCommercialSignature } from './commercial-readback'
@@ -60,6 +61,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
  if(action==='estimate:compare')return estimateCompare(env,a,input)
+ if(action==='privacy:preview'){const {snapshot,...preview}=await privacyPreview(env,a,input);return preview}
  if(action==='field:import-preview')return customPreview(env,a,input)
  if(action==='period:preview')return periodPreview(env,a,input)
  if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)
@@ -76,7 +78,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(['save:clients','save:people','save:engagements','save:tasks'].includes(action))tx.customWrite={scope:action.slice(5),id:input.id,values:input.customFields}
  if(action==='opportunity:convert')tx.customWrite={scope:'engagements',values:input.customFields}
  const alertInputs=await observeBudgetAlerts(env,tx,action)
- let result:Value|null=followupProof?await applyProviderFollowup(env,a,tx,input,followupProof):await retainerCommand(env,a,tx,action,input)
+ let result:Value|null=action.startsWith('privacy:')?await privacyCommand(env,a,tx,action,input):followupProof?await applyProviderFollowup(env,a,tx,input,followupProof):await retainerCommand(env,a,tx,action,input)
  if(!result)result=await retainerScheduleCommand(env,a,tx,action,input)
  if(!result)result=await milestoneDeliveryCommand(env,a,tx,action,input)
  if(!result)result=await deliveryCommand(env,a,tx,action,input)

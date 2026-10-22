@@ -3710,7 +3710,7 @@
       "executable": false
     },
     "tests/gauge-privacy.mjs": {
-      "sha256": "9d7ed956b280c16141d5e198ad59cdfe073b62d977c8e95c427e4dc6b9dc037a",
+      "sha256": "8c3ac79100bb34e36a54b97c475b131d8ef8c3308ee39b2596581505f57d2943",
       "executable": false
     },
     "tests/gauge-progress.mjs": {

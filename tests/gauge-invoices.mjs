@@ -531,7 +531,7 @@ export async function estimateJourney(h){
  const first=await cmd('estimate:save',firstInput),firstRecord=(await state()).data.estimates.find(r=>r.id===first.id),v=firstRecord.value
  assert.deepEqual([v.baseMinor,v.grossMinor,v.discountMinor,v.totalMinor,v.costMinor,v.marginMinor],[645000,709500,70950,638550,427900,210650],'Independent quote = (645000 × 1.10) × .90; cost 389000 × 1.10')
  assert.equal(v.feeMinor+v.expenseMinor,v.totalMinor);assert.equal(v.effortSeconds,126000);assert.equal(v.feasibility.find(f=>f.lineKey==='design').feasibleEnd,'2026-11-03')
- const notice='recorded by agency, client identity unverified',attestation={attest:'owner-recorded-external-acceptance',acceptorName:'synthetic-gauge-2',acceptorContact:'synthetic-gauge-3',acceptanceDate:'2026-10-21',channel:'email',evidenceRef:'synthetic-gauge-1',reason:'Owner records reported external acceptance; identity unverified'}
+ const notice='recorded by agency, client identity unverified',attestation={attest:'owner-recorded-external-acceptance',acceptorName:'Maya Ortiz',acceptorContact:'maya.ortiz@example.test',acceptanceDate:'2026-10-21',channel:'email',evidenceRef:'synthetic-gauge-1',reason:'Owner records reported external acceptance; identity unverified'}
  const accept=async(row)=>cmd('estimate:approve',{...row,...attestation})
  for(const field of ['acceptorName','acceptorContact','acceptanceDate','channel','evidenceRef']){const incomplete={...first,...attestation};delete incomplete[field];await cmd('estimate:approve',incomplete,owner,400)}
  await cmd('estimate:approve',{...first,...attestation,channel:'signature'},owner,400)

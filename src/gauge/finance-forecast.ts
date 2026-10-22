@@ -1,3 +1,4 @@
+import { quoteBill } from './quote-pricing'
 import { phaseViews } from './budget-phases'
 import { type Row, type Value, charge, sum } from './model'
 import { explain, activeRates } from './rate-cards'
@@ -69,8 +70,8 @@ export function financeForecastBase(data: Record<string, Row[]>, asOf: string, r
   for (const s of mine('staffing')) {
    const person = people.get(s.value.personId); if (!sources.staffing.includes(s.id)) sources.staffing.push(s.id)
    for (const day of days(s.value.from > asOf ? s.value.from : nextDay(asOf), s.value.to)) {
-    const x = person ? explain(rates, person, e, s.value.service ?? 'Unspecified', day) : undefined, bill = x?.bill?.chosen, cost = x?.cost?.chosen
-    for (const r of [bill, cost]) if (r && !sources.rates.includes(r.id)) sources.rates.push(r.id)
+    const x = person ? explain(rates, person, e, s.value.service ?? 'Unspecified', day) : undefined, bill = x?.bill?.level==='project'?x.bill.chosen:quoteBill(data,e.id,terms,s.value)??x?.bill?.chosen, cost = x?.cost?.chosen
+    for (const r of [bill, cost])if(r){const kind=r.value.estimateId?'estimates':'rates',ids=sources[kind]??=[];if(!ids.includes(r.id))ids.push(r.id);sources[kind]=ids}
     const m = at(month(day)), tentative = s.value.commitment === 'tentative'
     if (!tentative) committedDays.push(day)
     if (basis === 'hourly' && s.value.billable !== false) {
@@ -118,7 +119,7 @@ export function financeForecastBase(data: Record<string, Row[]>, asOf: string, r
     for (const s of mine('staffing').filter(s => s.value.commitment === 'committed' && retainerMatches(t, { service: s.value.service ?? 'Unspecified', billable: s.value.billable !== false }))) {
      for (const day of days([s.value.from, nextDay(asOf), period.value.activeStart].sort().at(-1)!, s.value.to < period.value.activeEnd ? s.value.to : period.value.activeEnd)) {
       if (t.unit === 'hours') { demand += s.value.dailySeconds; continue }
-      const bill = people.get(s.value.personId) && explain(rates, people.get(s.value.personId)!, e, s.value.service ?? 'Unspecified', day).bill?.chosen
+      const native=people.get(s.value.personId)&&explain(rates,people.get(s.value.personId)!,e,s.value.service??'Unspecified',day).bill,bill=native?.level==='project'?native.chosen:quoteBill(data,e.id,terms,s.value)??native?.chosen
       if (bill?.value.billMinor == null) incomplete.push(`staffing:${s.id}: no effective bill rate on ${day}`); else demand += pricedFees(s, day, bill)
      }
     }

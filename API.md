@@ -516,3 +516,16 @@ the same engagement; an earlier converted version needs a change order.
 Versions, attestations, conversions, exact source links and native records all
 travel in BASE-002 archives. Restoring history never executes a conversion or
 replays an acceptance.
+
+
+Accepted estimate hourly pricing is a real commercial source: while its linked
+terms govern, task/role bill rates and customer discounts feed ordinary time
+approval, provisional fee alerts, ETC, rate explanation and financial source
+CSV. Contingency remains a budget reserve; it never bills unworked hours or
+adds an unrelated card's overtime. Precedence is finance entry override, an
+explicit effective-dated project card, the agreed quote line, then ordinary
+client/role/person/service cards. Ambiguous quote work remains held/unknown,
+never an unrelated fallback rate. Allowance-only change orders retain the quote
+link; a finance project or entry renegotiation remains explicit. Task revisions
+and recurrence preserve source references. Frozen approvals retain the exact
+estimate version/line and their charged amount after later rate changes.

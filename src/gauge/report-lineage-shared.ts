@@ -66,6 +66,7 @@ export class Lineage {
   // the immutable referenced rate and terms when they are already visible.
   const frozen = row.value.economics
   if (frozen) {
+   if(frozen.estimateId)this.row(e,'estimates',frozen.estimateId)
    this.row(e, 'rates', frozen.rateId)
    if (frozen.costRateId && frozen.costRateId !== frozen.rateId) this.row(e, 'rates', frozen.costRateId)
    this.row(e, 'budgets', frozen.budgetId)

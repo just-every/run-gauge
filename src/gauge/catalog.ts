@@ -69,7 +69,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  if (k === 'budgets') {
   need(!previous, 'Budget versions are append-only; create a change order')
   need(['hourly','fixed'].includes(input.mode),'Choose hourly or fixed terms')
-  const prior=latestBudget(await all(env,'budgets'),v.engagementId);v.notToExceed=input.notToExceed===undefined?prior?.value.notToExceed??false:flag(input.notToExceed);need(!v.notToExceed||input.mode==='hourly','A not-to-exceed cap applies to hourly terms')
+  const prior=latestBudget(await all(env,'budgets'),v.engagementId);if(prior?.value.estimateId){v.estimateId=prior.value.estimateId;v.estimateRevision=prior.value.estimateRevision}v.notToExceed=input.notToExceed===undefined?prior?.value.notToExceed??false:flag(input.notToExceed);need(!v.notToExceed||input.mode==='hourly','A not-to-exceed cap applies to hourly terms')
   v.mode = input.mode; v.amountMinor = money(input.amountMinor); v.effortSeconds = integer(input.effortSeconds,'Estimated effort seconds'); v.roundingSeconds = integer(input.roundingSeconds,'Billing rounding seconds',1,3600); v.reason = text(input.reason,'Terms / change-order reason'); v.status = 'draft'; v.createdAt = Date.now()
   // FINANCE-006: an optional billable expense budget, billed and costed at the same pass-through amount, with an optional forecast date.
   if (input.expenseBudgetMinor !== undefined && input.expenseBudgetMinor !== '') { v.expenseBudgetMinor = money(input.expenseBudgetMinor); if (input.expenseDate) v.expenseDate = date(input.expenseDate) } else need(!input.expenseDate,'An expense date needs an expense budget')

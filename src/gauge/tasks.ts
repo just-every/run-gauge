@@ -59,6 +59,7 @@ export async function taskCommand(env: Bindings,a: Actor,tx: Transaction,action:
   checklist:checklist(input.checklist??old?.value.checklist??[],old?.value.checklist),
   repeatEveryDays:integer(input.repeatEveryDays??old?.value.repeatEveryDays??0,'Repeat interval days',0,366),
   repeatUntil:input.repeatUntil?date(input.repeatUntil):null,
+  ...(old?.value.estimateId?{estimateId:old.value.estimateId,estimateLineKey:old.value.estimateLineKey}:{}),
   ...(old?.value.previousOccurrenceId?{previousOccurrenceId:old.value.previousOccurrenceId}:{}),
   ...(old?.value.nextOccurrenceId?{nextOccurrenceId:old.value.nextOccurrenceId}:{})}
  if(!progress){const phase=await phaseFor(env,tx,engagement.id,input.phaseKey??old?.value.phaseKey);if(phase)v.phaseKey=phase.key}

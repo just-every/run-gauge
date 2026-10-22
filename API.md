@@ -543,7 +543,7 @@ and recurrence preserve source references. Frozen approvals retain the exact
 estimate version/line and their charged amount after later rate changes.
 
 
-### Client proposals (SALES-003, adopted policy pending ct)
+### Client proposals (SALES-003, approved native email-confirmed carrier)
 
 `commercial:prepare` is owner-only. It binds `estimateId` and
 `estimateRevision`, plus `previousId` when revising the proposal family.
@@ -569,8 +569,7 @@ email-confirmed session and current installation release authority. The
 client POST at the same path requires same-origin, key, exact revision,
 fingerprint, outcome (`question`, `accepted` or `rejected`) and reason;
 acceptance additionally requires `confirm: "accept-exact-proposal"`.
-Superseded, expired, revoked and signature-required proposals cannot be
-accepted through the checkbox. Viewing/questions/decisions are audited.
+Superseded, expired and revoked proposals cannot be accepted. A signature-required proposal also needs verified exact-version provider evidence before the recipient can confirm it. Viewing/questions/decisions are audited.
 Client membership grants no internal Gauge state, history or command access.
 
 Current direct acceptance is the primary `estimate:convert` carrier for a
@@ -582,8 +581,7 @@ subject to fresh native source assumptions and required custom fields.
 BASE-002 carries proposal documents, customer decisions and send history,
 without installation release authority or message replay. After restore,
 `commercial:reconnect` lets the owner authorize the exact original recipient
-again with id/revision and a reason; it sends nothing. Provider-signature
-intake and mailbox-delivery event reconciliation remain missing.
+again with id/revision and a reason; it sends nothing. Verified provider-signature intake and mailbox-delivery readback are described below.
 
 
 ### Provider custody and durable jobs
@@ -593,7 +591,7 @@ commands or inspect provider metadata. Setup creates a dedicated installation
 provider key. Existing or restored installs use `provider:initialize` before
 connecting; this generates no provider credential and sends nothing.
 
-`provider:connect` accepts provider (`resend` or `crank`), accountLabel and
+`provider:connect` accepts provider (`resend`, `crank`, `inkwell`, `zapier`, `webhook` or `receipt`), accountLabel and
 credential. `provider:rotate` takes exact connection id/revision and a fresh
 credential; `provider:revoke` takes exact id/revision and permanently prevents
 that connection's queued work. Credentials are AES-256-GCM sealed under
@@ -616,8 +614,7 @@ Dispatch rereads the queued credential version. Rotation produces an owned
 explicitly dispatches once. Revocation is permanent. Transport uncertainty
 remains an owned exception; an abandoned claim becomes visibly uncertain when
 its lease expires. Neither is automatically retried. The same job controls
-protect proposal email. Automatic scheduling/backoff and provider readback
-remain FOLLOWUP-004 work.
+protect proposal email. Bounded refusal backoff, explicit reconciliation and native retainer scheduling are described below; unattended external dispatch remains disabled.
 
 Archives retain connection metadata, uses, jobs and outcomes, but exclude the
 installation key, ciphertext, private receipts and job execution authority.
@@ -626,7 +623,7 @@ after credentials are re-entered. New work requires fresh owner authorization.
 
 ## Commercial provider readback
 
-The native owner can connect `inkwell` with a credential scoped to `envelopes:read` and `artifacts:read`, and an HTTPS `origin`. It uses GOVERN-008 custody; no send or preparation scope is used. `commercial:signature-bind` takes the proposal `id`/`revision`, `connectionId`, `envelopeId`, `originalSha256`, `reason` and `confirm: "reviewed-exact-pdf"`. Gauge generates and retains a complete immutable original PDF for each signature-required proposal; the native owner downloads it from `/app/proposal-originals/{id}`. The bound `originalSha256` must equal that native original, so an owner cannot substitute another document by attesting to it. Inkwell original bytes must match the stored PDF digest. No filename or owner-attested content mapping grants acceptance. A different proposal version cannot reuse the same envelope on that connection. `commercial:signature-readback` takes the proposal `id`/`revision`; it checks native completed status, recipient signing and the original, signed and certificate SHA-256 values through Inkwell's published read-only API. Signed/certificate PDFs are bounded to 256 KiB each and retained as business evidence. Client-link acceptance stays unavailable until evidence verifies, then still requires the recipient's deliberate exact-version response. The existing recipient authority guards also protect `/app/client-proposals/{id}/evidence/{signed|certificate}`.
+The native owner can connect `inkwell` with a credential scoped to `envelopes:read` and `artifacts:read`, and an HTTPS `origin`. It uses GOVERN-008 custody; no send or preparation scope is used. `commercial:signature-bind` takes the proposal `id`/`revision`, `connectionId`, `envelopeId`, `originalSha256`, `reason` and `confirm: "reviewed-exact-pdf"`. Gauge generates and retains a complete immutable original PDF for each signature-required proposal; the native owner downloads it from `/app/proposal-originals/{id}`. The bound `originalSha256` must equal that native original, so an owner cannot substitute another document by attesting to it. Inkwell original bytes must match the stored PDF digest. No filename or owner-attested content mapping grants acceptance. A different proposal version cannot reuse the same envelope at that Inkwell origin, even through another connection. `commercial:signature-readback` takes the proposal `id`/`revision`; it checks native completed status, recipient signing and the original, signed and certificate SHA-256 values through Inkwell's published read-only API. Signed/certificate PDFs are bounded to 256 KiB each and retained as business evidence. Client-link acceptance stays unavailable until evidence verifies, then still requires the recipient's deliberate exact-version response. The existing recipient authority guards also protect `/app/client-proposals/{id}/evidence/{original|signed|certificate}`.
 
 `commercial:delivery-readback` takes a delivery event `id`/`revision`. A known Resend message ID is read directly. After an uncertain send the owner must supply `providerMessageId` and a reason; the response must prove the same recipient, version subject and unique delivery reference. Readback never submits a message. It records only recognized delivery classes, an opaque message ID and fixed exception classes. Rotation allows readback with the current credential; restore strips job authority and refuses it. Provider authorization failures leave an owned visible unresolved outcome.
 
@@ -653,3 +650,5 @@ A `receipt` connection holds a verification key (at least 16 characters), sealed
 Only the original native owner presents and approves it with `providerJob:apply-followup`: job `id`/`revision`, receipt-key `connectionId`, `receipt` JSON, hexadecimal `signature`, `reason`, `confirm: "apply-exact-followup"`, and current required task `customFields`/`phaseKey`. Access exposes the same review form. The command rechecks the exact source, native owner, original connection, receipt-key version and ordinary task field/phase rules in its committing batch. It creates one unassigned, nonbillable task with zero planned effort; source engagement is derived on the server. Quoted workflow instructions stay literal text. A changed source, wrong event/run, invalid signature, revoked key, missing custom fields or other role writes no task. Receipt/event replay returns the first native effect; changed receipt data cannot reuse it. Raw authentication signatures are neither stored nor hashed into portable request receipts.
 
 The receipt and native effect are business history, labelled workflow-authenticated and owner-applied. This does not infer whole-workflow completion from admission. There is no automatic callback or unattended write door; restore keeps history but strips provider-job authority. Future unattended follow-up requires the policy ruling carried by CONNECT-016/FOLLOWUP-004.
+
+`providerJob:queue-crank-source` takes the same exact `sourceRef`/`reason` plus the declared Crank trigger `endpoint`. It supports the same closed project, approved-time, budget, invoice and payment sources. Crank receives `{event_id,input}` with Bearer authority and the same signed exact-body headers. Crank’s published contract authenticates the trigger with its Bearer credential; Gauge does not claim Crank verifies the additional HMAC. One connection/endpoint/source/revision retains one event across queue replay. Existing `queue-crank` remains the budget-alert shortcut.

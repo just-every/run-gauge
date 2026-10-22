@@ -3556,7 +3556,7 @@
       "executable": false
     },
     "tests/gauge-invoices.mjs": {
-      "sha256": "baf65ea5c26d9eb070a232984e0a2560cb4bc033b837824c180f540d8c525585",
+      "sha256": "812cf87f443ad01913f9f356bf135197f874681c1df02cdf6acecd09ac18cb08",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {

@@ -1,5 +1,10 @@
+import { tmpdir } from 'node:os'
+import { execFileSync } from 'node:child_process'
+import { getPlatformProxy } from 'wrangler'
+import { createPortability,readArchive } from '@runeditrun/rer/modules/portability'
+import { portabilityPolicy } from '../scripts/installer/portability-policy.mjs'
 import assert from 'node:assert/strict'
-import { mkdir } from 'node:fs/promises'
+import { mkdir,mkdtemp,rm } from 'node:fs/promises'
 import { resolve,join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { chromium } from '@playwright/test'
@@ -63,6 +68,14 @@ export async function kantataJourney(){
   assert.equal((await state()).data.invoices.length,0);assert.equal((await state()).data.payments.length,0,'Historical source finance never creates issuance or settlement authority')
   const worker=await cmd('save:people',{name:'Migration boundary worker',timezone:'America/New_York'}),staff=await h.invite('kantata-staff');await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true})
   await cmd('kantata:preview',{package:ox},staff.cookie,403);await cmd('kantata:report',{namespace:preview.namespace},staff.cookie,403);assert.equal((await state(staff.cookie)).data.kantataRecords.length,0);assert.equal((await request('/api/gauge/history/kantataRecords/'+before[0].id,staff.cookie)).status,403)
+  // The full native adoption, source custody and both journals remain portable.
+  const portability=await createPortability({db:h.db,policy:portabilityPolicy}),exportId=await portability.exports.create();while((await portability.exports.advance(exportId,{maxParts:16})).phase==='building'){}
+  const archive=[];for await(const line of readArchive(await portability.exports.download(exportId)))archive.push(line)
+  const selected=['g_kantataRecords','g_kantataAdoptions','g_customFields','g_people','g_clients','g_engagements','g_tasks','g_staffing','g_rates','g_time','g_expenses','g_history'],snapshot=async db=>Object.fromEntries(await Promise.all(selected.map(async table=>[table,(await db.prepare(`SELECT * FROM ${table} ORDER BY ${table==='g_history'?'id':'id'}`).all()).results])))
+  const expected=await snapshot(h.db),directory=await mkdtemp(join(tmpdir(),'gauge-kantata-native-restore-'));let proxy
+  try{execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',env:{...process.env,CI:'true',WRANGLER_SEND_METRICS:'false'}});proxy=await getPlatformProxy({configPath:resolve('wrangler.jsonc'),persist:{path:join(directory,'v3')},remoteBindings:false});const restore=await createPortability({db:proxy.env.DB,policy:portabilityPolicy}),id=await restore.imports.create(archive[0]);for(const part of archive.filter(r=>r.kind==='part'))await restore.imports.uploadPart(id,part.index,part);await restore.imports.finalize(id,archive.at(-1));assert.deepEqual(await snapshot(proxy.env.DB),expected,'Native source IDs, field definitions and value revisions, approvals, exact dates, both import/adoption journals and all history round-trip byte for byte');assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM oa_sessions').first()).n,0,'No old session grants native adoption authority after restore')}
+  finally{await proxy?.dispose();await rm(directory,{recursive:true,force:true})}
+  await portability.exports.abort(exportId)
   await context.close();console.log('PASS MIGRATE-004 bounded historical OX two-year and SX ZIP custody, distinct maps, complete-window/permission controls, joins, Practice/Office groups, XLSX/API preview, bounded apply/undo, separately reviewed native drafts/skills/fields/tentative dates, native Practice/Office profitability/utilization reconciliation, source-billed exclusion and native-edit undo hold at 1440/390 (PARTIAL: full financial adoption/receipts/cutover remain)')
  }finally{await browser?.close();await h.dispose()}
 }

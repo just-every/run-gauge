@@ -1,3 +1,4 @@
+import { verifyProviderFollowup,applyProviderFollowup } from './provider-followups'
 import { syncCommand, advanceProviderSync } from './provider-health'
 import { readCommercialDelivery, readCommercialSignature } from './commercial-readback'
 import { jobCommand, dispatchProviderJob } from './provider-jobs'
@@ -66,14 +67,16 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='delivery:preview')return deliveryPreview(env,a,input)
  if(action==='staffing:preview')return schedulePreview(env,a,input)
  if(action.startsWith('import:')){const result=await importCommand(env,a,action,input);await seal(env,true);return result}
- const key=text(input.key,'Unique request key',200),digest=sha256(canonicalJson({...input,file:input.file instanceof File?{name:input.file.name,size:input.file.size,hash:sha256(new Uint8Array(await input.file.arrayBuffer()))}:null,action})),previous=await env.DB.prepare('SELECT actor,digest,result FROM g_receipts WHERE key=?').bind(key).first<{actor:string;digest:string;result:string}>()
+ const followupProof=action==='providerJob:apply-followup'?await verifyProviderFollowup(env,a,input):null
+ const digestInput=followupProof?{...input,signature:'verified-workflow-proof'}:input
+ const key=text(input.key,'Unique request key',200),digest=sha256(canonicalJson({...digestInput,file:input.file instanceof File?{name:input.file.name,size:input.file.size,hash:sha256(new Uint8Array(await input.file.arrayBuffer()))}:null,action})),previous=await env.DB.prepare('SELECT actor,digest,result FROM g_receipts WHERE key=?').bind(key).first<{actor:string;digest:string;result:string}>()
  if(previous){need(previous.actor===a.session.operator.id && previous.digest===digest,'Request key already used for different work',409);await fence(env,a);return JSON.parse(previous.result)}
- const tx=new Transaction(env,a)
+ const tx=followupProof?.tx??new Transaction(env,a)
  tx.key=key;tx.action=action
  if(['save:clients','save:people','save:engagements','save:tasks'].includes(action))tx.customWrite={scope:action.slice(5),id:input.id,values:input.customFields}
  if(action==='opportunity:convert')tx.customWrite={scope:'engagements',values:input.customFields}
  const alertInputs=await observeBudgetAlerts(env,tx,action)
- let result:Value|null=await retainerCommand(env,a,tx,action,input)
+ let result:Value|null=followupProof?await applyProviderFollowup(env,a,tx,input,followupProof):await retainerCommand(env,a,tx,action,input)
  if(!result)result=await retainerScheduleCommand(env,a,tx,action,input)
  if(!result)result=await milestoneDeliveryCommand(env,a,tx,action,input)
  if(!result)result=await deliveryCommand(env,a,tx,action,input)

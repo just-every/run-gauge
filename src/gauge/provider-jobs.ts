@@ -212,3 +212,7 @@ export async function providerJobsRegister(env: Bindings, a: Actor): Promise<Row
  await owner(env, a)
  return rows
 }
+
+/** Shared native-owner/source fences for reviewed workflow requests. */
+export const observeProviderJobAuthority=authority
+export const observeProviderJobSource=source

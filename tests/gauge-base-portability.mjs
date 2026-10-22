@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {createHash} from 'node:crypto'
+import {createHash,createHmac} from 'node:crypto'
 import { mkdir,readFile } from 'node:fs/promises'
 import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 
@@ -192,6 +192,15 @@ export async function prepareCurrentPortability(h,{importJob}) {
  assert.equal((await state()).data.commercialEvents.find(r=>r.value.proposalId===signedProposal.id&&r.value.type==='accepted').value.signatureEvidenceId,signedEvidence.id)
 
  const portableSync=await cmd('providerSync:start',{connectionId:portableProvider.id})
+ const portableReceiptKey=await cmd('provider:connect',{provider:'receipt',accountLabel:'Portable workflow request key',credential:'synthetic-gauge-3008'})
+ const completedCrank=await cmd('providerJob:queue-crank',{connectionId:portableCrank.id,alertId:portableAlert.id,alertRevision:portableAlert.revision,endpoint:'https://crank.example.test/api/crank/flows/budget-exception/trigger'})
+ await cmd('providerJob:dispatch',completedCrank)
+ const admittedPortable=(await state()).data.providerJobs.find(j=>j.id===completedCrank.id)
+ const portableWorkflowReceipt={schema:'gauge-followup-v1',eventId:admittedPortable.value.eventId,sourceRevision:portableAlert.revision,remoteReference:admittedPortable.value.providerRunId,taskName:'Portable approved workflow follow-up'}
+ const portableReceiptSignature=createHmac('sha256','synthetic-gauge-3008').update('gauge-followup-v1\n'+JSON.stringify(Object.fromEntries(Object.entries(portableWorkflowReceipt).sort(([a],[b])=>a.localeCompare(b))))).digest('hex')
+ const portableFollowupInput={...admittedPortable,connectionId:portableReceiptKey.id,receipt:JSON.stringify(portableWorkflowReceipt),signature:portableReceiptSignature,confirm:'apply-exact-followup',reason:'Owner reviews and applies a portable workflow request'}
+ const portableFollowup=await cmd('providerJob:apply-followup',portableFollowupInput)
+ assert.equal((await cmd('providerJob:apply-followup',portableFollowupInput)).id,portableFollowup.id)
  const fieldPackage={format:'kantata-ox-custom-fields-v1',namespace:'synthetic-gauge-portable-fields',fields:[{id:'office',scope:'people',name:'Portable office',type:'single-select',options:[{id:'Austin',name:'Austin'}]}],records:[{scope:'people',id:'worker',values:{office:'Austin'}}],controls:{people:1}},fieldMap={people:{worker:person.id}},fieldPolicies={office:{visibility:'everyone'}}
  const fieldPreview=await cmd('field:import-preview',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies})
  const fieldImport=await cmd('field:import',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies,fingerprint:fieldPreview.fingerprint,reason:'Portable source field custody'})
@@ -272,9 +281,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
    assert.deepEqual(restoredEstimates.data.commercialProposals,before.data.commercialProposals)
    assert.deepEqual(restoredEstimates.data.commercialEvents,before.data.commercialEvents,'Delivery and client view history remain business facts, never replay instructions')
    for(const table of ['g_provider_installation_key','g_provider_credentials','g_provider_receipts','g_provider_job_authority','g_provider_sync_authority'])assert.equal((await restored.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n,0,'Restore excludes provider secrets and authority')
-   const restoredAccess=await(await restored.request('/app/access',restored.owner)).text();assert(restoredAccess.includes('disconnected'));for(const credential of ['synthetic-gauge-3001','synthetic-gauge-3002','synthetic-gauge-3003','synthetic-gauge-3007','https://hooks.zapier.com/hooks/catch/synthetic-gauge-3005/synthetic-gauge-3006/'])assert(!restoredAccess.includes(credential))
+   const restoredAccess=await(await restored.request('/app/access',restored.owner)).text();assert(restoredAccess.includes('disconnected'));for(const credential of ['synthetic-gauge-3001','synthetic-gauge-3002','synthetic-gauge-3003','synthetic-gauge-3007','synthetic-gauge-3008',portableReceiptSignature,'https://hooks.zapier.com/hooks/catch/synthetic-gauge-3005/synthetic-gauge-3006/'])assert(!restoredAccess.includes(credential))
    const restoredProviderJob=restoredEstimates.data.providerJobs.find(j=>j.value.connectionId===portableProvider.id);assert(restoredProviderJob)
-   const providerTraffic=restored.providerRequests.length;await restored.cmd('providerSync:advance',portableSync,restored.owner,409);await restored.cmd('providerJob:dispatch',portableCrankJob,restored.owner,409);await restored.cmd('providerJob:dispatch',portableZapierJob,restored.owner,409);await restored.cmd('providerJob:dispatch',restoredProviderJob,restored.owner,409);assert.equal(restored.providerRequests.length,providerTraffic,'Restored job history never replays a provider write')
+   const providerTraffic=restored.providerRequests.length;await restored.cmd('providerJob:apply-followup',portableFollowupInput,restored.owner,409);await restored.cmd('providerSync:advance',portableSync,restored.owner,409);await restored.cmd('providerJob:dispatch',portableCrankJob,restored.owner,409);await restored.cmd('providerJob:dispatch',portableZapierJob,restored.owner,409);await restored.cmd('providerJob:dispatch',restoredProviderJob,restored.owner,409);assert.equal(restored.providerRequests.length,providerTraffic,'Restored job history never replays a provider write')
    const auth=await restored.post('/auth/magic-link',{email:'portable-client@example.test'});assert.equal(auth.status,202)
    const confirmation=new URL(restored.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0])
    const confirmed=await restored.post('/auth/confirm',{token:confirmation.searchParams.get('token')});assert.equal(confirmed.status,303)

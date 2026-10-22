@@ -4,12 +4,12 @@ import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { Fault, type Row, type Value, integer, need, text, uuid } from './model'
 import { type Actor, type Transaction, all, fence, get } from './store'
 
-export type Provider = 'resend' | 'crank' | 'inkwell' | 'zapier' | 'webhook'
-export type ProviderOperation = 'email:send' | 'trigger:submit' | 'signature:read'
+export type Provider = 'resend' | 'crank' | 'inkwell' | 'zapier' | 'webhook' | 'receipt'
+export type ProviderOperation = 'email:send' | 'email:read' | 'trigger:submit' | 'signature:read' | 'followup:verify'
 export type ProviderOutcome = 'accepted' | 'rejected' | 'uncertain' | 'credential-rotated' | 'credential-revoked' | 'credential-disconnected' | 'rate-limited'
 export interface ProviderUse { connectionId: string; credentialVersion: number; jobId: string; operation: ProviderOperation; outcome: ProviderOutcome }
 export interface ProviderAcknowledgement { id: string | null; revision: string | null; saved: true }
-const scopes: Record<Provider, ProviderOperation> = { resend: 'email:send', crank: 'trigger:submit', inkwell: 'signature:read', zapier:'trigger:submit', webhook:'trigger:submit' }
+const scopes: Record<Provider, ProviderOperation[]> = { resend: ['email:send','email:read'], crank: ['trigger:submit'], inkwell: ['signature:read'], zapier:['trigger:submit'], webhook:['trigger:submit'], receipt:['followup:verify'] }
 const encode = new TextEncoder()
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
 const bytes = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0))
@@ -99,10 +99,11 @@ export async function providerCommand(env: Bindings, a: Actor, tx: Transaction, 
   return {id: saved.id, revision: saved.revision, saved: true}
  }
  const provider = row?.value.provider ?? input.provider
- need(provider === 'resend' || provider === 'crank' || provider === 'inkwell' || provider === 'zapier' || provider === 'webhook', 'Choose Resend, Crank, Inkwell, Zapier or a signed webhook')
+ need(provider === 'resend' || provider === 'crank' || provider === 'inkwell' || provider === 'zapier' || provider === 'webhook' || provider === 'receipt', 'Choose Resend, Crank, Inkwell, Zapier or a signed webhook')
  const accountLabel = row ? row.value.accountLabel : text(input.accountLabel, 'Provider account label', 120)
  const credential = input.credential
  need(typeof credential === 'string' && credential.length >= 8 && credential.length <= 4096 && !/\s/.test(credential), 'Enter a provider credential of 8 to 4096 characters without whitespace')
+ if(provider==='receipt')need(credential.length>=16,'Use a workflow receipt verification key of at least 16 characters')
  need(!String(accountLabel).includes(credential), 'Use an account label without the credential')
  let origin: string | null = row?.value.origin ?? null
  if (provider === 'inkwell' && !row) {
@@ -116,7 +117,7 @@ export async function providerCommand(env: Bindings, a: Actor, tx: Transaction, 
  const id = row?.id ?? uuid(), version = row ? integer(row.value.version, 'Credential version', 1) + 1 : 1
  const sealed = await sealCredential(env, id, version, credential)
  const saved = await tx.record('providerConnections', {
-  provider, accountLabel, origin, scopes: [scopes[provider as Provider]], version, lastFour,
+  provider, accountLabel, origin, scopes: scopes[provider as Provider], version, lastFour,
   createdAt: row?.value.createdAt ?? at, rotatedAt: row ? at : null, revokedAt: null,
  }, row, id, action)
  // Superseded ciphertext is unnecessary: queued work is refused rather than using an old key.
@@ -136,7 +137,7 @@ async function dispatchConnection(env: Bindings, connectionId: string, expectedV
  const connection = await get(env, 'providerConnections', connectionId)
  if (connection.value.revokedAt) throw new ProviderDispatchError('credential-revoked')
  if (connection.value.version !== expectedVersion) throw new ProviderDispatchError('credential-rotated')
- need(connection.value.scopes?.includes(operation) && scopes[connection.value.provider as Provider] === operation, 'Provider credential does not permit this operation', 403)
+ need(connection.value.scopes?.includes(operation) && scopes[connection.value.provider as Provider]?.includes(operation), 'Provider credential does not permit this operation', 403)
  return connection
 }
 
@@ -167,7 +168,7 @@ export async function dispatchCredential(env: Bindings, connectionId: string, ex
 
 /** Dispatch commits the outcome with its durable job, including every refused dispatch. */
 export async function recordProviderUse(tx: Transaction, use: ProviderUse): Promise<Row> {
- need(['email:send', 'trigger:submit', 'signature:read'].includes(use.operation), 'Unknown provider operation')
+ need(['email:send','email:read', 'trigger:submit', 'signature:read','followup:verify'].includes(use.operation), 'Unknown provider operation')
  need(['accepted', 'rejected', 'uncertain', 'credential-rotated', 'credential-revoked', 'credential-disconnected','rate-limited'].includes(use.outcome), 'Unknown provider outcome')
  return tx.record('providerUses', {
   at: Date.now(), connectionId: text(use.connectionId, 'Provider connection'), credentialVersion: integer(use.credentialVersion, 'Credential version', 1),

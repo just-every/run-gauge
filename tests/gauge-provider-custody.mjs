@@ -213,6 +213,43 @@ export async function providerCustodyJourney(browser){
    if(kind==='payments')assert.match(event.data.verification,/not bank or processor verified/)
   }
   assert.equal(h.providerRequests.filter(r=>r.url===hook).length,3,'Budget, invoice and payment source replays produce one event each')
+  const receiptSecret='synthetic-gauge-5101',receiptKey=await cmd('provider:connect',{provider:'receipt',accountLabel:'Northline workflow receipt verification',credential:receiptSecret})
+  const proofSignature=receipt=>createHmac('sha256',receiptSecret).update('gauge-followup-v1\n'+JSON.stringify(Object.fromEntries(Object.entries(receipt).sort(([a],[b])=>a.localeCompare(b))))).digest('hex')
+  const receiptFor=(job,name)=>({schema:'gauge-followup-v1',eventId:job.value.eventId,sourceRevision:job.value.source.revision,remoteReference:job.value.providerRunId??job.value.eventId,taskName:name})
+  const currentSigned=await read('providerJobs',signedJob.id),receipt=receiptFor(currentSigned,'Review budget <script>window.followupInjected=true</script>')
+  const required=await cmd('field:define',{scope:'tasks',name:'Follow-up owner note',type:'text',required:true,visibility:'finance-only',reason:'Owner requires a reviewed note before a workflow task exists'})
+  const review={...currentSigned,connectionId:receiptKey.id,receipt:JSON.stringify(receipt),signature:proofSignature(receipt),reason:'Owner reviews the exact source and permits this one task',confirm:'apply-exact-followup',customFields:{[required.id]:'Reviewed native workflow follow-up'}}
+  const beforeTasks=(await state()).data.tasks.length
+  await cmd('providerJob:apply-followup',review,people.find(p=>p.role==='finance').cookie,403)
+  await cmd('providerJob:apply-followup',{...review,signature:'0'.repeat(64)},owner,403)
+  await cmd('providerJob:apply-followup',{...review,customFields:{}},owner,400)
+  assert.equal((await state()).data.tasks.length,beforeTasks,'Refused receipts cannot create tasks')
+  await cmd('providerJob:queue-crank',{...queueInput,connectionId:receiptKey.id},owner,403)
+  const sourcePage=await page.goto(h.origin+'/app/access');assert.equal(sourcePage.status(),200)
+  const followForm=form('providerJob:apply-followup').filter({has:page.locator(`[name=id][value="${currentSigned.id}"]`)})
+  await followForm.locator('select[name=connectionId]').selectOption(receiptKey.id);await followForm.getByLabel('Workflow receipt JSON',{exact:true}).fill(review.receipt);await followForm.getByLabel('Workflow receipt signature',{exact:true}).fill(review.signature);await followForm.getByLabel('Follow-up review reason',{exact:true}).fill(review.reason);await followForm.getByLabel('Follow-up owner note',{exact:true}).fill('Reviewed native workflow follow-up');await followForm.locator('[name=confirm]').check()
+  await capture('signed-followup-review',followForm.locator('..'))
+  await followForm.getByRole('button',{name:'Apply signed follow-up',exact:true}).click()
+  const applied=(await state()).data.providerFollowups.find(f=>f.value.jobId===currentSigned.id);assert(applied)
+  const nativeTask=(await state()).data.tasks.find(t=>t.id===applied.value.effect.id)
+  assert.equal(nativeTask.value.name,receipt.taskName);assert.equal(nativeTask.value.engagementId,project.id);assert.equal(nativeTask.value.billable,false);assert.equal(nativeTask.value.remainingSeconds,0);assert.equal(nativeTask.value.assigneeId,null);assert.equal(nativeTask.value.customFields[required.id],'Reviewed native workflow follow-up')
+  const replay={...review,key:randomUUID()},firstReplay=await cmd('providerJob:apply-followup',replay);assert.equal(firstReplay.id,applied.id);assert.deepEqual(await cmd('providerJob:apply-followup',replay),firstReplay);assert.equal((await state()).data.tasks.length,beforeTasks+1,'Signed workflow replay creates one permitted follow-up')
+  const changedReceipt={...receipt,taskName:'A different task cannot reuse the event'};await cmd('providerJob:apply-followup',{...review,receipt:JSON.stringify(changedReceipt),signature:proofSignature(changedReceipt)},owner,409)
+  await page.reload();await capture('signed-followup-applied',section('Applied workflow follow-ups'));assert.equal(await page.evaluate(()=>window.followupInjected),undefined,'Imported workflow text is inert')
+  const crankReceiptConnection=await cmd('provider:connect',{provider:'crank',accountLabel:'Northline approved Crank follow-up',credential:'synthetic-gauge-5102'})
+  const crankReceiptJob=await cmd('providerJob:queue-crank',{...queueInput,connectionId:crankReceiptConnection.id});await cmd('providerJob:dispatch',crankReceiptJob)
+  const admittedCrank=await read('providerJobs',crankReceiptJob.id),crankReceipt=receiptFor(admittedCrank,'Review the Crank budget exception with the project lead')
+  const crankReview={...admittedCrank,connectionId:receiptKey.id,receipt:JSON.stringify(crankReceipt),signature:proofSignature(crankReceipt),reason:'Owner reviews the workflow-authenticated Crank task request',confirm:'apply-exact-followup',customFields:{[required.id]:'Reviewed Crank follow-up'}}
+  const crankApplied=await cmd('providerJob:apply-followup',crankReview);assert.equal((await cmd('providerJob:apply-followup',crankReview)).id,crankApplied.id);assert.equal((await state()).data.tasks.length,beforeTasks+2)
+  const staleSource=await read('engagements',project.id),staleJob=await cmd('providerJob:queue-webhook',{connectionId:zapier.id,sourceRef:`engagements:${staleSource.id}:${staleSource.revision}`,reason:'Owner releases a source for a stale-request refusal'})
+  await cmd('providerJob:dispatch',staleJob);const staleAdmitted=await read('providerJobs',staleJob.id),staleReceipt=receiptFor(staleAdmitted,'This stale request must not apply')
+  await cmd('save:engagements',{...staleSource.value,...staleSource,scope:'Source changed after workflow admission'})
+  await cmd('providerJob:apply-followup',{...staleAdmitted,connectionId:receiptKey.id,receipt:JSON.stringify(staleReceipt),signature:proofSignature(staleReceipt),reason:'Attempt a stale workflow result',confirm:'apply-exact-followup',customFields:{[required.id]:'Must not persist'}},owner,409)
+  assert.equal((await state()).data.tasks.length,beforeTasks+2)
+  await cmd('provider:revoke',await read('providerConnections',receiptKey.id));await cmd('providerJob:apply-followup',crankReview,owner,409)
+  assert.deepEqual((await state(people.find(p=>p.role==='finance').cookie)).data.providerFollowups,[])
+  const auditProof=await(await request('/api/gauge/audit?action=providerJob:apply-followup',owner)).json();assert(JSON.stringify(auditProof).includes(applied.id))
+  for(const path of ['/api/gauge/state','/app/access','/api/gauge/audit/export']){const body=await(await request(path,owner)).text();assert(!body.includes(receiptSecret)&&!body.includes('synthetic-gauge-5102')&&!body.includes(review.signature),'Receipt secrets and authentication proofs are absent from '+path)}
   await page.reload();await capture('signed-event-outcomes',section('Queued work and outcomes'))
   for(const path of ['/api/gauge/state','/app/access','/api/gauge/audit/export']){const body=await(await request(path,owner)).text();for(const value of [bundle,hook,signingKey,'synthetic-gauge-5004','synthetic-gauge-5005'])assert(!body.includes(value),'Signed-hook custody is absent from '+path)}
 

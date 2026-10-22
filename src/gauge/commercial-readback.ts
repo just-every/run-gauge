@@ -40,7 +40,7 @@ export async function readCommercialDelivery(env: Bindings, a: Actor, input: Val
  if (!job.value.providerMessageId) text(input.reason, 'Owner reconciliation reason')
  let status = 'uncertain', exception: string | null = null
  try {
-  const credential = await dispatchCredential(env, connection.id, connection.value.version, job.id, 'email:send')
+  const credential = await dispatchCredential(env, connection.id, connection.value.version, job.id, 'email:read')
   const result = await providerJson('https://api.resend.com/emails/' + encodeURIComponent(messageId), credential)
   need(result?.id === messageId && Array.isArray(result.to) && result.to.length === 1 && result.to[0].toLowerCase() === delivery.value.contact.toLowerCase(), 'Provider message does not match the exact recipient', 409)
   need(result.subject === `${proposal.value.document.title} · proposal version ${proposal.value.number}`, 'Provider message does not match this proposal version', 409)
@@ -50,14 +50,14 @@ export async function readCommercialDelivery(env: Bindings, a: Actor, input: Val
   need(['sent', 'delivered', 'delivery_delayed', 'bounced', 'complained', 'failed', 'opened', 'clicked'].includes(result.last_event), 'Provider has not supplied a recognized delivery state', 409)
   status = result.last_event
   // Re-read after the last network response; the committing batch also fences rotation.
-  await dispatchCredential(env, connection.id, connection.value.version, job.id, 'email:send')
+  await dispatchCredential(env, connection.id, connection.value.version, job.id, 'email:read')
  } catch (error) {
-  exception = error instanceof ProviderDispatchError ? error.outcome : error instanceof Fault && /authorization expired/.test(error.message) ? 'authorization-expired' : 'readback-unavailable'
+  exception = error instanceof ProviderDispatchError ? error.outcome : error instanceof Fault && /authorization expired/.test(error.message) ? 'authorization-expired' : error instanceof Fault&&/does not permit/.test(error.message)?'scope-missing':'readback-unavailable'
  }
  const at = Date.now()
  const savedJob = await tx.record('providerJobs', {...job.value, ...(status !== 'uncertain' ? {providerMessageId: messageId, status: 'submitted', exceptionClass: null, leaseUntil: null} : {}), readbackAt: at, providerState: status, readbackException: exception}, job, undefined, tx.action!)
  const saved = await tx.record('commercialEvents', {...delivery.value, providerMessageId: status === 'uncertain' ? delivery.value.providerMessageId ?? null : messageId, mailboxState: status, readbackAt: at, readbackException: exception, ...(input.reason ? {reconciliationReason: text(input.reason, 'Owner reconciliation reason')} : {}), meaning: status === 'delivered' ? 'Provider confirms mailbox delivery' : status === 'uncertain' ? 'Readback unresolved; owner must reconcile. No message was retried.' : `Provider reports ${status}; this does not prove mailbox delivery`}, delivery, undefined, tx.action!)
- await recordProviderUse(tx, {connectionId: connection.id, credentialVersion: connection.value.version, jobId: savedJob.id, operation: 'email:send', outcome: status === 'uncertain' ? 'uncertain' : 'accepted'})
+ await recordProviderUse(tx, {connectionId: connection.id, credentialVersion: connection.value.version, jobId: savedJob.id, operation: 'email:read', outcome: status === 'uncertain' ? 'uncertain' : 'accepted'})
  return finishReadback(tx, digest, saved)
 }
 

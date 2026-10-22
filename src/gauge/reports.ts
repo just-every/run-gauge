@@ -34,7 +34,7 @@ import { privateClientKeys } from './clients'
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
- if(['providerConnections','providerUses','providerJobs','providerSyncs'].includes(k)&&a.role!=='owner')return {}
+ if(['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups'].includes(k)&&a.role!=='owner')return {}
  if(k==='commercialEvents'&&a.role!=='owner'&&String(value.type).startsWith('signature-'))return {}
  if(k==='estimates')return estimatePublic(a,value)
  if(k==='customFields'&&!canField(a,{id:'',revision:'',value}))return {}
@@ -59,7 +59,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  data.customFields=data.customFields.filter(f=>canField(a,f));data.customImports=finance(a)?data.customImports:[];data.savedReports=data.savedReports.filter(r=>savedVisible(a,r.value))
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
- for(const k of ['providerConnections','providerUses','providerJobs','providerSyncs'] as const)data[k]=a.role==='owner'?data[k]:[]
+ for(const k of ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.commercialProposals=finance(a)?data.commercialProposals:[];data.commercialEvents=finance(a)?data.commercialEvents.filter(r=>a.role==='owner'||!String(r.value.type).startsWith('signature-')):[]
  const opportunityIds=new Set(data.opportunities.map(r=>r.id));data.estimates=data.estimates.filter(r=>finance(a)||opportunityIds.has(r.value.opportunityId));data.estimateApprovals=finance(a)?data.estimateApprovals:[];data.estimateConversions=data.estimateConversions.filter(r=>finance(a)||opportunityIds.has(r.value.opportunityId))
  // Agents use their own closed purpose projection; ordinary visibility follows person and finance rights.

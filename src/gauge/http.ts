@@ -70,7 +70,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    if(action==='apikey:create')return new Response(await appPage(env,a,'access',{createdKey:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='estimate:compare')return new Response(await appPage(env,a,'engagements',{estimate:input.afterId,estimateComparison:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='estimate:convert')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(result.id)}`}})
-   if(action==='estimate:save'||action==='estimate:approve')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(input.id??result.id)}#estimates`}})
+   if(action==='estimate:save'||action==='estimate:approve'||action==='estimate:withdraw')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(input.id??result.id)}#estimates`}})
    if(action==='field:import-preview')return new Response(await appPage(env,a,'imports',{customPreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='period:preview')return new Response(await appPage(env,a,'review',{closePreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='retainer:preview')return new Response(await appPage(env,a,'engagements',{edit:result.engagementId,retainerPreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})

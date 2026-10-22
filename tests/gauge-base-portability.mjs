@@ -151,8 +151,11 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('save:calendars',{personId:person.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:zone})
  const estimateOpportunity=await cmd('save:opportunities',{name:'Portable quoted project',clientId:engagement.value.clientId,ownerId:engagement.value.leadId,stage:'proposal',probability:75,from:'2026-11-02',to:'2026-11-06',services:'Research',amountMinor:40000,demandSeconds:7200})
  const estimateInput={opportunityId:estimateOpportunity.id,name:'Portable research estimate',phases:[{key:'research',name:'Research',service:'Research',mode:'fixed',from:'2026-11-02',to:'2026-11-06'}],lines:[{key:'research',name:'Research work',kind:'subcontractor',phaseKey:'research',role:'Researcher',personId:person.id,effortSeconds:7200,billRateMinor:20000,costRateMinor:14000,costReference:'Synthetic AUD contractor quote; no FX conversion'}],reason:'Portable estimate source version'}
- const estimateOne=await cmd('estimate:save',estimateInput),estimateTwo=await cmd('estimate:save',{...estimateInput,previousId:estimateOne.id,discountBasisPoints:1000,reason:'Portable immutable discounted version'})
- await cmd('estimate:approve',{...estimateTwo,attest:'owner-recorded-external-acceptance',evidenceRef:'synthetic-gauge-portable-acceptance',reason:'Owner-recorded acceptance remains unverified history'})
+ const portableAttestation={attest:'owner-recorded-external-acceptance',acceptorName:'synthetic-gauge-4',acceptorContact:'synthetic-gauge-5',acceptanceDate:'2026-10-21',channel:'signed document',evidenceRef:'synthetic-gauge-6',reason:'Owner-recorded acceptance remains unverified history'}
+ const estimateOne=await cmd('estimate:save',estimateInput),withdrawnApproval=await cmd('estimate:approve',{...estimateOne,...portableAttestation})
+ await cmd('estimate:withdraw',{...estimateOne,approvalId:withdrawnApproval.id,approvalRevision:withdrawnApproval.revision,reason:'Portable withdrawal of reported acceptance'})
+ const estimateTwo=await cmd('estimate:save',{...estimateInput,previousId:estimateOne.id,discountBasisPoints:1000,reason:'Portable immutable discounted version'})
+ const portableApproval=await cmd('estimate:approve',{...estimateTwo,...portableAttestation})
  const estimateConverted=await cmd('estimate:convert',estimateTwo)
  const fieldPackage={format:'kantata-ox-custom-fields-v1',namespace:'synthetic-gauge-portable-fields',fields:[{id:'office',scope:'people',name:'Portable office',type:'single-select',options:[{id:'Austin',name:'Austin'}]}],records:[{scope:'people',id:'worker',values:{office:'Austin'}}],controls:{people:1}},fieldMap={people:{worker:person.id}},fieldPolicies={office:{visibility:'everyone'}}
  const fieldPreview=await cmd('field:import-preview',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies})
@@ -169,6 +172,13 @@ export async function prepareCurrentPortability(h,{importJob}) {
  assert.equal(before.data.customImports.find(r=>r.id===fieldImport.id).value.package.records[0].values.office,'Austin')
  assert.equal(before.data.people.find(r=>r.id===person.id).value.customFields[officeField.id],'Austin')
  assert(before.data.savedReports.some(r=>r.id===savedFieldReport.id));assert(before.data.estimates.some(r=>r.id===estimateOne.id)&&before.data.estimates.some(r=>r.id===estimateTwo.id));assert(before.data.estimateApprovals.some(r=>r.value.estimateId===estimateTwo.id));assert(before.data.estimateConversions.some(r=>r.value.engagementId===estimateConverted.id))
+ const savedAttestation=before.data.estimateApprovals.find(r=>r.id===portableApproval.id).value
+ for(const key of ['acceptorName','acceptorContact','acceptanceDate','channel','evidenceRef'])assert.equal(savedAttestation[key],portableAttestation[key],'Structured external acceptance survives export preparation: '+key)
+ const notice='recorded by agency, client identity unverified'
+ assert.equal(savedAttestation.notice,notice)
+ assert.equal(before.data.estimateApprovals.find(r=>r.id===withdrawnApproval.id).value.status,'withdrawn')
+ const portableConversion=before.data.estimateConversions.find(r=>r.value.engagementId===estimateConverted.id).value
+ for(const row of [before.data.estimates.find(r=>r.id===estimateTwo.id),before.data.engagements.find(r=>r.id===estimateConverted.id),before.data.budgets.find(r=>r.id===portableConversion.budgetId),...before.data.milestones.filter(r=>portableConversion.milestoneIds.includes(r.id))])assert.equal(row.value.acceptanceNotice,notice,'Every exported estimate-derived surface keeps the agency label')
  assert.equal(before.data.archives.filter(r=>r.value.forecast).length,4,'MIGRATE-003 source snapshots are available before BASE-002 export')
  assert(before.data.calendars.some(r=>r.value.source?.externalId==='api:availability:v1'),'MIGRATE-003 captured availability is native before export')
  assert(before.data.leave.some(r=>r.value.source?.externalId==='api:assignment:a2'),'MIGRATE-003 captured time off is native before export')
@@ -214,7 +224,12 @@ export async function prepareCurrentPortability(h,{importJob}) {
    assert.equal((await restored.state()).data.invoices.length,restoredBefore.data.invoices.length,'Restored schedule cannot issue without fresh consent')
    assert.equal((await restored.scheduled()).status,200)
    assert.deepEqual((await restored.state()).data.retainerRuns,restoredRuns,'Archive history never replays scheduled billing')
-   assert.deepEqual(stable(await restored.state()),stable(before),'fresh native login sees the same current records, money and capacity')
+   const restoredEstimates=await restored.state(),restoredAttestation=restoredEstimates.data.estimateApprovals.find(r=>r.id===portableApproval.id).value
+   for(const key of ['acceptorName','acceptorContact','acceptanceDate','channel','evidenceRef','notice'])assert.equal(restoredAttestation[key],savedAttestation[key],'Restore keeps the structured acceptance field '+key)
+   assert.equal(restoredEstimates.data.estimateApprovals.find(r=>r.id===withdrawnApproval.id).value.status,'withdrawn')
+   const restoredWithdrawalHistory=await(await restored.request(`/api/gauge/history/estimateApprovals/${withdrawnApproval.id}`,restored.owner)).json()
+   assert.equal(restoredWithdrawalHistory.history[0].value.notice,notice);assert.equal(restoredWithdrawalHistory.history[0].value.acceptorContact,portableAttestation.acceptorContact)
+   assert.deepEqual(stable(restoredEstimates),stable(before),'fresh native login sees the same current records, money and capacity')
    const restoredBytes=await Promise.all(downloads.map(path=>getBytes(restored,path)))
    assert.deepEqual(restoredBytes,bytes,'packet artifacts, receipts and retained source originals round-trip byte for byte')
    assert.deepEqual(await Promise.all(records.map(path=>getBytes(restored,path))),histories,'all business revision history survives')

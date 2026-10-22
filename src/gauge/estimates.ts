@@ -4,6 +4,7 @@ import { type Row,type Value,type Kind,need,text,integer,money,date,charge,sum,u
 import { type Actor,Transaction,all,get,finance,fence } from './store'
 import { explain,activeRates,costCurrencyOf } from './rate-cards'
 import { capacity } from './reports'
+import { acceptanceNotice,reportedAcceptance,activeAttestation } from './estimate-attestation'
 const half=(n:bigint,d:bigint)=>Number((n+d/2n)/d)
 const bps=(n:number,b:number)=>half(BigInt(n)*BigInt(b),10000n)
 const multiply=(a:number,b:number)=>{const n=BigInt(a)*BigInt(b);need(n<=BigInt(Number.MAX_SAFE_INTEGER),'Estimate amount exceeds exact range');return Number(n)}
@@ -48,37 +49,48 @@ export async function estimateCommand(env:Bindings,a:Actor,tx:Transaction,action
   if(rows.length)need(previous&&previous.id===rows.at(-1)!.id,'Revise the latest estimate version',409);if(previous)tx.observe('estimates',previous)
   tx.guard("(SELECT COUNT(*) FROM g_estimates WHERE json_extract(data,'$.opportunityId')=?)=?",opportunity.id,rows.length)
   const id=uuid(),value=await priced(env,a,tx,input,opportunity,previous)
-  return tx.record('estimates',{...value,opportunityId:opportunity.id,opportunityRevision:opportunity.revision,clientId:opportunity.value.clientId,leadId:opportunity.value.ownerId,name:text(input.name,'Estimate name'),rootId:previous?.value.rootId??id,previousId:previous?.id??null,number:(previous?.value.number??0)+1,reason:text(input.reason,'Version reason'),preparedBy:a.session.operator.id,preparedAt:Date.now()},undefined,id,action)
+  return tx.record('estimates',{...value,acceptanceNotice,opportunityId:opportunity.id,opportunityRevision:opportunity.revision,clientId:opportunity.value.clientId,leadId:opportunity.value.ownerId,name:text(input.name,'Estimate name'),rootId:previous?.value.rootId??id,previousId:previous?.id??null,number:(previous?.value.number??0)+1,reason:text(input.reason,'Version reason'),preparedBy:a.session.operator.id,preparedAt:Date.now()},undefined,id,action)
  }
  const row=await get(env,'estimates',text(input.id,'Estimate'));need(row.revision===input.revision,'Estimate revision changed',409);tx.observe('estimates',row)
- const opportunity=await estimateAccess(env,a,row.value.opportunityId,tx),rows=(await all(env,'estimates')).filter(r=>r.value.rootId===row.value.rootId).sort((a,b)=>a.value.number-b.value.number);need(row.id===rows.at(-1)?.id||action==='estimate:convert','A newer estimate version needs review',409)
+ const opportunity=await estimateAccess(env,a,row.value.opportunityId,tx),rows=(await all(env,'estimates')).filter(r=>r.value.rootId===row.value.rootId).sort((a,b)=>a.value.number-b.value.number);need(row.id===rows.at(-1)?.id||action==='estimate:convert'||action==='estimate:withdraw','A newer estimate version needs review',409)
  tx.guard("(SELECT COUNT(*) FROM g_estimates WHERE json_extract(data,'$.rootId')=?)=?",row.value.rootId,rows.length)
- need(finance(a),'Finance or the owner records acceptance and converts it',403)
+ need(finance(a),'Finance or the owner converts an owner-attested estimate',403)
+ const approvals=(await all(env,'estimateApprovals')).filter(r=>r.value.estimateId===row.id&&r.value.estimateRevision===row.revision)
+ if(action==='estimate:withdraw'){
+  need(a.role==='owner','Only the owner withdraws an acceptance attestation',403)
+  need(!opportunity.value.engagementId,'Converted work changes through a change order; its attestation cannot be withdrawn',409)
+  const approval=approvals.find(r=>r.id===input.approvalId);need(approval&&approval.revision===input.approvalRevision,'Attestation changed; reload before withdrawing',409)
+  need(approval.value.status!=='withdrawn','Attestation already withdrawn',409)
+  return tx.record('estimateApprovals',{...approval.value,status:'withdrawn',withdrawalReason:text(input.reason,'Withdrawal reason'),withdrawnBy:a.session.operator.id,withdrawnAt:Date.now()},approval,undefined,action)
+ }
  if(action==='estimate:approve'){
-  need(a.role==='owner','Only the owner records the adopted external-acceptance attestation default',403)
+  need(a.role==='owner','Only the owner records reported external acceptance',403)
   const currentInputs=await inputs(env,tx);need(sha256(canonicalJson(currentInputs))===row.value.inputsFingerprint,'Rate or calendar assumptions changed; prepare and review a fresh version',409)
   need(opportunity.revision===row.value.opportunityRevision&&!opportunity.value.engagementId,'Opportunity changed; prepare a new estimate version',409)
   need(row.value.costComplete&&row.value.feasibility.every((f:Value)=>f.complete&&!f.late),'Resolve unknown cost and infeasible dates before recording acceptance',409)
-  need(input.attest==='owner-recorded-external-acceptance','Explicit finance attestation is required')
-  return tx.record('estimateApprovals',{estimateId:row.id,estimateRevision:row.revision,opportunityId:opportunity.id,evidenceRef:text(input.evidenceRef,'Client acceptance evidence reference'),reason:text(input.reason,'Acceptance attestation reason'),status:'owner-recorded acceptance, external identity unverified',approvedBy:a.session.operator.id,approvedAt:Date.now()})
+  need(input.attest==='owner-recorded-external-acceptance','Explicit owner attestation is required')
+  need(!approvals.some(r=>r.value.status!=='withdrawn'),'Withdraw the existing attestation before recording another',409)
+  tx.guard("(SELECT COUNT(*) FROM g_estimateApprovals WHERE json_extract(data,'$.estimateId')=?)=?",row.id,approvals.length)
+  return tx.record('estimateApprovals',{...reportedAcceptance(input),estimateId:row.id,estimateRevision:row.revision,opportunityId:opportunity.id,reason:text(input.reason,'Acceptance attestation reason'),status:'recorded',approvedBy:a.session.operator.id,approvedAt:Date.now()},undefined,undefined,action)
  }
  if(action!=='estimate:convert')return null
  const existing=(await all(env,'estimateConversions')).find(c=>c.value.opportunityId===opportunity.id)
  if(existing){need(existing.value.estimateId===row.id,'An earlier estimate already converted; use a change order',409);return get(env,'engagements',existing.value.engagementId)}
  need(row.id===rows.at(-1)?.id,'A newer version needs fresh acceptance before conversion',409)
  need(!opportunity.value.engagementId,'This opportunity already converted through another carrier',409);need(opportunity.revision===row.value.opportunityRevision,'Opportunity changed; prepare a new estimate',409)
- const approval=(await all(env,'estimateApprovals')).find(r=>r.value.estimateId===row.id&&r.value.estimateRevision===row.revision);need(approval,'Finance must record the exact estimate acceptance first',409);tx.observe('estimateApprovals',approval)
+ const approval=approvals.find(r=>activeAttestation(r.value));need(approval,'The owner must record a current structured attestation of this exact estimate first',409);tx.observe('estimateApprovals',approval)
  const currentInputs=await inputs(env,tx);need(sha256(canonicalJson(currentInputs))===row.value.inputsFingerprint,'Staffing or rate assumptions changed; prepare a fresh accepted version',409)
  const v=row.value,lead=await get(env,'people',v.leadId);tx.observe('people',lead)
  const members=[...new Set(v.lines.map((l:Value)=>l.personId).filter(Boolean))],priorWrite=tx.customWrite;tx.customWrite={scope:'engagements',values:input.customFields}
- const engagement=await tx.record('engagements',{type:'client',clientId:v.clientId,leadId:v.leadId,name:v.name,scope:`Estimate ${v.name} version ${v.number}; ${approval.value.status}`,currency:v.currency,timezone:a.timezone,members,opportunityId:opportunity.id,estimateId:row.id,estimateRevision:row.revision})
- const budget=await tx.record('budgets',{engagementId:engagement.id,currency:v.currency,mode:v.phases.some((p:Value)=>p.mode==='fixed')?'fixed':'hourly',amountMinor:v.feeMinor,expenseBudgetMinor:v.expenseMinor,effortSeconds:v.effortSeconds,roundingSeconds:60,phases:v.phases.map(({from,to,...p}:Value)=>p),status:'draft',reason:`Accepted estimate ${v.number}; separately approve native terms`,createdAt:Date.now(),estimateId:row.id,estimateRevision:row.revision})
+ const carrier={estimateId:row.id,estimateRevision:row.revision,approvalId:approval.id,acceptanceNotice}
+ const engagement=await tx.record('engagements',{...carrier,type:'client',clientId:v.clientId,leadId:v.leadId,name:v.name,scope:`Estimate ${v.name} version ${v.number}; ${acceptanceNotice}`,currency:v.currency,timezone:a.timezone,members,opportunityId:opportunity.id})
+ const budget=await tx.record('budgets',{...carrier,engagementId:engagement.id,currency:v.currency,mode:v.phases.some((p:Value)=>p.mode==='fixed')?'fixed':'hourly',amountMinor:v.feeMinor,expenseBudgetMinor:v.expenseMinor,effortSeconds:v.effortSeconds,roundingSeconds:60,phases:v.phases.map(({from,to,...p}:Value)=>p),status:'draft',reason:`Owner-attested estimate ${v.number}; separately approve native terms`,createdAt:Date.now()})
  const tasks=[],milestones=[];for(const line of v.lines.filter((l:Value)=>l.kind!=='expense')){const phase=v.phases.find((p:Value)=>p.key===line.phaseKey);tx.customWrite={scope:'tasks',values:input.taskCustomFields?.[line.key]??input.taskCustomFieldsDefault};tasks.push(await tx.record('tasks',{engagementId:engagement.id,phaseKey:phase.key,name:line.name,assigneeId:line.personId,parentId:null,priority:'normal',from:phase.from,to:phase.to,estimateSeconds:line.effortSeconds,remainingSeconds:line.effortSeconds,status:'todo',billable:true,checklist:[],repeatEveryDays:0,repeatUntil:null,estimateId:row.id,estimateLineKey:line.key}))}
  tx.customWrite=priorWrite
  const requests:Row[]=[],demandGroups=new Map<string,Value>();for(const line of v.lines.filter((l:Value)=>l.kind!=='expense')){const key=line.phaseKey+'|'+line.role,group=demandGroups.get(key)??{phaseKey:line.phaseKey,role:line.role,seconds:0,lineKeys:[]};group.seconds=sum([group.seconds,line.effortSeconds]);group.lineKeys.push(line.key);demandGroups.set(key,group)}
  let placedSeconds=0;for(const group of demandGroups.values()){const phase=v.phases.find((p:Value)=>p.key===group.phaseKey),days=(Date.parse(phase.to)-Date.parse(phase.from))/86400000+1,dailySeconds=Math.min(86400,Math.floor(group.seconds/days));if(dailySeconds){requests.push(await tx.record('resourceRequests',{engagementId:engagement.id,phaseKey:phase.key,role:group.role,skill:phase.service,minProficiency:1,from:phase.from,to:phase.to,dailySeconds,service:phase.service,billable:true,team:'',location:'',employmentType:'',status:'open',opportunityId:opportunity.id,estimateId:row.id,estimateLineKeys:group.lineKeys}));placedSeconds+=dailySeconds*days}}
- for(const milestone of v.milestones)milestones.push(await tx.record('milestones',{...milestone,engagementId:engagement.id,currency:v.currency,status:'draft',estimateId:row.id,estimateRevision:row.revision}))
+ for(const milestone of v.milestones)milestones.push(await tx.record('milestones',{...milestone,...carrier,engagementId:engagement.id,currency:v.currency,status:'draft'}))
  await tx.record('opportunities',{...opportunity.value,stage:'won',probability:100,amountMinor:v.feeMinor,demandSeconds:v.effortSeconds,engagementId:engagement.id,conversion:{engagementId:engagement.id,budgetId:budget.id,resourceRequestIds:requests.map(r=>r.id),unplacedSeconds:v.effortSeconds-placedSeconds,estimateId:row.id,approvalId:approval.id},updatedAt:Date.now(),updatedBy:a.session.operator.id},opportunity,undefined,action)
- await tx.record('estimateConversions',{estimateId:row.id,estimateRevision:row.revision,approvalId:approval.id,opportunityId:opportunity.id,engagementId:engagement.id,budgetId:budget.id,taskIds:tasks.map(t=>t.id),resourceRequestIds:requests.map(r=>r.id),unplacedSeconds:v.effortSeconds-placedSeconds,milestoneIds:milestones.map(m=>m.id),convertedBy:a.session.operator.id,convertedAt:Date.now()})
+ await tx.record('estimateConversions',{acceptanceNotice,estimateId:row.id,estimateRevision:row.revision,approvalId:approval.id,opportunityId:opportunity.id,engagementId:engagement.id,budgetId:budget.id,taskIds:tasks.map(t=>t.id),resourceRequestIds:requests.map(r=>r.id),unplacedSeconds:v.effortSeconds-placedSeconds,milestoneIds:milestones.map(m=>m.id),convertedBy:a.session.operator.id,convertedAt:Date.now()})
  return engagement
 }

@@ -6,6 +6,7 @@ import { resourceProfile } from './resource-profiles'
 import { rateCard } from './rate-cards'
 import { normalizePhases, phaseFor } from './budget-phases'
 import { latestBudget } from './budget-caps'
+import { estimateLineage } from './estimate-attestation'
 import { activeClient, claimIdentities, clientDetails } from './clients'
 export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | Value | null> {
  if (action === 'grant') {
@@ -55,6 +56,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = previous ? previous.value.currency : a.currency; v.timezone = zone(input.timezone)
   v.members = Array.isArray(input.members) ? input.members : String(input.members ?? '').split(',').filter(Boolean)
   for (const id of v.members) tx.observe('people',await get(env,'people',id))
+  Object.assign(v,estimateLineage(previous?.value))
   if (previous?.value.opportunityId) v.opportunityId = previous.value.opportunityId
  }
  if (['budgets','milestones','staffing'].includes(k)) {
@@ -69,14 +71,14 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  if (k === 'budgets') {
   need(!previous, 'Budget versions are append-only; create a change order')
   need(['hourly','fixed'].includes(input.mode),'Choose hourly or fixed terms')
-  const prior=latestBudget(await all(env,'budgets'),v.engagementId);if(prior?.value.estimateId){v.estimateId=prior.value.estimateId;v.estimateRevision=prior.value.estimateRevision}v.notToExceed=input.notToExceed===undefined?prior?.value.notToExceed??false:flag(input.notToExceed);need(!v.notToExceed||input.mode==='hourly','A not-to-exceed cap applies to hourly terms')
+  const prior=latestBudget(await all(env,'budgets'),v.engagementId);Object.assign(v,estimateLineage(prior?.value));v.notToExceed=input.notToExceed===undefined?prior?.value.notToExceed??false:flag(input.notToExceed);need(!v.notToExceed||input.mode==='hourly','A not-to-exceed cap applies to hourly terms')
   v.mode = input.mode; v.amountMinor = money(input.amountMinor); v.effortSeconds = integer(input.effortSeconds,'Estimated effort seconds'); v.roundingSeconds = integer(input.roundingSeconds,'Billing rounding seconds',1,3600); v.reason = text(input.reason,'Terms / change-order reason'); v.status = 'draft'; v.createdAt = Date.now()
   // FINANCE-006: an optional billable expense budget, billed and costed at the same pass-through amount, with an optional forecast date.
   if (input.expenseBudgetMinor !== undefined && input.expenseBudgetMinor !== '') { v.expenseBudgetMinor = money(input.expenseBudgetMinor); if (input.expenseDate) v.expenseDate = date(input.expenseDate) } else need(!input.expenseDate,'An expense date needs an expense budget')
  }
  if(k==='budgets'){v.phases=normalizePhases(input.phases??latestBudget(await all(env,'budgets'),v.engagementId)?.value.phases,v);need(!v.notToExceed||v.phases.every((p:Value)=>p.mode==='hourly'),'Not-to-exceed engagement caps require hourly phases')}
  if(k==='milestones'||k==='staffing'){const phase=await phaseFor(env,tx,v.engagementId,input.phaseKey??previous?.value.phaseKey,k==='milestones'?'fixed':undefined,input.service);if(phase)v.phaseKey=phase.key}
- if (k === 'milestones') { if(previous?.value.delivery)v.delivery={...previous.value.delivery,currentDeliveryId:null}; v.name = text(input.name,'Milestone'); v.due = date(input.due); v.amountMinor = money(input.amountMinor); v.status = 'draft'; need(!previous || previous.value.status === 'draft','Approved milestone needs a new milestone') }
+ if (k === 'milestones') { Object.assign(v,estimateLineage(previous?.value)); if(previous?.value.delivery)v.delivery={...previous.value.delivery,currentDeliveryId:null}; v.name = text(input.name,'Milestone'); v.due = date(input.due); v.amountMinor = money(input.amountMinor); v.status = 'draft'; need(!previous || previous.value.status === 'draft','Approved milestone needs a new milestone') }
  if(k==='milestones'&&previous&&v.due!==previous.value.due){
   const plans=await all(env,'deliveryPlans'),latest=plans.filter(p=>p.value.engagementId===v.engagementId).at(-1)
   if(latest){tx.observe('deliveryPlans',latest);tx.guard('(SELECT COUNT(*) FROM g_deliveryPlans)=?',plans.length)}

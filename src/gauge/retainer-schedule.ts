@@ -45,11 +45,11 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
 async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:string):Promise<Row>{
  need(schedule.value.enabled,'This schedule is disabled',409);tx.observe('retainerSchedules',schedule)
  await scheduleAuthority(env,tx,schedule)
- const kinds:Kind[]=['retainers','retainerPeriods','retainerRuns','retainerAdjustments','retainerCloses']
+ const kinds:Kind[]=['retainers','retainerPeriods','retainerRuns','retainerAdjustments','retainerCloses','invoices','invoiceDisputes']
  const data=Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  for(const k of kinds){for(const row of data[k])tx.observe(k,row);tx.guard(`(SELECT COUNT(*) FROM g_${k})=?`,data[k].length)}
  const versions=data.retainers.filter(t=>t.value.rootId===schedule.value.rootId).sort((a,b)=>a.value.terms.start.localeCompare(b.value.terms.start))
- const latestLifecycle=data.retainerAdjustments.filter(r=>r.value.rootId===schedule.value.rootId&&r.value.status==='approved'&&['cancellation','renewal','pause'].includes(r.value.kind)).at(-1)
+ const latestLifecycle=data.retainerAdjustments.filter(r=>r.value.rootId===schedule.value.rootId&&r.value.status==='approved'&&['cancellation','renewal','pause'].includes(r.value.kind)).sort((a,b)=>a.value.approvedAt-b.value.approvedAt).at(-1)
 
  let selected:{period:Row;term:Row}|undefined
  for(const term of versions){
@@ -78,6 +78,11 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
   if(await env.DB.prepare("SELECT 1 FROM g_billing_sources WHERE kind='retainerPeriods' AND source_id=?").bind(previous.id).first())continue
   if(schedule.value.autoIssue&&!schedule.value.includeOverages){exceptions.push({periodId:previous.id,reason:'Overage inclusion is outside the automatic issue consent'});continue}
   try{lines.push(await retainerOverage(env,tx,previous))}catch(error){if(!(error instanceof Fault))throw error;exceptions.push({periodId:previous.id,reason:error.message})}
+ }
+ for(const adjustment of data.retainerAdjustments.filter(r=>r.value.rootId===schedule.value.rootId&&r.value.status==='prepared'))exceptions.push({periodId:adjustment.value.periodId,reason:'Pending retainer adjustment needs finance review'})
+ for(const dispute of data.invoiceDisputes.filter(r=>r.value.status==='open')){
+  const invoice=data.invoices.find(i=>i.id===dispute.value.invoiceId)
+  if(invoice?.value.autoIssue?.scheduleId===schedule.id||invoice?.value.lines.some((l:Value)=>l.sourceSnapshot?.value.rootId===schedule.value.rootId))exceptions.push({periodId:period.id,reason:'An invoice for this retainer has an unresolved dispute'})
  }
  if(schedule.value.heldPeriodIds.includes(period.id))exceptions.push({periodId:period.id,reason:'Scheduled period is held or disputed'})
  if(latestLifecycle&&latestLifecycle.value.kind!=='renewal')exceptions.push({periodId:period.id,reason:'Retainer lifecycle exception: '+latestLifecycle.value.kind})

@@ -1,3 +1,4 @@
+import { syncCommand, advanceProviderSync } from './provider-health'
 import { readCommercialDelivery, readCommercialSignature } from './commercial-readback'
 import { jobCommand, dispatchProviderJob } from './provider-jobs'
 import { providerRequest } from './provider-request'
@@ -53,6 +54,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await seal(env,action.startsWith('import:'))
  if(action.startsWith('provider:'))return providerRequest(env,a,action,input)
  if(action==='providerJob:dispatch'){need(a.role==='owner','Only the owner dispatches provider jobs',403);const job=await get(env,'providerJobs',text(input.id,'Provider job'));return job.value.operation==='email:send'?dispatchCommercial(env,a,input):dispatchProviderJob(env,a,input)}
+ if(action==='providerSync:advance')return advanceProviderSync(env,a,input)
  if(action==='commercial:delivery-readback')return readCommercialDelivery(env,a,input)
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
@@ -99,6 +101,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await periodCommand(env,a,tx,action,input)
  if(!result)result=await phaseCommand(env,a,tx,action,input)
  if(!result)result=await capCommand(env,a,tx,action,input)
+ if(!result)result=await syncCommand(env,a,tx,action,input)
  if(!result)result=await jobCommand(env,a,tx,action,input)
  if(!result)result=await commercialCommand(env,a,tx,action,input)
  if(!result)result=await estimateCommand(env,a,tx,action,input)

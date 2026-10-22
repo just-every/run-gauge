@@ -78,7 +78,7 @@ export async function commercialProposalJourney(h,browser){
   const signatureMail=h.mails.at(-1),signatureDelivery=(await state()).data.commercialEvents.find(e=>e.value.proposalId===signature.id&&e.value.type==='delivery')
   const mailboxBefore=h.mails.length
   h.providerEdge.handler=async(req)=>{
-   if(req.url==='https://api.resend.com/emails/'+signatureDelivery.value.providerMessageId)return readbackExpired?Response.json({error:'synthetic-gauge-2004'},{status:401}):Response.json({id:signatureDelivery.value.providerMessageId,to:signatureMail.to,subject:signatureMail.subject,last_event:mailbox})
+   if(req.url==='https://api.resend.com/emails/'+signatureDelivery.value.providerMessageId)return readbackExpired?Response.json({error:'synthetic-gauge-2004'},{status:401}):Response.json({id:signatureDelivery.value.providerMessageId,to:signatureMail.to,subject:signatureMail.subject,text:signatureMail.text,last_event:mailbox})
    if(req.url==='https://inkwell.example.test/api/v1/envelopes/synthetic-gauge-2002')return Response.json({envelope:{id:'synthetic-gauge-2002',status:'completed',originalSha256:validSignature?hash(original):hash(pdf('different offer')),signedSha256:hash(signedPdf),certificateSha256:hash(certificate),signers:[{name:'Maya Ortiz',email:input.recipientContact,signedAt:new Date().toISOString()}]}})
    const kind=req.url.match(/^https:\/\/inkwell.example.test\/api\/v1\/envelopes\/synthetic-gauge-2002\/artifacts\/(original|signed|certificate)$/)?.[1]
    if(kind)return new Response({original,signed:signedPdf,certificate}[kind],{headers:{'content-type':'application/pdf'}})

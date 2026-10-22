@@ -162,3 +162,69 @@ export async function providerCustodyJourney(browser){
  }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
  console.log('PASS GOVERN-008 owner provider custody: exact secret replay, native rotation and requeue, durable owned exceptions, one concurrent Crank submission, terminal revocation, owner-only metadata, secret-free public surfaces and 1440/390')
 }
+
+// Connector readback is a separate business journey, folded into the existing pipeline suite.
+export async function connectorHealthJourney(browser){
+ let h=await harness({currency:'USD',timezone:'America/New_York'});const directory=h.directory
+ const cmd=(...args)=>h.cmd(...args),state=()=>h.state(),read=async(kind,id)=>(await state()).data[kind].find(r=>r.id===id)
+ const originals=new Map(),credentials=['synthetic-gauge-4001','synthetic-gauge-4002'];let expired=false
+ const attach=()=>{h.providerEdge.handler=async request=>{
+  const id=request.url.match(/^https:\/\/api.resend.com\/emails\/([A-Za-z0-9_-]+)$/)?.[1]
+  if(!id)return
+  if(expired)return Response.json({error:'Authorization expired'},{status:401})
+  const mail=originals.get(id);assert(mail,'Readback requests only native proposal message ids')
+  return Response.json({id,to:mail.to,subject:mail.subject,text:mail.text,last_event:'delivered'})
+ }}
+ const context=await browser.newContext({ignoreHTTPSErrors:true})
+ try{
+  const zone='America/New_York',person=await cmd('save:people',{name:'Northline proposal lead',timezone:zone}),client=await cmd('save:clients',{name:'Northline reconciliation'})
+  await cmd('save:calendars',{personId:person.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:zone})
+  await h.invite('synthetic-gauge-4003')
+  const connection=await cmd('provider:connect',{provider:'resend',accountLabel:'Northline reconciliation mail',credential:credentials[0]})
+  for(const [index,price]of [10000,20000].entries()){
+   const opportunity=await cmd('save:opportunities',{name:'Northline signed work '+index,clientId:client.id,ownerId:person.id,stage:'proposal',probability:75,amountMinor:price,demandSeconds:3600,services:'Design',from:'2026-11-02',to:'2026-11-06'})
+   const estimate=await cmd('estimate:save',{opportunityId:opportunity.id,name:'Northline offer '+index,phases:[{key:'design',name:'Design',service:'Design',mode:'fixed',from:'2026-11-02',to:'2026-11-06'}],lines:[{key:'design',phaseKey:'design',kind:'subcontractor',name:'Design',personId:person.id,role:'Designer',effortSeconds:3600,billRateMinor:price,costRateMinor:5000,costReference:'synthetic-gauge-4004'}],reason:'Native immutable reconciliation source'})
+   const proposal=await cmd('commercial:prepare',{estimateId:estimate.id,estimateRevision:estimate.revision,agencyName:'Northline',title:'Northline proposal '+index,recipientName:'Northline client',recipientContact:'synthetic-gauge-4003@example.test',scope:'One hour of design',deliverables:['Design handover'],exclusions:['Production'],from:'2026-11-02',to:'2026-11-06',expiry:new Date(Date.now()+7*86400000).toISOString().slice(0,10),paymentSchedule:[{name:'Handover',due:'2026-11-06',amountMinor:price}],signatureRequired:false,reason:'Reviewed customer version'})
+   await cmd('commercial:send',{...proposal,connectionId:connection.id,reason:'Owner sends reviewed version'})
+   const delivery=(await state()).data.commercialEvents.find(r=>r.value.proposalId===proposal.id&&r.value.type==='delivery');originals.set(delivery.value.providerMessageId,h.mails.at(-1))
+  }
+  attach()
+  const sync=await cmd('providerSync:start',{connectionId:connection.id}),initial=await read('providerSyncs',sync.id)
+  assert.equal(initial.value.sourceCount,2);assert.deepEqual(initial.value.sourceTotals,{USD:30000})
+  const first=await cmd('providerSync:advance',initial),one=await read('providerSyncs',sync.id)
+  assert.equal(one.value.cursor,1);assert.equal(one.value.outcomes.length,1)
+  expired=true;await cmd('providerSync:advance',first)
+  const interrupted=await read('providerSyncs',sync.id);assert.equal(interrupted.value.cursor,1);assert.equal(interrupted.value.status,'exception');assert.equal(interrupted.value.exceptionClass,'authorization-expired')
+  const kept=structuredClone(interrupted.value.reconciledTotals)
+  await h.close();h=await harness({currency:'USD',timezone:zone,persistenceDirectory:directory});attach()
+  const afterRestart=await read('providerSyncs',sync.id);assert.deepEqual(afterRestart.value,interrupted.value,'Real Worker restart preserves the exact mid-page checkpoint and controls')
+  const oldConnection=await read('providerConnections',connection.id);await cmd('provider:rotate',{...oldConnection,credential:credentials[1]});expired=false
+  const key=randomUUID(),resume={id:sync.id,revision:afterRestart.revision,key},result=await cmd('providerSync:advance',resume)
+  assert.deepEqual(await cmd('providerSync:advance',resume),result,'Exact resumed page replay returns its original checkpoint')
+  const done=await read('providerSyncs',sync.id)
+  assert.equal(done.value.status,'completed');assert.equal(done.value.cursor,2);assert.equal(done.value.reconciledCount,done.value.sourceCount)
+  assert.deepEqual(done.value.reconciledTotals,{USD:30000});assert.deepEqual(done.value.reconciledTotals,done.value.sourceTotals)
+  assert.equal(new Set(done.value.outcomes.map(o=>o.jobId)).size,2,'Sources reconcile once across expiration, restart and exact replay')
+  assert.notDeepEqual(kept,done.value.reconciledTotals)
+  assert(h.providerRequests.filter(r=>r.url.startsWith('https://api.resend.com/emails/')).every(r=>r.method==='GET'),'Recovery never submits mail')
+  const finance=await h.invite('synthetic-gauge-4005');await cmd('grant',{operatorId:finance.id,personId:person.id,role:'finance',enabled:true})
+  await cmd('providerSync:start',{connectionId:connection.id},finance.cookie,403);await cmd('providerSync:advance',done,finance.cookie,403)
+  assert.deepEqual((await h.state(finance.cookie)).data.providerSyncs,[]);assert.equal((await h.request('/api/gauge/history/providerSyncs/'+done.id,finance.cookie)).status,403)
+  const exported=JSON.stringify(await(await h.request('/api/gauge/audit/export',finance.cookie)).json());assert(!exported.includes('Northline reconciliation mail'))
+  await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  const page=await context.newPage();await page.goto(h.origin+'/app/access')
+  const shots=process.env.GAUGE_PROVIDER_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
+   for(const [name,heading]of [['connector-health','Connector health'],['connector-checkpoints','Reconciliation checkpoints']]){
+    const section=page.locator('section.g-card').filter({has:page.getByRole('heading',{name:heading,exact:true})});assert.equal(await section.count(),1)
+    assert((await section.innerText()).includes(name==='connector-health'?'Northline reconciliation mail':'2 / 2 messages'))
+    if(shots)await section.screenshot({path:`${shots}/${name}-${width}.png`})
+   }
+  }
+  for(const path of ['/api/gauge/state','/app/access','/api/gauge/audit/export']){
+   const value=await(await h.request(path,h.owner)).text();for(const credential of credentials)assert(!value.includes(credential),'No credential enters connector state, page or export')
+  }
+ }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
+ console.log('PASS connectorHealthJourney: exact source/value snapshot, expired token mid-page, durable cursor after restart and reauthorization, once-only controls, owner-only health and 1440/390')
+}

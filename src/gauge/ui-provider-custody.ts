@@ -1,3 +1,4 @@
+import { providerHealthSection } from './ui-provider-health'
 import type { Bindings } from '../auth.server'
 import type { Actor } from './store'
 import { providerRegister } from './provider-custody'
@@ -31,5 +32,5 @@ export async function providerCustodySection(env: Bindings, a: Actor): Promise<s
   {label: 'Operation', wrap: true, line: 3, cell: r => e(r.value.operation)},
   {label: 'Outcome', size: 'status', line: 2, cell: r => e(r.value.outcome)},
  ], undefined, 'No provider use yet.')
- return body
+ return body+await providerHealthSection(env,a)
 }

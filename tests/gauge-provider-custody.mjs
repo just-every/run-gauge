@@ -250,8 +250,8 @@ export async function providerCustodyJourney(browser){
    const signature=wire.headers.signature.match(/^t=(\d+),v1=([a-f0-9]{64})$/);assert(signature);assert.equal(createHmac('sha256','synthetic-gauge-5102').update(signature[1]+'.'+JSON.stringify(wire.body)).digest('hex'),signature[2])
   }
   await page.reload();const scopedCrankForm=form('providerJob:queue-crank-source')
-  await scopedCrankForm.getByLabel('Crank connection',{exact:true}).selectOption(crankReceiptConnection.id)
-  await scopedCrankForm.getByLabel('Exact Crank source record',{exact:true}).selectOption(`engagements:${sourceCases[0][1].id}:${sourceCases[0][1].revision}`)
+  await scopedCrankForm.locator('select[name=connectionId]').selectOption(crankReceiptConnection.id)
+  await scopedCrankForm.locator('select[name=sourceRef]').selectOption(`engagements:${sourceCases[0][1].id}:${sourceCases[0][1].revision}`)
   await scopedCrankForm.getByLabel('Crank HTTPS trigger endpoint',{exact:true}).fill(endpoint);await scopedCrankForm.getByLabel('Explicit Crank event release reason',{exact:true}).fill('Owner reviews this exact native source in the scoped release form')
   const jobsBeforeForm=(await state()).data.providerJobs.length;await capture('scoped-crank-release',scopedCrankForm.locator('..'))
   await scopedCrankForm.getByRole('button',{name:'Queue scoped Crank event',exact:true}).click();assert.equal((await state()).data.providerJobs.length,jobsBeforeForm,'Native scoped release replay keeps the same exact-source event')

@@ -1,17 +1,16 @@
 import { PDFDocument, rgb } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
-import type { Bindings } from '../auth.server'
+/// <reference types="vite/client" />
+import fontUrl from './assets/proposal-font.ttf?inline'
 import { sha256 } from '../modules/import-kit/src/d1/index'
 import type { CommercialProposalDocument } from './commercial-proposal-document'
 import { need } from './model'
 
 /** Customer-only deterministic original. These exact bytes, not a user-attested
  * rendering, must be the original retained by the signature provider. */
-export async function nativeProposalPdf(env:Bindings,d:CommercialProposalDocument,number:number,fingerprint:string){
- need(env.ASSETS,'The proposal font asset is unavailable',409)
- const response=await env.ASSETS.fetch(new Request(env.AUTH_ORIGIN+'/gauge-proposal-font.ttf'))
- need(response.ok,'The proposal font asset is unavailable',409)
- const fontBytes=new Uint8Array(await response.arrayBuffer());need(fontBytes.length===569208,'The proposal font asset is incomplete',409)
+export async function nativeProposalPdf(d:CommercialProposalDocument,number:number,fingerprint:string){
+ const encoded=fontUrl.split(',')[1];need(encoded,'The bundled proposal font is unavailable',409)
+ const fontBytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));need(fontBytes.length===569208,'The bundled proposal font is incomplete',409)
  const pdf=await PDFDocument.create({updateMetadata:false});pdf.registerFontkit(fontkit)
  pdf.setTitle(d.title);pdf.setAuthor(d.agencyName);pdf.setSubject('Exact proposal '+fingerprint);pdf.setCreator('Gauge proposal PDF v1');pdf.setProducer('Gauge proposal PDF v1');pdf.setCreationDate(new Date(0));pdf.setModificationDate(new Date(0))
  const font=await pdf.embedFont(fontBytes,{subset:true}),supported=new Set(font.getCharacterSet())

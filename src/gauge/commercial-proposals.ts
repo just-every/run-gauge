@@ -49,7 +49,7 @@ export async function commercialCommand(env:Bindings,a:Actor,tx:Transaction,acti
   const {document,fingerprint}=await commercialProposalDocument(estimate,input as unknown as CommercialProposalInput),id=uuid()
   need(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(document.recipient.contact),'Use the invited recipient email address')
   need(document.expiry>=workDate(Date.now(),a.timezone),'Expiry must be today or later')
-  const nativeOriginal=document.signatureRequired?await nativeProposalPdf(env,document,(previous?.value.number??0)+1,fingerprint):null
+  const nativeOriginal=document.signatureRequired?await nativeProposalPdf(document,(previous?.value.number??0)+1,fingerprint):null
   return tx.record('commercialProposals',{document,fingerprint,nativeOriginal,estimateId:estimate.id,estimateRevision:estimate.revision,estimateRootId:estimate.value.rootId,opportunityId:estimate.value.opportunityId,clientId:estimate.value.clientId,rootId:previous?.value.rootId??id,previousId:previous?.id??null,number:(previous?.value.number??0)+1,status:'prepared',preparedBy:a.session.operator.id,preparedAt:Date.now(),reason:text(input.reason,'Preparation reason')},undefined,id,action)
  }
  if(action==='commercial:claim'){

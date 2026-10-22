@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "gauge-local/edition",
-  "manifest": "99dd1756b83f111fca45e14bb36d8e40689eb7277276e16b95ad7ddd1e25cf33",
+  "manifest": "c42683bc913fbfc335ee0d6020de7f0630e60d76e42b9f3dee17f913f9e24146",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -16,8 +16,6 @@
         "paths": [
           "src/gauge",
           "public/gauge.css",
-          "public/gauge-proposal-font.ttf",
-          "public/gauge-proposal-font-LICENSE.txt",
           "public/move-in.html",
           "migrations/core/0006_gauge.sql",
           "migrations/core/0016_import_kit_custody.sql",
@@ -378,7 +376,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "99dd1756b83f111fca45e14bb36d8e40689eb7277276e16b95ad7ddd1e25cf33",
+      "sha256": "c42683bc913fbfc335ee0d6020de7f0630e60d76e42b9f3dee17f913f9e24146",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -703,14 +701,6 @@
     },
     "public/gauge-board.css": {
       "sha256": "838e1f2458bf4ee126b04817f4ac79eea7471653283fcabc4567eafbb92c9546",
-      "executable": false
-    },
-    "public/gauge-proposal-font-LICENSE.txt": {
-      "sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
-      "executable": false
-    },
-    "public/gauge-proposal-font.ttf": {
-      "sha256": "b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5",
       "executable": false
     },
     "public/gauge-setup.css": {
@@ -1109,6 +1099,14 @@
       "sha256": "d1b6b5d38113be5fce7c5cfff22620e77ac7ec939db2b1482df4718e0ead3414",
       "executable": false
     },
+    "src/gauge/assets/proposal-font-LICENSE.txt": {
+      "sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+      "executable": false
+    },
+    "src/gauge/assets/proposal-font.ttf": {
+      "sha256": "b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5",
+      "executable": false
+    },
     "src/gauge/audit.ts": {
       "sha256": "b61b64c2035c1ad77e168b7f1aeceb1b300eba130ca0bd3498095ccbbc69c5dd",
       "executable": false
@@ -1166,11 +1164,11 @@
       "executable": false
     },
     "src/gauge/commercial-proposal-pdf.ts": {
-      "sha256": "5551fa6551c9cf1ebfe756f961a6f247ffb3114699e90e946ef923bbbbd90d81",
+      "sha256": "f1e8cc45adca1ef716423c075f09c98c97e7b8dd597e0b64dd7a2fd958c23683",
       "executable": false
     },
     "src/gauge/commercial-proposals.ts": {
-      "sha256": "45d7467c2ae3f6c5eaaeb0e3982aaa073db1ab6c6f90486aa96f7f306a75875c",
+      "sha256": "b0d29bee1e63ce3d510fff87185c8900f1e2d5e73f70b534597dbcfafd2ca681",
       "executable": false
     },
     "src/gauge/commercial-readback.ts": {

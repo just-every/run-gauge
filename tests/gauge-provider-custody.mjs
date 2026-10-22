@@ -49,7 +49,7 @@ export async function providerCustodyJourney(browser){
 
   // Secret-bearing receipts bind the exact secret without returning it. A
   // changed credential under the same request key cannot create another record.
-  const connectInput={key:await form('provider:connect').locator('[name=key]').inputValue(),provider:'crank',accountLabel,credential:credentials[0]}
+  const connectInput={key:await form('provider:connect').locator('[name=key]').inputValue(),provider:'crank',origin:'',accountLabel,credential:credentials[0]}
   await form('provider:connect').getByLabel('Provider credential',{exact:true}).fill(credentials[0])
   const [connectResponse]=await Promise.all([page.waitForResponse(r=>r.url()===h.origin+'/app/action'&&r.request().method()==='POST'),form('provider:connect').getByRole('button',{name:'Connect provider',exact:true}).click()]);assert.equal(connectResponse.status(),303)
   const connected=await cmd('provider:connect',connectInput)

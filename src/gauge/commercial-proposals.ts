@@ -67,6 +67,8 @@ export async function commercialCommand(env:Bindings,a:Actor,tx:Transaction,acti
   const row=await get(env,'commercialProposals',text(input.id,'Proposal'))
   need(row.revision===input.revision&&row.value.status==='released'&&row.value.document.signatureRequired,'Choose an unchanged released signature-required proposal',409)
   await latestCommercial(env,tx,row)
+  need(!(await all(env,'commercialEvents')).some(r=>r.value.proposalId===row.id&&['accepted','rejected'].includes(r.value.type)),'A decided proposal keeps its original signature binding',409)
+  tx.guard("NOT EXISTS(SELECT 1 FROM g_commercialEvents WHERE json_extract(data,'$.proposalId')=? AND json_extract(data,'$.type') IN ('accepted','rejected'))",row.id)
   need(input.confirm==='reviewed-exact-pdf','Confirm the original PDF contains the exact displayed proposal')
   const originalSha256=text(input.originalSha256,'Original PDF SHA-256',64);need(/^[a-f0-9]{64}$/.test(originalSha256),'Use the original PDF SHA-256 digest')
   const envelopeId=text(input.envelopeId,'Inkwell envelope id',128);need(/^[A-Za-z0-9_-]+$/.test(envelopeId),'Use an opaque envelope id')

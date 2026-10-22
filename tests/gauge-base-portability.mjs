@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {createHash} from 'node:crypto'
 import { mkdir,readFile } from 'node:fs/promises'
 import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 
@@ -171,6 +172,18 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('commercial:send',{...portableProposal,connectionId:portableProvider.id,reason:'Owner sends exact reviewed proposal'})
  portableProposal=(await state()).data.commercialProposals.find(p=>p.id===portableProposal.id)
  assert.equal((await request('/app/client-proposals/'+portableProposal.id,proposalRecipient.cookie)).status,200)
+ // Signed artifacts are business evidence; provider credentials and execution authority never travel.
+ const signatureOriginal=historicalBytes,signatureHash=createHash('sha256').update(signatureOriginal).digest('hex')
+ const portableInkwell=await cmd('provider:connect',{provider:'inkwell',accountLabel:'Portable signed evidence',origin:'https://inkwell.example.test',credential:'synthetic-gauge-3003'})
+ const signedOpportunity=await cmd('save:opportunities',{...opportunity,name:'Portable signed proposal',stage:'proposal'})
+ const signedEstimate=await cmd('estimate:save',{...estimateInput,opportunityId:signedOpportunity.id})
+ const signedProposal=await cmd('commercial:prepare',{...portableProposalInput,estimateId:signedEstimate.id,estimateRevision:signedEstimate.revision,signatureRequired:true})
+ await cmd('commercial:send',{...signedProposal,connectionId:portableProvider.id,reason:'Portable signed proposal delivery'})
+ const releasedSigned=(await state()).data.commercialProposals.find(r=>r.id===signedProposal.id)
+ await cmd('commercial:signature-bind',{...releasedSigned,connectionId:portableInkwell.id,envelopeId:'synthetic-gauge-3004',originalSha256:signatureHash,confirm:'reviewed-exact-pdf',reason:'Portable owner-reviewed exact PDF'})
+ h.providerEdge.handler=async request=>request.url.endsWith('/artifacts/original')||request.url.endsWith('/artifacts/signed')||request.url.endsWith('/artifacts/certificate')?new Response(signatureOriginal):request.url==='https://inkwell.example.test/api/v1/envelopes/synthetic-gauge-3004'?Response.json({envelope:{id:'synthetic-gauge-3004',status:'completed',originalSha256:signatureHash,signedSha256:signatureHash,certificateSha256:signatureHash,signers:[{email:'portable-client@example.test',signedAt:new Date().toISOString()}]}}):undefined
+ await cmd('commercial:signature-readback',releasedSigned);h.providerEdge.handler=null
+ assert((await state()).data.commercialEvents.some(r=>r.value.proposalId===signedProposal.id&&r.value.status==='verified'))
  const fieldPackage={format:'kantata-ox-custom-fields-v1',namespace:'synthetic-gauge-portable-fields',fields:[{id:'office',scope:'people',name:'Portable office',type:'single-select',options:[{id:'Austin',name:'Austin'}]}],records:[{scope:'people',id:'worker',values:{office:'Austin'}}],controls:{people:1}},fieldMap={people:{worker:person.id}},fieldPolicies={office:{visibility:'everyone'}}
  const fieldPreview=await cmd('field:import-preview',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies})
  const fieldImport=await cmd('field:import',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies,fingerprint:fieldPreview.fingerprint,reason:'Portable source field custody'})
@@ -251,7 +264,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
    assert.deepEqual(restoredEstimates.data.commercialProposals,before.data.commercialProposals)
    assert.deepEqual(restoredEstimates.data.commercialEvents,before.data.commercialEvents,'Delivery and client view history remain business facts, never replay instructions')
    for(const table of ['g_provider_installation_key','g_provider_credentials','g_provider_receipts','g_provider_job_authority'])assert.equal((await restored.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n,0,'Restore excludes provider secrets and authority')
-   const restoredAccess=await(await restored.request('/app/access',restored.owner)).text();assert(restoredAccess.includes('disconnected'));for(const credential of ['synthetic-gauge-3001','synthetic-gauge-3002'])assert(!restoredAccess.includes(credential))
+   const restoredAccess=await(await restored.request('/app/access',restored.owner)).text();assert(restoredAccess.includes('disconnected'));for(const credential of ['synthetic-gauge-3001','synthetic-gauge-3002','synthetic-gauge-3003'])assert(!restoredAccess.includes(credential))
    const restoredProviderJob=restoredEstimates.data.providerJobs.find(j=>j.value.connectionId===portableProvider.id);assert(restoredProviderJob)
    const providerTraffic=restored.providerRequests.length;await restored.cmd('providerJob:dispatch',portableCrankJob,restored.owner,409);await restored.cmd('providerJob:dispatch',restoredProviderJob,restored.owner,409);assert.equal(restored.providerRequests.length,providerTraffic,'Restored job history never replays a provider write')
    const auth=await restored.post('/auth/magic-link',{email:'portable-client@example.test'});assert.equal(auth.status,202)
@@ -259,6 +272,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const confirmed=await restored.post('/auth/confirm',{token:confirmation.searchParams.get('token')});assert.equal(confirmed.status,303)
    const freshClient=confirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
    assert.equal((await restored.request('/app/client-proposals/'+portableProposal.id,freshClient)).status,403,'Fresh client sign-in alone cannot restore an old release')
+   assert.equal((await restored.request('/app/client-proposals/'+signedProposal.id+'/evidence/signed',freshClient)).status,403,'Signed artifacts keep the same disconnected recipient authority after restore')
+   const restoredEvidence=restoredEstimates.data.commercialEvents.find(r=>r.value.proposalId===signedProposal.id&&r.value.status==='verified');assert.equal(restoredEvidence.value.artifacts.signed.base64,signatureOriginal.toString('base64'))
+   await restored.cmd('commercial:signature-readback',releasedSigned,restored.owner,409)
    const mailCount=restored.mails.length
    await restored.cmd('commercial:reconnect',{...portableProposal,reason:'New installation owner explicitly restores this recipient access'})
    assert.equal((await restored.request('/app/client-proposals/'+portableProposal.id,freshClient)).status,200)

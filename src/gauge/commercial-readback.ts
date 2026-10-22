@@ -65,7 +65,8 @@ export async function readCommercialSignature(env: Bindings, a: Actor, input: Va
  const proposal = await get(env, 'commercialProposals', text(input.id, 'Proposal'))
  need(proposal.revision === input.revision && proposal.value.status === 'released' && proposal.value.document.signatureRequired, 'Choose an unchanged released signature-required proposal', 409)
  await latestCommercial(env, tx, proposal)
- const binding = (await all(env, 'commercialEvents')).filter(r => r.value.proposalId === proposal.id && r.value.type === 'signature-binding').at(-1)
+ const bindings = (await all(env, 'commercialEvents')).filter(r => r.value.proposalId === proposal.id && r.value.type === 'signature-binding'), binding = bindings.at(-1)
+ tx.guard("(SELECT COUNT(*) FROM g_commercialEvents WHERE json_extract(data,'$.proposalId')=? AND json_extract(data,'$.type')='signature-binding')=?", proposal.id, bindings.length)
  need(binding, 'First bind the owner-reviewed original PDF to this exact proposal', 409); tx.observe('commercialEvents', binding)
  const connection = await get(env, 'providerConnections', binding.value.connectionId); tx.observe('providerConnections', connection)
  let evidence: Value

@@ -159,7 +159,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableApproval=await cmd('estimate:approve',{...estimateTwo,...portableAttestation})
  const estimateConverted=await cmd('estimate:convert',estimateTwo)
  const portableCrank=await cmd('provider:connect',{provider:'crank',accountLabel:'Portable budget notifications',credential:'synthetic-gauge-3002'})
- await cmd('budget:thresholds',{engagementId:capProject.id,thresholds:[50],reason:'Portable Crank budget exception source'})
+ await cmd('budget:thresholds',{engagementId:capProject.id,thresholds:[50,75],reason:'Portable Crank budget exception source'})
  const portableAlert=(await state()).data.budgetAlerts.find(a=>a.value.engagementId===capProject.id);assert(portableAlert)
  const portableCrankJob=await cmd('providerJob:queue-crank',{connectionId:portableCrank.id,alertId:portableAlert.id,alertRevision:portableAlert.revision,endpoint:'https://crank.example.test/api/crank/flows/budget-exception/trigger'})
  const portableZapier=await cmd('provider:connect',{provider:'zapier',accountLabel:'Portable signed budget hook',credential:JSON.stringify({endpoint:'https://hooks.zapier.com/hooks/catch/synthetic-gauge-3005/synthetic-gauge-3006/',signingKey:'synthetic-gauge-3007'})})
@@ -193,10 +193,11 @@ export async function prepareCurrentPortability(h,{importJob}) {
 
  const portableSync=await cmd('providerSync:start',{connectionId:portableProvider.id})
  const portableReceiptKey=await cmd('provider:connect',{provider:'receipt',accountLabel:'Portable workflow request key',credential:'synthetic-gauge-3008'})
- const completedCrank=await cmd('providerJob:queue-crank',{connectionId:portableCrank.id,alertId:portableAlert.id,alertRevision:portableAlert.revision,endpoint:'https://crank.example.test/api/crank/flows/budget-exception/trigger'})
+ const portableSecondAlert=(await state()).data.budgetAlerts.find(a=>a.value.engagementId===capProject.id&&a.id!==portableAlert.id);assert(portableSecondAlert)
+ const completedCrank=await cmd('providerJob:queue-crank',{connectionId:portableCrank.id,alertId:portableSecondAlert.id,alertRevision:portableSecondAlert.revision,endpoint:'https://crank.example.test/api/crank/flows/budget-exception/trigger'})
  await cmd('providerJob:dispatch',completedCrank)
  const admittedPortable=(await state()).data.providerJobs.find(j=>j.id===completedCrank.id)
- const portableWorkflowReceipt={schema:'gauge-followup-v1',eventId:admittedPortable.value.eventId,sourceRevision:portableAlert.revision,remoteReference:admittedPortable.value.providerRunId,taskName:'Portable approved workflow follow-up'}
+ const portableWorkflowReceipt={schema:'gauge-followup-v1',eventId:admittedPortable.value.eventId,sourceRevision:portableSecondAlert.revision,remoteReference:admittedPortable.value.providerRunId,taskName:'Portable approved workflow follow-up'}
  const portableReceiptSignature=createHmac('sha256','synthetic-gauge-3008').update('gauge-followup-v1\n'+JSON.stringify(Object.fromEntries(Object.entries(portableWorkflowReceipt).sort(([a],[b])=>a.localeCompare(b))))).digest('hex')
  const portableFollowupInput={...admittedPortable,connectionId:portableReceiptKey.id,receipt:JSON.stringify(portableWorkflowReceipt),signature:portableReceiptSignature,confirm:'apply-exact-followup',reason:'Owner reviews and applies a portable workflow request'}
  const portableFollowup=await cmd('providerJob:apply-followup',portableFollowupInput)

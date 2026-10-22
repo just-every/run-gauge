@@ -63,8 +63,13 @@ export async function queueProviderJob(tx: Transaction, spec: ProviderJobSpec, s
  if (sourceRow) need(sourceRow.id === spec.source.id && sourceRow.revision === spec.source.revision, 'Provider job source does not match the transaction result', 409)
  else await source(env, tx, spec.source)
  const connected = await connection(env, tx, spec.connectionId, spec.operation), id = uuid()
- need(connected.value.provider!=='crank'||spec.source.kind==='budgetAlerts','Crank currently accepts budget-exception sources only')
+ need(connected.value.provider!=='crank'||['budgetAlerts','engagements','time','invoices','payments'].includes(spec.source.kind),'Crank accepts only the declared native trigger sources')
  const endpoint = spec.operation === 'trigger:submit' && connected.value.provider==='crank' ? crankEndpoint(spec.endpoint) : null
+ if(spec.operation==='trigger:submit'){
+  const prior=(await all(env,'providerJobs')).find(j=>j.value.connectionId===connected.id&&j.value.operation===spec.operation&&j.value.endpoint===endpoint&&j.value.source.kind===spec.source.kind&&j.value.source.id===spec.source.id&&j.value.source.revision===spec.source.revision)
+  if(prior)return prior
+  tx.guard("NOT EXISTS(SELECT 1 FROM g_providerJobs WHERE json_extract(data,'$.connectionId')=? AND json_extract(data,'$.operation')='trigger:submit' AND json_extract(data,'$.endpoint') IS ? AND json_extract(data,'$.source.kind')=? AND json_extract(data,'$.source.id')=? AND json_extract(data,'$.source.revision')=?)",connected.id,endpoint,spec.source.kind,spec.source.id,spec.source.revision)
+ }
  const job = await tx.record('providerJobs', {
   provider: connected.value.provider, operation: spec.operation, connectionId: connected.id, credentialVersion: connected.value.version,
   ownerId: a.session.operator.id, source: {kind: spec.source.kind, id: spec.source.id, revision: spec.source.revision},
@@ -77,21 +82,22 @@ export async function queueProviderJob(tx: Transaction, spec: ProviderJobSpec, s
 
 /** Generic command transaction owns request receipts; this handler returns no credential. */
 export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | null> {
- if (!['providerJob:queue-crank','providerJob:queue-webhook','providerJob:cancel','providerJob:resume-refused', 'providerJob:requeue'].includes(action)) return null
+ if (!['providerJob:queue-crank','providerJob:queue-webhook','providerJob:queue-crank-source','providerJob:cancel','providerJob:resume-refused', 'providerJob:requeue'].includes(action)) return null
  await owner(env, a, tx)
- if(action==='providerJob:queue-webhook'){
+ if(action==='providerJob:queue-webhook'||action==='providerJob:queue-crank-source'){
   const [kind,id,revision]=String(input.sourceRef??'').split(':')
   const src=await source(env,tx,{kind:kind as ProviderJobSource['kind'],id,revision})
   need(kind!=='commercialProposals','Choose a supported automation event source')
   const connected=await connection(env,tx,input.connectionId,'trigger:submit')
-  need(['zapier','webhook'].includes(connected.value.provider),'Choose a Zapier or signed-webhook connection')
-  const matches=(await all(env,'providerJobs')).filter(j=>j.value.connectionId===connected.id&&j.value.source.kind===kind&&j.value.source.id===id&&j.value.source.revision===revision)
+  const crank=action==='providerJob:queue-crank-source'
+  need(crank?connected.value.provider==='crank':['zapier','webhook'].includes(connected.value.provider),'Choose a matching automation connection')
+  const endpoint=crank?crankEndpoint(input.endpoint):null
+  const matches=(await all(env,'providerJobs')).filter(j=>j.value.connectionId===connected.id&&j.value.source.kind===kind&&j.value.source.id===id&&j.value.source.revision===revision&&j.value.endpoint===endpoint)
   if(matches.length)return matches[0]
-  tx.guard("NOT EXISTS(SELECT 1 FROM g_providerJobs WHERE json_extract(data,'$.connectionId')=? AND json_extract(data,'$.source.kind')=? AND json_extract(data,'$.source.id')=? AND json_extract(data,'$.source.revision')=?)",connected.id,kind,id,revision)
   const reason=text(input.reason,'Explicit event release reason')
   const prior=kind==='engagements'?await env.DB.prepare("SELECT COUNT(*) AS n FROM g_history WHERE kind='engagements' AND record_id=?").bind(src.id).first<{n:number}>():null
   const eventType=kind==='engagements'?(prior?.n?'gauge.project.changed':'gauge.project.created'):undefined
-  const job=await queueProviderJob(tx,{connectionId:connected.id,operation:'trigger:submit',eventType,source:{kind:kind as ProviderJobSource['kind'],id:src.id,revision:src.revision}})
+  const job=await queueProviderJob(tx,{connectionId:connected.id,operation:'trigger:submit',eventType,...(endpoint?{endpoint}:{}),source:{kind:kind as ProviderJobSource['kind'],id:src.id,revision:src.revision}})
   // The exact native source is the payload authority, never caller-supplied data.
   tx.audit(action,'providerJobs',job.id,{releaseReason:reason,source:job.value.source})
   return job
@@ -184,8 +190,9 @@ export async function dispatchProviderJob(env: Bindings, a: Actor, input: Value)
   const row=await get(env,claimed.value.source.kind,claimed.value.source.id);need(row.revision===claimed.value.source.revision,'Automation source changed',409)
   const credential = await dispatchCredential(env, claimed.value.connectionId, claimed.value.credentialVersion, claimed.id, 'trigger:submit')
   if(claimed.value.provider==='crank'){
-   const v=row.value,event={type:'gauge.budget-exception',alertId:row.id,alertRevision:row.revision,engagementId:v.engagementId,phaseKey:v.phaseKey,metric:v.metric,threshold:v.threshold,actual:v.actual,budget:v.budget,raisedAt:v.raisedAt}
-   const response=await fetch(endpoint!,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{Authorization:`Bearer ${credential}`,'Content-Type':'application/json'},body:JSON.stringify({event_id:claimed.value.eventId,input:event})})
+   const v=row.value,event=claimed.value.source.kind==='budgetAlerts'?{type:'gauge.budget-exception',alertId:row.id,alertRevision:row.revision,engagementId:v.engagementId,phaseKey:v.phaseKey,metric:v.metric,threshold:v.threshold,actual:v.actual,budget:v.budget,raisedAt:v.raisedAt}:webhookEvent(claimed.value.source,row,claimed.value.eventType)
+   const body=JSON.stringify({event_id:claimed.value.eventId,input:event})
+   const response=await fetch(endpoint!,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{...await signedWebhookHeaders(credential,claimed.value.eventId,body),Authorization:`Bearer ${credential}`},body})
    result=await crankResult(response,credential)
   }else{
    const {endpoint:hook,signingKey}=webhookCredential(credential,claimed.value.provider),body=JSON.stringify({event_id:claimed.value.eventId,...webhookEvent(claimed.value.source,row,claimed.value.eventType)})

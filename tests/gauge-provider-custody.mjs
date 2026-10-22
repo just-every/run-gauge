@@ -28,11 +28,11 @@ export async function providerCustodyJourney(browser){
   const zone='Australia/Brisbane',person=await cmd('save:people',{name:'Jordan Lane',timezone:zone}),client=await cmd('save:clients',{name:'Mariner Studio'})
   const project=await cmd('save:engagements',{name:'Mariner launch research',clientId:client.id,leadId:person.id,members:[person.id],scope:'Budget exception delivery custody',timezone:zone})
   await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:100000,effortSeconds:3600,roundingSeconds:60,reason:'Reviewed allowance for provider custody journey'}))
-  await cmd('budget:thresholds',{engagementId:project.id,thresholds:[50],reason:'Notify the lead and finance before the allowance is exhausted'})
+  await cmd('budget:thresholds',{engagementId:project.id,thresholds:[50,75],reason:'Notify the lead and finance before the allowance is exhausted'})
   const task=await cmd('save:tasks',{engagementId:project.id,name:'Customer research workshop',remainingSeconds:3600})
   const actual=await cmd('time:save',{engagementId:project.id,taskId:task.id,personId:person.id,service:'Research',timezone:zone,billable:false,notes:'Submitted actual causes a native budget exception',start:'2026-10-08T09:00:00+10:00',end:'2026-10-08T10:00:00+10:00'})
   await cmd('time:submit',actual)
-  const alert=(await state()).data.budgetAlerts.find(r=>r.value.engagementId===project.id&&r.value.metric==='hours')
+  const alert=(await state()).data.budgetAlerts.find(r=>r.value.engagementId===project.id&&r.value.metric==='hours'&&r.value.threshold===50)
   assert(alert,'Submitting actual work creates a budget alert through the native budget policy')
 
   const people=[]
@@ -110,7 +110,8 @@ export async function providerCustodyJourney(browser){
   await cmd('providerJob:requeue',{id:submitted.id,revision:submitted.revision},owner,409)
   assert.equal(edge().length,networkBefore+1,'A completed submission never replays the external action')
 
-  const queuedForRevocation=await cmd('providerJob:queue-crank',queueInput)
+  const revokeAlert=(await state()).data.budgetAlerts.find(r=>r.value.engagementId===project.id&&r.value.metric==='hours'&&r.value.threshold===75);assert(revokeAlert)
+  const queuedForRevocation=await cmd('providerJob:queue-crank',{...queueInput,alertId:revokeAlert.id,alertRevision:revokeAlert.revision})
   await cmd('provider:revoke',{id:rotatedConnection.id,revision:rotatedConnection.revision})
   await cmd('providerJob:dispatch',queuedForRevocation)
   const revoked=await read('providerJobs',queuedForRevocation.id)
@@ -241,6 +242,13 @@ export async function providerCustodyJourney(browser){
   const admittedCrank=await read('providerJobs',crankReceiptJob.id),crankReceipt=receiptFor(admittedCrank,'Review the Crank budget exception with the project lead')
   const crankReview={...admittedCrank,connectionId:receiptKey.id,receipt:JSON.stringify(crankReceipt),signature:proofSignature(crankReceipt),reason:'Owner reviews the workflow-authenticated Crank task request',confirm:'apply-exact-followup',customFields:{[required.id]:'Reviewed Crank follow-up'}}
   const crankApplied=await cmd('providerJob:apply-followup',crankReview);assert.equal((await cmd('providerJob:apply-followup',crankReview)).id,crankApplied.id);assert.equal((await state()).data.tasks.length,beforeTasks+2)
+  const sourceCases=[['engagements',await read('engagements',project.id),'gauge.project.changed'],['time',await read('time',approvedTime.id),'gauge.time.approved'],['invoices',invoice,'gauge.invoice.issued'],['payments',payment,'gauge.payment.recorded']]
+  for(const [kind,source,type]of sourceCases){
+   const input={connectionId:crankReceiptConnection.id,sourceRef:`${kind}:${source.id}:${source.revision}`,endpoint,reason:'Owner releases this exact scoped Crank source'}
+   const queued=await cmd('providerJob:queue-crank-source',input);assert.equal((await cmd('providerJob:queue-crank-source',input)).id,queued.id);await cmd('providerJob:dispatch',queued)
+   const wire=edge().at(-1);assert.equal(wire.body.input.type,type);assert.equal(wire.body.input.sourceId,source.id)
+   const signature=wire.headers.signature.match(/^t=(\d+),v1=([a-f0-9]{64})$/);assert(signature);assert.equal(createHmac('sha256','synthetic-gauge-5102').update(signature[1]+'.'+JSON.stringify(wire.body)).digest('hex'),signature[2])
+  }
   const staleSource=await read('engagements',project.id),staleJob=await cmd('providerJob:queue-webhook',{connectionId:zapier.id,sourceRef:`engagements:${staleSource.id}:${staleSource.revision}`,reason:'Owner releases a source for a stale-request refusal'})
   await cmd('providerJob:dispatch',staleJob);const staleAdmitted=await read('providerJobs',staleJob.id),staleReceipt=receiptFor(staleAdmitted,'This stale request must not apply')
   await cmd('save:engagements',{...staleSource.value,...staleSource,scope:'Source changed after workflow admission'})
@@ -334,10 +342,10 @@ export async function providerRetryJourney(browser){
   const zone='America/New_York',person=await cmd('save:people',{name:'Northline retry lead',timezone:zone}),client=await cmd('save:clients',{name:'Northline retry controls'})
   const project=await cmd('save:engagements',{name:'Northline bounded jobs',clientId:client.id,leadId:person.id,members:[person.id],scope:'Bounded provider job controls',timezone:zone})
   await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:10000,effortSeconds:3600,roundingSeconds:60,reason:'One-hour allowance'}))
-  await cmd('budget:thresholds',{engagementId:project.id,thresholds:[50],reason:'Owner wants a budget-risk event'})
+  await cmd('budget:thresholds',{engagementId:project.id,thresholds:[50,75],reason:'Owner wants a budget-risk event'})
   const task=await cmd('save:tasks',{engagementId:project.id,name:'Design',remainingSeconds:3600})
   await cmd('time:submit',await cmd('time:save',{engagementId:project.id,taskId:task.id,personId:person.id,service:'Design',timezone:zone,billable:false,notes:'Native threshold source',start:'2026-10-08T09:00:00-04:00',end:'2026-10-08T10:00:00-04:00'}))
-  const alert=(await state()).data.budgetAlerts.find(a=>a.value.engagementId===project.id)
+  const alert=(await state()).data.budgetAlerts.find(a=>a.value.engagementId===project.id&&a.value.metric==='hours'&&a.value.threshold===50),retryAlert=(await state()).data.budgetAlerts.find(a=>a.value.engagementId===project.id&&a.value.metric==='hours'&&a.value.threshold===75)
   const connection=await cmd('provider:connect',{provider:'crank',accountLabel:'Northline bounded retry connection',credential:'synthetic-gauge-6001'})
   const input={connectionId:connection.id,alertId:alert.id,alertRevision:alert.revision,endpoint:'https://crank.example.test/api/crank/flows/budget-exception/trigger'}
   attach()
@@ -345,7 +353,7 @@ export async function providerRetryJourney(browser){
   let job=await read(cancelled.id);assert.equal(job.value.status,'retry-wait');assert(job.value.nextAttemptAt>=job.value.attemptedAt+60000)
   const noRetry=attempts;await cmd('providerJob:dispatch',job);assert.equal(attempts,noRetry,'Dispatch before the persisted due time sends nothing')
   await cmd('providerJob:cancel',{...job,reason:'Owner cancels before a provider retry'});job=await read(cancelled.id);assert.equal(job.value.status,'cancelled');await cmd('providerJob:dispatch',job);assert.equal(attempts,noRetry)
-  const queued=await cmd('providerJob:queue-crank',input);await cmd('providerJob:dispatch',queued);job=await read(queued.id)
+  const queued=await cmd('providerJob:queue-crank',{...input,alertId:retryAlert.id,alertRevision:retryAlert.revision});await cmd('providerJob:dispatch',queued);job=await read(queued.id)
   await h.close();h=await harness({currency:'USD',timezone:zone,persistenceDirectory:directory});attach()
   assert.deepEqual((await read(queued.id)).value,job.value,'Actual Worker restart retains attempt count and backoff')
   for(const expected of [2,3]){
@@ -361,7 +369,7 @@ export async function providerRetryJourney(browser){
   const limited=await cmd('provider:connect',{provider:'crank',accountLabel:'Northline ten-job provider limit',credential:'synthetic-gauge-6002'})
   const countBefore=attempts
   for(let i=0;i<11;i++){
-   const queuedLimit=await cmd('providerJob:queue-crank',{...input,connectionId:limited.id});await cmd('providerJob:dispatch',queuedLimit)
+   const projectLimit=await cmd('save:engagements',{name:'Native limited source '+i,clientId:client.id,leadId:person.id,members:[],scope:'Independent reviewed limit source',timezone:zone});const queuedLimit=await cmd('providerJob:queue-crank-source',{connectionId:limited.id,endpoint:input.endpoint,sourceRef:`engagements:${projectLimit.id}:${projectLimit.revision}`,reason:'Owner releases an independent native source'});await cmd('providerJob:dispatch',queuedLimit)
    if(i===10){const held=await read(queuedLimit.id);assert.equal(held.value.status,'retry-wait');assert.equal(held.value.attempts,0);assert.equal(held.value.exceptionClass,'provider-rate-limit')}
   }
   assert.equal(attempts-countBefore,10,'The eleventh source job cannot exceed the durable per-connection minute limit')

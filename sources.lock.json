@@ -1377,7 +1377,7 @@
       "executable": false
     },
     "src/gauge/provider-jobs.ts": {
-      "sha256": "a1e943f5a9131504b3f211c30fa81457a44c74ea2edac34388f90ab6fbff83f9",
+      "sha256": "20b92ded7b1ad22ab3f20ba722e1724afe3cafd0e56c507fda2204f525545929",
       "executable": false
     },
     "src/gauge/provider-mail.d.mts": {
@@ -1773,7 +1773,7 @@
       "executable": false
     },
     "src/gauge/ui-provider-jobs.ts": {
-      "sha256": "8162ee24a9a27b5e1b98da2c3103a87d9545873fbc3f090cfe8ad4ed7c6a4d13",
+      "sha256": "186af2e3627caacb8310ebe6c9ce5f4aa93e9ace06d4516a8318cae0534f3843",
       "executable": false
     },
     "src/gauge/ui-rate-cards.ts": {
@@ -3613,7 +3613,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "4d089f71d48f7d2c9dc1483af1699262a3264fd4292b602d542f3262d4ea1358",
+      "sha256": "14910beee10230d83a84df70db3c34f5fefcf4177fc09c83f9d666e3e0a60c17",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {
@@ -3721,7 +3721,7 @@
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
-      "sha256": "9d25c48368b8c2fbc7a5955c92e105f6cf90a78ea0a2e775e8bca191f5c6e5e9",
+      "sha256": "e07d329d1173cff553f0e48b193faa072591c5b92faa604b942599e88a84afc0",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

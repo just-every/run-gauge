@@ -3721,7 +3721,7 @@
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
-      "sha256": "8e76eab2dd703652fe99ee3b7500bd8526f518f5d879a0ec2b89e5d19f05bc45",
+      "sha256": "a7edfffbb472c74919bc4844945c51a16ebe14f08f4954c064b637a9cde949f7",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

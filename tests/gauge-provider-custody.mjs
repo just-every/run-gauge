@@ -249,6 +249,12 @@ export async function providerCustodyJourney(browser){
    const wire=edge().at(-1);assert.equal(wire.body.input.type,type);assert.equal(wire.body.input.sourceId,source.id)
    const signature=wire.headers.signature.match(/^t=(\d+),v1=([a-f0-9]{64})$/);assert(signature);assert.equal(createHmac('sha256','synthetic-gauge-5102').update(signature[1]+'.'+JSON.stringify(wire.body)).digest('hex'),signature[2])
   }
+  await page.reload();const scopedCrankForm=form('providerJob:queue-crank-source')
+  await scopedCrankForm.getByLabel('Crank connection',{exact:true}).selectOption(crankReceiptConnection.id)
+  await scopedCrankForm.getByLabel('Exact Crank source record',{exact:true}).selectOption(`engagements:${sourceCases[0][1].id}:${sourceCases[0][1].revision}`)
+  await scopedCrankForm.getByLabel('Crank HTTPS trigger endpoint',{exact:true}).fill(endpoint);await scopedCrankForm.getByLabel('Explicit Crank event release reason',{exact:true}).fill('Owner reviews this exact native source in the scoped release form')
+  const jobsBeforeForm=(await state()).data.providerJobs.length;await capture('scoped-crank-release',scopedCrankForm.locator('..'))
+  await scopedCrankForm.getByRole('button',{name:'Queue scoped Crank event',exact:true}).click();assert.equal((await state()).data.providerJobs.length,jobsBeforeForm,'Native scoped release replay keeps the same exact-source event')
   const staleSource=await read('engagements',project.id),staleJob=await cmd('providerJob:queue-webhook',{connectionId:zapier.id,sourceRef:`engagements:${staleSource.id}:${staleSource.revision}`,reason:'Owner releases a source for a stale-request refusal'})
   await cmd('providerJob:dispatch',staleJob);const staleAdmitted=await read('providerJobs',staleJob.id),staleReceipt=receiptFor(staleAdmitted,'This stale request must not apply')
   await cmd('save:engagements',{...staleSource.value,...staleSource,scope:'Source changed after workflow admission'})

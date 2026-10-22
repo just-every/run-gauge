@@ -193,11 +193,12 @@ export async function retainerScheduleJourney(h,browser,{client,lead,manager,sta
 
 async function retainerAutomaticExceptions(h,browser,{project,term,policy,clientId}){
  const {cmd,state}=h
+ term=(await state()).data.retainers.find(t=>t.id===term.id)
  const make=async(name,overrides={})=>{
   const preview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{...term.value.terms,name,services:[name],start:'2026-08-01'}})
   const t=await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Reviewed exception scenario'})
   const s=await cmd('retainer:schedule',{...policy,...overrides,retainerId:t.id})
-  return {t,s}
+  return {t:(await state()).data.retainers.find(r=>r.id===t.id),s}
  }
  const draft=async(s,asOf,reason)=>{
   const before=(await state()).data.invoices.length
@@ -213,7 +214,7 @@ async function retainerAutomaticExceptions(h,browser,{project,term,policy,client
  const poRequired=await cmd('save:clients',{...poClient.value,...poClient,poRequired:true,poNumbers:['PO-RETAINER-2026']})
  const missingPO=await make('PO-reviewed service')
  await draft(missingPO.s,'2026-08-01',/matching saved PO/)
- await cmd('save:clients',{...poRequired.value,...poRequired,poRequired:false})
+ await cmd('save:clients',{...poClient.value,...poRequired,poRequired:false})
  const missingAddress=await make('Missing remittance',{remitTo:''})
  await draft(missingAddress.s,'2026-08-01',/bill-to and remit-to/)
  const newer=await make('Revised commercial service')
@@ -282,7 +283,7 @@ async function retainerRestartAndCloseJourney(){
   const pause=await restarted.cmd('retainer:adjust-prepare',{...lifecyclePeriod,kind:'pause',amountMinor:0,reason:'Client pauses the next period'})
   await restarted.cmd('retainer:adjust-approve',pause)
   const lifecycleSchedule=await restarted.cmd('retainer:schedule',{...input,retainerId:lifecycleTerm.id})
-  const lifecycleDraft=await restarted.cmd('retainer:run',{...lifecycleSchedule,asOf:'2026-01-01'})
+  const lifecycleResult=await restarted.cmd('retainer:run',{...lifecycleSchedule,asOf:'2026-01-01'}),lifecycleDraft=(await restarted.state()).data.packets.find(p=>p.id===lifecycleResult.id)
   assert.equal(lifecycleDraft.value.status,'draft');assert.match(JSON.stringify(lifecycleDraft.value.exceptions),/lifecycle exception/)
   await restarted.cmd('time:policy',{lockThrough:'2026-01-31',reason:'January time reconciled'})
   const invoice=d.invoices[0]
@@ -298,7 +299,7 @@ async function retainerRestartAndCloseJourney(){
   // Review policy is not a source assumption of the close snapshot.
   await restarted.cmd('period:approve',prepared)
   const before=(await restarted.state()).data
-  const heldDraft=await restarted.cmd('retainer:run',{...held,asOf:'2026-01-01'})
+  const heldResult=await restarted.cmd('retainer:run',{...held,asOf:'2026-01-01'}),heldDraft=(await restarted.state()).data.packets.find(p=>p.id===heldResult.id)
   assert.equal(heldDraft.value.status,'draft');assert.match(JSON.stringify(heldDraft.value.exceptions),/FINANCE-004 closed period/)
   await restarted.cmd('packet:approve',heldDraft,restarted.owner,409)
   await restarted.cmd('retainer:run',{...held,asOf:'2026-01-01'})

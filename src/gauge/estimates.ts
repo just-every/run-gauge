@@ -71,7 +71,7 @@ export async function estimateCommand(env:Bindings,a:Actor,tx:Transaction,action
   need(input.attest==='owner-recorded-external-acceptance','Explicit owner attestation is required')
   need(!approvals.some(r=>r.value.status!=='withdrawn'),'Withdraw the existing attestation before recording another',409)
   tx.guard("(SELECT COUNT(*) FROM g_estimateApprovals WHERE json_extract(data,'$.estimateId')=?)=?",row.id,approvals.length)
-  return tx.record('estimateApprovals',{...reportedAcceptance(input),estimateId:row.id,estimateRevision:row.revision,opportunityId:opportunity.id,reason:text(input.reason,'Acceptance attestation reason'),status:'recorded',approvedBy:a.session.operator.id,approvedAt:Date.now()},undefined,undefined,action)
+  return tx.record('estimateApprovals',{...reportedAcceptance(input),estimateId:row.id,estimateRevision:row.revision,opportunityId:opportunity.id,reason:text(input.reason,'Acceptance attestation reason'),status:'recorded',approvedBy:a.session.operator.id,approvedAt:Date.now()},approvals[0],undefined,action)
  }
  if(action!=='estimate:convert')return null
  const existing=(await all(env,'estimateConversions')).find(c=>c.value.opportunityId===opportunity.id)

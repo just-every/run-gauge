@@ -496,13 +496,21 @@ sources, and margin are omitted recursively for every non-finance read,
 comparison, history and page. Staff/agents gain no estimate authority. Native
 current roles and exact source revisions guard writes.
 
-Default ADOPTED pending ct: `estimate:approve` is owner-only, binds id/revision
-and the unchanged pricing/calendar inputs, and requires
-`attest: "owner-recorded-external-acceptance"`, evidenceRef and a reason. It
-records reported external acceptance; client identity is explicitly unverified.
-Unknown cost, infeasible dates and a newer version refuse approval. This is the
-remaining policy gap: SALES-002 stays partial until ct approves this carrier or
-SALES-003/CLIENT-001 supplies verified client confirmation.
+`estimate:approve` is owner-only, binds id/revision and unchanged pricing/calendar
+inputs, and requires `attest: "owner-recorded-external-acceptance"`,
+`acceptorName`, `acceptorContact`, `acceptanceDate` (YYYY-MM-DD), `channel`
+(`signed document`, `email`, `PO` or `verbal`), `evidenceRef` and `reason`.
+It records reported external acceptance and carries the exact notice
+“recorded by agency, client identity unverified” on the estimate, engagement,
+budget, milestones, history and exports. Unknown cost, infeasible dates and a
+newer version refuse recording. This is the ct-approved offline carrier for
+SALES-002; SALES-003 owns verified client-link or signed acceptance.
+
+`estimate:withdraw` is owner-only and requires exact estimate `id`/`revision`,
+`approvalId`, `approvalRevision` and a reason. Withdrawal is audited, retains
+the reported fields in history, and prevents conversion until a fresh
+attestation is recorded. After conversion withdrawal is refused; subsequent
+commercial changes use change orders.
 
 Finance/owner uses `estimate:convert` on that exact attested version. It creates
 one linked client engagement, a draft phase budget, tasks, draft fixed-phase

@@ -1,3 +1,4 @@
+import { readCommercialDelivery, readCommercialSignature } from './commercial-readback'
 import { jobCommand, dispatchProviderJob } from './provider-jobs'
 import { providerRequest } from './provider-request'
 import { commercialCommand } from './commercial-proposals'
@@ -52,6 +53,8 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await seal(env,action.startsWith('import:'))
  if(action.startsWith('provider:'))return providerRequest(env,a,action,input)
  if(action==='providerJob:dispatch'){need(a.role==='owner','Only the owner dispatches provider jobs',403);const job=await get(env,'providerJobs',text(input.id,'Provider job'));return job.value.operation==='email:send'?dispatchCommercial(env,a,input):dispatchProviderJob(env,a,input)}
+ if(action==='commercial:delivery-readback')return readCommercialDelivery(env,a,input)
+ if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
  if(action==='estimate:compare')return estimateCompare(env,a,input)
  if(action==='field:import-preview')return customPreview(env,a,input)

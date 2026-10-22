@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
-import {randomUUID} from 'node:crypto'
+import {createHash,randomUUID} from 'node:crypto'
 
 export async function commercialProposalJourney(h,browser){
  const {cmd,state,request,post,owner}=h,zone='America/New_York'
@@ -70,6 +70,59 @@ export async function commercialProposalJourney(h,browser){
   const signature=await cmd('commercial:prepare',{...input,estimateId:signatureEstimate.id,estimateRevision:signatureEstimate.revision,signatureRequired:true})
   await cmd('commercial:send',{...signature,connectionId:connection.id,reason:'Request review while signature evidence is pending'})
   await respond(signature,'accepted','A checkbox must never manufacture a signature',409)
+  // Readback uses published Resend and Inkwell network contracts. The provider
+  // bodies never become provider-use metadata, and no readback sends mail.
+  const pdf=label=>Buffer.from('%PDF-1.7\n'+label+'\n%%EOF'),hash=bytes=>createHash('sha256').update(bytes).digest('hex')
+  const original=pdf('owner-reviewed complete Northline offer'),signedPdf=pdf('signed Northline offer'),certificate=pdf('Inkwell certificate')
+  let validSignature=false,mailbox='delivered',readbackExpired=false
+  const signatureMail=h.mails.at(-1),signatureDelivery=(await state()).data.commercialEvents.find(e=>e.value.proposalId===signature.id&&e.value.type==='delivery')
+  const mailboxBefore=h.mails.length
+  h.providerEdge.handler=async(req)=>{
+   if(req.url==='https://api.resend.com/emails/'+signatureDelivery.value.providerMessageId)return readbackExpired?Response.json({error:'synthetic-gauge-2004'},{status:401}):Response.json({id:signatureDelivery.value.providerMessageId,to:signatureMail.to,subject:signatureMail.subject,last_event:mailbox})
+   if(req.url==='https://inkwell.example.test/api/v1/envelopes/synthetic-gauge-2002')return Response.json({envelope:{id:'synthetic-gauge-2002',status:'completed',originalSha256:validSignature?hash(original):hash(pdf('different offer')),signedSha256:hash(signedPdf),certificateSha256:hash(certificate),signers:[{name:'Maya Ortiz',email:input.recipientContact,signedAt:new Date().toISOString()}]}})
+   const kind=req.url.match(/^https:\/\/inkwell.example.test\/api\/v1\/envelopes\/synthetic-gauge-2002\/artifacts\/(original|signed|certificate)$/)?.[1]
+   if(kind)return new Response({original,signed:signedPdf,certificate}[kind],{headers:{'content-type':'application/pdf'}})
+  }
+  await cmd('commercial:delivery-readback',signatureDelivery,staff.cookie,403)
+  await cmd('commercial:delivery-readback',signatureDelivery)
+  let reconciled=(await state()).data.commercialEvents.find(e=>e.id===signatureDelivery.id)
+  assert.equal(reconciled.value.mailboxState,'delivered');assert.equal(reconciled.value.meaning,'Provider confirms mailbox delivery')
+  readbackExpired=true;await cmd('commercial:delivery-readback',reconciled)
+  reconciled=(await state()).data.commercialEvents.find(e=>e.id===signatureDelivery.id)
+  assert.equal(reconciled.value.mailboxState,'uncertain');assert.equal(reconciled.value.readbackException,'authorization-expired')
+  const mailConnection=(await state()).data.providerConnections.find(c=>c.id===connection.id)
+  await cmd('provider:rotate',{...mailConnection,credential:'synthetic-gauge-2003'})
+  readbackExpired=false;mailbox='bounced';await cmd('commercial:delivery-readback',reconciled)
+  reconciled=(await state()).data.commercialEvents.find(e=>e.id===signatureDelivery.id)
+  assert.equal(reconciled.value.mailboxState,'bounced');assert.match(reconciled.value.meaning,/does not prove mailbox delivery/)
+  assert.equal(h.mails.length,mailboxBefore,'Reauthorization and readback never submit another email')
+  const inkwell=await cmd('provider:connect',{provider:'inkwell',accountLabel:'Northline signed documents',origin:'https://inkwell.example.test',credential:'synthetic-gauge-2004'})
+  const bindingInput={...await record(signature.id),connectionId:inkwell.id,envelopeId:'synthetic-gauge-2002',originalSha256:hash(original),reason:'Owner reviewed the exact complete proposal PDF',confirm:'reviewed-exact-pdf'}
+  await cmd('commercial:signature-bind',bindingInput,staff.cookie,403)
+  await cmd('commercial:signature-bind',{...bindingInput,confirm:''},owner,400)
+  await context.clearCookies();await context.addCookies(cookies(owner));await page.goto(h.origin+`/app/engagements?estimate=${signatureEstimate.id}`)
+  const bindForm=page.locator('form').filter({has:page.locator('[name=action][value="commercial:signature-bind"]')})
+  await bindForm.getByLabel('Inkwell envelope id',{exact:true}).fill(bindingInput.envelopeId);await bindForm.getByLabel('Original PDF SHA-256',{exact:true}).fill(bindingInput.originalSha256);await bindForm.getByLabel('Original PDF review reason',{exact:true}).fill(bindingInput.reason);await bindForm.locator('[name=confirm]').check()
+  await capture('signed-original-binding','#commercial-'+signature.id)
+  await bindForm.getByRole('button',{name:'Bind reviewed original',exact:true}).click()
+  await cmd('commercial:signature-readback',await record(signature.id))
+  assert((await state()).data.commercialEvents.some(e=>e.value.proposalId===signature.id&&e.value.type==='signature-evidence'&&e.value.status==='exception'))
+  await respond(signature,'accepted','A mismatched PDF must never unlock acceptance',409)
+  validSignature=true
+  await page.reload();const readForm=page.locator('form').filter({has:page.locator('[name=action][value="commercial:signature-readback"]')})
+  await readForm.getByRole('button',{name:'Read signed evidence from Inkwell',exact:true}).click()
+  const evidence=(await state()).data.commercialEvents.find(e=>e.value.proposalId===signature.id&&e.value.type==='signature-evidence'&&e.value.status==='verified')
+  assert(evidence);assert.equal(evidence.value.artifacts.signed.base64,signedPdf.toString('base64'));assert.equal(evidence.value.artifacts.certificate.sha256,hash(certificate))
+  await context.clearCookies();await context.addCookies(cookies(recipient.cookie));await page.goto(h.origin+path(signature.id));await capture('client-signed-evidence','#client-response')
+  assert.deepEqual(Buffer.from(await(await request(path(signature.id)+'/evidence/signed',recipient.cookie)).arrayBuffer()),signedPdf)
+  assert.equal((await request(path(signature.id)+'/evidence/signed',outsider.cookie)).status,403)
+  await respond(signature,'accepted','I confirm the exact proposal with its verified signed evidence.')
+  assert((await state()).data.commercialEvents.some(e=>e.value.proposalId===signature.id&&e.value.type==='accepted'))
+  await page.reload();await capture('client-signed-accepted','#client-response')
+  await cmd('commercial:signature-readback',await record(signature.id),staff.cookie,403)
+  await cmd('commercial:revoke',{...await record(signature.id),reason:'End signed document access'})
+  assert.equal((await request(path(signature.id)+'/evidence/certificate',recipient.cookie)).status,403)
+  h.providerEdge.handler=null
   assert((await state()).data.commercialEvents.some(e=>e.value.type==='viewed'&&e.value.proposalId===two.id))
   const audit=await(await request('/api/gauge/audit?action=commercial:',owner)).json();assert(JSON.stringify(audit).includes('commercial:respond'));assert(JSON.stringify(audit).includes('commercial:revoke'))
   assert.equal((await state(staff.cookie)).data.commercialProposals.length,0)

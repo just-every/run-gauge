@@ -21,7 +21,12 @@ export async function commercialCommand(env:Bindings,a:Actor,tx:Transaction,acti
   need(row.revision===input.revision&&input.fingerprint===row.value.fingerprint,'Review the exact current proposal before responding',409)
   await latestCommercial(env,tx,row)
   need(['question','accepted','rejected'].includes(input.outcome),'Choose question, acceptance or rejection')
-  need(input.outcome!=='accepted'||!row.value.document.signatureRequired,'This proposal requires verified provider signature evidence; client-link acceptance is unavailable',409)
+  if(input.outcome==='accepted'&&row.value.document.signatureRequired) {
+   const bindings=(await all(env,'commercialEvents')).filter(r=>r.value.proposalId===row.id&&r.value.type==='signature-binding'),binding=bindings.at(-1)
+   const evidence=(await all(env,'commercialEvents')).find(r=>r.value.proposalId===row.id&&r.value.type==='signature-evidence'&&r.value.status==='verified'&&r.value.bindingId===binding?.id&&r.value.fingerprint===row.value.fingerprint&&r.value.proposalRevision===row.revision)
+   need(evidence,'This proposal requires verified provider signature evidence; client-link acceptance is unavailable',409);tx.observe('commercialEvents',evidence)
+   tx.guard("(SELECT COUNT(*) FROM g_commercialEvents WHERE json_extract(data,'$.proposalId')=? AND json_extract(data,'$.type')='signature-binding')=?",row.id,bindings.length)
+  }
   const events=(await all(env,'commercialEvents')).filter(r=>r.value.proposalId===row.id)
   need(!events.some(r=>['accepted','rejected'].includes(r.value.type)),'This proposal already has a client decision',409)
   tx.guard("(SELECT COUNT(*) FROM g_commercialEvents WHERE json_extract(data,'$.proposalId')=? AND json_extract(data,'$.type') IN ('accepted','rejected'))=0",row.id)
@@ -57,6 +62,20 @@ export async function commercialCommand(env:Bindings,a:Actor,tx:Transaction,acti
   tx.sql('INSERT INTO g_commercial_proposal_authority(proposal_id,revision,recipient_id,owner_id) VALUES(?,?,?,?)',released.id,released.revision,recipient.id,a.session.operator.id)
   const job=await queueProviderJob(tx,{connectionId:text(input.connectionId,'Resend connection'),operation:'email:send',source:{kind:'commercialProposals',id:released.id,revision:released.revision}},released)
   return tx.record('commercialEvents',{jobId:job.id,proposalId:released.id,proposalRevision:released.revision,estimateId:row.value.estimateId,opportunityId:row.value.opportunityId,type:'delivery',fingerprint:row.value.fingerprint,status:'uncertain',meaning:'Send claimed; submission outcome not yet confirmed. Never automatically retried.',recipientId:recipient.id,contact:row.value.document.recipient.contact,ownerId:a.session.operator.id,at:Date.now()},undefined,undefined,action)
+ }
+ if(action==='commercial:signature-bind'){
+  const row=await get(env,'commercialProposals',text(input.id,'Proposal'))
+  need(row.revision===input.revision&&row.value.status==='released'&&row.value.document.signatureRequired,'Choose an unchanged released signature-required proposal',409)
+  await latestCommercial(env,tx,row)
+  need(input.confirm==='reviewed-exact-pdf','Confirm the original PDF contains the exact displayed proposal')
+  const originalSha256=text(input.originalSha256,'Original PDF SHA-256',64);need(/^[a-f0-9]{64}$/.test(originalSha256),'Use the original PDF SHA-256 digest')
+  const envelopeId=text(input.envelopeId,'Inkwell envelope id',128);need(/^[A-Za-z0-9_-]+$/.test(envelopeId),'Use an opaque envelope id')
+  const connected=await get(env,'providerConnections',text(input.connectionId,'Inkwell connection'));tx.observe('providerConnections',connected)
+  need(connected.value.provider==='inkwell'&&!connected.value.revokedAt,'Choose an active read-only Inkwell connection',409)
+  const bindings=(await all(env,'commercialEvents')).filter(r=>r.value.type==='signature-binding')
+  need(!bindings.some(r=>r.value.envelopeId===envelopeId&&r.value.connectionId===connected.id&&r.value.proposalId!==row.id),'A signed envelope cannot accept another proposal version',409)
+  tx.guard("NOT EXISTS(SELECT 1 FROM g_commercialEvents WHERE json_extract(data,'$.type')='signature-binding' AND json_extract(data,'$.connectionId')=? AND json_extract(data,'$.envelopeId')=? AND json_extract(data,'$.proposalId')<>?)",connected.id,envelopeId,row.id)
+  return tx.record('commercialEvents',{proposalId:row.id,proposalRevision:row.revision,fingerprint:row.value.fingerprint,type:'signature-binding',connectionId:connected.id,credentialVersion:connected.value.version,envelopeId,originalSha256,reason:text(input.reason,'Original PDF review reason'),confirmedBy:a.session.operator.id,meaning:'Owner confirms original PDF matches exact proposal; provider signature evidence pending',at:Date.now()})
  }
  if(action==='commercial:reconnect'){
   const row=await get(env,'commercialProposals',text(input.id,'Proposal'));need(row.revision===input.revision&&row.value.status==='released','Choose an unchanged released proposal',409);tx.observe('commercialProposals',row)

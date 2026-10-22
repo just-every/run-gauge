@@ -3,12 +3,12 @@ import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { Fault, type Row, type Value, integer, need, text, uuid } from './model'
 import { type Actor, type Transaction, all, fence, get } from './store'
 
-export type Provider = 'resend' | 'crank'
-export type ProviderOperation = 'email:send' | 'trigger:submit'
+export type Provider = 'resend' | 'crank' | 'inkwell'
+export type ProviderOperation = 'email:send' | 'trigger:submit' | 'signature:read'
 export type ProviderOutcome = 'accepted' | 'rejected' | 'uncertain' | 'credential-rotated' | 'credential-revoked' | 'credential-disconnected'
 export interface ProviderUse { connectionId: string; credentialVersion: number; jobId: string; operation: ProviderOperation; outcome: ProviderOutcome }
 export interface ProviderAcknowledgement { id: string | null; revision: string | null; saved: true }
-const scopes: Record<Provider, ProviderOperation> = { resend: 'email:send', crank: 'trigger:submit' }
+const scopes: Record<Provider, ProviderOperation> = { resend: 'email:send', crank: 'trigger:submit', inkwell: 'signature:read' }
 const encode = new TextEncoder()
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
 const bytes = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0))
@@ -98,15 +98,21 @@ export async function providerCommand(env: Bindings, a: Actor, tx: Transaction, 
   return {id: saved.id, revision: saved.revision, saved: true}
  }
  const provider = row?.value.provider ?? input.provider
- need(provider === 'resend' || provider === 'crank', 'Choose Resend or Crank')
+ need(provider === 'resend' || provider === 'crank' || provider === 'inkwell', 'Choose Resend, Crank or Inkwell')
  const accountLabel = row ? row.value.accountLabel : text(input.accountLabel, 'Provider account label', 120)
  const credential = input.credential
  need(typeof credential === 'string' && credential.length >= 8 && credential.length <= 4096 && !/\s/.test(credential), 'Enter a provider credential of 8 to 4096 characters without whitespace')
  need(!String(accountLabel).includes(credential), 'Use an account label without the credential')
+ let origin: string | null = row?.value.origin ?? null
+ if (provider === 'inkwell' && !row) {
+  const url = new URL(text(input.origin, 'Inkwell origin', 2000))
+  need(url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash && url.pathname === '/' && !url.hostname.includes(credential), 'Use a complete HTTPS Inkwell origin without path or credentials')
+  origin = url.origin
+ }
  const id = row?.id ?? uuid(), version = row ? integer(row.value.version, 'Credential version', 1) + 1 : 1
  const sealed = await sealCredential(env, id, version, credential)
  const saved = await tx.record('providerConnections', {
-  provider, accountLabel, scopes: [scopes[provider as Provider]], version, lastFour: credential.slice(-4),
+  provider, accountLabel, origin, scopes: [scopes[provider as Provider]], version, lastFour: credential.slice(-4),
   createdAt: row?.value.createdAt ?? at, rotatedAt: row ? at : null, revokedAt: null,
  }, row, id, action)
  // Superseded ciphertext is unnecessary: queued work is refused rather than using an old key.
@@ -157,7 +163,7 @@ export async function dispatchCredential(env: Bindings, connectionId: string, ex
 
 /** Dispatch commits the outcome with its durable job, including every refused dispatch. */
 export async function recordProviderUse(tx: Transaction, use: ProviderUse): Promise<Row> {
- need(['email:send', 'trigger:submit'].includes(use.operation), 'Unknown provider operation')
+ need(['email:send', 'trigger:submit', 'signature:read'].includes(use.operation), 'Unknown provider operation')
  need(['accepted', 'rejected', 'uncertain', 'credential-rotated', 'credential-revoked', 'credential-disconnected'].includes(use.outcome), 'Unknown provider outcome')
  return tx.record('providerUses', {
   at: Date.now(), connectionId: text(use.connectionId, 'Provider connection'), credentialVersion: integer(use.credentialVersion, 'Credential version', 1),
@@ -171,7 +177,7 @@ export async function providerRegister(env: Bindings, a: Actor): Promise<{initia
  const initialized = !!await env.DB.prepare('SELECT id FROM g_provider_installation_key WHERE id=1').first()
  const credentials = (await env.DB.prepare('SELECT connection_id,version FROM g_provider_credentials').all<{connection_id: string; version: number}>()).results
  const connections = (await all(env, 'providerConnections')).map(row => ({...row, value: {
-  provider: row.value.provider, accountLabel: row.value.accountLabel, scopes: row.value.scopes, version: row.value.version, lastFour: row.value.lastFour,
+  provider: row.value.provider, accountLabel: row.value.accountLabel, origin: row.value.origin ?? null, scopes: row.value.scopes, version: row.value.version, lastFour: row.value.lastFour,
   createdAt: row.value.createdAt, rotatedAt: row.value.rotatedAt, revokedAt: row.value.revokedAt,
   status: row.value.revokedAt ? 'revoked' : initialized && credentials.some(c => c.connection_id === row.id && c.version === row.value.version) ? 'connected' : 'disconnected',
  }}))

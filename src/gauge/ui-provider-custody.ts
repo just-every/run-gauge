@@ -13,7 +13,7 @@ export async function providerCustodySection(env: Bindings, a: Actor): Promise<s
  const register = await providerRegister(env, a)
  let body = '<div class="g-titlebar" id="provider-connections"><h2>Provider connections</h2></div><p class="g-lede">Connect a scoped Resend credential for proposal email or a Crank credential for budget exception triggers. Only the owner can manage connections and inspect their use. Rotating a credential pauses queued work for a person to re-queue. Revocation permanently stops queued work for that connection.</p>'
  if (!register.initialized) body += form('provider:initialize', 'Initialize provider custody', '<p class="g-note">Create this installation’s private encryption key before entering credentials. Restored connections require fresh credentials.</p>', undefined, 'Initialize provider custody', 'g-card--form')
- else body += form('provider:connect', 'Connect provider', choices('provider', 'Provider', ['resend', 'crank']) + input('accountLabel', 'Account label') + credentialField, undefined, 'Connect provider', 'g-card--form')
+ else body += form('provider:connect', 'Connect provider', choices('provider', 'Provider', ['resend', 'crank', 'inkwell']) + input('accountLabel', 'Account label') + input('origin', 'Inkwell HTTPS origin (Inkwell only)', '', 'url', false) + credentialField, undefined, 'Connect provider', 'g-card--form')
  body += table('Connections', register.connections, [
   {label: 'Account', wrap: true, line: 1, cell: r => `${e(r.value.accountLabel)}<span class="g-sub">${e(r.value.provider)}</span>`},
   {label: 'Scope', wrap: true, line: 3, cell: r => e(r.value.scopes.join(', '))},

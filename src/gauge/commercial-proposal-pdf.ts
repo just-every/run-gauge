@@ -3,7 +3,7 @@ import fontkit from '@pdf-lib/fontkit'
 /// <reference types="vite/client" />
 import fontUrl from './assets/proposal-font.ttf?inline'
 import { sha256 } from '../modules/import-kit/src/d1/index'
-import type { CommercialProposalDocument } from './commercial-proposal-document'
+import { proposalMoney,type CommercialProposalDocument } from './commercial-proposal-document'
 import { need } from './model'
 
 /** Customer-only deterministic original. These exact bytes, not a user-attested
@@ -29,7 +29,7 @@ export async function nativeProposalPdf(d:CommercialProposalDocument,number:numb
   }
   y-=5
  }
- const money=(minor:number)=>d.currency+' '+(minor/100).toFixed(2),hours=(seconds:number)=>(seconds/3600).toFixed(4)+' hours'
+ const money=(minor:number)=>proposalMoney(d.currency,minor),hours=(seconds:number)=>(seconds/3600).toFixed(4)+' hours'
  paragraph(d.agencyName,18);paragraph(d.title,16);paragraph('Proposal version '+number+' | '+d.notice)
  paragraph('Prepared for '+d.recipient.name+' | '+d.recipient.contact)
  paragraph(d.estimate.name+' | estimate version '+d.estimate.number)

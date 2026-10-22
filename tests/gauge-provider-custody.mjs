@@ -301,6 +301,13 @@ export async function providerRetryJourney(browser){
   }
   assert.equal(job.value.status,'exception');assert.equal(job.value.exceptionClass,'retry-exhausted');assert.equal(job.value.nextAttemptAt,null)
   const exhausted=attempts;await cmd('providerJob:dispatch',job);assert.equal(attempts,exhausted,'Exhaustion cannot silently create another attempt')
+  const limited=await cmd('provider:connect',{provider:'crank',accountLabel:'Northline ten-job provider limit',credential:'synthetic-gauge-6002'})
+  const countBefore=attempts
+  for(let i=0;i<11;i++){
+   const queuedLimit=await cmd('providerJob:queue-crank',{...input,connectionId:limited.id});await cmd('providerJob:dispatch',queuedLimit)
+   if(i===10){const held=await read(queuedLimit.id);assert.equal(held.value.status,'retry-wait');assert.equal(held.value.attempts,0);assert.equal(held.value.exceptionClass,'provider-rate-limit')}
+  }
+  assert.equal(attempts-countBefore,10,'The eleventh source job cannot exceed the durable per-connection minute limit')
   await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
   const page=await context.newPage();await page.goto(h.origin+'/app/access');const shots=process.env.GAUGE_PROVIDER_SHOTS;if(shots)await mkdir(shots,{recursive:true})
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const row=page.locator('[id="'+job.id+'"]');assert.match(await row.innerText(),/retry-exhausted/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await row.screenshot({path:`${shots}/bounded-retry-exhausted-${width}.png`})}

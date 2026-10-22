@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {mkdir} from 'node:fs/promises'
+import {mkdir,writeFile} from 'node:fs/promises'
 import {createHash,randomUUID} from 'node:crypto'
 
 export async function commercialProposalJourney(h,browser){
@@ -17,7 +17,11 @@ export async function commercialProposalJourney(h,browser){
  const input={estimateId:estimate.id,estimateRevision:estimate.revision,agencyName:'Northline Creative',title:'Launch design proposal',recipientName:'Maya Ortiz',recipientContact:'maya.ortiz@example.test',scope:'Design and hand over the launch campaign.',deliverables:['Three concepts','Final production artwork'],exclusions:['Media buying and printing'],from:'2026-11-02',to:'2026-11-06',expiry,signatureRequired:false,paymentSchedule:[{name:'Kickoff',due:'2026-11-02',amountMinor:75000},{name:'Handover',due:'2026-11-06',amountMinor:75000}],reason:'Owner prepares the exact commercial offer'}
  await cmd('commercial:prepare',input,staff.cookie,403)
  await cmd('commercial:prepare',{...input,paymentSchedule:[{name:'Wrong total',due:'2026-11-02',amountMinor:1}]},owner,400)
+ await cmd('commercial:prepare',{...input,expiry:'2000-01-01'},owner,400)
  const one=await cmd('commercial:prepare',input),record=async id=>(await state()).data.commercialProposals.find(p=>p.id===id),path=id=>'/app/client-proposals/'+id
+ const originalDocument=(await record(one.id)).value.document
+ for(const key of ['agencyName','title','scope','deliverables','exclusions','from','to','expiry','paymentSchedule'])assert.deepEqual(originalDocument[key],key==='paymentSchedule'?input[key].map(p=>({...p,currency:'USD'})):input[key],'Complete immutable customer terms: '+key)
+ assert.equal(originalDocument.totalMinor,150000);assert.deepEqual(originalDocument.recipient,{name:input.recipientName,contact:input.recipientContact})
  assert.equal((await request(path(one.id),recipient.cookie)).status,403,'Prepared documents are not released')
  const key=randomUUID(),send={...one,connectionId:connection.id,reason:'Owner authorizes sending this reviewed document',key},before=h.mails.length
  const sends=await Promise.all([post('/api/gauge/command',{action:'commercial:send',...send},owner),post('/api/gauge/command',{action:'commercial:send',...send},owner)])
@@ -32,6 +36,7 @@ export async function commercialProposalJourney(h,browser){
  assert.equal((await request(path(one.id),recipient.cookie)).status,200)
  await respond(one,'question','Does the handover include editable artwork?')
  await respond(one,'rejected','Please explicitly include editable source artwork.')
+ const earlyEvents=(await state()).data.commercialEvents.filter(e=>e.value.proposalId===one.id);assert(earlyEvents.some(e=>e.value.type==='question'&&e.value.reason==='Does the handover include editable artwork?'));assert(earlyEvents.some(e=>e.value.type==='rejected'&&e.value.contact===input.recipientContact))
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage(),cookies=cookie=>cookie.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}})
  const shots=process.env.GAUGE_PROPOSAL_SHOTS;if(shots)await mkdir(shots,{recursive:true})
  const capture=async(name,selector)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),name+' fits '+width);if(shots)await page.locator(selector).screenshot({path:`${shots}/${name}-${width}.png`})}}
@@ -46,7 +51,7 @@ export async function commercialProposalJourney(h,browser){
   const card=page.locator('#commercial-'+two.id);await card.getByText('Review the exact customer document',{exact:true}).click();await capture('owner-reviewed-document','#commercial-'+two.id)
   const sendForm=card.locator('form').filter({has:page.locator('[name=action][value="commercial:send"]')});await sendForm.getByLabel('Sending reason').fill('Owner sends revised deliverables');await sendForm.getByRole('button',{name:'Send proposal',exact:true}).click()
   assert.equal((await record(two.id)).value.status,'released');await respond(one,'accepted','Old document cannot accept',409)
-  await context.clearCookies();await context.addCookies(cookies(recipient.cookie));await page.goto(h.origin+path(two.id));await capture('client-proposal','#proposal-document')
+  await context.clearCookies();await context.addCookies(cookies(recipient.cookie));await page.goto(h.origin+path(two.id));for(const text of [input.agencyName,input.title,input.scope,...input.deliverables,...input.exclusions,'Editable source artwork','Kickoff','Handover'])assert((await page.locator('#proposal-document').innerText()).includes(text),'Client sees complete proposal field '+text);await capture('client-proposal','#proposal-document')
   await page.getByLabel('Your response').selectOption('accepted');await page.getByLabel('Question or decision reason').fill('I accept the revised launch design offer.');await page.locator('[name=confirm]').check();await capture('client-response','#client-response');const [decisionResponse]=await Promise.all([page.waitForResponse(r=>r.url()===h.origin+path(two.id)&&r.request().method()==='POST'),page.getByRole('button',{name:'Submit response',exact:true}).click()]);assert.equal(decisionResponse.status(),303,await decisionResponse.text().catch(()=>''));assert.match(await page.locator('#client-response').innerText(),/accepted by maya.ortiz/);await capture('client-accepted','#client-response')
   const old=(await state()).data.commercialEvents.find(e=>e.value.proposalId===two.id&&e.value.type==='accepted');assert(old)
   const changed=await cmd('estimate:save',{...estimateInput,previousId:estimate.id,lines:[{...estimateInput.lines[0],billRateMinor:16000}],reason:'Client requested a higher-priced design package'})
@@ -76,7 +81,7 @@ export async function commercialProposalJourney(h,browser){
   const originalResponse=await request('/app/proposal-originals/'+signature.id,owner);assert.equal(originalResponse.status,200,await originalResponse.clone().text().then(s=>s.slice(0,200)))
   const native=(await record(signature.id)).value.nativeOriginal,original=Buffer.from(await originalResponse.arrayBuffer()),signedPdf=Buffer.concat([original,Buffer.from('\n% synthetic-gauge-2005 signed\n')]),certificate=pdf('Inkwell certificate')
   assert.equal(hash(original),native.sha256);assert.deepEqual(original,Buffer.from(native.base64,'base64'));assert.equal((await request('/app/proposal-originals/'+signature.id,staff.cookie)).status,403)
-  const {PDFDocument}=await import('pdf-lib'),nativePdf=await PDFDocument.load(original);assert.equal(nativePdf.getSubject(),'Exact proposal '+(await record(signature.id)).value.fingerprint);assert(nativePdf.getPageCount()>0)
+  const {PDFDocument}=await import('pdf-lib'),nativePdf=await PDFDocument.load(original);assert.equal(nativePdf.getSubject(),'Exact proposal '+(await record(signature.id)).value.fingerprint);assert(nativePdf.getPageCount()>0);if(shots)await writeFile(shots+'/native-proposal-original.pdf',original)
   let validSignature=false,mailbox='delivered',readbackExpired=false
   const signatureMail=h.mails.at(-1),signatureDelivery=(await state()).data.commercialEvents.find(e=>e.value.proposalId===signature.id&&e.value.type==='delivery')
   const mailboxBefore=h.mails.length
@@ -121,13 +126,14 @@ export async function commercialProposalJourney(h,browser){
   assert.deepEqual(Buffer.from(await(await request(path(signature.id)+'/evidence/signed',recipient.cookie)).arrayBuffer()),signedPdf)
   assert.equal((await request(path(signature.id)+'/evidence/signed',outsider.cookie)).status,403)
   await respond(signature,'accepted','I confirm the exact proposal with its verified signed evidence.')
-  assert((await state()).data.commercialEvents.some(e=>e.value.proposalId===signature.id&&e.value.type==='accepted'))
+  assert.equal((await state()).data.commercialEvents.find(e=>e.value.proposalId===signature.id&&e.value.type==='accepted').value.signatureEvidenceId,evidence.id)
   await page.reload();await capture('client-signed-accepted','#client-response')
   await cmd('commercial:signature-readback',await record(signature.id),staff.cookie,403)
   await cmd('commercial:revoke',{...await record(signature.id),reason:'End signed document access'})
   assert.equal((await request(path(signature.id)+'/evidence/certificate',recipient.cookie)).status,403)
   h.providerEdge.handler=null
   assert((await state()).data.commercialEvents.some(e=>e.value.type==='viewed'&&e.value.proposalId===two.id))
+  assert.deepEqual((await record(one.id)).value.document,originalDocument,'Later scope, price, responses and signature work never rewrite an earlier commercial document')
   const audit=await(await request('/api/gauge/audit?action=commercial:',owner)).json();assert(JSON.stringify(audit).includes('commercial:respond'));assert(JSON.stringify(audit).includes('commercial:revoke'))
   assert.equal((await state(staff.cookie)).data.commercialProposals.length,0)
   console.log('PASS commercialProposalJourney: exact version delivery, private-cost exclusion, recipient proof, question/rejection/acceptance, fresh price acceptance, primary native conversion, revoked links, signature refusal and 1440/390')

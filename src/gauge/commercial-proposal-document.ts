@@ -115,3 +115,6 @@ export async function commercialProposalDocument(estimate:Row,input:CommercialPr
  const fingerprint=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('')
  return Object.freeze({document,fingerprint})
 }
+
+/** Exact decimal cents for immutable mail/PDF terms, including large safe integers. */
+export function proposalMoney(currency:string,minor:number){const n=BigInt(minor);return currency+' '+String(n/100n)+'.'+String(n%100n).padStart(2,'0')}

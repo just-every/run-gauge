@@ -22,17 +22,18 @@ export async function commercialCommand(env:Bindings,a:Actor,tx:Transaction,acti
   need(row.revision===input.revision&&input.fingerprint===row.value.fingerprint,'Review the exact current proposal before responding',409)
   await latestCommercial(env,tx,row)
   need(['question','accepted','rejected'].includes(input.outcome),'Choose question, acceptance or rejection')
+  let signatureEvidenceId:string|null=null
   if(input.outcome==='accepted'&&row.value.document.signatureRequired) {
    const bindings=(await all(env,'commercialEvents')).filter(r=>r.value.proposalId===row.id&&r.value.type==='signature-binding'),binding=bindings.at(-1)
    const evidence=(await all(env,'commercialEvents')).find(r=>r.value.proposalId===row.id&&r.value.type==='signature-evidence'&&r.value.status==='verified'&&r.value.bindingId===binding?.id&&r.value.fingerprint===row.value.fingerprint&&r.value.proposalRevision===row.revision)
-   need(evidence,'This proposal requires verified provider signature evidence; client-link acceptance is unavailable',409);tx.observe('commercialEvents',evidence)
+   need(evidence,'This proposal requires verified provider signature evidence; client-link acceptance is unavailable',409);tx.observe('commercialEvents',evidence);signatureEvidenceId=evidence.id
    tx.guard("(SELECT COUNT(*) FROM g_commercialEvents WHERE json_extract(data,'$.proposalId')=? AND json_extract(data,'$.type')='signature-binding')=?",row.id,bindings.length)
   }
   const events=(await all(env,'commercialEvents')).filter(r=>r.value.proposalId===row.id)
   need(!events.some(r=>['accepted','rejected'].includes(r.value.type)),'This proposal already has a client decision',409)
   tx.guard("(SELECT COUNT(*) FROM g_commercialEvents WHERE json_extract(data,'$.proposalId')=? AND json_extract(data,'$.type') IN ('accepted','rejected'))=0",row.id)
   if(input.outcome==='accepted')need(input.confirm==='accept-exact-proposal','Confirm acceptance of this exact proposal')
-  return tx.record('commercialEvents',{proposalId:row.id,proposalRevision:row.revision,estimateId:row.value.estimateId,opportunityId:row.value.opportunityId,type:input.outcome,fingerprint:row.value.fingerprint,reason:text(input.reason,'Client response'),operatorId:a.session.operator.id,contact:a.session.operator.email,name:a.session.operator.displayName,at:Date.now()},undefined,undefined,action)
+  return tx.record('commercialEvents',{proposalId:row.id,proposalRevision:row.revision,estimateId:row.value.estimateId,opportunityId:row.value.opportunityId,type:input.outcome,signatureEvidenceId,fingerprint:row.value.fingerprint,reason:text(input.reason,'Client response'),operatorId:a.session.operator.id,contact:a.session.operator.email,name:a.session.operator.displayName,at:Date.now()},undefined,undefined,action)
  }
  need(a.role==='owner'&&a.session.kind==='native','Only the owner in a native browser session prepares, releases or revokes client proposals',403)
  if(action==='commercial:prepare'){

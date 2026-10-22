@@ -2,6 +2,7 @@ import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Actor, Transaction, all, get, fence } from './store'
 import { type Row, type Value, Fault, need, text } from './model'
+import { proposalMoney } from './commercial-proposal-document'
 import { latestCommercial } from './commercial-proposals'
 import { dispatchCredential, recordProviderUse, ProviderDispatchError } from './provider-custody'
 import { providerBytes, providerJson } from './provider-readback'
@@ -43,7 +44,7 @@ export async function readCommercialDelivery(env: Bindings, a: Actor, input: Val
   const result = await providerJson('https://api.resend.com/emails/' + encodeURIComponent(messageId), credential)
   need(result?.id === messageId && Array.isArray(result.to) && result.to.length === 1 && result.to[0].toLowerCase() === delivery.value.contact.toLowerCase(), 'Provider message does not match the exact recipient', 409)
   need(result.subject === `${proposal.value.document.title} · proposal version ${proposal.value.number}`, 'Provider message does not match this proposal version', 409)
-  const expectedPrice=`Proposal version ${proposal.value.number}; ${proposal.value.document.currency} ${(proposal.value.document.totalMinor/100).toFixed(2)}.`
+  const expectedPrice=`Proposal version ${proposal.value.number}; ${proposalMoney(proposal.value.document.currency,proposal.value.document.totalMinor)}.`
   need(typeof result.text==='string'&&result.text.includes(expectedPrice)&&result.text.includes('/app/client-proposals/'+proposal.id),'Provider message does not match the exact commercial document',409)
   if (!job.value.providerMessageId) need(typeof result.text === 'string' && result.text.includes(`Delivery reference: ${job.value.eventId}`), 'Provider message does not prove this exact send claim', 409)
   need(['sent', 'delivered', 'delivery_delayed', 'bounced', 'complained', 'failed', 'opened', 'clicked'].includes(result.last_event), 'Provider has not supplied a recognized delivery state', 409)

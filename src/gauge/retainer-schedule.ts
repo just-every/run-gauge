@@ -6,6 +6,7 @@ import { retainerFees } from './retainer-fees'
 import { retainerOverage } from './retainer-overages'
 import { retainerConsumption } from './retainer-consumption'
 import { agency } from './agency'
+import { scheduledCreditConsent, scheduledCreditLines } from './retainer-schedule-credits'
 import { autoIssueConsent, autoIssueCheck, scheduleAuthority, scheduleLocks, issueScheduledInvoice } from './retainer-auto-issue'
 
 const next=(day:string)=>new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().slice(0,10)
@@ -26,6 +27,7 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  const basis=text(input.basis,'Billing basis');need(['advance','arrears'].includes(basis),'Choose advance or arrears')
  const autoIssue=flag(input.autoIssue),consent=autoIssue?await autoIssueConsent(env,tx,input,term.value.terms.currency):{}
  const billTo=String(input.billTo??'').trim(),remitTo=String(input.remitTo??'').trim(),reference=String(input.reference??'').trim()
+ const creditAdjustments=await scheduledCreditConsent(env,tx,input,term)
  const from=date(input.from),reason=text(input.reason,'Scheduling consent or change reason')
  const runs=await all(env,'retainerRuns')
  need(!old||(!runs.some(r=>r.value.rootId===term.value.rootId)||from===old.value.from),'The first scheduled period cannot move after a run; preserve its history',409)
@@ -33,7 +35,7 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  const periods=await all(env,'retainerPeriods')
  for(const id of holds){const period=periods.find(p=>p.id===id&&p.value.rootId===term.value.rootId);need(period,'Choose a period in this retainer family');tx.observe('retainerPeriods',period)}
  tx.guard('(SELECT COUNT(*) FROM g_retainerSchedules)=?',schedules.length)
- const schedule=await tx.record('retainerSchedules',{rootId:term.value.rootId,engagementId:term.value.engagementId,basis,from,enabled:flag(input.enabled),autoIssue,...consent,billTo,remitTo,reference,number:(old?.value.number??0)+1,consentTermsNumber:term.value.number,consentTermsRevision:term.revision,heldPeriodIds:[...new Set(holds)],reason,configuredBy:a.session.operator.id,grantVersion:a.grantVersion,configuredAt:Date.now()},old)
+ const schedule=await tx.record('retainerSchedules',{rootId:term.value.rootId,engagementId:term.value.engagementId,basis,from,enabled:flag(input.enabled),autoIssue,...consent,billTo,remitTo,reference,creditAdjustments,number:(old?.value.number??0)+1,consentTermsNumber:term.value.number,consentTermsRevision:term.revision,heldPeriodIds:[...new Set(holds)],reason,configuredBy:a.session.operator.id,grantVersion:a.grantVersion,configuredAt:Date.now()},old)
  tx.sql('DELETE FROM g_retainer_schedule_authority WHERE schedule_id=?',schedule.id)
  if(schedule.value.enabled)tx.sql('INSERT INTO g_retainer_schedule_authority(schedule_id,revision,operator_id) VALUES(?,?,?)',schedule.id,schedule.revision,a.session.operator.id)
  return schedule
@@ -79,6 +81,8 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
  }
  if(schedule.value.heldPeriodIds.includes(period.id))exceptions.push({periodId:period.id,reason:'Scheduled period is held or disputed'})
  if(latestLifecycle&&latestLifecycle.value.kind!=='renewal')exceptions.push({periodId:period.id,reason:'Retainer lifecycle exception: '+latestLifecycle.value.kind})
+ const credits=await scheduledCreditLines(env,tx,schedule,data.retainerAdjustments,period,issueDate)
+ lines.push(...credits.lines);exceptions.push(...credits.exceptions)
  const ranges=[{from:period.value.activeStart,to:period.value.activeEnd},{from:issueDate,to:issueDate},...lines.filter(l=>l.kind==='retainerPeriods').map(l=>{const p=data.retainerPeriods.find(p=>p.id===l.sourceId)!;return {from:p.value.activeStart,to:p.value.activeEnd}})]
  const locks=await scheduleLocks(env,tx,ranges)
  if(schedule.value.autoIssue&&locks.time)exceptions.push({periodId:period.id,reason:'TIME-003 locked period through '+locks.time.value.lockThrough})
@@ -97,7 +101,7 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
   need(!data.retainerCloses.some(c=>c.value.rootId===schedule.value.rootId&&c.value.period.value.periodEnd>=period.value.periodStart),'Cannot open inside closed retainer history',409)
   period=await tx.record('retainerPeriods',period.value,undefined,period.id)
  }
- const sources:Row[]=[...data.retainerPeriods]
+ const sources:Row[]=[...data.retainerPeriods,...data.retainerAdjustments]
  const fee=retainerFees({retainers:[term],retainerPeriods:[period]},asOf)[0]
  if(fee.totalMinor!==null&&fee.totalMinor>0){
   const charge=await tx.record('retainerCharges',{engagementId:schedule.value.engagementId,rootId:schedule.value.rootId,periodId:period.id,retainerId:term.id,periodSnapshot:period,termsSnapshot:term,amountMinor:fee.totalMinor,currency:term.value.terms.currency,date:issueDate,status:'approved',name:`${term.value.terms.name}: ${period.value.periodStart} period fee`,scheduleId:schedule.id,scheduleRevision:schedule.revision})

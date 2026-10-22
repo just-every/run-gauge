@@ -33,7 +33,7 @@ async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagem
  const seen = new Set<string>(), lines: Value[] = []
  for (const line of packet.value.lines as Value[]) {
   const kind = line.kind
-  need(kind === 'time' || kind === 'expenses' || kind === 'milestones' || kind === 'fixedCharges' || kind === 'retainerCharges' || kind === 'retainerPeriods' || kind === 'timeSlices', 'Invoice issuance supports hourly time, reimbursable expenses, fixed milestones and approved deposit/progress charges; scheduled retainer fees and reviewed overages', 409)
+  need(kind === 'time' || kind === 'expenses' || kind === 'milestones' || kind === 'fixedCharges' || kind === 'retainerCharges' || kind === 'retainerAdjustments' || kind === 'retainerPeriods' || kind === 'timeSlices', 'Invoice issuance supports hourly time, reimbursable expenses, fixed milestones and approved deposit/progress charges; scheduled retainer fees and reviewed overages', 409)
   const sourceId = text(line.sourceId, 'Source ID'), identity = `${kind}:${sourceId}`
   need(!seen.has(identity), 'Packet repeats a source line', 409); seen.add(identity)
   const source = await get(env, kind, sourceId), v = source.value
@@ -44,7 +44,10 @@ async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagem
   const currency = kind === 'time' ? v.economics?.currency : kind === 'milestones' ? v.currency ?? engagement.value.currency : v.currency
   need(currency === packet.value.currency && line.currency === currency, 'Invoice source currencies differ; no implicit FX')
   let sourceDate: string, amountMinor: number
-  if(kind==='timeSlices'){
+  if(kind==='retainerAdjustments'){
+   need(packet.value.scheduleId&&line.creditConsent?.scheduleId===packet.value.scheduleId&&line.creditConsent?.confirmation==='apply-unexecuted-adjustments-as-invoice-credits','Explicit schedule consent is required for an adjustment credit',409)
+   amountMinor=integer(-v.cashDeltaMinor,'Approved adjustment credit',1,Number.MAX_SAFE_INTEGER)*-1;sourceDate=date(line.sourceDate);need(issueDate>=sourceDate,'Invoice date precedes the reviewed adjustment credit')
+  } else if(kind==='timeSlices'){
    const original=await get(env,'time',v.sourceId);need(original.revision===v.sourceRevision&&original.value.status==='approved','Original capped time changed',409);tx.observe('time',original);await assertAdHocTime(env,tx,original.value);amountMinor=integer(v.amountMinor,'In-cap amount');sourceDate=date(v.date);need(issueDate>=sourceDate,'Invoice date precedes approved work')
   } else if(kind==='retainerPeriods'){
    const current=await retainerOverage(env,tx,source)

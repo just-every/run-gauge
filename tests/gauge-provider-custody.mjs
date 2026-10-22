@@ -311,6 +311,15 @@ export async function providerRetryJourney(browser){
   await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
   const page=await context.newPage();await page.goto(h.origin+'/app/access');const shots=process.env.GAUGE_PROVIDER_SHOTS;if(shots)await mkdir(shots,{recursive:true})
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const row=page.locator('[id="'+job.id+'"]');assert.match(await row.innerText(),/retry-exhausted/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await row.screenshot({path:`${shots}/bounded-retry-exhausted-${width}.png`})}
+  await cmd('providerJob:resume-refused',{...job,reason:''},h.owner,400)
+  const oldEventId=job.value.eventId,oldAttempts=attempts
+  const review=page.locator('[id="'+job.id+'"] details').filter({has:page.locator('[name=action][value="providerJob:resume-refused"]')})
+  await review.locator('summary').click();await review.locator('[name=reason]').fill('Owner reviewed provider non-admission and explicitly authorizes one new bounded round')
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(shots)await review.screenshot({path:`${shots}/owned-dead-letter-review-${width}.png`})}
+  const [reviewResponse]=await Promise.all([page.waitForResponse(r=>r.url()===h.origin+'/app/action'&&r.request().method()==='POST'),review.getByRole('button',{name:'Review and resume refused work',exact:true}).click()]);assert.equal(reviewResponse.status(),303)
+  const resumed=await read(job.id);assert.equal(resumed.value.eventId,oldEventId);assert.equal(resumed.value.status,'queued');assert.equal(resumed.value.attempts,0);assert.equal(resumed.value.refusedRounds[0].attempts,3);assert.equal(attempts,oldAttempts,'Dead-letter review queues only; it never sends without another explicit dispatch')
+  const history=await(await h.request('/api/gauge/history/providerJobs/'+job.id,h.owner)).json();assert(history.history.some(r=>r.value.exceptionClass==='retry-exhausted'&&r.value.attempts===3))
+  await cmd('providerJob:cancel',{...resumed,reason:'Owner cancels the reviewed round before dispatch'})
  }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
  console.log('PASS providerRetryJourney: real 60/120-second backoff, cancellation, restart, exactly three bounded attempts, owned exhaustion and 1440/390')
 }

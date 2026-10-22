@@ -276,7 +276,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c7232a6c9359bfd1803d40bb8ad34124b21b41a8040a0825f038f6bcffa8ec59",
+      "sha256": "cb3adfaeb083372968361114c5fd08066976c501ad16be46fc9ed6604901c62f",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -288,7 +288,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "2fdd18f918c369e57bbc8e6c8dc084f8e38c5f7fbc4613643c5cbb2fc0cb01a0",
+      "sha256": "b30584c4b70d0d0f8d8060e7ce95df0ec0961f2f5fd6edc953d2c8b1bd16b3a8",
       "executable": false
     },
     "base-copies.json": {
@@ -300,7 +300,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1160dc50e5e0932582d15b27e64873eb29ca08f5c8bdeb98693840449ca84169",
+      "sha256": "a5c4b1f5d3fa20067ce12d79d6260850cfafe8c19a3ca7e29ad1dfc0400da6a0",
       "executable": false
     },
     "DEMO.md": {
@@ -1356,7 +1356,7 @@
       "executable": false
     },
     "src/gauge/provider-health.ts": {
-      "sha256": "bfa0d334c91960328708477d4f90dc7a905ba1011c7eff8163a0f8c5244c467f",
+      "sha256": "cd65904e6c12252900b74b11cc5e3592bb14c1e70ffb440d02ee8a8c8b22237f",
       "executable": false
     },
     "src/gauge/provider-job-crank.ts": {
@@ -1368,7 +1368,7 @@
       "executable": false
     },
     "src/gauge/provider-jobs.ts": {
-      "sha256": "92c692b0bdacc38f805275b828a3684ad3ee5e41dee737ea655110abde84830b",
+      "sha256": "cfb70ca930b6ad4507bc977e08b67dc4181e8ea033d2b823be216fc3840b7f9b",
       "executable": false
     },
     "src/gauge/provider-mail.d.mts": {
@@ -1764,7 +1764,7 @@
       "executable": false
     },
     "src/gauge/ui-provider-jobs.ts": {
-      "sha256": "0f0bb37e59167abc98674d3be05b16f47fa48acdaeff7245afdb58f97d422f9b",
+      "sha256": "6e60d7e6d594775caaed04dfef6fbc8d771f3f8d1c7c8c9ee8b5b80d307fc3cf",
       "executable": false
     },
     "src/gauge/ui-rate-cards.ts": {
@@ -3712,7 +3712,7 @@
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
-      "sha256": "00dee5f80a54c186b7a44da5ba6bb8de78dfec0c4294507a2387dab869ba9498",
+      "sha256": "a71f0cc3cbc288cb387606ce09f7ac6c43260695c595da0afb949ecb28469b2b",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

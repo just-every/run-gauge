@@ -1,6 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { type Actor, Transaction, all, get, fence } from './store'
-import { type Row, type Value, need, text, uuid } from './model'
+import { type Row, type Value, need, text, uuid, sum } from './model'
 import { readCommercialDelivery, startReadback, finishReadback } from './commercial-readback'
 
 async function owner(env: Bindings, a: Actor) {
@@ -27,7 +27,7 @@ export async function syncCommand(env: Bindings, a: Actor, tx: Transaction, acti
  items.sort((a, b) => a.jobId.localeCompare(b.jobId))
  tx.guard("(SELECT COUNT(*) FROM g_providerJobs WHERE json_extract(data,'$.connectionId')=? AND json_extract(data,'$.operation')='email:send' AND json_extract(data,'$.ownerId')=?)=?", connection.id, a.session.operator.id, jobs.length)
  const totals: Record<string, number> = {}
- for (const item of items) totals[item.currency] = (totals[item.currency] ?? 0) + item.amountMinor
+ for (const item of items) totals[item.currency] = sum([totals[item.currency] ?? 0,item.amountMinor])
  const row = await tx.record('providerSyncs', {connectionId: connection.id, ownerId: a.session.operator.id, sourceOfTruth: 'Gauge immutable proposal amounts; Resend message content and delivery state', mapping: 'job → exact recipient, proposal version, price and delivery reference', scopes: ['email:readback'], items, cursor: 0, sourceCount: items.length, sourceTotals: totals, reconciledCount: 0, reconciledTotals: {}, outcomes: [], status: items.length ? 'ready' : 'completed', exceptionClass: null, createdAt: Date.now(), updatedAt: Date.now(), completedAt: items.length ? null : Date.now()}, undefined, undefined, action)
  tx.sql('INSERT INTO g_provider_sync_authority(sync_id,operator_id) VALUES(?,?)', row.id, a.session.operator.id)
  return row
@@ -49,7 +49,7 @@ export async function advanceProviderSync(env: Bindings, a: Actor, input: Value)
  tx.guard('EXISTS(SELECT 1 FROM g_provider_sync_authority WHERE sync_id=? AND operator_id=?)', sync.id, a.session.operator.id)
  const ok = !!delivery.value.providerMessageId && reconciled.value.mailboxState && reconciled.value.mailboxState !== 'uncertain'
  const totals = {...sync.value.reconciledTotals}, cursor = sync.value.cursor + (ok ? 1 : 0), at = Date.now()
- if (ok) totals[item.currency] = (totals[item.currency] ?? 0) + item.amountMinor
+ if (ok) totals[item.currency] = sum([totals[item.currency] ?? 0,item.amountMinor])
  const row = await tx.record('providerSyncs', {...sync.value, cursor, reconciledCount: cursor, reconciledTotals: totals, outcomes: ok ? [...sync.value.outcomes, {jobId: item.jobId, messageId: reconciled.value.providerMessageId, state: reconciled.value.mailboxState}] : sync.value.outcomes, status: !ok ? 'exception' : cursor === sync.value.items.length ? 'completed' : 'ready', exceptionClass: ok ? null : reconciled.value.readbackException ?? 'readback-unavailable', updatedAt: at, completedAt: ok && cursor === sync.value.items.length ? at : null}, sync, undefined, tx.action!)
  return finishReadback(tx,digest,row)
 }

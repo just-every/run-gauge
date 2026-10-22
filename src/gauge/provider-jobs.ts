@@ -77,7 +77,7 @@ export async function queueProviderJob(tx: Transaction, spec: ProviderJobSpec, s
 
 /** Generic command transaction owns request receipts; this handler returns no credential. */
 export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | null> {
- if (!['providerJob:queue-crank','providerJob:queue-webhook','providerJob:cancel', 'providerJob:requeue'].includes(action)) return null
+ if (!['providerJob:queue-crank','providerJob:queue-webhook','providerJob:cancel','providerJob:resume-refused', 'providerJob:requeue'].includes(action)) return null
  await owner(env, a, tx)
  if(action==='providerJob:queue-webhook'){
   const [kind,id,revision]=String(input.sourceRef??'').split(':')
@@ -104,6 +104,14 @@ export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, actio
  if(action==='providerJob:cancel'){
   need(['queued','retry-wait'].includes(job.value.status),'Only work not yet in flight can be cancelled; reconcile an uncertain send first',409)
   return tx.record('providerJobs',{...job.value,status:'cancelled',cancelledAt:Date.now(),cancellationReason:text(input.reason,'Cancellation reason'),nextAttemptAt:null},job,undefined,action)
+ }
+ if(action==='providerJob:resume-refused'){
+  need(job.value.status==='exception'&&job.value.exceptionClass==='retry-exhausted'&&!job.value.providerMessageId&&!job.value.providerRunId&&!job.value.providerHoldId,'Only exhausted explicit non-admission refusals can be resumed; reconcile every uncertain result first',409)
+  const reason=text(input.reason,'Refused-work review reason'),rounds=job.value.refusedRounds??[]
+  need(rounds.length<10,'Create a reviewed new source after ten refused-work review rounds',409)
+  await source(env,tx,job.value.source)
+  const connected=await connection(env,tx,job.value.connectionId,job.value.operation)
+  return tx.record('providerJobs',{...job.value,credentialVersion:connected.value.version,status:'queued',exceptionClass:null,attempts:0,nextAttemptAt:null,leaseUntil:null,completedAt:null,refusedRounds:[...rounds,{attempts:job.value.attempts,reviewedAt:Date.now(),reviewedBy:a.session.operator.id,reason}]},job,undefined,action)
  }
  need(job.value.status === 'exception' && job.value.exceptionClass === 'credential-rotated', 'Only work refused after credential rotation can be re-queued', 409)
  await source(env, tx, job.value.source)

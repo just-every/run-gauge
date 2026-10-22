@@ -11,6 +11,8 @@ export async function portability(source,{verifyRestored}={}){
  try{
   const service=await createPortability({db:proxy.env.DB,policy}),id=await service.exports.create();while((await service.exports.advance(id,{maxParts:16})).phase==='building'){}
   archive=await new Response(await service.exports.download(id)).text();expected=[];for await(const r of readArchive(new Response(archive).body))expected.push(r)
+  for(const credential of ['synthetic-gauge-3001','synthetic-gauge-3002']){assert(!archive.includes(credential),'Provider credential never appears in the portable archive');assert(!JSON.stringify(expected).includes(credential))}
+  for(const name of ['g_provider_installation_key','g_provider_credentials','g_provider_receipts','g_provider_job_authority'])assert(!expected[0].tables.some(t=>t.name===name),'Provider authority stays out of archive')
   assert(expected[0].tables.some(t=>t.name==='g_files'&&t.count>0));assert(expected[0].tables.some(t=>t.name==='ik_jobs'&&t.count>0));assert(!expected[0].tables.some(t=>t.name==='oa_sessions'))
   assert((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_api_keys').first()).n>0);assert(!expected[0].tables.some(t=>t.name==='g_api_keys'),'utilization keys never leave');assert(expected[0].tables.some(t=>t.name==='g_api_key_audit'&&t.count>0),'key audit history travels')
   await service.exports.abort(id)

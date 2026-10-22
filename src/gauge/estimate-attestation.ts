@@ -8,4 +8,4 @@ export function reportedAcceptance(input:Value){
 }
 export function activeAttestation(v:Value){return v.status!=='withdrawn'&&v.notice===acceptanceNotice&&!!v.acceptorName&&!!v.acceptorContact&&!!v.acceptanceDate&&acceptanceChannels.includes(v.channel)&&!!v.evidenceRef}
 /** Preserve the immutable estimate carrier when native records are edited. */
-export function estimateLineage(v:Value={}){return v.estimateId?{estimateId:v.estimateId,estimateRevision:v.estimateRevision,...(v.approvalId?{approvalId:v.approvalId}:{}),...(v.acceptanceNotice?{acceptanceNotice:v.acceptanceNotice}:{})}:{}}
+export function estimateLineage(v:Value={}){return v.estimateId?{estimateId:v.estimateId,estimateRevision:v.estimateRevision,...(v.approvalId?{approvalId:v.approvalId}:{}),...(v.acceptanceNotice?{acceptanceNotice:v.acceptanceNotice}:{}),...(v.commercialProposalId?{commercialProposalId:v.commercialProposalId,commercialFingerprint:v.commercialFingerprint}:{})}:{}}

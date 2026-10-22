@@ -541,3 +541,85 @@ never an unrelated fallback rate. Allowance-only change orders retain the quote
 link; a finance project or entry renegotiation remains explicit. Task revisions
 and recurrence preserve source references. Frozen approvals retain the exact
 estimate version/line and their charged amount after later rate changes.
+
+
+### Client proposals (SALES-003, adopted policy pending ct)
+
+`commercial:prepare` is owner-only. It binds `estimateId` and
+`estimateRevision`, plus `previousId` when revising the proposal family.
+Required document fields are agencyName, title, recipientName,
+recipientContact (the invited email), scope, deliverables/exclusions arrays,
+from/to matching the estimate, expiry, explicit boolean signatureRequired,
+and paymentSchedule entries `{name, due, amountMinor}` reconciling to the
+estimate's customer total. Preparation includes an audited reason. Customer
+snapshots contain no private cost, margin, person-rate source or staffing
+assumption. The complete canonical document has a SHA-256 fingerprint.
+
+`commercial:send` takes exact proposal id/revision, a Resend `connectionId`,
+a unique request key and an audited reason. Only the owner sends. The recipient must already have
+confirmed their native email invitation and have no Gauge staff grant. The
+GOVERN-008 sealed credential and Base Resend transport receive a durable
+version-bound provider job and a single dispatch claim. Exact request replay cannot resubmit; uncertain
+submission stays visible for reconciliation, with no automatic retry.
+Provider acceptance does not claim mailbox delivery. `commercial:revoke`
+requires exact id/revision and reason and immediately removes client access.
+
+`GET /app/client-proposals/:id` requires the invited recipient's native
+email-confirmed session and current installation release authority. The
+client POST at the same path requires same-origin, key, exact revision,
+fingerprint, outcome (`question`, `accepted` or `rejected`) and reason;
+acceptance additionally requires `confirm: "accept-exact-proposal"`.
+Superseded, expired, revoked and signature-required proposals cannot be
+accepted through the checkbox. Viewing/questions/decisions are audited.
+Client membership grants no internal Gauge state, history or command access.
+
+Current direct acceptance is the primary `estimate:convert` carrier for a
+released proposal. It retains the document fingerprint and client decision
+on the prepared native engagement, budget and milestones. A changed price
+needs a fresh client decision; conversion remains manual, once-only and
+subject to fresh native source assumptions and required custom fields.
+
+BASE-002 carries proposal documents, customer decisions and send history,
+without installation release authority or message replay. After restore,
+`commercial:reconnect` lets the owner authorize the exact original recipient
+again with id/revision and a reason; it sends nothing. Provider-signature
+intake and mailbox-delivery event reconciliation remain missing.
+
+
+### Provider custody and durable jobs
+
+Only the owner with a native email-confirmed browser session can use these
+commands or inspect provider metadata. Setup creates a dedicated installation
+provider key. Existing or restored installs use `provider:initialize` before
+connecting; this generates no provider credential and sends nothing.
+
+`provider:connect` accepts provider (`resend` or `crank`), accountLabel and
+credential. `provider:rotate` takes exact connection id/revision and a fresh
+credential; `provider:revoke` takes exact id/revision and permanently prevents
+that connection's queued work. Credentials are AES-256-GCM sealed under
+HKDF-SHA-256 keys bound to connection and version. Credential-bearing request
+receipts use keyed digests in an archive-excluded table. Responses return
+identifiers only. State/history/use inspection carries metadata, never secrets.
+
+`providerJob:queue-crank` binds connectionId, alertId, alertRevision and an
+owner-declared HTTPS endpoint `/api/crank/flows/{flow}/trigger`. Dispatch projects an
+allowlisted event from that exact immutable budget exception; jobs and use
+inspection retain source references, never request or response bodies. `providerJob:dispatch`
+takes job id/revision and a request key. A durable compare-and-swap claim
+precedes decryption and the network edge. Crank receives Bearer authority and
+`{event_id, input}` using the stable job ID; a 201 pending run or 202 held event
+is admission only, never proof of a downstream follow-up.
+
+Dispatch rereads the queued credential version. Rotation produces an owned
+`credential-rotated` exception without sending; the original owner uses
+`providerJob:requeue` with exact id/revision to bind the current version, then
+explicitly dispatches once. Revocation is permanent. Transport uncertainty
+remains an owned exception; an abandoned claim becomes visibly uncertain when
+its lease expires. Neither is automatically retried. The same job controls
+protect proposal email. Automatic scheduling/backoff and provider readback
+remain FOLLOWUP-004 work.
+
+Archives retain connection metadata, uses, jobs and outcomes, but exclude the
+installation key, ciphertext, private receipts and job execution authority.
+Restored connections and jobs are disconnected; old jobs cannot replay even
+after credentials are re-entered. New work requires fresh owner authorization.

@@ -16,7 +16,8 @@ export const GENESIS = 'gauge-audit-v1'
 interface AuditRow { seq: number; at: number; actor: string; role: string | null; person_id: string | null; request_key: string | null; action: string; kind: string; record_id: string; previous_revision: string | null; revision: string | null; data: string; reference: string | null; hash: string | null }
 const fields = (r: AuditRow) => ({ seq: r.seq, at: r.at, actor: r.actor, role: r.role, personId: r.person_id, requestKey: r.request_key, action: r.action, kind: r.kind, recordId: r.record_id, previousRevision: r.previous_revision, revision: r.revision, data: JSON.parse(r.data), reference: r.reference })
 export const chainHash = (previous: string, r: AuditRow) => sha256(canonicalJson({ previous, entry: fields(r) }))
-const withheld = (kind: string) => kind === 'timeFavorites'
+const ownerPrivate = (kind: string) => ['providerConnections','providerUses','providerJobs','providerInstallation'].includes(kind)
+const withheld = (kind: string, a:Actor) => kind === 'timeFavorites' || (a.role!=='owner'&&ownerPrivate(kind))
 const PAGE = 500
 
 /** Mirrors import effects (attributed to the job's principal and operation key) once per direction. */
@@ -98,6 +99,7 @@ export async function auditSearch(env: Bindings, a: Actor, q: AuditQuery) {
  const from = q.from ? date(q.from) : null, to = q.to ? date(q.to) : null
  if (from && to) need(from <= to, 'The audit search ends on or after its start')
  const where: string[] = ["kind<>'timeFavorites'"], params: unknown[] = []
+ if(a.role!=='owner')where.push("kind NOT IN ('providerConnections','providerUses','providerJobs','providerInstallation')")
  if (q.kind) { where.push('kind=?'); params.push(q.kind) }
  if (q.recordId) { where.push('record_id=?'); params.push(q.recordId.trim()) }
  if (q.actor) { where.push('actor=?'); params.push(q.actor) }
@@ -121,7 +123,7 @@ export async function auditExport(env: Bindings, a: Actor) {
  need(finance(a), 'Finance or the owner exports the business audit', 403)
  await seal(env, true)
  const names = await operatorNames(env), entries: Value[] = []
- for await (const r of rows(env)) entries.push(withheld(r.kind) ? { seq: r.seq, kind: r.kind, withheld: 'Private to their person (TIME-003)', hash: r.hash } : { ...fields(r), hash: r.hash, view: await present(env, a, r, names) })
+ for await (const r of rows(env)) entries.push(withheld(r.kind,a) ? { seq: r.seq, kind: r.kind, withheld: r.kind==='timeFavorites'?'Private to their person (TIME-003)':'Owner-only provider metadata (GOVERN-008)', hash: r.hash } : { ...fields(r), hash: r.hash, view: await present(env, a, r, names) })
  const verification = await verifyAudit(env)
  await fence(env, a)
  return { format: GENESIS, chain: 'hash = SHA-256(canonical JSON {previous, entry}); entry = seq, at, actor, role, personId, requestKey, action, kind, recordId, previousRevision, revision, data, reference', exportedAt: new Date().toISOString(), timezone: a.timezone, head: verification.head, verification, entries }

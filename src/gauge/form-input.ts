@@ -76,6 +76,13 @@ export function formInput(form: FormData): Value {
   else continue
   delete input[key]
  }
+ if(input.action==='commercial:prepare'){
+  input.deliverables=String(input.deliverables??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean)
+  input.exclusions=String(input.exclusions??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean)
+  need(['true','false'].includes(input.signatureRequired),'Choose whether a provider signature is required');input.signatureRequired=input.signatureRequired==='true'
+  input.paymentSchedule=[]
+  for(let i=0;i<30;i++){const prefix='proposalPayment'+i,name=input[prefix+'Name'],due=input[prefix+'Due'],amountMinor=input[prefix+'AmountMinor'];if(name||due||amountMinor!==undefined&&amountMinor!=='')input.paymentSchedule.push({name,due,amountMinor})}
+ }
  if(input.action==='time:policy'&&form.has('dueWeekday')){
   const serviceBillability=Object.fromEntries(String(input.serviceDefaults??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(line=>{const [service,value,...extra]=line.split('|').map(s=>s.trim());need(service&&!extra.length&&['billable','nonbillable'].includes(value),'Use Service | billable or nonbillable');return [service,value==='billable']}))
   input.review={dueWeekday:input.dueWeekday,dueTime:input.dueTime,minimumNotes:input.minimumNotes,maxEntrySeconds:input.maxEntrySeconds,maxDaySeconds:input.maxDaySeconds,reviewLevels:input.reviewLevels,separation:input.separation==='on',serviceBillability}

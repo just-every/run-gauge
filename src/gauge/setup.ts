@@ -1,3 +1,4 @@
+import { initializeProviderKey } from './provider-custody'
 import { firstRunResponse, needsFirstRun } from '../base/setup'
 import type { FrameTheme } from '../base/theme-frame'
 import { operatorAuth, type Bindings } from '../auth.server'
@@ -31,6 +32,7 @@ export async function agencySetupResponse(request: Request, env: Bindings, auth:
    tx.sql('INSERT INTO g_agency(singleton,currency,timezone) VALUES(1,?,?) ON CONFLICT(singleton) DO UPDATE SET currency=excluded.currency,timezone=excluded.timezone', currency, timezone)
    tx.sql('INSERT INTO oa_first_run(singleton,completed_by,completed_at) VALUES(1,?,?)', session.operator.id, Date.now())
    tx.audit('agency:setup', 'agency', 'agency', { currency, timezone })
+   await initializeProviderKey(env, tx)
    await tx.commit()
    return new Response(null, { status: 303, headers: { ...headers, location: '/app' } })
   }

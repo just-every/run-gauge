@@ -157,6 +157,20 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const estimateTwo=await cmd('estimate:save',{...estimateInput,previousId:estimateOne.id,discountBasisPoints:1000,reason:'Portable immutable discounted version'})
  const portableApproval=await cmd('estimate:approve',{...estimateTwo,...portableAttestation})
  const estimateConverted=await cmd('estimate:convert',estimateTwo)
+ const portableCrank=await cmd('provider:connect',{provider:'crank',accountLabel:'Portable budget notifications',credential:'synthetic-gauge-3002'})
+ await cmd('budget:thresholds',{engagementId:capProject.id,thresholds:[50],reason:'Portable Crank budget exception source'})
+ const portableAlert=(await state()).data.budgetAlerts.find(a=>a.value.engagementId===capProject.id);assert(portableAlert)
+ const portableCrankJob=await cmd('providerJob:queue-crank',{connectionId:portableCrank.id,alertId:portableAlert.id,alertRevision:portableAlert.revision,endpoint:'https://crank.example.test/api/crank/flows/budget-exception/trigger'})
+ const portableProvider=await cmd('provider:connect',{provider:'resend',accountLabel:'Portable proposal mail',credential:'synthetic-gauge-3001'})
+ const proposalRecipient=await h.invite('portable-client')
+ const proposalOpportunity=await cmd('save:opportunities',{name:'Portable client proposal',clientId:engagement.value.clientId,ownerId:engagement.value.leadId,stage:'proposal',probability:75,from:'2026-11-02',to:'2026-11-06',services:'Research',amountMinor:40000,demandSeconds:7200})
+ const proposalEstimate=await cmd('estimate:save',{...estimateInput,opportunityId:proposalOpportunity.id,name:'Portable client research'})
+ const portableProposalInput={estimateId:proposalEstimate.id,estimateRevision:proposalEstimate.revision,agencyName:'Research Agency',title:'Research proposal',recipientName:'Casey Client',recipientContact:'portable-client@example.test',scope:'Two hours of research',deliverables:['Research findings'],exclusions:['Implementation'],from:'2026-11-02',to:'2026-11-06',expiry:new Date(Date.now()+7*86400000).toISOString().slice(0,10),signatureRequired:false,paymentSchedule:[{name:'Research handover',due:'2026-11-06',amountMinor:40000}],reason:'Portable proposal history'}
+ const firstPortableProposal=await cmd('commercial:prepare',portableProposalInput)
+ let portableProposal=await cmd('commercial:prepare',{...portableProposalInput,previousId:firstPortableProposal.id,deliverables:['Research findings','Executive summary'],reason:'Latest portable proposal includes the executive summary'})
+ await cmd('commercial:send',{...portableProposal,connectionId:portableProvider.id,reason:'Owner sends exact reviewed proposal'})
+ portableProposal=(await state()).data.commercialProposals.find(p=>p.id===portableProposal.id)
+ assert.equal((await request('/app/client-proposals/'+portableProposal.id,proposalRecipient.cookie)).status,200)
  const fieldPackage={format:'kantata-ox-custom-fields-v1',namespace:'synthetic-gauge-portable-fields',fields:[{id:'office',scope:'people',name:'Portable office',type:'single-select',options:[{id:'Austin',name:'Austin'}]}],records:[{scope:'people',id:'worker',values:{office:'Austin'}}],controls:{people:1}},fieldMap={people:{worker:person.id}},fieldPolicies={office:{visibility:'everyone'}}
  const fieldPreview=await cmd('field:import-preview',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies})
  const fieldImport=await cmd('field:import',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies,fingerprint:fieldPreview.fingerprint,reason:'Portable source field custody'})
@@ -210,7 +224,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const stable=report=>({agency:report.agency,data:Object.fromEntries(Object.entries(report.data).map(([kind,rows])=>[kind,[...rows].sort((a,b)=>a.id.localeCompare(b.id))])),...Object.fromEntries(['capacity','economics','pipeline','resourceDemand','utilization','correctionReviews','retainerBalances'].map(key=>[key,unordered(report[key])]))})
  return async persistenceDirectory=>{
   const restored=await harness({persistenceDirectory,beforeLogin:async({request,post})=>{
-   for(const cookie of [owner,agent.cookie,favoriteUser.cookie,portableLead.cookie,portableDelegate.cookie]){
+   for(const cookie of [owner,agent.cookie,favoriteUser.cookie,portableLead.cookie,portableDelegate.cookie,proposalRecipient.cookie]){
     assert.equal((await request('/api/gauge/state',cookie)).status,401,'old session cannot read restored business data')
     assert.equal((await post('/api/gauge/command',{key:'restored-stale-session',action:'save:clients',name:'Unapproved restored write'},cookie)).status,401,'old session cannot write restored business data')
    }
@@ -233,6 +247,22 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const restoredBytes=await Promise.all(downloads.map(path=>getBytes(restored,path)))
    assert.deepEqual(restoredBytes,bytes,'packet artifacts, receipts and retained source originals round-trip byte for byte')
    assert.deepEqual(await Promise.all(records.map(path=>getBytes(restored,path))),histories,'all business revision history survives')
+   assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_commercial_proposal_authority').first()).n,0,'Client proposal access does not travel in business archives')
+   assert.deepEqual(restoredEstimates.data.commercialProposals,before.data.commercialProposals)
+   assert.deepEqual(restoredEstimates.data.commercialEvents,before.data.commercialEvents,'Delivery and client view history remain business facts, never replay instructions')
+   for(const table of ['g_provider_installation_key','g_provider_credentials','g_provider_receipts','g_provider_job_authority'])assert.equal((await restored.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n,0,'Restore excludes provider secrets and authority')
+   const restoredAccess=await(await restored.request('/app/access',restored.owner)).text();assert(restoredAccess.includes('disconnected'));for(const credential of ['synthetic-gauge-3001','synthetic-gauge-3002'])assert(!restoredAccess.includes(credential))
+   const restoredProviderJob=restoredEstimates.data.providerJobs.find(j=>j.value.connectionId===portableProvider.id);assert(restoredProviderJob)
+   const providerTraffic=restored.providerRequests.length;await restored.cmd('providerJob:dispatch',portableCrankJob,restored.owner,409);await restored.cmd('providerJob:dispatch',restoredProviderJob,restored.owner,409);assert.equal(restored.providerRequests.length,providerTraffic,'Restored job history never replays a provider write')
+   const auth=await restored.post('/auth/magic-link',{email:'portable-client@example.test'});assert.equal(auth.status,202)
+   const confirmation=new URL(restored.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0])
+   const confirmed=await restored.post('/auth/confirm',{token:confirmation.searchParams.get('token')});assert.equal(confirmed.status,303)
+   const freshClient=confirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+   assert.equal((await restored.request('/app/client-proposals/'+portableProposal.id,freshClient)).status,403,'Fresh client sign-in alone cannot restore an old release')
+   const mailCount=restored.mails.length
+   await restored.cmd('commercial:reconnect',{...portableProposal,reason:'New installation owner explicitly restores this recipient access'})
+   assert.equal((await restored.request('/app/client-proposals/'+portableProposal.id,freshClient)).status,200)
+   assert.equal(restored.mails.length,mailCount,'Restoring access never repeats the proposal send')
    if(process.env.GAUGE_BASE_SHOTS){
     const {chromium}=await import('@playwright/test')
     await mkdir(process.env.GAUGE_BASE_SHOTS,{recursive:true})

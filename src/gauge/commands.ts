@@ -1,3 +1,7 @@
+import { jobCommand, dispatchProviderJob } from './provider-jobs'
+import { providerRequest } from './provider-request'
+import { commercialCommand } from './commercial-proposals'
+import { sendCommercial,dispatchCommercial } from './commercial-delivery'
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Value, need, text } from './model'
@@ -46,6 +50,9 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
  // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
  await seal(env,action.startsWith('import:'))
+ if(action.startsWith('provider:'))return providerRequest(env,a,action,input)
+ if(action==='providerJob:dispatch'){need(a.role==='owner','Only the owner dispatches provider jobs',403);const job=await get(env,'providerJobs',text(input.id,'Provider job'));return job.value.operation==='email:send'?dispatchCommercial(env,a,input):dispatchProviderJob(env,a,input)}
+ if(action==='commercial:send')return sendCommercial(env,a,input)
  if(action==='estimate:compare')return estimateCompare(env,a,input)
  if(action==='field:import-preview')return customPreview(env,a,input)
  if(action==='period:preview')return periodPreview(env,a,input)
@@ -89,6 +96,8 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await periodCommand(env,a,tx,action,input)
  if(!result)result=await phaseCommand(env,a,tx,action,input)
  if(!result)result=await capCommand(env,a,tx,action,input)
+ if(!result)result=await jobCommand(env,a,tx,action,input)
+ if(!result)result=await commercialCommand(env,a,tx,action,input)
  if(!result)result=await estimateCommand(env,a,tx,action,input)
  if(!result)result=await customCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)

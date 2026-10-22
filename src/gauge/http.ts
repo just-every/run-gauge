@@ -1,3 +1,4 @@
+import { commercialClientResponse } from './commercial-client'
 import { filters as customFilters } from './custom-values'
 import { savedRead } from './custom-fields'
 import { receivablesRead, receivablesCsv } from './receivables'
@@ -19,13 +20,14 @@ import { auditSearch, auditExport, auditVerify, type AuditQuery } from './audit'
 import { auditPage } from './ui-audit'
 import { clientSearchRead } from './clients'
 // The page an /app/action form belongs to: its result (or refusal) shows there.
-const sectionFor=(action:string)=>action.startsWith('field:import')?'imports':action==='field:define'?'access':action==='saved:save'?'review':action.startsWith('period:')?'review':action.startsWith('staffing:')||action.startsWith('resource:')||action==='save:resourceRequests'?'capacity':action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('cap:')||action.startsWith('fixed:')||action.startsWith('invoice:')||action.startsWith('payment:')||action.startsWith('receipt:')||action.startsWith('packet:')||action.startsWith('handoff:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'||action.startsWith('approval:')||action.startsWith('apikey:')?'access':action==='save:rates'||action.startsWith('rate:')?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
+const sectionFor=(action:string)=>action.startsWith('provider:')||action.startsWith('providerJob:')?'access':action.startsWith('field:import')?'imports':action==='field:define'?'access':action==='saved:save'?'review':action.startsWith('period:')?'review':action.startsWith('staffing:')||action.startsWith('resource:')||action==='save:resourceRequests'?'capacity':action.startsWith('proposal:')?'review':action.startsWith('import:')?'imports':action.startsWith('cap:')||action.startsWith('fixed:')||action.startsWith('invoice:')||action.startsWith('payment:')||action.startsWith('receipt:')||action.startsWith('packet:')||action.startsWith('handoff:')?'billing':action.startsWith('expense:')?'expenses':action.startsWith('time:')||action.startsWith('timer:')?'time':action==='grant'||action==='invite'||action.startsWith('approval:')||action.startsWith('apikey:')?'access':action==='save:rates'||action.startsWith('rate:')?'rates':['save:calendars','save:leave','save:staffing'].includes(action)?'capacity':'engagements'
 const auditQuery=(url:URL):AuditQuery=>Object.fromEntries(['kind','recordId','actor','action','text','from','to'].map(k=>[k,url.searchParams.get(k)||null]))
 function customOptions(url:URL,a:Actor){const parse=(name:string,defaultValue:any)=>{const raw=url.searchParams.get(name);if(!raw)return defaultValue;try{return JSON.parse(raw)}catch{need(false,'Use valid custom report filters')}};return {customGroup:url.searchParams.get('customGroup'),customFilters:{...parse('customFilters',{}),...customFilters(a,Object.fromEntries([...url.searchParams].filter(([k,v])=>k.startsWith('filter:')&&v.trim()).map(([k,v])=>[k.slice(7),v])),undefined,true)},customMeasures:url.searchParams.has('customMeasure')?url.searchParams.getAll('customMeasure'):parse('customMeasures',[]),...(url.searchParams.get('customProfitGroup')?{portfolioGroup:'custom:'+url.searchParams.get('customProfitGroup')}:{})}}
 const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-content-type-options':'nosniff','x-robots-tag':'noindex','content-security-policy':"default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
  // Resolve complete declared paths before admitting a command or reading its body.
+ if(path.startsWith('/app/client-proposals/'))return commercialClientResponse(request,runtimeBindings(original))
  const mutation=path==='/api/gauge/command'||path==='/app/action'
  const historyRoute=path.match(/^\/api\/gauge\/history\/([^/%]+)\/([^/%]+)$/)
  const savedRoute=path.match(/^\/api\/gauge\/saved\/([^/%]+)$/)
@@ -68,7 +70,9 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    if(path.startsWith('/api/'))return Response.json(result,{headers})
    // A new key's value shows once, on the page that created it; the redirect pattern would lose it.
    if(action==='apikey:create')return new Response(await appPage(env,a,'access',{createdKey:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
+   if(action.startsWith('provider:')||action.startsWith('providerJob:'))return new Response(null,{status:303,headers:{...headers,location:'/app/access#provider-connections'}})
    if(action==='estimate:compare')return new Response(await appPage(env,a,'engagements',{estimate:input.afterId,estimateComparison:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
+   if(action.startsWith('commercial:')){const estimateId=input.estimateId??(await get(env,'commercialProposals',input.id)).value.estimateId;return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(estimateId)}#commercial-proposals`}})}
    if(action==='estimate:convert')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(result.id)}`}})
    if(action==='estimate:save'||action==='estimate:approve'||action==='estimate:withdraw')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(input.id??result.id)}#estimates`}})
    if(action==='field:import-preview')return new Response(await appPage(env,a,'imports',{customPreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})

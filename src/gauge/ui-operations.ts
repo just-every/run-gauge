@@ -1,4 +1,6 @@
+import { providerJobsSection } from './ui-provider-jobs'
 import { capSection } from './ui-budget-caps'
+import { providerCustodySection } from './ui-provider-custody'
 import { agentPurposes } from './agent-grants'
 import { fixedChargesSection } from './ui-fixed-charges'
 import { invoicesSection } from './ui-invoices'
@@ -97,6 +99,8 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    {label:'Enabled',cell:r=>r.value.enabled?'Yes':'No'},
   ],r=>r.value.enabled?form('grant','Revoke access',`<input type="hidden" name="operatorId" value="${e(r.id)}"><input type="hidden" name="role" value="${e(r.value.role)}"><input type="hidden" name="personId" value="${e(r.value.person_id ?? '')}">`,undefined,'Revoke access','g-bare'):'','No grants yet. The owner holds finance authority without one.')
   body+=await approvalPolicySection(env,a,d.people,d.approvalPolicies)
+  body+=await providerCustodySection(env,a)
+  body+=await providerJobsSection(env,a)
   body+=await apiKeysSection(env,options.createdKey)
  }
  return body

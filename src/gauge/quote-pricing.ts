@@ -19,7 +19,7 @@ export function quoteBill(data:Record<string,Row[]>,engagementId:string,budget:R
  else if(request?.value.estimateId===quote.id&&request.value.estimateLineKeys?.length)lines=lines.filter((l:Value)=>request.value.estimateLineKeys.includes(l.key))
  else {const person=lines.filter((l:Value)=>l.personId===work.personId);if(person.length)lines=person}
  if(!lines.length||new Set(lines.map((l:Value)=>l.billRateMinor)).size!==1)return held('The agreed quote rate is ambiguous; choose a quoted task or reviewed role request')
- return {id:quote.id,revision:quote.revision,value:{currency:quote.value.currency,service:phase.service,effective:phase.from,billMinor:lines[0].billRateMinor,writeDownBps:quote.value.discountBasisPoints,estimateId:quote.id,estimateRevision:quote.revision,estimateLineKeys:lines.map((l:Value)=>l.key),quoteHeldReason:null}}
+ return {id:quote.id,revision:quote.revision,value:{currency:quote.value.currency,service:phase.service,effective:phase.from,billMinor:lines[0].billRateMinor,writeDownBps:quote.value.discountBasisPoints,estimateId:quote.id,estimateRevision:quote.revision,estimateLineKeys:lines.map((l:Value)=>l.key),acceptanceNotice:conversion.value.acceptanceNotice,commercialProposalId:conversion.value.commercialProposalId??null,quoteHeldReason:null}}
 }
 export async function observedQuoteBill(env:Bindings,tx:Transaction|undefined,engagementId:string,budget:Row|undefined,work:Value){
  if(!budget?.value.estimateId)return undefined

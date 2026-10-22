@@ -51,9 +51,9 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    {label:'Engagement',line:1,cell:r=>e(nameOf(d.engagements,r.value.engagementId))},
    {label:'Total',num:true,size:'num',line:2,cell:r=>money(r.value.totalMinor,r.value.currency)},
    {label:'Lines',num:true,size:'num',line:2,cell:r=>{const n=(r.value.lines??[]).length;return `${n}<span class="g-brief">&nbsp;${n===1?'line':'lines'}</span>`}},
-   {label:'Status',wrap: true,size:'status',line:2,cell:r=>chip(r.value.status)},
+   {label:'Status',wrap: true,size:'status',line:2,cell:r=>chip(r.value.status)+(r.value.exceptions??[]).map((x:any)=>`<span class="g-sub">${e(x.reason)}</span>`).join('')},
   ],r=>{
-   if(r.value.status==='draft')return packetDecision(a,d.approvalPolicies,r)
+   if(r.value.status==='draft')return r.value.deferredSources?`<a href="/app/engagements?edit=${e(r.value.engagementId)}#retainer-schedules">Resolve scheduling exception</a>`:packetDecision(a,d.approvalPolicies,r)
    if(r.value.status!=='approved')return ''
    const review=report.correctionReviews.find(x=>x.packetId===r.id)
    const adjust=review?`<details class="g-reveal"><summary class="g-btn g-btn--quiet">Prepare adjustment</summary>${review.sources.map(line=>form('packet:adjust',`Correct ${line.kind==='time'?'time':line.kind==='expenses'?'expense':'milestone'}: ${line.description}`,`<p class="g-note">Currently ${money(line.currentAmountMinor,r.value.currency)}</p><input type="hidden" name="sourceId" value="${e(line.sourceId)}"><input type="hidden" name="sourceKind" value="${e(line.kind)}">`+amount('correctedAmountDollars',`Correct total amount for this source (${r.value.currency})`,line.currentAmountMinor)+i('reason','Correction reason'),r,'Prepare adjustment','g-bare g-bare--titled')).join('')}</details>`:'<p class="g-note">Continue corrections from the latest reviewed packet in this branch.</p>'

@@ -112,7 +112,7 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
   need(lines.length<=100,'Review accumulated overages before running this schedule',409)
   packet=await tx.record('packets',{engagementId:schedule.value.engagementId,title:`${term.value.terms.name}: scheduled ${period.value.periodStart}`,status:autoIssue?'approved':'draft',...(autoIssue?{approvedBy:schedule.value.configuredBy,approvedAt:Date.now()}:{}),currency:term.value.terms.currency,lines,totalMinor:sum(lines.map(l=>l.amountMinor)),createdAt:Date.now(),createdBy:a.session.operator.id,scheduleId:schedule.id,scheduledIssueDate:issueDate,exceptions})
   for(const line of lines)tx.sql('INSERT INTO g_billing_sources(kind,source_id,packet_id,source_revision) VALUES(?,?,?,?)',line.kind,line.sourceId,packet.id,line.sourceRevision)
-  if(autoIssue&&checked){const balance=balances.find(b=>b.periodId===period.id);invoice=await issueScheduledInvoice(env,tx,schedule,period,term,packet,sources,checked.engagement,checked.client,balance?.consumed??0)}
+  if(autoIssue&&checked){const balance=balances.find(b=>b.periodId===period.id);invoice=await issueScheduledInvoice(env,tx,schedule,period,term,packet,sources,checked.engagement,checked.client,sum((balance?.allocation??[]).filter((x:Value)=>x.allowancePeriodId).map((x:Value)=>x.quantity)))}
  }
  return tx.record('retainerRuns',{engagementId:schedule.value.engagementId,rootId:schedule.value.rootId,periodId:period.id,scheduleSnapshot:schedule,asOf,issueDate,packetId:packet?.id??null,exceptions,autoIssue,invoiceId:invoice?.id??null,ranBy:a.session.operator.id,ranAt:Date.now()})
 }

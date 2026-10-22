@@ -2,7 +2,7 @@ import type { Bindings } from '../auth.server'
 import { type Actor,finance } from './store'
 import type { Value } from './model'
 import type { Report } from './ui-describe'
-import { form,area,input as i,escape as e,table,decision,select as s } from './ui-forms'
+import { form,area,input as i,escape as e,table,decision,select as s,check } from './ui-forms'
 import { hours,money,chip } from './ui-format'
 export async function kantataSection(env:Bindings,a:Actor,report:Report,options:Value){
  if(!finance(a))return ''
@@ -16,6 +16,14 @@ export async function kantataSection(env:Bindings,a:Actor,report:Report,options:
  for(const j of jobs){const r={id:j.id,revision:'',value:j};html+=`<article class="g-card"><h3>Kantata evidence ${chip(j.state)}</h3><p>${j.checkpoint} of ${j.total} source records</p><div class="g-row-actions">${decision('kantata:resume','Resume Kantata evidence',r,false,'secondary')}${decision('kantata:rollback','Roll back partial Kantata evidence',r,false,'secondary')}${decision('kantata:undo','Undo untouched Kantata evidence',r,false,'secondary')}<a href="/api/gauge/imports/${e(j.id)}">Download Kantata originals and map</a></div></article>`}
  const namespaces=[...new Set(report.data.kantataRecords.map(r=>r.value.namespace))]
  if(namespaces.length)html+=form('kantata:report','Reconcile historical source groups',s('namespace','Source account',namespaces.map(id=>({id,revision:'',value:{name:id}})))+i('fieldId','Source custom field ID (empty for client grouping)','','text',false),undefined,'Read historical source report')
+ if(a.role==='owner'&&namespaces.length){
+  html+='<section id="kantata-native"><h3>Adopt reviewed native drafts</h3><p class="g-note">A separate owner confirmation creates draft work, tentative exact-date staffing and finance-only native custom fields. Historical invoices, payments, estimates and WIP stay evidence; no source approval, access or settlement authority travels.</p>'
+  html+=form('kantataAdopt:preview','Preview native adoption',s('namespace','Native source account',namespaces.map(id=>({id,revision:'',value:{name:id}})))+area('config','Reviewed date-allocation mapping JSON','{}'),undefined,'Preview native drafts')
+  const preview=options.nativeAdoptionPreview
+  if(preview){html+=`<section class="g-card" id="kantata-native-preview"><h3>Native adoption consequences</h3><p>${e(preview.meaning)}</p><ul>${Object.entries(preview.counts).map(([k,n])=>`<li>${e(k)}: ${e(n)}</li>`).join('')}${preview.findings.map((f:string)=>`<li>${e(f)}</li>`).join('')}</ul></section>`;if(preview.canApply)html+=form('kantataAdopt:create','Confirm native draft adoption',`<input type="hidden" name="namespace" value="${e(preview.namespace)}"><input type="hidden" name="fingerprint" value="${e(preview.fingerprint)}"><input type="hidden" name="config" value="${e(JSON.stringify(preview.config))}">`+check('confirm','Adopt only these reviewed native drafts and private field definitions.',false,'adopt-reviewed-native-drafts')+i('reason','Native adoption reason'),undefined,'Create native adoption journal')}
+  for(const job of report.data.kantataAdoptions){html+=`<section class="g-card"><h3>Native adoption ${chip(job.value.status)}</h3><p>${e(job.value.namespace)} · ${e(job.value.effects.length)} current native effects.</p>`;if(job.value.status==='adopting')html+=decision('kantataAdopt:advance','Continue next native batch',job,true,'secondary');if(['adopting','completed','undoing'].includes(job.value.status))html+=form('kantataAdopt:undo','Undo untouched native effects',check('confirm','Undo only untouched effects; retain later native work.',false,'undo-untouched-native-adoption')+i('reason','Native undo reason'),job,'Undo next native batch');html+='</section>'}
+  html+='</section>'
+ }
  const result=options.kantataReport
  if(result)html+=`<section id="kantata-report"><h3>Historical source report</h3><p class="g-note">${e(result.meaning)}</p>${table('Historical groups',result.groups.map((value:Value,index:number)=>({id:String(index),revision:'',value})),[{label:'Group',wrap:true,line:1,cell:r=>e(r.value.dimension)},{label:'Time / billable',wrap:true,line:2,cell:r=>`${hours(r.value.timeSeconds)} / ${hours(r.value.billableSeconds)}`},{label:'Source value / cost',wrap:true,line:3,cell:r=>`${money(r.value.timeValueMinor,r.value.currency)} / ${money(r.value.timeCostMinor,r.value.currency)}`},{label:'Invoice / paid / outstanding',wrap:true,line:3,cell:r=>`${money(r.value.invoiceMinor,r.value.currency)} / ${money(r.value.paidMinor,r.value.currency)} / ${money(r.value.outstandingMinor,r.value.currency)}`}])}</section>`
  return html+'</section>'

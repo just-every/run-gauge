@@ -64,6 +64,7 @@ export async function privacyJourney(){
   assert.equal(await(await request('/api/gauge/packets/'+packet.id,owner)).text(),oldPacket,'Immutable billed money and artifact are retained')
   await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true},owner,410)
   const audit=await(await request('/api/gauge/audit/verify',owner)).json();assert.equal(audit.intact,true,'Erasure never rewrites the lawful immutable audit')
+  const financeAudit=await(await request('/api/gauge/audit/export',finance.cookie)).json();assert(financeAudit.entries.filter(e=>['retentionPolicies','privacyExits','privacyErasures'].includes(e.kind)).every(e=>e.withheld),'Finance audit gets only hash stubs for owner-only privacy decisions')
   const journal=await(await request('/api/gauge/privacy/journal',owner)).json();assert(journal.epoch>0);assert(journal.journal.length>0)
   const newArchive=await exportText();assert(!newArchive.includes(Buffer.from('synthetic-gauge-4102 private receipt').toString('base64')),'Post-erasure archive has no erased receipt bytes')
   const dir=await mkdtemp(join(tmpdir(),'gauge-privacy-restore-'));let proxy

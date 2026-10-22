@@ -114,7 +114,7 @@ export function kantataPackage(pkg:Value){
  for(const [kind,rows]of Object.entries(records))for(const row of rows){
   const artifact=artifacts.get(row.location.artifact)!;const source:SourceRecord={namespace,kind,sourceId:row.sourceId,payload:row.raw,payloadHash:sha256(canonicalJson(row.raw)),artifactHash:artifact.sha256,location:row.location as SourceRecord['location']};bundle.records.push(source)
   const related=Object.fromEntries(Object.entries(links[kind]??{}).map(([field,parent])=>[field,{kind:parent,sourceId:row.data[field],id:id(parent,row.data[field])}]))
-  effects.set(kind+':'+row.sourceId,[{targetKind:'kantataRecords',targetId:id(kind,row.sourceId),value:{flavor,namespace,sourceKind:kind,sourceId:row.sourceId,data:row.data,related,raw:row.raw,location:row.location,meaning:'Historical source evidence only; no native approval, access, current invoice issuance or payment settlement authority.'}}])
+  effects.set(kind+':'+row.sourceId,[{targetKind:'kantataRecords',targetId:id(kind,row.sourceId),value:{sourceTimezone:timezone,flavor,namespace,sourceKind:kind,sourceId:row.sourceId,data:row.data,related,raw:row.raw,location:row.location,meaning:'Historical source evidence only; no native approval, access, current invoice issuance or payment settlement authority.'}}])
  }
  return {namespace,flavor,records,bundle,mapping:{version:`kantata-${flavor}-v1`,map:(r:SourceRecord)=>({effects:effects.get(r.kind+':'+r.sourceId)??[]})},findings,counts,financial,canApply:!findings.length,fieldScopes:m.mapping.fieldScopes,timezone}
 }

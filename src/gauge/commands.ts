@@ -1,3 +1,4 @@
+import { nativeAdoptionPreview,nativeAdoptionCommand } from './kantata-native'
 import { kantataCommand,kantataReport } from './kantata'
 import { caseCommand,caseClosePreview } from './operational-cases'
 import { privacyCommand,privacyPreview } from './privacy'
@@ -63,6 +64,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
  if(action==='estimate:compare')return estimateCompare(env,a,input)
+ if(action==='kantataAdopt:preview')return nativeAdoptionPreview(env,a,input)
  if(action==='kantata:report')return kantataReport(env,a,input)
  if(action.startsWith('kantata:')){const result=await kantataCommand(env,a,action,input);await seal(env,true);return result}
  if(action==='case:preview-close')return caseClosePreview(env,a,input)
@@ -84,6 +86,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='opportunity:convert')tx.customWrite={scope:'engagements',values:input.customFields}
  const alertInputs=await observeBudgetAlerts(env,tx,action)
  let result:Value|null=action.startsWith('privacy:')?await privacyCommand(env,a,tx,action,input):followupProof?await applyProviderFollowup(env,a,tx,input,followupProof):await retainerCommand(env,a,tx,action,input)
+ if(!result)result=await nativeAdoptionCommand(env,a,tx,action,input)
  if(!result)result=await caseCommand(env,a,tx,action,input)
  if(!result)result=await retainerScheduleCommand(env,a,tx,action,input)
  if(!result)result=await milestoneDeliveryCommand(env,a,tx,action,input)

@@ -35,7 +35,7 @@ import { privateClientKeys } from './clients'
 export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
  if(['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups'].includes(k)&&a.role!=='owner')return {}
- if(['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents'].includes(k)&&a.role!=='owner')return {}
+ if(['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions'].includes(k)&&a.role!=='owner')return {}
  if(k==='kantataRecords'&&!finance(a))return {}
  if(k==='commercialEvents'&&a.role!=='owner'&&String(value.type).startsWith('signature-'))return {}
  if(k==='estimates')return estimatePublic(a,value)
@@ -60,7 +60,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
 export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
  data.customFields=data.customFields.filter(f=>canField(a,f));data.customImports=finance(a)?data.customImports:[];data.savedReports=data.savedReports.filter(r=>savedVisible(a,r.value))
- for(const k of ['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents'] as const)data[k]=a.role==='owner'?data[k]:[]
+ for(const k of ['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.kantataRecords=finance(a)?data.kantataRecords:[]
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
  for(const k of ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups'] as const)data[k]=a.role==='owner'?data[k]:[]

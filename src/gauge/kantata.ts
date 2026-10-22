@@ -7,7 +7,7 @@ const targets:D1TargetAdapter={
  async read(db,destination,kind,id){need(kind==='kantataRecords','Unsupported Kantata target');const r=await db.prepare('SELECT * FROM g_kantataRecords WHERE id=?').bind(id).first<any>();return r?{destination,targetKind:kind,targetId:id,revision:r.revision,value:JSON.parse(r.data)}:undefined},
  matches(row,destination,kind,id){need(kind==='kantataRecords','Unsupported Kantata target');return row?{sql:'EXISTS(SELECT 1 FROM g_kantataRecords WHERE id=? AND revision=? AND data=?)',params:[id,row.revision,canonicalJson(row.value)]}:{sql:'NOT EXISTS(SELECT 1 FROM g_kantataRecords WHERE id=?)',params:[id]}},
  write(row){need(row.targetKind==='kantataRecords','Unsupported Kantata target');return [{sql:'INSERT INTO g_kantataRecords(id,revision,data) VALUES(?,?,?)',params:[row.targetId,row.revision,canonicalJson(row.value)]}]},
- remove(destination,kind,id){need(kind==='kantataRecords','Unsupported Kantata target');return [{sql:'DELETE FROM g_kantataRecords WHERE id=?',params:[id]}]},
+ remove(destination,kind,id){need(kind==='kantataRecords','Unsupported Kantata target');return [{sql:"INSERT INTO g_assert(ok) VALUES(CASE WHEN NOT EXISTS(SELECT 1 FROM g_kantataAdoptions a JOIN g_kantataRecords r ON json_extract(a.data,'$.namespace')=json_extract(r.data,'$.namespace') WHERE r.id=? AND json_extract(a.data,'$.status')<>'undone') THEN 1 ELSE 0 END)",params:[id]},{sql:'DELETE FROM g_kantataRecords WHERE id=?',params:[id]},{sql:'DELETE FROM g_assert',params:[]}]},
  async list(db,destination){return (await db.prepare('SELECT * FROM g_kantataRecords').all<any>()).results.map(r=>({destination,targetKind:'kantataRecords',targetId:r.id,revision:r.revision,value:JSON.parse(r.data)}))},
  matchesCount(count){return {sql:'(SELECT COUNT(*) FROM g_kantataRecords)=?',params:[count]}}
 }
@@ -23,6 +23,7 @@ export async function kantataCommand(env:Bindings,a:Actor,action:string,input:Va
  }
  const id=text(input.id,'Kantata import job'),meta=await env.DB.prepare("SELECT namespace FROM ik_jobs WHERE id=? AND principal_id=? AND destination='gauge-kantata'").bind(id,a.session.operator.id).first<{namespace:string}>();need(meta,'Kantata import job unavailable',404);const ctx=context(env,a,meta.namespace)
  if(action==='kantata:resume')return resumeD1Import(id,ctx)
+ if(action==='kantata:undo'||action==='kantata:rollback')need(!(await all(env,'kantataAdoptions')).some(r=>r.value.namespace===meta.namespace&&r.value.status!=='undone'),'Undo native adoption before reversing its source evidence',409)
  if(action==='kantata:undo')return undoD1Import(id,ctx)
  if(action==='kantata:rollback')return rollbackD1Import(id,ctx)
  if(action==='kantata:originals')return readD1ImportOriginals(id,ctx)

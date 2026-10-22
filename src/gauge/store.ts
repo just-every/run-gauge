@@ -22,9 +22,9 @@ export const finance = (a: Actor) => ['owner','finance'].includes(a.role)
 export async function get(env: Bindings, k: Kind, id: string): Promise<Row> { const r = await env.DB.prepare(`SELECT id,revision,data FROM g_${k} WHERE id=?`).bind(id).first<{id:string;revision:string;data:string}>(); need(r, 'Record not found', 404); const row=decode(r);if(k==='people')need(!row.value.privacyErased,'This worker was erased',410);return row }
 export async function all(env: Bindings, k: Kind): Promise<Row[]> {
  // Portable restores need not retain SQLite rowids. Commercial latest-version and
- // provider history reads follow business ordering, with stable identity for ties.
- const field=['estimates','commercialProposals'].includes(k)?'number':['commercialEvents','providerUses'].includes(k)?'at':['providerConnections','providerJobs'].includes(k)?'createdAt':null
- const order=field?`json_extract(data,'$.${field}'),id`:'rowid'
+ // provider/case history and native adoption inputs follow stable business ordering.
+ const field=['estimates','commercialProposals'].includes(k)?'number':['commercialEvents','providerUses','caseEvents','privacyExits','privacyErasures','kantataAdoptions'].includes(k)?'at':k==='operationalCases'?'openedAt':['providerConnections','providerJobs'].includes(k)?'createdAt':null
+ const order=k==='kantataRecords'?'id':field?`json_extract(data,'$.${field}'),id`:'rowid'
  return (await env.DB.prepare(`SELECT id,revision,data FROM g_${k} ORDER BY ${order}`).all<{id:string;revision:string;data:string}>()).results.map(decode)
 }
 export async function access(env: Bindings, a: Actor, engagementId: string, manage = false): Promise<Row> {

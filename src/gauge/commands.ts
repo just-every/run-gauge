@@ -1,3 +1,4 @@
+import { kantataCommand,kantataReport } from './kantata'
 import { caseCommand,caseClosePreview } from './operational-cases'
 import { privacyCommand,privacyPreview } from './privacy'
 import { verifyProviderFollowup,applyProviderFollowup } from './provider-followups'
@@ -62,6 +63,8 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
  if(action==='estimate:compare')return estimateCompare(env,a,input)
+ if(action==='kantata:report')return kantataReport(env,a,input)
+ if(action.startsWith('kantata:')){const result=await kantataCommand(env,a,action,input);await seal(env,true);return result}
  if(action==='case:preview-close')return caseClosePreview(env,a,input)
  if(action==='privacy:preview'){const {snapshot,...preview}=await privacyPreview(env,a,input);return preview}
  if(action==='field:import-preview')return customPreview(env,a,input)

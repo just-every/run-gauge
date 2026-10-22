@@ -16,7 +16,7 @@ export const GENESIS = 'gauge-audit-v1'
 interface AuditRow { seq: number; at: number; actor: string; role: string | null; person_id: string | null; request_key: string | null; action: string; kind: string; record_id: string; previous_revision: string | null; revision: string | null; data: string; reference: string | null; hash: string | null }
 const fields = (r: AuditRow) => ({ seq: r.seq, at: r.at, actor: r.actor, role: r.role, personId: r.person_id, requestKey: r.request_key, action: r.action, kind: r.kind, recordId: r.record_id, previousRevision: r.previous_revision, revision: r.revision, data: JSON.parse(r.data), reference: r.reference })
 export const chainHash = (previous: string, r: AuditRow) => sha256(canonicalJson({ previous, entry: fields(r) }))
-const ownerPrivate = (kind: string) => ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','providerInstallation'].includes(kind)
+const ownerPrivate = (kind: string) => ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','providerInstallation','retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents'].includes(kind)
 const withheld = (kind: string, a:Actor, data?:string) => kind === 'timeFavorites' || (a.role!=='owner'&&(ownerPrivate(kind)||kind==='commercialEvents'&&String(JSON.parse(data??'{}').type).startsWith('signature-')))
 const PAGE = 500
 

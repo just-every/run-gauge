@@ -151,3 +151,5 @@ try {
  assert.deepEqual((await state()).data.time.find(r => r.id === final.id), final, 'Reimport preserves later native approval')
  console.log('PASS MIGRATE-002 XLSX bounded value-only decoding, worksheet selection, binary custody, cross-format replay; raw 7596 / rounded 8100 seconds, historical rates, invoice reference, source approval/lock evidence, independent controls, preview/apply, native approval, duplicate-billing refusal and original custody')
 } finally { await browser?.close(); await h.dispose() }
+
+await (await import('./gauge-kantata.mjs')).kantataJourney()

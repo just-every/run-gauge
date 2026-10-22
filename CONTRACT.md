@@ -416,8 +416,8 @@ The named current public-door evidence below extends that prior audit; status to
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 40 | 35 | 47 | 122 |
-| All | 57 | 35 | 47 | 139 |
+| Target and push further | 40 | 36 | 46 | 122 |
+| All | 57 | 36 | 46 | 139 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -524,7 +524,7 @@ The named current public-door evidence below extends that prior audit; status to
 | `MIGRATE-001` | Shared migration custody and reconciliation | target | partial | `src/gauge/imports.ts`; `src/gauge/harvest.ts`; `tests/gauge.mjs`; `tests/gauge-currency.mjs` | Harvest journaled preview/apply/undo retains an explicit manifest currency and refuses packages that differ from the agency currency without conversion. Complete cross-provider finance/retainer control totals and coverage checks remain absent. |
 | `MIGRATE-002` | Harvest complete move-in | target | partial | `src/gauge/harvest.ts`; `src/gauge/harvest-workbook.ts`; `src/gauge/harvest-time.ts`; `src/gauge/harvest-rates.ts`; `tests/gauge-harvest-history.mjs`; `tests/gauge.mjs`; `tests/gauge-currency.mjs` | CSV/XLSX raw/rounded time, original workbook custody, explicit worksheet/row provenance, value-only bounded decoding, cross-format replay, source invoice/approval/lock evidence, dated person-rate histories and independent client/month billed/unbilled/cost controls are asserted. API captures, full source approval decisions, expenses/receipts, estimates, invoice/payment records and outstanding-balance reconciliation remain absent. |
 | `MIGRATE-003` | Forecast complete schedule move-in | target | done | `src/gauge/forecast.ts`; `src/gauge/forecast-source.ts`; `tests/gauge-forecast.mjs`; `tests/gauge-base-portability.mjs`; `MOVE-IN.md` |  |
-| `MIGRATE-004` | Kantata OX and SX move-in | target | missing |  | No Kantata OX or SX importer, relationship/control-total mapping or custom-field import. |
+| `MIGRATE-004` | Kantata OX and SX move-in | target | partial | `src/gauge/kantata-package.ts`; `src/gauge/kantata.ts`; `src/gauge/ui-kantata.ts`; `tests/gauge-kantata.mjs` — kantataJourney (through `tests/gauge-harvest-history.mjs`) | Bounded historical evidence import now distinguishes OX CSV/time XLSX/Insights-ID objects/asynchronous JSON downloads from SX Salesforce object CSV ZIP/API captures, with separate reviewed maps, source IDs and original custody. Complete contiguous year windows, object permissions, source joins, seven-type custom values and independent object/client/month/currency controls gate apply. Journaled batches resume, replay without duplicates and undo untouched source effects; historical Practice/Office controls reconcile. Remaining: native editable adoption and approved cutover, source custom fields on native records/reports (the SETUP-004 fields-only door remains available), and complete provider-format coverage beyond the documented synthetic adapter. Historical evidence is not native invoice issuance, payment settlement or approval. |
 | `MIGRATE-005` | Scoro move-in | target | missing |  | No Scoro export/API importer or invoice-allocation mapping. |
 | `MIGRATE-006` | Teamwork.com move-in | target | missing |  | No Teamwork.com importer, retainer history or delivery/billing mapping. |
 | `MIGRATE-007` | Productive move-in | target | missing |  | No Productive importer, invoice attribution or recurring-budget mapping. |

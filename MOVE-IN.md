@@ -106,3 +106,9 @@ new migrations remain forward-only after the first release.
 - Timer start and stop clock instants when the export has only dates and hours; a live Forecast API connection or provider-verified authorization.
 - Packages whose declared currency differs from the saved agency currency,
   currency conversion, and any write back to Harvest or Forecast.
+
+## Kantata OX/SX historical source evidence (partial)
+
+Imports now has a separate **Kantata OX and SX source evidence** section. It requires a flavor-specific reviewed object map, complete year windows, source administrator/object permission attestations and independent client/month/currency controls. OX CSV, value-only time XLSX and completed asynchronous JSON artifacts, or SX Salesforce flat CSV ZIP/API captures retain their original bytes. See API.md and the synthetic documented adapter in `tests/fixtures/kantata.mjs`. The preview names unresolved relationships/options and incomplete source coverage before any apply. Batches are resumable and untouched historical effects can be undone.
+
+This is historical source evidence, not an approved switch to native billing or staffing. It grants no user access and imports no approval, invoice issuance or payment settlement authority. Practice/Office historical source controls are labelled separately from native reports. Native editable adoption and cutover remain unimplemented.

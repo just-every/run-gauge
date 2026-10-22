@@ -73,7 +73,8 @@ export async function commercialProposalJourney(h,browser){
   // Readback uses published Resend and Inkwell network contracts. The provider
   // bodies never become provider-use metadata, and no readback sends mail.
   const pdf=label=>Buffer.from('%PDF-1.7\n'+label+'\n%%EOF'),hash=bytes=>createHash('sha256').update(bytes).digest('hex')
-  const native=(await record(signature.id)).value.nativeOriginal,original=Buffer.from(await(await request('/app/proposal-originals/'+signature.id,owner)).arrayBuffer()),signedPdf=Buffer.concat([original,Buffer.from('\n% synthetic-gauge-2005 signed\n')]),certificate=pdf('Inkwell certificate')
+  const originalResponse=await request('/app/proposal-originals/'+signature.id,owner);assert.equal(originalResponse.status,200,await originalResponse.clone().text().then(s=>s.slice(0,200)))
+  const native=(await record(signature.id)).value.nativeOriginal,original=Buffer.from(await originalResponse.arrayBuffer()),signedPdf=Buffer.concat([original,Buffer.from('\n% synthetic-gauge-2005 signed\n')]),certificate=pdf('Inkwell certificate')
   assert.equal(hash(original),native.sha256);assert.deepEqual(original,Buffer.from(native.base64,'base64'));assert.equal((await request('/app/proposal-originals/'+signature.id,staff.cookie)).status,403)
   const {PDFDocument}=await import('pdf-lib'),nativePdf=await PDFDocument.load(original);assert.equal(nativePdf.getSubject(),'Exact proposal '+(await record(signature.id)).value.fingerprint);assert(nativePdf.getPageCount()>0)
   let validSignature=false,mailbox='delivered',readbackExpired=false

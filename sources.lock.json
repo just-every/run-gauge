@@ -1264,7 +1264,7 @@
       "executable": false
     },
     "src/gauge/http.ts": {
-      "sha256": "00bce2514b6de23ad2b9b23774101566a7fbe1c7207a85f066bd156f31d5b52a",
+      "sha256": "e57d702f3c4320c2ce428e4162baa5008ed6cfd5e08ae3355b33d6710314f203",
       "executable": false
     },
     "src/gauge/import-targets.ts": {
@@ -3620,7 +3620,7 @@
       "executable": false
     },
     "tests/gauge-commercial-proposals.mjs": {
-      "sha256": "1f59dff3b476c94ce1d65f802708269c2e31cdff934cedbab9ed5a2c3b7afac8",
+      "sha256": "19a95c4505253d15781ebe27cd2f5d4837930d0b931fa64fe7e10a331cb55a30",
       "executable": false
     },
     "tests/gauge-currency.mjs": {

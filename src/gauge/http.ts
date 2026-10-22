@@ -27,7 +27,7 @@ const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-c
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
  // Resolve complete declared paths before admitting a command or reading its body.
- if(path.startsWith('/app/client-proposals/'))return commercialClientResponse(request,runtimeBindings(original))
+ if(path.startsWith('/app/client-proposals/')||path.startsWith('/app/proposal-originals/'))return commercialClientResponse(request,runtimeBindings(original))
  const mutation=path==='/api/gauge/command'||path==='/app/action'
  const historyRoute=path.match(/^\/api\/gauge\/history\/([^/%]+)\/([^/%]+)$/)
  const savedRoute=path.match(/^\/api\/gauge\/saved\/([^/%]+)$/)

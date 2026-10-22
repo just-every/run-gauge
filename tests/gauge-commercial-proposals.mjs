@@ -144,7 +144,10 @@ export async function commercialProposalJourney(h,browser){
   const signatureCheckpoints=page.locator('section.g-card').filter({has:page.getByRole('heading',{name:'Reconciliation checkpoints',exact:true})})
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.match(await signatureCheckpoints.innerText(),/Northline signed documents/);if(shots)await signatureCheckpoints.screenshot({path:`${shots}/inkwell-reconciliation-${width}.png`})}
   await cmd('commercial:signature-readback',await record(signature.id),staff.cookie,403)
+  const staleSignatureSync=await cmd('providerSync:start',{connectionId:inkwell.id})
   await cmd('commercial:revoke',{...await record(signature.id),reason:'End signed document access'})
+  const beforeStaleRead=h.providerRequests.length;await cmd('providerSync:advance',staleSignatureSync)
+  const staleSignatureCheckpoint=(await state()).data.providerSyncs.find(s=>s.id===staleSignatureSync.id);assert.equal(staleSignatureCheckpoint.value.cursor,0);assert.equal(staleSignatureCheckpoint.value.status,'exception');assert.equal(staleSignatureCheckpoint.value.exceptionClass,'source-changed');assert.equal(h.providerRequests.length,beforeStaleRead,'A revoked native source does not request any provider data')
   assert.equal((await request(path(signature.id)+'/evidence/certificate',recipient.cookie)).status,403)
   h.providerEdge.handler=null
   assert((await state()).data.commercialEvents.some(e=>e.value.type==='viewed'&&e.value.proposalId===two.id))

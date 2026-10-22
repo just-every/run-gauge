@@ -1,6 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { type Actor, Transaction, all, get, fence } from './store'
-import { type Row, type Value, need, text, uuid, sum } from './model'
+import { type Row, type Value, Fault, need, text, uuid, sum } from './model'
 import { readCommercialDelivery, readCommercialSignature, startReadback, finishReadback } from './commercial-readback'
 
 async function owner(env: Bindings, a: Actor) {
@@ -61,10 +61,12 @@ export async function advanceProviderSync(env: Bindings, a: Actor, input: Value)
   const binding=await get(env,'commercialEvents',item.bindingId),proposal=await get(env,'commercialProposals',item.proposalId)
   const bindings=(await all(env,'commercialEvents')).filter(r=>r.value.type==='signature-binding'&&r.value.proposalId===proposal.id),latest=bindings.at(-1)
   if(binding.revision===item.bindingRevision&&proposal.revision===item.proposalRevision&&proposal.value.fingerprint===item.fingerprint&&latest?.id===binding.id){
-   const checked=await readCommercialSignature(env,a,{id:proposal.id,revision:proposal.revision,key:uuid()})
-   ok=checked.readbackStatus==='verified';exceptionClass=checked.exceptionClass??exceptionClass
-   outcome={jobId:item.jobId,evidenceId:checked.id,state:checked.readbackStatus}
-   const evidence=await get(env,'commercialEvents',checked.id);tx.observe('commercialEvents',evidence)
+   try{
+    const checked=await readCommercialSignature(env,a,{id:proposal.id,revision:proposal.revision,key:uuid()})
+    ok=checked.readbackStatus==='verified';exceptionClass=checked.exceptionClass??exceptionClass
+    outcome={jobId:item.jobId,evidenceId:checked.id,state:checked.readbackStatus}
+    const evidence=await get(env,'commercialEvents',checked.id);tx.observe('commercialEvents',evidence)
+   }catch(error){if(!(error instanceof Fault))throw error;exceptionClass='source-unavailable'}
   }else exceptionClass='source-changed'
   tx.observe('commercialEvents',binding);tx.observe('commercialProposals',proposal)
   tx.guard("(SELECT COUNT(*) FROM g_commercialEvents WHERE json_extract(data,'$.type')='signature-binding' AND json_extract(data,'$.proposalId')=?)=?",proposal.id,bindings.length)

@@ -277,7 +277,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "de6e63ceee1464d0867f0391dad0cc2e877ccb1fabb308ce7ac9ea2c1d1dce69",
+      "sha256": "c693f5003a851d26feb6de266870edd84271cf6d1c7880bad31d7a36aeb148e3",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -289,7 +289,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "61e370b3569e8745cadb05ec7cfc7ec6017cc8f241ed662d5db20894ea98a384",
+      "sha256": "44592ddc2e7ee1b8483d804c44d6285c52db04d748718a13c472b2720c30ef4c",
       "executable": false
     },
     "base-copies.json": {
@@ -301,7 +301,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f467ed26ec323b5c740b33d97764eb16402160678c566d40afa8f3dd38a32dd3",
+      "sha256": "0c8af9b9c895306b5f44e00bb836f8685a5675452c4ed21a761c3fee3f88edf4",
       "executable": false
     },
     "DEMO.md": {
@@ -1365,7 +1365,7 @@
       "executable": false
     },
     "src/gauge/provider-health.ts": {
-      "sha256": "75b6a3c9c904e5f8bb4558e908a1076ab860baab9f6700437d3162afab0462b3",
+      "sha256": "f956b82e734e83222645e99fc545146af1cabb2a89db4e48e0d6b80be6f795b0",
       "executable": false
     },
     "src/gauge/provider-job-crank.ts": {
@@ -3629,7 +3629,7 @@
       "executable": false
     },
     "tests/gauge-commercial-proposals.mjs": {
-      "sha256": "0cf84472bc4784f9a0f6d083976cbec1f568feb01526c71e1cc0aa9d83375981",
+      "sha256": "bfc60c28beab4ddb83040ee0fa2c4ad94a5abdfe46fb9dba2bc8304e23321085",
       "executable": false
     },
     "tests/gauge-currency.mjs": {

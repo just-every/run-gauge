@@ -300,7 +300,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a5c4b1f5d3fa20067ce12d79d6260850cfafe8c19a3ca7e29ad1dfc0400da6a0",
+      "sha256": "b12c819b86bce9225d003cfeb4046e2416a3b409978f49e402c7c69da4c5cb61",
       "executable": false
     },
     "DEMO.md": {
@@ -1364,11 +1364,11 @@
       "executable": false
     },
     "src/gauge/provider-job-webhook.ts": {
-      "sha256": "75a90d6ed4b66dd88fcb5aa6551207b8aaf5c4f4d509f906004a832892f282a0",
+      "sha256": "334ab8bc07b7bdfc9b217a75d78b3c051f5dfa55e049a9a72304ccb7c6c398ee",
       "executable": false
     },
     "src/gauge/provider-jobs.ts": {
-      "sha256": "cfb70ca930b6ad4507bc977e08b67dc4181e8ea033d2b823be216fc3840b7f9b",
+      "sha256": "ed3374a72fa5fe0566d4c6a6381f34aeeea8c2a2caed9da379bfcd833ded35e6",
       "executable": false
     },
     "src/gauge/provider-mail.d.mts": {
@@ -3712,7 +3712,7 @@
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
-      "sha256": "a71f0cc3cbc288cb387606ce09f7ac6c43260695c595da0afb949ecb28469b2b",
+      "sha256": "6f836c873e7468c8acd002962c5ddf48805ebadb2a1387848dc2bc5e165b750e",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

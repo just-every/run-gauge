@@ -14,7 +14,7 @@ export function webhookCredential(value: string, provider: string): {endpoint:st
 }
 
 /** Closed scopes: imported notes, provider input and private costs never become event fields. */
-export function webhookEvent(source: {kind:string}, row: Row): Record<string,unknown> {
+export function webhookEvent(source: {kind:string}, row: Row,eventType?:string): Record<string,unknown> {
  const v=row.value
  const fields:Record<string,string[]>={
   budgetAlerts:['engagementId','phaseKey','metric','threshold','actual','budget','raisedAt'],
@@ -25,7 +25,8 @@ export function webhookEvent(source: {kind:string}, row: Row): Record<string,unk
  }
  const types:Record<string,string>={budgetAlerts:'budget-exception',engagements:'project.changed',time:'time.approved',invoices:'invoice.issued',payments:'payment.recorded'}
  need(fields[source.kind], 'Unsupported signed event source')
- return {type:'gauge.'+types[source.kind],sourceKind:source.kind,sourceId:row.id,sourceRevision:row.revision,data:Object.fromEntries(fields[source.kind].filter(k=>v[k]!==undefined).map(k=>[k,v[k]]))}
+ const type=source.kind==='engagements'&&['gauge.project.created','gauge.project.changed'].includes(eventType??'')?eventType:'gauge.'+types[source.kind]
+ return {type,sourceKind:source.kind,sourceId:row.id,sourceRevision:row.revision,data:Object.fromEntries(fields[source.kind].filter(k=>v[k]!==undefined).map(k=>[k,v[k]]))}
 }
 export async function signedWebhookHeaders(signingKey:string,eventId:string,body:string){
  const timestamp=String(Math.floor(Date.now()/1000)),encode=new TextEncoder()

@@ -7,7 +7,7 @@ import { dispatchCredential, ProviderDispatchError, recordProviderUse, type Prov
 import { crankEndpoint, crankResult } from './provider-job-crank'
 
 export interface ProviderJobSource { kind: 'budgetAlerts' | 'commercialProposals' | 'engagements' | 'time' | 'invoices' | 'payments'; id: string; revision: string }
-export interface ProviderJobSpec { connectionId: string; operation: ProviderOperation; source: ProviderJobSource; endpoint?: string }
+export interface ProviderJobSpec { connectionId: string; operation: ProviderOperation; source: ProviderJobSource; endpoint?: string; eventType?: 'gauge.project.created'|'gauge.project.changed' }
 export type ProviderJobException = 'credential-rotated' | 'credential-revoked' | 'credential-disconnected' | 'provider-rejected' | 'uncertain' | 'provider-rate-limit' | 'retry-exhausted' | 'source-changed'
 export interface ProviderJobResult { status: 'submitted' | 'held' | 'retry-wait' | 'exception' | 'revoked'; exceptionClass?: ProviderJobException; providerMessageId?: string; providerRunId?: string; providerHoldId?: string }
 const acknowledgement = (row: Row) => ({id: row.id, revision: row.revision, saved: true})
@@ -68,7 +68,7 @@ export async function queueProviderJob(tx: Transaction, spec: ProviderJobSpec, s
  const job = await tx.record('providerJobs', {
   provider: connected.value.provider, operation: spec.operation, connectionId: connected.id, credentialVersion: connected.value.version,
   ownerId: a.session.operator.id, source: {kind: spec.source.kind, id: spec.source.id, revision: spec.source.revision},
-  endpoint, eventId: id, status: 'queued', exceptionClass: null, attempts: 0,
+  endpoint, eventType:spec.eventType??null, eventId: id, status: 'queued', exceptionClass: null, attempts: 0,
   createdAt: Date.now(), leaseUntil: null, nextAttemptAt: null, retryLimit: 3, completedAt: null,
  }, undefined, id, 'providerJob:queue')
  tx.sql('INSERT INTO g_provider_job_authority(job_id,operator_id) VALUES(?,?)', id, a.session.operator.id)
@@ -89,7 +89,9 @@ export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, actio
   if(matches.length)return matches[0]
   tx.guard("NOT EXISTS(SELECT 1 FROM g_providerJobs WHERE json_extract(data,'$.connectionId')=? AND json_extract(data,'$.source.kind')=? AND json_extract(data,'$.source.id')=? AND json_extract(data,'$.source.revision')=?)",connected.id,kind,id,revision)
   const reason=text(input.reason,'Explicit event release reason')
-  const job=await queueProviderJob(tx,{connectionId:connected.id,operation:'trigger:submit',source:{kind:kind as ProviderJobSource['kind'],id:src.id,revision:src.revision}})
+  const prior=kind==='engagements'?await env.DB.prepare("SELECT COUNT(*) AS n FROM g_history WHERE kind='engagements' AND record_id=?").bind(src.id).first<{n:number}>():null
+  const eventType=kind==='engagements'?(prior?.n?'gauge.project.changed':'gauge.project.created'):undefined
+  const job=await queueProviderJob(tx,{connectionId:connected.id,operation:'trigger:submit',eventType,source:{kind:kind as ProviderJobSource['kind'],id:src.id,revision:src.revision}})
   // The exact native source is the payload authority, never caller-supplied data.
   tx.audit(action,'providerJobs',job.id,{releaseReason:reason,source:job.value.source})
   return job
@@ -186,7 +188,7 @@ export async function dispatchProviderJob(env: Bindings, a: Actor, input: Value)
    const response=await fetch(endpoint!,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{Authorization:`Bearer ${credential}`,'Content-Type':'application/json'},body:JSON.stringify({event_id:claimed.value.eventId,input:event})})
    result=await crankResult(response,credential)
   }else{
-   const {endpoint:hook,signingKey}=webhookCredential(credential,claimed.value.provider),body=JSON.stringify({event_id:claimed.value.eventId,...webhookEvent(claimed.value.source,row)})
+   const {endpoint:hook,signingKey}=webhookCredential(credential,claimed.value.provider),body=JSON.stringify({event_id:claimed.value.eventId,...webhookEvent(claimed.value.source,row,claimed.value.eventType)})
    const response=await fetch(hook,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:await signedWebhookHeaders(signingKey,claimed.value.eventId,body),body})
    result=await webhookResult(response,claimed.value.provider,claimed.value.eventId)
   }

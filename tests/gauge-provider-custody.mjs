@@ -188,11 +188,31 @@ export async function providerCustodyJourney(browser){
   assert.equal(rotation.value.exceptionClass,'credential-rotated');assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore)
   await cmd('providerJob:requeue',rotation);await cmd('providerJob:dispatch',await read('providerJobs',rotation.id))
   assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore+1)
+  assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').at(-1).body.type,'gauge.project.created')
+  const changedProject=await cmd('save:engagements',{...projectSource.value,...projectSource,scope:'Owner-reviewed expanded delivery scope'})
+  const changedJob=await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`engagements:${changedProject.id}:${changedProject.revision}`,reason:'Owner releases an exact changed project revision'})
+  await cmd('providerJob:dispatch',changedJob)
   assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').at(-1).body.type,'gauge.project.changed')
   const approvedTime=await cmd('time:approve',await read('time',actual.id))
   const revokedHookJob=await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`time:${approvedTime.id}:${approvedTime.revision}`,reason:'Owner releases the exact approval'})
   await cmd('provider:revoke',await read('providerConnections',webhook.id));await cmd('providerJob:dispatch',revokedHookJob)
-  assert.equal((await read('providerJobs',revokedHookJob.id)).value.status,'revoked');assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore+1,'Revocation sends no new data')
+  assert.equal((await read('providerJobs',revokedHookJob.id)).value.status,'revoked');assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore+2,'Revocation sends no new data')
+  // Invoice and payment events are grounded in actual issued and allocated
+  // native sources, and keep the user-recorded payment verification label.
+  await cmd('save:rates',{personId:person.id,service:'*',effective:'2026-01-01',billMinor:15000,costMinor:9000})
+  const billedTime=await cmd('time:approve',await cmd('time:submit',await cmd('time:save',{engagementId:project.id,taskId:task.id,personId:person.id,service:'Research',timezone:zone,billable:true,notes:'Native invoice event source',start:'2026-10-09T09:00:00+10:00',end:'2026-10-09T10:00:00+10:00'})))
+  const billing=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Native issued event source',sources:[`time:${billedTime.id}`]}))
+  const invoice=await cmd('invoice:issue',{...billing,issueDate:'2026-10-10',dueDate:'2026-11-09',billTo:'Mariner accounts payable',remitTo:'Agency operating account',reference:'synthetic-gauge-5010'})
+  const payment=await cmd('payment:record',{...invoice,date:'2026-10-11',amountMinor:15000,reference:'synthetic-gauge-5011'})
+  for(const [kind,row,type]of [['invoices',invoice,'gauge.invoice.issued'],['payments',payment,'gauge.payment.recorded']]){
+   const input={connectionId:zapier.id,sourceRef:`${kind}:${row.id}:${row.revision}`,reason:'Owner releases this exact native financial source'}
+   const queued=await cmd('providerJob:queue-webhook',input);assert.equal((await cmd('providerJob:queue-webhook',input)).id,queued.id)
+   await cmd('providerJob:dispatch',queued)
+   const event=h.providerRequests.filter(r=>r.url===hook).at(-1).body;assert.equal(event.type,type);assert.equal(event.sourceId,row.id);assert.equal(event.data.currency,'USD');assert.equal(kind==='invoices'?event.data.totalMinor:event.data.amountMinor,15000)
+   assert(!('billTo'in event.data)&&!('remitTo'in event.data)&&!('lines'in event.data)&&!('reference'in event.data),'Signed financial events disclose only their scoped business summary')
+   if(kind==='payments')assert.match(event.data.verification,/not bank or processor verified/)
+  }
+  assert.equal(h.providerRequests.filter(r=>r.url===hook).length,3,'Budget, invoice and payment source replays produce one event each')
   await page.reload();await capture('signed-event-outcomes',section('Queued work and outcomes'))
   for(const path of ['/api/gauge/state','/app/access','/api/gauge/audit/export']){const body=await(await request(path,owner)).text();for(const value of [bundle,hook,signingKey,'synthetic-gauge-5004','synthetic-gauge-5005'])assert(!body.includes(value),'Signed-hook custody is absent from '+path)}
 

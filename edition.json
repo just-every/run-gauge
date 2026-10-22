@@ -16,6 +16,8 @@
         "paths": [
           "src/gauge",
           "public/gauge.css",
+          "public/gauge-proposal-font.ttf",
+          "public/gauge-proposal-font-LICENSE.txt",
           "public/move-in.html",
           "migrations/core/0006_gauge.sql",
           "migrations/core/0016_import_kit_custody.sql",

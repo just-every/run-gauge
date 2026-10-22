@@ -175,13 +175,14 @@ export async function prepareCurrentPortability(h,{importJob}) {
  portableProposal=(await state()).data.commercialProposals.find(p=>p.id===portableProposal.id)
  assert.equal((await request('/app/client-proposals/'+portableProposal.id,proposalRecipient.cookie)).status,200)
  // Signed artifacts are business evidence; provider credentials and execution authority never travel.
- const signatureOriginal=historicalBytes,signatureHash=createHash('sha256').update(signatureOriginal).digest('hex')
+ let signatureOriginal,signatureHash
  const portableInkwell=await cmd('provider:connect',{provider:'inkwell',accountLabel:'Portable signed evidence',origin:'https://inkwell.example.test',credential:'synthetic-gauge-3003'})
  const signedOpportunity=await cmd('save:opportunities',{...opportunity,name:'Portable signed proposal',stage:'proposal'})
  const signedEstimate=await cmd('estimate:save',{...estimateInput,opportunityId:signedOpportunity.id})
  const signedProposal=await cmd('commercial:prepare',{...portableProposalInput,estimateId:signedEstimate.id,estimateRevision:signedEstimate.revision,signatureRequired:true})
  await cmd('commercial:send',{...signedProposal,connectionId:portableProvider.id,reason:'Portable signed proposal delivery'})
  const releasedSigned=(await state()).data.commercialProposals.find(r=>r.id===signedProposal.id)
+ signatureOriginal=Buffer.from(releasedSigned.value.nativeOriginal.base64,'base64');signatureHash=createHash('sha256').update(signatureOriginal).digest('hex');assert.equal(signatureHash,releasedSigned.value.nativeOriginal.sha256)
  await cmd('commercial:signature-bind',{...releasedSigned,connectionId:portableInkwell.id,envelopeId:'synthetic-gauge-3004',originalSha256:signatureHash,confirm:'reviewed-exact-pdf',reason:'Portable owner-reviewed exact PDF'})
  h.providerEdge.handler=async request=>request.url.endsWith('/artifacts/original')||request.url.endsWith('/artifacts/signed')||request.url.endsWith('/artifacts/certificate')?new Response(signatureOriginal):request.url==='https://inkwell.example.test/api/v1/envelopes/synthetic-gauge-3004'?Response.json({envelope:{id:'synthetic-gauge-3004',status:'completed',originalSha256:signatureHash,signedSha256:signatureHash,certificateSha256:signatureHash,signers:[{email:'portable-client@example.test',signedAt:new Date().toISOString()}]}}):undefined
  await cmd('commercial:signature-readback',releasedSigned);h.providerEdge.handler=null

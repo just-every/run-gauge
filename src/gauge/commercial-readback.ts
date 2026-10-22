@@ -78,6 +78,7 @@ export async function readCommercialSignature(env: Bindings, a: Actor, input: Va
   const root = connection.value.origin + '/api/v1/envelopes/' + encodeURIComponent(binding.value.envelopeId)
   const {envelope} = await providerJson(root, credential)
   need(envelope?.id === binding.value.envelopeId && envelope.status === 'completed' && !envelope.imported, 'Inkwell has no native completed signature for this envelope', 409)
+  need(proposal.value.nativeOriginal?.sha256===binding.value.originalSha256,'Proposal has no matching Gauge-generated original PDF',409)
   need(envelope.originalSha256 === binding.value.originalSha256, 'Signed envelope original differs from the owner-reviewed proposal PDF', 409)
   const signer = envelope.signers?.find((s:Value) => typeof s.email === 'string' && s.email.toLowerCase() === proposal.value.document.recipient.contact.toLowerCase() && !s.removedAt && !s.declinedAt && !s.consentWithdrawn && !s.inPerson && !s.linkOnly && !s.group && s.signedAt)
   need(signer && Number.isFinite(Date.parse(signer.signedAt)), 'The exact recipient has no completed verified signing event', 409)
@@ -90,7 +91,7 @@ export async function readCommercialSignature(env: Bindings, a: Actor, input: Va
    if (kind !== 'original') { let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte); artifacts[kind] = {sha256: hash, base64: btoa(binary), mediaType: 'application/pdf'} }
   }
   await dispatchCredential(env, connection.id, binding.value.credentialVersion, binding.id, 'signature:read')
-  evidence = {status: 'verified', artifacts, signedAt: signer.signedAt, contact: proposal.value.document.recipient.contact, meaning: 'Inkwell completed signature and artifact digests verified; owner confirmed original PDF matches this proposal. Client acceptance still requires the client response.'}
+  evidence = {status: 'verified', artifacts, signedAt: signer.signedAt, contact: proposal.value.document.recipient.contact, meaning: 'Inkwell completed signature and artifact digests verified against the exact Gauge-generated original PDF. Client acceptance still requires the client response.'}
  } catch (error) {
   evidence = {status: 'exception', exceptionClass: error instanceof ProviderDispatchError ? error.outcome : 'signature-evidence-unavailable', meaning: 'Signature evidence is unresolved; acceptance remains unavailable. Owner must inspect Inkwell and resume readback.'}
  }

@@ -1,3 +1,4 @@
+import { nativeProposalPdf } from './commercial-proposal-pdf'
 import { queueProviderJob } from './provider-jobs'
 import type { Bindings } from '../auth.server'
 import { type Actor, type Transaction, all, get, fence } from './store'
@@ -48,7 +49,8 @@ export async function commercialCommand(env:Bindings,a:Actor,tx:Transaction,acti
   const {document,fingerprint}=await commercialProposalDocument(estimate,input as unknown as CommercialProposalInput),id=uuid()
   need(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(document.recipient.contact),'Use the invited recipient email address')
   need(document.expiry>=workDate(Date.now(),a.timezone),'Expiry must be today or later')
-  return tx.record('commercialProposals',{document,fingerprint,estimateId:estimate.id,estimateRevision:estimate.revision,estimateRootId:estimate.value.rootId,opportunityId:estimate.value.opportunityId,clientId:estimate.value.clientId,rootId:previous?.value.rootId??id,previousId:previous?.id??null,number:(previous?.value.number??0)+1,status:'prepared',preparedBy:a.session.operator.id,preparedAt:Date.now(),reason:text(input.reason,'Preparation reason')},undefined,id,action)
+  const nativeOriginal=document.signatureRequired?await nativeProposalPdf(env,document,(previous?.value.number??0)+1,fingerprint):null
+  return tx.record('commercialProposals',{document,fingerprint,nativeOriginal,estimateId:estimate.id,estimateRevision:estimate.revision,estimateRootId:estimate.value.rootId,opportunityId:estimate.value.opportunityId,clientId:estimate.value.clientId,rootId:previous?.value.rootId??id,previousId:previous?.id??null,number:(previous?.value.number??0)+1,status:'prepared',preparedBy:a.session.operator.id,preparedAt:Date.now(),reason:text(input.reason,'Preparation reason')},undefined,id,action)
  }
  if(action==='commercial:claim'){
   const row=await get(env,'commercialProposals',text(input.id,'Proposal'));need(row.revision===input.revision,'Proposal changed; reload',409)
@@ -70,14 +72,14 @@ export async function commercialCommand(env:Bindings,a:Actor,tx:Transaction,acti
   need(!(await all(env,'commercialEvents')).some(r=>r.value.proposalId===row.id&&['accepted','rejected'].includes(r.value.type)),'A decided proposal keeps its original signature binding',409)
   tx.guard("NOT EXISTS(SELECT 1 FROM g_commercialEvents WHERE json_extract(data,'$.proposalId')=? AND json_extract(data,'$.type') IN ('accepted','rejected'))",row.id)
   need(input.confirm==='reviewed-exact-pdf','Confirm the original PDF contains the exact displayed proposal')
-  const originalSha256=text(input.originalSha256,'Original PDF SHA-256',64);need(/^[a-f0-9]{64}$/.test(originalSha256),'Use the original PDF SHA-256 digest')
+  const originalSha256=text(input.originalSha256,'Original PDF SHA-256',64);need(/^[a-f0-9]{64}$/.test(originalSha256),'Use the original PDF SHA-256 digest');need(row.value.nativeOriginal?.sha256===originalSha256,'Inkwell must retain the exact Gauge-generated original PDF for this proposal',409)
   const envelopeId=text(input.envelopeId,'Inkwell envelope id',128);need(/^[A-Za-z0-9_-]+$/.test(envelopeId),'Use an opaque envelope id')
   const connected=await get(env,'providerConnections',text(input.connectionId,'Inkwell connection'));tx.observe('providerConnections',connected)
   need(connected.value.provider==='inkwell'&&!connected.value.revokedAt,'Choose an active read-only Inkwell connection',409)
   const bindings=(await all(env,'commercialEvents')).filter(r=>r.value.type==='signature-binding')
   need(!bindings.some(r=>r.value.envelopeId===envelopeId&&(r.value.providerOrigin===connected.value.origin||r.value.connectionId===connected.id)&&r.value.proposalId!==row.id),'A signed envelope cannot accept another proposal version',409)
   tx.guard("NOT EXISTS(SELECT 1 FROM g_commercialEvents WHERE json_extract(data,'$.type')='signature-binding' AND (json_extract(data,'$.providerOrigin')=? OR json_extract(data,'$.connectionId')=?) AND json_extract(data,'$.envelopeId')=? AND json_extract(data,'$.proposalId')<>?)",connected.value.origin,connected.id,envelopeId,row.id)
-  return tx.record('commercialEvents',{proposalId:row.id,proposalRevision:row.revision,fingerprint:row.value.fingerprint,type:'signature-binding',providerOrigin:connected.value.origin,connectionId:connected.id,credentialVersion:connected.value.version,envelopeId,originalSha256,reason:text(input.reason,'Original PDF review reason'),confirmedBy:a.session.operator.id,meaning:'Owner confirms original PDF matches exact proposal; provider signature evidence pending',at:Date.now()})
+  return tx.record('commercialEvents',{proposalId:row.id,proposalRevision:row.revision,fingerprint:row.value.fingerprint,type:'signature-binding',providerOrigin:connected.value.origin,connectionId:connected.id,credentialVersion:connected.value.version,envelopeId,originalSha256,reason:text(input.reason,'Original PDF review reason'),confirmedBy:a.session.operator.id,meaning:'Exact Gauge-generated original PDF bound; provider signature evidence pending',at:Date.now()})
  }
  if(action==='commercial:reconnect'){
   const row=await get(env,'commercialProposals',text(input.id,'Proposal'));need(row.revision===input.revision&&row.value.status==='released','Choose an unchanged released proposal',409);tx.observe('commercialProposals',row)

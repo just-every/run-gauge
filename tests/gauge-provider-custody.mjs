@@ -165,8 +165,8 @@ export async function providerCustodyJourney(browser){
   const zapier=await cmd('provider:connect',{provider:'zapier',accountLabel:'Northline Zapier budget follow-up',credential:bundle})
   const signedInput={connectionId:zapier.id,sourceRef:`budgetAlerts:${alert.id}:${alert.revision}`,reason:'Owner releases this exact budget exception; no automatic subscription'}
   await cmd('providerJob:queue-webhook',signedInput,people.find(p=>p.role==='finance').cookie,403)
-  await page.reload();const signedForm=form('providerJob:queue-webhook')
-  await signedForm.getByLabel('Zapier or webhook connection',{exact:true}).selectOption(zapier.id);await signedForm.getByLabel('Exact source record',{exact:true}).selectOption(signedInput.sourceRef);await signedForm.getByLabel('Explicit event release reason',{exact:true}).fill(signedInput.reason)
+  const signedPage=await page.goto(h.origin+'/app/access');assert.equal(signedPage.status(),200,await page.locator('body').innerText());const signedForm=form('providerJob:queue-webhook');assert.equal(await signedForm.count(),1,await page.locator('body').innerText())
+  await signedForm.locator('select[name=connectionId]').selectOption(zapier.id);await signedForm.locator('select[name=sourceRef]').selectOption(signedInput.sourceRef);await signedForm.getByLabel('Explicit event release reason',{exact:true}).fill(signedInput.reason)
   await capture('signed-event-release',signedForm.locator('..'))
   await signedForm.getByRole('button',{name:'Queue signed event',exact:true}).click()
   const signedJob=(await state()).data.providerJobs.find(r=>r.value.connectionId===zapier.id)

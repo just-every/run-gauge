@@ -82,11 +82,12 @@ export async function commercialProposalJourney(h,browser){
   const native=(await record(signature.id)).value.nativeOriginal,original=Buffer.from(await originalResponse.arrayBuffer()),signedPdf=Buffer.concat([original,Buffer.from('\n% synthetic-gauge-2005 signed\n')]),certificate=pdf('Inkwell certificate')
   assert.equal(hash(original),native.sha256);assert.deepEqual(original,Buffer.from(native.base64,'base64'));assert.equal((await request('/app/proposal-originals/'+signature.id,staff.cookie)).status,403)
   const {PDFDocument}=await import('pdf-lib'),nativePdf=await PDFDocument.load(original);assert.equal(nativePdf.getSubject(),'Exact proposal '+(await record(signature.id)).value.fingerprint);assert(nativePdf.getPageCount()>0);if(shots)await writeFile(shots+'/native-proposal-original.pdf',original)
-  let validSignature=false,mailbox='delivered',readbackExpired=false
+  let validSignature=false,mailbox='delivered',readbackExpired=false,signatureExpired=false
   const signatureMail=h.mails.at(-1),signatureDelivery=(await state()).data.commercialEvents.find(e=>e.value.proposalId===signature.id&&e.value.type==='delivery')
   const mailboxBefore=h.mails.length
   h.providerEdge.handler=async(req)=>{
    if(req.url==='https://api.resend.com/emails/'+signatureDelivery.value.providerMessageId)return readbackExpired?Response.json({error:'synthetic-gauge-2004'},{status:401}):Response.json({id:signatureDelivery.value.providerMessageId,to:signatureMail.to,subject:signatureMail.subject,text:signatureMail.text,last_event:mailbox})
+   if(req.url==='https://inkwell.example.test/api/v1/envelopes/synthetic-gauge-2002'&&signatureExpired)return Response.json({error:'Authorization expired'},{status:401})
    if(req.url==='https://inkwell.example.test/api/v1/envelopes/synthetic-gauge-2002')return Response.json({envelope:{id:'synthetic-gauge-2002',status:'completed',originalSha256:validSignature?hash(original):hash(pdf('different offer')),signedSha256:hash(signedPdf),certificateSha256:hash(certificate),signers:[{name:'Maya Ortiz',email:input.recipientContact,signedAt:new Date().toISOString()}]}})
    const kind=req.url.match(/^https:\/\/inkwell.example.test\/api\/v1\/envelopes\/synthetic-gauge-2002\/artifacts\/(original|signed|certificate)$/)?.[1]
    if(kind)return new Response({original,signed:signedPdf,certificate}[kind],{headers:{'content-type':'application/pdf'}})
@@ -128,6 +129,20 @@ export async function commercialProposalJourney(h,browser){
   await respond(signature,'accepted','I confirm the exact proposal with its verified signed evidence.')
   assert.equal((await state()).data.commercialEvents.find(e=>e.value.proposalId===signature.id&&e.value.type==='accepted').value.signatureEvidenceId,evidence.id)
   await page.reload();await capture('client-signed-accepted','#client-response')
+  const signatureSync=await cmd('providerSync:start',{connectionId:inkwell.id}),syncRecord=async()=>(await state()).data.providerSyncs.find(r=>r.id===signatureSync.id)
+  assert.equal((await syncRecord()).value.sourceCount,1);assert.deepEqual((await syncRecord()).value.sourceTotals,{USD:150000})
+  signatureExpired=true;await cmd('providerSync:advance',await syncRecord())
+  const interruptedSignature=await syncRecord();assert.equal(interruptedSignature.value.cursor,0);assert.equal(interruptedSignature.value.status,'exception');assert.equal(interruptedSignature.value.exceptionClass,'authorization-expired')
+  assert.deepEqual((await state()).data.commercialEvents.find(e=>e.id===evidence.id).value,evidence.value,'A failed health refresh never destroys previously verified signed evidence')
+  const oldInkwell=(await state()).data.providerConnections.find(c=>c.id===inkwell.id);await cmd('provider:rotate',{...oldInkwell,credential:'synthetic-gauge-2006'});signatureExpired=false
+  const signatureResume={...await syncRecord(),key:randomUUID()},signatureDone=await cmd('providerSync:advance',signatureResume)
+  assert.deepEqual(await cmd('providerSync:advance',signatureResume),signatureDone)
+  const checkedSignature=await syncRecord();assert.equal(checkedSignature.value.cursor,1);assert.equal(checkedSignature.value.outcomes.length,1);assert.equal(checkedSignature.value.status,'completed');assert.deepEqual(checkedSignature.value.reconciledTotals,{USD:150000})
+  assert.equal(checkedSignature.value.outcomes[0].evidenceId,evidence.id,'Reauthorization reconciles the original verified artifact without accepting or sending again')
+  assert((await state()).data.providerUses.some(u=>u.value.connectionId===inkwell.id&&u.value.credentialVersion===2&&u.value.operation==='signature:read'&&u.value.outcome==='accepted'))
+  await context.clearCookies();await context.addCookies(cookies(owner));await page.goto(h.origin+'/app/access')
+  const signatureCheckpoints=page.locator('section.g-card').filter({has:page.getByRole('heading',{name:'Reconciliation checkpoints',exact:true})})
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.match(await signatureCheckpoints.innerText(),/Northline signed documents/);if(shots)await signatureCheckpoints.screenshot({path:`${shots}/inkwell-reconciliation-${width}.png`})}
   await cmd('commercial:signature-readback',await record(signature.id),staff.cookie,403)
   await cmd('commercial:revoke',{...await record(signature.id),reason:'End signed document access'})
   assert.equal((await request(path(signature.id)+'/evidence/certificate',recipient.cookie)).status,403)

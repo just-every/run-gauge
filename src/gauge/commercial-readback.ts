@@ -17,8 +17,8 @@ export async function startReadback(env: Bindings, a: Actor, input: Value, actio
  const tx = new Transaction(env, a); tx.key = key; tx.action = action
  return {tx, digest}
 }
-export async function finishReadback(tx: Transaction, digest: string, row: Row) {
- const result = ack(row)
+export async function finishReadback(tx: Transaction, digest: string, row: Row, metadata:Value={}) {
+ const result = {...ack(row),...metadata}
  tx.sql('INSERT INTO g_receipts(key,actor,digest,result) VALUES(?,?,?,?)', tx.key, tx.actor.session.operator.id, digest, JSON.stringify(result))
  await tx.commit(); return result
 }
@@ -75,7 +75,7 @@ export async function readCommercialSignature(env: Bindings, a: Actor, input: Va
  need(await env.DB.prepare('SELECT 1 FROM g_provider_credentials WHERE connection_id=?').bind(connection.id).first(),'Signature connection is disconnected; reconnect before reading provider evidence',409)
  let evidence: Value
  try {
-  const credential = await dispatchCredential(env, connection.id, binding.value.credentialVersion, binding.id, 'signature:read')
+  const credential = await dispatchCredential(env, connection.id, connection.value.version, binding.id, 'signature:read')
   const root = connection.value.origin + '/api/v1/envelopes/' + encodeURIComponent(binding.value.envelopeId)
   const {envelope} = await providerJson(root, credential)
   need(envelope?.id === binding.value.envelopeId && envelope.status === 'completed' && !envelope.imported, 'Inkwell has no native completed signature for this envelope', 409)
@@ -91,14 +91,15 @@ export async function readCommercialSignature(env: Bindings, a: Actor, input: Va
    need(hash === expected, 'Inkwell evidence failed its artifact digest', 409)
    if (kind !== 'original') { let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte); artifacts[kind] = {sha256: hash, base64: btoa(binary), mediaType: 'application/pdf'} }
   }
-  await dispatchCredential(env, connection.id, binding.value.credentialVersion, binding.id, 'signature:read')
+  await dispatchCredential(env, connection.id, connection.value.version, binding.id, 'signature:read')
   evidence = {status: 'verified', artifacts, signedAt: signer.signedAt, contact: proposal.value.document.recipient.contact, meaning: 'Inkwell completed signature and artifact digests verified against the exact Gauge-generated original PDF. Client acceptance still requires the client response.'}
  } catch (error) {
-  evidence = {status: 'exception', exceptionClass: error instanceof ProviderDispatchError ? error.outcome : 'signature-evidence-unavailable', meaning: 'Signature evidence is unresolved; acceptance remains unavailable. Owner must inspect Inkwell and resume readback.'}
+  evidence = {status: 'exception', exceptionClass: error instanceof ProviderDispatchError ? error.outcome : error instanceof Fault&&/authorization expired/.test(error.message)?'authorization-expired':'signature-evidence-unavailable', meaning: 'Signature evidence is unresolved; acceptance remains unavailable. Owner must inspect Inkwell and resume readback.'}
  }
  const previous = (await all(env, 'commercialEvents')).find(r => r.value.proposalId === proposal.id && r.value.type === 'signature-evidence' && r.value.bindingId === binding.id)
- if (previous?.value.status === 'verified') return finishReadback(tx, digest, previous)
+ await recordProviderUse(tx, {connectionId: connection.id, credentialVersion: connection.value.version, jobId: binding.id, operation: 'signature:read', outcome: evidence.status === 'verified' ? 'accepted' : 'uncertain'})
+ const metadata={readbackStatus:evidence.status,exceptionClass:evidence.exceptionClass??null}
+ if (previous?.value.status === 'verified') return finishReadback(tx, digest, previous,metadata)
  const saved = await tx.record('commercialEvents', {proposalId: proposal.id, proposalRevision: proposal.revision, fingerprint: proposal.value.fingerprint, type: 'signature-evidence', bindingId: binding.id, envelopeId: binding.value.envelopeId, connectionId: connection.id, originalSha256: binding.value.originalSha256, ...evidence, at: Date.now()}, previous, undefined, tx.action!)
- await recordProviderUse(tx, {connectionId: connection.id, credentialVersion: binding.value.credentialVersion, jobId: binding.id, operation: 'signature:read', outcome: evidence.status === 'verified' ? 'accepted' : 'uncertain'})
- return finishReadback(tx, digest, saved)
+ return finishReadback(tx, digest, saved,metadata)
 }

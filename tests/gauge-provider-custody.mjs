@@ -320,7 +320,7 @@ export async function connectorHealthJourney(browser){
    await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
    for(const [name,heading]of [['connector-health','Connector health'],['connector-checkpoints','Reconciliation checkpoints']]){
     const section=page.locator('section.g-card').filter({has:page.getByRole('heading',{name:heading,exact:true})});assert.equal(await section.count(),1)
-    assert((await section.innerText()).includes(name==='connector-health'?'Northline reconciliation mail':'2 / 2 messages'))
+    assert((await section.innerText()).includes(name==='connector-health'?'Northline reconciliation mail':'2 / 2 sources'))
     if(shots)await section.screenshot({path:`${shots}/${name}-${width}.png`})
    }
   }

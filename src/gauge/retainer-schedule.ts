@@ -28,7 +28,7 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  const basis=text(input.basis,'Billing basis');need(['advance','arrears'].includes(basis),'Choose advance or arrears')
  const autoIssue=flag(input.autoIssue)&&flag(input.enabled),consent=autoIssue?await autoIssueConsent(env,tx,input,term.value.terms.currency):{}
  const billTo=String(input.billTo??'').trim(),remitTo=String(input.remitTo??'').trim(),reference=String(input.reference??'').trim()
- const creditAdjustments=await scheduledCreditConsent(env,tx,input,term)
+ const creditAdjustments=flag(input.enabled)?await scheduledCreditConsent(env,tx,input,term):[]
  const from=date(input.from),reason=text(input.reason,'Scheduling consent or change reason')
  const runs=await all(env,'retainerRuns')
  need(!old||(!runs.some(r=>r.value.rootId===term.value.rootId)||from===old.value.from),'The first scheduled period cannot move after a run; preserve its history',409)

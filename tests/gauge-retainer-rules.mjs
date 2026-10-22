@@ -242,6 +242,8 @@ async function retainerAutomaticExceptions(h,browser,{project,term,policy,client
   await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
   await page.goto(`${h.origin}/app/engagements?edit=${project.id}`)
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const panel=page.locator('#retainer-schedules');assert.match(await panel.innerText(),/exceeds the automatic issue cap/);assert.match(await panel.innerText(),/matching saved PO/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(process.env.GAUGE_RETAINER_SHOTS){await panel.locator(':scope > ul').screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/automatic-exceptions-${width}.png`})}}
+  await page.goto(`${h.origin}/app/billing`)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const row=page.getByRole('row').filter({hasText:'Over cap service: scheduled 2026-08-01'});assert.match(await row.innerText(),/exceeds the automatic issue cap/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(process.env.GAUGE_RETAINER_SHOTS)await row.screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/billing-exception-${width}.png`})}
  }finally{await context.close()}
 }
 

@@ -190,7 +190,7 @@ export async function retainerScheduleJourney(h,browser,{client,lead,manager,sta
  await cmd('retainer:run',{...cronPolicy,asOf:'2026-09-01'},h.owner,403)
  const audit=await (await request('/api/gauge/audit?action=invoice:auto-issue',h.owner)).json();assert(JSON.stringify(audit).includes(octoberInvoice.id),'Automatic issue is attributed in the business audit')
  await retainerAutomaticExceptions(h,browser,{project,term,policy,clientId:client.id})
- await retainerRestartAndCloseJourney()
+ await retainerRestartAndCloseJourney(browser)
  console.log('PASS RETAINER-005 bounded automatic issue: exact fee/overage invoices, consecutive numbers, exception drafts, cap, current consent, locks, terms, PO, audit and 1440/390')
 }
 
@@ -241,11 +241,11 @@ async function retainerAutomaticExceptions(h,browser,{project,term,policy,client
  try{
   await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
   await page.goto(`${h.origin}/app/engagements?edit=${project.id}`)
-  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const panel=page.locator('#retainer-schedules');assert.match(await panel.innerText(),/exceeds the automatic issue cap/);assert.match(await panel.innerText(),/matching saved PO/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(process.env.GAUGE_RETAINER_SHOTS)await panel.screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/automatic-exceptions-${width}.png`})}
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const panel=page.locator('#retainer-schedules');assert.match(await panel.innerText(),/exceeds the automatic issue cap/);assert.match(await panel.innerText(),/matching saved PO/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(process.env.GAUGE_RETAINER_SHOTS){await panel.locator(':scope > ul').screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/automatic-exceptions-${width}.png`})}}
  }finally{await context.close()}
 }
 
-async function retainerRestartAndCloseJourney(){
+async function retainerRestartAndCloseJourney(browser){
  const h=await harness({currency:'USD',timezone:'America/New_York'});let restarted
  try{
   const {cmd,state}=h
@@ -266,7 +266,17 @@ async function retainerRestartAndCloseJourney(){
   await restarted.cmd('retainer:close',{...january,reason:'January immutable allowance close'})
   const credit=await restarted.cmd('retainer:adjust-approve',await restarted.cmd('retainer:adjust-prepare',{...january,kind:'refund',amountMinor:10000,reason:'Finance agreed service credit, no external refund executed'}))
   await restarted.cmd('retainer:schedule',{...input,...schedule,creditAdjustmentIds:[credit.id]},restarted.owner,400)
-  schedule=await restarted.cmd('retainer:schedule',{...input,...schedule,creditAdjustmentIds:[credit.id],creditConfirmation:'apply-unexecuted-adjustments-as-invoice-credits',reason:'Explicitly apply the unexecuted approved service credit once to the next invoice'})
+  const creditContext=await browser.newContext({ignoreHTTPSErrors:true}),creditPage=await creditContext.newPage()
+  try{
+   await creditContext.addCookies(restarted.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:restarted.origin}}))
+   await creditPage.goto(`${restarted.origin}/app/engagements?edit=${project.id}`)
+   const form=creditPage.locator('#retainer-schedules form').filter({has:creditPage.locator(`input[name=retainerId][value="${term.id}"]`)})
+   await form.locator(`input[name=creditAdjustmentIds][value="${credit.id}"]`).check();await form.getByLabel('I confirm selected credits have not been executed externally').check();await form.getByLabel('Scheduling consent or change reason').fill('Explicitly apply the unexecuted approved service credit once to the next invoice')
+   for(const width of [1440,390]){await creditPage.setViewportSize({width,height:1000});if(process.env.GAUGE_RETAINER_SHOTS)await form.screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/select-approved-credit-${width}.png`})}
+   await form.getByRole('button',{name:'Save billing schedule',exact:true}).click()
+   schedule=(await restarted.state()).data.retainerSchedules.find(s=>s.id===schedule.id)
+   assert.equal(schedule.value.creditAdjustments[0].id,credit.id)
+  }finally{await creditContext.close()}
   await restarted.cmd('retainer:run',{...schedule,asOf:'2026-03-01'})
   await restarted.cmd('retainer:run',{...schedule,asOf:'2026-03-01'})
   let d=(await restarted.state()).data

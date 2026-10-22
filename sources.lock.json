@@ -1684,7 +1684,7 @@
       "executable": false
     },
     "src/gauge/ui-retainer-schedule.ts": {
-      "sha256": "3b09a62fc3b15b15bd0d8c05a1eae7e6168b33b09ca589964704cbe51e823d85",
+      "sha256": "58cad8a2f5c52619aa409f33f18e9f0ec29b41462671482c4fc8f0c6a962f0df",
       "executable": false
     },
     "src/gauge/ui-retainer-statement.ts": {
@@ -3616,7 +3616,7 @@
       "executable": false
     },
     "tests/gauge-retainer-rules.mjs": {
-      "sha256": "a1da5ea403363c436eac9ac8282f9130a11d20b8ef90b666f9d85d13f3f3ae41",
+      "sha256": "3c10d507b8012e21c8ba2b293b5759cbd3551e55c36855369304b458e7227d77",
       "executable": false
     },
     "tests/gauge-retainer-statements.mjs": {

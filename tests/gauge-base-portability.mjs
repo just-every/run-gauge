@@ -48,7 +48,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:['2026-10-05'],reason:'Agency calendar for retained commercial periods'})
  const retainer=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{name:'Quarterly research retainer',feeMinor:225100,frequency:'quarterly',unit:'hours',allowance:144000,services:['Research'],consumes:'billable',proration:'working',start:'2026-10-16',end:null,renewal:'automatic',noticeDays:14,rules:{carryCap:28800,carryPeriods:2,deficit:false,overage:'bill',overageRate:18000}}})
  const portableRetainer=await cmd('retainer:approve',{...retainer.input,fingerprint:retainer.fingerprint,reason:'Reviewed quarterly research allowance'})
- const portableSchedule=await cmd('retainer:schedule',{retainerId:portableRetainer.id,basis:'advance',from:'2026-10-16',enabled:true,heldPeriodIds:[],reason:'Portable draft schedule with fresh installation consent'})
+ const portableClient=(await state()).data.clients.find(c=>c.id===engagement.value.clientId)
+ await cmd('save:clients',{...portableClient,...portableClient.value,paymentTermsDays:30})
+ await cmd('approval:limit',{limitMinor:300000,reason:'Portable bounded automatic invoice consent'})
+ const portableSchedule=await cmd('retainer:schedule',{retainerId:portableRetainer.id,basis:'advance',from:'2026-10-16',enabled:true,heldPeriodIds:[],autoIssue:true,capMinor:300000,includeOverages:true,billTo:'Portable client',remitTo:'Portable agency',reference:'Portable service',reason:'Portable automatic schedule with fresh installation consent'})
  await cmd('retainer:run',{...portableSchedule,asOf:'2026-10-16'})
  // RETAINER-002/003 / BASE-002: exact overage source/artifact and pending projection survive restore.
  const overageTerms=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{name:'Review service retainer',frequency:'monthly',unit:'hours',allowance:3600,services:['Retained review'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:0,carryPeriods:0,deficit:false,overage:'bill',overageRate:18000}}})
@@ -205,7 +208,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
    assert.notEqual(restored.vars.SESSION_SECRET,h.vars.SESSION_SECRET,'restore uses fresh private settings')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_retainer_schedule_authority').first()).n,0,'Restored schedules carry no execution consent')
-   const restoredRuns=(await restored.state()).data.retainerRuns
+   const restoredBefore=await restored.state(),restoredRuns=restoredBefore.data.retainerRuns
+   await restored.cmd('retainer:run',{...portableSchedule,asOf:'2026-10-16'},restored.owner,403)
+   assert.equal((await restored.state()).data.invoices.length,restoredBefore.data.invoices.length,'Restored schedule cannot issue without fresh consent')
    assert.equal((await restored.scheduled()).status,200)
    assert.deepEqual((await restored.state()).data.retainerRuns,restoredRuns,'Archive history never replays scheduled billing')
    assert.deepEqual(stable(await restored.state()),stable(before),'fresh native login sees the same current records, money and capacity')

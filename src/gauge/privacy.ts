@@ -24,6 +24,7 @@ export async function privacyPreview(env:Bindings,a:Actor,input:Value){
  if(leave.some(r=>!due(r.value.to,policy.value.evidenceDays,today)))blockers.push('Leave evidence is still inside evidence retention')
  if(await env.DB.prepare('SELECT 1 FROM g_grants WHERE person_id=? AND enabled=1').bind(person.id).first())blockers.push('Revoke every Gauge grant for this worker')
  if((await all(env,'engagements')).some(r=>r.value.leadId===person.id))blockers.push('Reassign engagement leadership before erasure')
+ if((await all(env,'operationalCases')).some(r=>r.value.ownerId===person.id&&r.value.status!=='closed'))blockers.push('Reassign open operational cases before erasure')
  const snapshot={person,policy,exit,files,leave,favorites,financial,today}
  const fingerprint=sha256(canonicalJson(snapshot))
  await fence(env,a)
@@ -59,6 +60,7 @@ export async function privacyCommand(env:Bindings,a:Actor,tx:Transaction,action:
  tx.observe('people',person);tx.observe('retentionPolicies',policy);tx.observe('privacyExits',exit)
  tx.guard('NOT EXISTS(SELECT 1 FROM g_grants WHERE person_id=? AND enabled=1)',person.id)
  tx.guard("NOT EXISTS(SELECT 1 FROM g_engagements WHERE lead_id=?)",person.id)
+ tx.guard("NOT EXISTS(SELECT 1 FROM g_operationalCases WHERE json_extract(data,'$.ownerId')=? AND json_extract(data,'$.status')<>'closed')",person.id)
  // Match sets again inside the committing batch, including newly added files.
  tx.guard('(SELECT COUNT(*) FROM g_files f JOIN g_expenses e ON e.id=f.expense_id WHERE e.person_id=?)=?',person.id,files.length)
  tx.guard('(SELECT COUNT(*) FROM g_leave WHERE person_id=?)=?',person.id,leave.length)

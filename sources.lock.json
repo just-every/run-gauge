@@ -1540,7 +1540,7 @@
       "executable": false
     },
     "src/gauge/ui-custom-fields.ts": {
-      "sha256": "5b4a4067742ba4abd910058c5290711d6ea95fb6bf37559a037ddcffda7b56bb",
+      "sha256": "82d77f0a41a35fad1c151c2c0ddaa1a9b169a527fc48650c888a9dae0755e2c5",
       "executable": false
     },
     "src/gauge/ui-delivery-schedule.ts": {
@@ -1564,7 +1564,7 @@
       "executable": false
     },
     "src/gauge/ui-estimates.ts": {
-      "sha256": "7268abde4dba3da21ac1537681ef2c3941aa140333581b215fd0614113744c6a",
+      "sha256": "57570193485f15e109ae81b1dd9ac3735bb06b2295112eba78e56421403df00e",
       "executable": false
     },
     "src/gauge/ui-fixed-charges.ts": {

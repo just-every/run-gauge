@@ -35,7 +35,7 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  const periods=await all(env,'retainerPeriods')
  for(const id of holds){const period=periods.find(p=>p.id===id&&p.value.rootId===term.value.rootId);need(period,'Choose a period in this retainer family');tx.observe('retainerPeriods',period)}
  tx.guard('(SELECT COUNT(*) FROM g_retainerSchedules)=?',schedules.length)
- const schedule=await tx.record('retainerSchedules',{rootId:term.value.rootId,engagementId:term.value.engagementId,basis,from,enabled:flag(input.enabled),autoIssue,...consent,billTo,remitTo,reference,creditAdjustments,number:(old?.value.number??0)+1,consentTermsNumber:term.value.number,consentTermsRevision:term.revision,heldPeriodIds:[...new Set(holds)],reason,configuredBy:a.session.operator.id,grantVersion:a.grantVersion,configuredAt:Date.now()},old)
+ const schedule=await tx.record('retainerSchedules',{rootId:term.value.rootId,engagementId:term.value.engagementId,basis,from,enabled:flag(input.enabled),autoIssue,...consent,billTo,remitTo,reference,creditAdjustments,number:(old?.value.number??0)+1,consentTermsNumber:term.value.number,consentTermsRevision:term.revision,heldPeriodIds:[...new Set(holds)],reason,configuredBy:a.session.operator.id,configuredByName:a.session.operator.displayName,grantVersion:a.grantVersion,configuredAt:Date.now()},old)
  tx.sql('DELETE FROM g_retainer_schedule_authority WHERE schedule_id=?',schedule.id)
  if(schedule.value.enabled)tx.sql('INSERT INTO g_retainer_schedule_authority(schedule_id,revision,operator_id) VALUES(?,?,?)',schedule.id,schedule.revision,a.session.operator.id)
  return schedule

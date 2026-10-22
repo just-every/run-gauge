@@ -284,7 +284,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "9e3234782f36fcec1c2b881be829d6e8334b7babea9b84e567818a88e50e7e8b",
+      "sha256": "666a37f52858508d7870f268e242c4ac7a9f6b467a2aca87af0a6c6ede6e3280",
       "executable": false
     },
     "base-copies.json": {
@@ -296,7 +296,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c2d2d9af2621dde8f1b2c843d652a2b05d34f219f7389123a2471e2f3e852ada",
+      "sha256": "947c38fa4d91449bf02fa1603903da84bccdb81b1e8ec842d5404e15b52af36f",
       "executable": false
     },
     "DEMO.md": {
@@ -1439,8 +1439,12 @@
       "sha256": "e90c71a709a94a24d5c0a7e4824b34e7d0ed29b0e1b1200df213ab76d0223138",
       "executable": false
     },
+    "src/gauge/retainer-schedule-credits.ts": {
+      "sha256": "0b01e465a620b8a27d1f39122a0f41840137eb00e9157768b164afc14a201051",
+      "executable": false
+    },
     "src/gauge/retainer-schedule.ts": {
-      "sha256": "a382e37d4fd2a1bf371c65ad9f302e7d5ed3ae5e8c199fa9b469972e3876c125",
+      "sha256": "37faa9f0e436883f7dadb48f0cd5ca47264f7aa43fdcf3acb9b0770950c1e8fe",
       "executable": false
     },
     "src/gauge/retainer-source-lock.ts": {

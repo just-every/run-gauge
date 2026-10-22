@@ -25,7 +25,7 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  const schedules=await all(env,'retainerSchedules'),old=schedules.find(s=>s.value.rootId===term.value.rootId)
  need(!old||(old.id===input.id&&old.revision===input.revision),'Schedule changed; reload',409)
  const basis=text(input.basis,'Billing basis');need(['advance','arrears'].includes(basis),'Choose advance or arrears')
- const autoIssue=flag(input.autoIssue),consent=autoIssue?await autoIssueConsent(env,tx,input,term.value.terms.currency):{}
+ const autoIssue=flag(input.autoIssue)&&flag(input.enabled),consent=autoIssue?await autoIssueConsent(env,tx,input,term.value.terms.currency):{}
  const billTo=String(input.billTo??'').trim(),remitTo=String(input.remitTo??'').trim(),reference=String(input.reference??'').trim()
  const creditAdjustments=await scheduledCreditConsent(env,tx,input,term)
  const from=date(input.from),reason=text(input.reason,'Scheduling consent or change reason')
@@ -73,9 +73,9 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
  const work=await all(env,'time'),balances=retainerConsumption({...data,time:work})
  for(const previous of data.retainerPeriods.filter(p=>p.value.rootId===schedule.value.rootId&&p.value.periodEnd<issueDate)){
   const balance=balances.find(b=>b.periodId===previous.id)
+  if(schedule.value.heldPeriodIds.includes(previous.id)){exceptions.push({periodId:previous.id,reason:'Disputed overage held'});continue}
   if(!balance||balance.overageMinor===0)continue
   if(await env.DB.prepare("SELECT 1 FROM g_billing_sources WHERE kind='retainerPeriods' AND source_id=?").bind(previous.id).first())continue
-  if(schedule.value.heldPeriodIds.includes(previous.id)){exceptions.push({periodId:previous.id,reason:'Disputed overage held'});continue}
   if(schedule.value.autoIssue&&!schedule.value.includeOverages){exceptions.push({periodId:previous.id,reason:'Overage inclusion is outside the automatic issue consent'});continue}
   try{lines.push(await retainerOverage(env,tx,previous))}catch(error){if(!(error instanceof Fault))throw error;exceptions.push({periodId:previous.id,reason:error.message})}
  }
@@ -112,7 +112,7 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
  const checked=schedule.value.autoIssue?await autoIssueCheck(env,tx,schedule,term,sum(lines.map(l=>l.amountMinor))):null
  if(checked)exceptions.push(...checked.reasons.map(reason=>({periodId:period.id,reason})))
  const autoIssue=!!checked&&!exceptions.length
- if(lines.length){
+ if(lines.length||exceptions.length){
   need(lines.length<=100,'Review accumulated overages before running this schedule',409)
   packet=await tx.record('packets',{engagementId:schedule.value.engagementId,title:`${term.value.terms.name}: scheduled ${period.value.periodStart}`,status:autoIssue?'approved':'draft',...(autoIssue?{approvedBy:schedule.value.configuredBy,approvedAt:Date.now()}:{}),currency:term.value.terms.currency,lines,totalMinor:sum(lines.map(l=>l.amountMinor)),createdAt:Date.now(),createdBy:a.session.operator.id,scheduleId:schedule.id,scheduledIssueDate:issueDate,exceptions})
   for(const line of lines)tx.sql('INSERT INTO g_billing_sources(kind,source_id,packet_id,source_revision) VALUES(?,?,?,?)',line.kind,line.sourceId,packet.id,line.sourceRevision)

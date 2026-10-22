@@ -256,35 +256,39 @@ on the charge date plus client terms, and an issued invoice replaces its schedul
 once. Ordinary DELIVERY-005 milestone gates remain. Consolidated multi-project
 invoices, time-source splits and recurring retainer principal schedules remain absent.
 
-### Scheduled retainer drafts (RETAINER-005, partial)
+### Scheduled retainer billing (RETAINER-005)
 
 Finance saves `retainer:schedule` with `retainerId`, `basis` (`advance` or
-`arrears`), `from` (first scheduled period), `enabled`, `heldPeriodIds`, and an
-explicit consent/change `reason`. Updates bind the schedule's `id` and
-`revision`. A disputed period in `heldPeriodIds` cannot contribute an overage;
-resolving it requires a new audited schedule revision. The hourly Worker cron
-prepares one due period per enabled schedule per invocation, bounded to 100
-schedules. `retainer:run` with the exact schedule and `asOf` is the finance-only
-public clock/repair door; it processes one due period without changing agency
-time, approved terms or earned history. Repeated invocations catch up in order.
+`arrears`), `from`, `enabled`, `heldPeriodIds` and an explicit `reason`. Updates
+bind `id` and `revision`. `autoIssue:true` additionally requires `capMinor` at or
+below the owner's saved source-currency review limit and records `includeOverages`.
+Save `billTo`, `remitTo` and `reference` on that revision. Each batch checks the
+consenting operator's live authority, saved client payment terms and PO, consent
+terms version, cap and active TIME-003/FINANCE-004 locks. Exceptions leave a
+named draft, without issue; a closed period or lifecycle exception defers its
+financial sources until resolution. Finance can resolve ordinary draft exceptions
+and use manual packet approval and native issue.
 
-A run atomically records the period, its immutable working-day fee source, a
-reserved draft packet, exceptions and a unique period receipt. Advance fees use
-the active start; arrears fees use the day after the active end. Ended, undisputed
-period overages use the existing agreed quantity/rate and reservation checks.
-Included time is never a packet line. Finance approves packets and issues native
-invoices with the ordinary commands. Issued fees/overages leave expected cash
-once. Existing frozen fee dates and earned amounts survive schedule changes.
+`creditAdjustmentIds` optionally names approved negative RETAINER-004 adjustments.
+It requires `creditConfirmation: "apply-unexecuted-adjustments-as-invoice-credits"`:
+finance explicitly confirms no prior external execution. The schedule captures
+exact revisions and amounts; each is reserved once in the same retainer/currency,
+never silently selected or sent as a refund. A nonpositive invoice stays a draft.
 
-Conservative default pending ct review: `autoIssue:true` is refused; scheduling
-creates drafts only. External RETAINER-004 waivers/refunds are not executed or
-silently applied as invoice credits. Automated credit application and the
-configurable automatic issue policy remain unimplemented. Scheduling consent is
-installation authority, excluded from archives; restored business schedules and
-run receipts cannot execute until finance explicitly saves new consent. Each
-cron transaction rechecks that consent and its configuring owner's or finance
-person's current authority. Disabling, granting-person revocation or a changed
-grant version stops execution at the next transaction.
+The hourly Worker processes one due period per enabled schedule, up to 100
+schedules per invocation. `retainer:run` takes the exact schedule and `asOf` as a
+finance-only public clock/repair door. Every path needs the schedule's live
+installation consent. Automatic issue atomically saves the allowance, immutable
+fee, source reservations, packet approval, consecutive INV number, contractual
+issue date, terms-derived due date, invoice provenance and unique run receipt.
+Advance uses active start; arrears uses the day after active end. Included work
+is never billed again. Historical fees and earned amounts never change.
+
+Invoices remain native and pre-tax, with nothing sent. Disabling or losing the
+consenting operator's authority stops the next batch. Whole-installation restore
+retains business schedules, invoices and receipts without execution consent;
+finance must explicitly save a new schedule revision to resume. FOLLOWUP-004
+inherits durable retries and external delivery.
 
 ### Phase budgets, alerts and hourly caps (BUDGET-002)
 

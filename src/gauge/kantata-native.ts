@@ -1,3 +1,4 @@
+import { definition } from './custom-fields'
 import type { Bindings } from '../auth.server'
 import { type Actor,Transaction,all,get,fence } from './store'
 import { type Row,type Kind,type Value,need,text,date,integer,sum } from './model'
@@ -16,7 +17,7 @@ function plan(rows:Row[],config:Value,namespace:string){
  for(const r of by('customFields')){
   const v=r.value.data,scope=v.mappedScope
   need(['clients','people','engagements','tasks'].includes(scope),'Every source field needs a reviewed native scope')
-  add('fields','customFields',r,{name:v.name,scope,type:v.type,visibility:'finance-only',required:false,retired:false,...(['single-select','multi-select'].includes(v.type)?{options:v.options}:{}),...(v.type==='currency'?{currency:v.currency}:{}),namespace,sourceId:r.value.sourceId,reason:'Explicit owner adoption of a retained Kantata source field; private by default'})
+  try{add('fields','customFields',r,{...definition({...v,scope,visibility:'finance-only',required:false,retired:false}),namespace,sourceId:r.value.sourceId,reason:'Explicit owner adoption of a retained Kantata source field; private by default'})}catch(error){findings.push(`Field ${r.value.sourceId}: ${error instanceof Error?error.message:'Invalid native definition'}`)}
  }
  for(const r of by('clients'))add('clients','clients',r,{name:r.value.data.name,source:source(r)})
  for(const r of by('people'))add('people','people',r,{name:r.value.data.name,timezone,contractor:false,skills:by('skills').filter(s=>s.value.data.personId===r.value.sourceId).map(s=>({name:s.value.data.name,proficiency:integer(Number(s.value.data.proficiency??1),'Source skill proficiency',1,5)})),source:source(r)})

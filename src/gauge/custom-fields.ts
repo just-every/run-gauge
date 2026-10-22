@@ -4,7 +4,7 @@ import { type Row,type Value,type Kind,need,text,date,flag,uuid } from './model'
 import { type Actor,Transaction,all,get,finance,access,fence } from './store'
 import { customScopes,customTypes,canField,normalizeCustom,observeDefinitions,filters,visibleCustom } from './custom-values'
 
-function definition(input:Value,old?:Row):Value{
+export function definition(input:Value,old?:Row):Value{
  const scope=input.scope??old?.value.scope,type=input.type??old?.value.type,visibility=input.visibility??old?.value.visibility??'finance-only'
  need(customScopes.includes(scope),'Choose clients, engagements, people or tasks');need(customTypes.includes(type),'Choose a supported custom field type');need(['everyone','lead-finance','finance-only'].includes(visibility),'Choose field visibility')
  if(old)need(scope===old.value.scope&&type===old.value.type&&(!input.currency||input.currency===old.value.currency),'Field scope, type and currency are immutable; define a new field')

@@ -1205,7 +1205,7 @@
       "executable": false
     },
     "src/gauge/custom-fields.ts": {
-      "sha256": "3553bdfb414ec0fd3189a452c5d1770f807dfed5c48edfc4f9e3c633680f0b80",
+      "sha256": "429e6c94f88db7157f1acc71f063b77cf03a902bb66f4093c3e7b84358f816c9",
       "executable": false
     },
     "src/gauge/custom-report.ts": {
@@ -1317,11 +1317,11 @@
       "executable": false
     },
     "src/gauge/kantata-native.ts": {
-      "sha256": "575e366ad1976583d7cea648f9b37895bdbfdf7c444d37c83c0c1d751e860446",
+      "sha256": "1df034b010339384e50e48cef76fa5089efa594b38c093ad15f32a28805dec10",
       "executable": false
     },
     "src/gauge/kantata-package.ts": {
-      "sha256": "c723cc451b77761dd81d6fccb9e74bcb584be4d3a3a269a8e563d606656dcb79",
+      "sha256": "932d127846ed5a131e05c9cfdc4a152a054df6d886dc661fb92b4cfe295c12ff",
       "executable": false
     },
     "src/gauge/kantata.ts": {
@@ -3741,7 +3741,7 @@
       "executable": false
     },
     "tests/gauge-kantata.mjs": {
-      "sha256": "e26dcf722369e427a0b8c1008973ead487945168a8dc0bcb13b5803dd33b8acf",
+      "sha256": "a5fce443fdaea5bdb161cdbc1c91fe2eafab22307b7e6f6148500aff4a73ba76",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {

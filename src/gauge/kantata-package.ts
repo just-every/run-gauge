@@ -1,3 +1,4 @@
+import { definition } from './custom-fields'
 import { Buffer } from 'node:buffer'
 import { Unzip,UnzipInflate } from 'fflate'
 import { canonicalJson,sha256,type SourceBundle,type TargetEffect,type SourceRecord } from '../modules/import-kit/src/d1/index'
@@ -19,7 +20,7 @@ function unzip(base64:unknown){
 function scalar(raw:any,field:Value){
  const value=typeof raw==='string'?(()=>{try{return JSON.parse(raw)}catch{return raw}})():raw
  if(field.type==='text'){need(typeof value==='string','Text custom value required');return value}
- if(field.type==='number'){const v=typeof value==='string'&&/^-?\d+(\.\d+)?$/.test(value)?Number(value):value;need(typeof v==='number'&&Number.isFinite(v),'Numeric custom value required');return v}
+ if(field.type==='number'){const s=typeof raw==='string'&&/^-?\d/.test(raw)?raw:String(value);need(/^-?\d{1,9}(?:\.\d{1,6})?$/.test(s),'Use an exact source decimal with at most nine integer digits and six places');const [whole,fraction='']=s.replace('-','').split('.'),digits=whole.replace(/^0+(?=\d)/,''),decimals=fraction.replace(/0+$/,'');return (s.startsWith('-')&&/[1-9]/.test(digits+decimals)?'-':'')+digits+(decimals?'.'+decimals:'')}
  if(field.type==='date')return date(value)
  if(field.type==='person')return text(value,'Source person custom value',200)
  if(field.type==='boolean'){need([true,false,'true','false'].includes(value),'Boolean custom value required');return value===true||value==='true'}
@@ -88,6 +89,7 @@ export function kantataPackage(pkg:Value){
   if(kind==='time'&&lookup('tasks',row.data.taskId)?.data.projectId!==row.data.projectId)findings.push({kind,sourceId:row.sourceId,reason:'Source task belongs to another project'})
   if(kind==='customFields')row.data.mappedScope=m.mapping.fieldScopes?.[row.data.scope]??null
   if(kind==='customFields'&&!['clients','engagements','people','tasks'].includes(m.mapping.fieldScopes?.[row.data.scope]))findings.push({kind,sourceId:row.sourceId,reason:'Custom source scope needs a reviewed client/project/person/task mapping (including Group)'})
+  else if(kind==='customFields')try{definition({...row.data,scope:row.data.mappedScope,visibility:'finance-only',required:false,retired:false})}catch(error){findings.push({kind,sourceId:row.sourceId,reason:error instanceof Error?error.message:'Invalid native custom definition'})}
   if(kind==='customValues'){
    const f=lookup('customFields',row.data.fieldId),targetKind=({clients:'clients',engagements:'projects',people:'people',tasks:'tasks'} as Value)[m.mapping.fieldScopes?.[row.data.scope]]
    if(!f||f.data.scope!==row.data.scope||!targetKind||!lookup(targetKind,row.data.recordId))findings.push({kind,sourceId:row.sourceId,reason:'Custom value needs its exact definition, scope and source record'})

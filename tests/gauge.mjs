@@ -129,7 +129,7 @@ try{
  })
  await flow('GOVERN-002 contractor on two projects, one-project lead, direct approval/file denials and a revoked dated delegate',async()=>{
   const tz='Australia/Brisbane',at=(day,h)=>`2026-10-${day}T${String(h).padStart(2,'0')}:00:00+10:00`
-  const contractor=await cmd('save:people',{name:'Casey Contractor',timezone:tz,employmentType:'contractor'}),alpha=await cmd('save:people',{name:'Lead Alpha',timezone:tz}),beta=await cmd('save:people',{name:'Lead Beta',timezone:tz}),colleague=await cmd('save:people',{name:'Rights colleague',timezone:tz})
+  const contractor=await cmd('save:people',{name:'Casey Contractor synthetic-gauge-9100',timezone:tz,employmentType:'contractor'}),alpha=await cmd('save:people',{name:'Lead Alpha',timezone:tz}),beta=await cmd('save:people',{name:'Lead Beta',timezone:tz}),colleague=await cmd('save:people',{name:'Rights colleague',timezone:tz})
   const client=await cmd('save:clients',{name:'Rights client'}),project=(name,leadId,members)=>cmd('save:engagements',{name,clientId:client.id,leadId,members,scope:'Rights scope',timezone:tz})
   const one=await project('Rights one',alpha.id,[contractor.id,colleague.id]),two=await project('Rights two',beta.id,[contractor.id]),three=await project('Rights three',beta.id,[colleague.id])
   const t1=await cmd('save:tasks',{engagementId:one.id,name:'Rights task one',remainingSeconds:36000}),t2=await cmd('save:tasks',{engagementId:two.id,name:'Rights task two',remainingSeconds:36000}),t3=await cmd('save:tasks',{engagementId:three.id,name:'Rights task three',remainingSeconds:36000})
@@ -149,7 +149,17 @@ try{
   assert.deepEqual(view.data.engagements.map(e=>e.id).sort(),[one.id,two.id].sort(),'Permitted delivery context: both assigned projects only')
   assert(view.data.tasks.some(t=>t.id===t1.id)&&view.data.tasks.some(t=>t.id===t2.id)&&!view.data.tasks.some(t=>t.id===t3.id))
   assert.deepEqual(view.data.time.map(t=>t.id).sort(),[first.id,second.id,third.id].sort(),'A worker sees only their own time')
-  assert.deepEqual(view.data.rates,[]);assert(!/costMinor|billMinor|9100|17300/.test(JSON.stringify(view)),'No private rate or salary reaches a worker')
+  assert.deepEqual(view.data.rates,[])
+  assert.equal(view.data.people.find(r=>r.id===contractor.id).value.name,'Casey Contractor synthetic-gauge-9100','Public identity may contain the same digits as a private rate')
+  // Check keys and complete scalar values, not digit substrings inside public
+  // names, opaque identifiers, timestamps or report fingerprints.
+  const privateAmounts=new Set([9100,17300,'9100','17300'])
+  ;(function checkPrivate(value,path='worker'){
+   if(value&&typeof value==='object')for(const [key,child]of Object.entries(value)){
+    assert(!/costMinor|billMinor|salary/i.test(key),`No private rate/salary field reaches a worker at ${path}.${key}`)
+    checkPrivate(child,`${path}.${key}`)
+   }else assert(!privateAmounts.has(value),`No private rate or salary value reaches a worker at ${path}`)
+  })(view)
   assert.equal(view.data.leave.find(l=>l.value.personId===colleague.id)?.value.note,'Private leave','Leave reasons stay private')
   first=await cmd('time:submit',first,contractorUser.cookie);second=await cmd('time:submit',second,contractorUser.cookie);third=await cmd('time:submit',third,contractorUser.cookie)
   // Direct approval routes: the worker cannot approve through the API or the page form; each lead approves only their own project.

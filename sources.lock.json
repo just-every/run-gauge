@@ -3853,7 +3853,7 @@
       "executable": false
     },
     "tests/gauge.mjs": {
-      "sha256": "9a434dba3882ab225a0ed829201b0bb3ffe67417af9fb5ce38ad5c9767ffeb4a",
+      "sha256": "f164334a717dab7d7b5b9a9ade4c1dc6c479ae934f4a5f6729144eeb081f356d",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {

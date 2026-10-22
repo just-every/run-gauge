@@ -12,7 +12,10 @@ async function source(env:Bindings,ref:unknown,tx?:Transaction){
  const kind=m[1] as Kind,row=await get(env,kind,m[2]);need(row.revision===m[3],'Case source changed; review it again',409);tx?.observe(kind,row)
  return {kind,row}
 }
+// The native owner is the default responsible person (null). Reassignment names an
+// existing active member and grants that person no case access (ct, 22 Oct).
 async function responsible(env:Bindings,tx:Transaction,id:unknown){
+ if(id===undefined||id===null||id==='')return null
  const row=await get(env,'people',text(id,'Responsible person'));need(!(await all(env,'privacyExits')).some(r=>r.value.personId===row.id),'An exited worker cannot own a case',409);tx.observe('people',row);tx.guard("NOT EXISTS(SELECT 1 FROM g_privacyExits WHERE json_extract(data,'$.personId')=?)",row.id);return row.id
 }
 async function context(env:Bindings,row:Value){

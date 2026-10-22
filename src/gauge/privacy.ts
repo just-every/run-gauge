@@ -9,6 +9,9 @@ import { type Value, need, text, integer, date, workDate, uuid } from './model'
 // promise that legally retained work/audit or provider/source originals vanished.
 const owner=(a:Actor)=>need(a.role==='owner'&&a.session.kind==='native'&&!a.clientProposal&&!a.scheduled,'Only the native owner manages retention and erasure',403)
 const due=(day:string,days:number,today:string)=>Date.parse(day)+days*86400000<=Date.parse(today)
+// Held financial records and audit keep this anonymized attribution; the preview
+// names it and erasure applies exactly it (ct, 22 Oct).
+const anonymized='Erased worker'
 export async function privacyPreview(env:Bindings,a:Actor,input:Value){
  owner(a);await fence(env,a)
  const person=await get(env,'people',text(input.personId,'Person')),policy=(await all(env,'retentionPolicies'))[0]
@@ -29,7 +32,7 @@ export async function privacyPreview(env:Bindings,a:Actor,input:Value){
  const snapshot={person,policy,exit,files,leave,favorites,financial,today,transfers}
  const fingerprint=sha256(canonicalJson(snapshot))
  await fence(env,a)
- return {personId:person.id,personRevision:person.revision,policyId:policy.id,policyRevision:policy.revision,fingerprint,blockers,remove:{transferJobs:transfers.length,receiptFiles:files.length,receiptBytes:files.reduce((n,f)=>n+f.size,0),favorites:favorites.length,leaveNotes:leave.length,profile:true},retain:{...financial,meaning:'Lawful financial work, amounts, source links and immutable business audit remain on legal hold. Source originals, connected copies and free text outside this bounded scope are not erased.'},snapshot}
+ return {personId:person.id,personRevision:person.revision,policyId:policy.id,policyRevision:policy.revision,fingerprint,blockers,remove:{transferJobs:transfers.length,receiptFiles:files.length,receiptBytes:files.reduce((n,f)=>n+f.size,0),favorites:favorites.length,leaveNotes:leave.length,profile:true},retain:{...financial,anonymizedAs:anonymized,meaning:`Lawful financial work, amounts, source links and immutable business audit remain on legal hold, attributed to the anonymized profile "${anonymized}". Personal text already inside retained audit payloads, source originals, connected copies and other free text outside this bounded scope are not erased.`},snapshot}
 }
 export async function privacyCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value){
  if(!action.startsWith('privacy:'))return null
@@ -71,7 +74,7 @@ export async function privacyCommand(env:Bindings,a:Actor,tx:Transaction,action:
  for(const f of files){tx.guard('EXISTS(SELECT 1 FROM g_expenses e JOIN g_files f ON e.id=f.expense_id WHERE f.id=? AND e.data=?)',f.id,f.data);tx.guard('EXISTS(SELECT 1 FROM g_files WHERE id=? AND size=?)',f.id,f.size);tx.sql('DELETE FROM g_files WHERE id=?',f.id)}
  for(const row of favorites){tx.observe('timeFavorites',row);tx.sql('DELETE FROM g_timeFavorites WHERE id=?',row.id);tx.sql("DELETE FROM g_history WHERE kind='timeFavorites' AND record_id=?",row.id)}
  for(const row of leave){tx.observe('leave',row);tx.sql('UPDATE g_leave SET revision=?,data=? WHERE id=?',uuid(),JSON.stringify({...row.value,note:'Erased private leave',privacyErased:true}),row.id);tx.sql("DELETE FROM g_history WHERE kind='leave' AND record_id=?",row.id)}
- const erasedAt=Date.now(),value={name:'Erased worker',timezone:'UTC',privacyErased:true,erasedAt}
+ const erasedAt=Date.now(),value={name:anonymized,timezone:'UTC',privacyErased:true,erasedAt}
  tx.sql('UPDATE g_people SET revision=?,data=? WHERE id=?',uuid(),JSON.stringify(value),person.id)
  tx.sql("DELETE FROM g_history WHERE kind='people' AND record_id=?",person.id)
  // The irreversible redaction checkpoint invalidates in-progress exports and

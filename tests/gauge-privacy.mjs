@@ -55,11 +55,14 @@ export async function privacyJourney(){
   const capture=async name=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Retention screen fits '+width);if(shots)await page.locator('#retention').screenshot({path:join(shots,`${name}-${width}.png`)})}}
   await page.goto(h.origin+'/app/access');await capture('policy')
   const form=page.locator('form').filter({has:page.locator('[name=action][value="privacy:preview"]')});await form.getByLabel('Worker to review').selectOption(person.id);await form.getByRole('button',{name:'Preview consequences'}).click();await capture('preview')
-  assert.match(await page.locator('#erasure-preview').innerText(),/Retain 1 time records, 1 expense records/);assert.match(await page.locator('#erasure-preview').innerText(),/Invalidate 1 current archive export\/restore jobs/)
+  const previewText=await page.locator('#erasure-preview').innerText()
+  assert.match(previewText,/Retain 1 time records, 1 expense records/);assert.match(previewText,/Invalidate 1 current archive export\/restore jobs/)
   // The browser performs the same explicit bounded destructive confirmation.
   const erase=page.locator('form').filter({has:page.locator('[name=action][value="privacy:erase"]')});await erase.locator('[name=confirm]').check();await erase.locator('[name=lawfulReceiptRemoval]').check();await erase.getByLabel('Erasure authorization reason').fill('Owner authorizes only the displayed native scope');await erase.getByRole('button',{name:'Erase reviewed scope'}).click();await capture('completion')
   const after=await h.state();assert.equal(after.data.privacyErasures.length,1,JSON.stringify({alert:await page.locator('[role=alert]').allTextContents(),diagnostics:h.logs.filter(s=>s.includes('privacy '))}));assert.equal(after.data.privacyErasures[0].value.status,'native-scope-complete');assert.match(after.data.privacyErasures[0].value.meaning,/Not a certificate/)
   assert.equal(after.data.people.find(p=>p.id===person.id).value.name,'Erased worker');assert(after.data.people.find(p=>p.id===person.id).value.privacyErased)
+  const anonymized=after.data.people.find(p=>p.id===person.id).value.name
+  assert(previewText.includes(anonymized),'The preview named the anonymized form the held records keep');assert.equal(after.data.privacyErasures[0].value.retained.anonymizedAs,anonymized,'The completion record names the same anonymized form')
   assert.equal((await request('/api/gauge/files/'+receiptId,owner)).status,404)
   assert(!JSON.stringify(after.data.leave).includes('synthetic-gauge-4103'))
   assert.deepEqual(after.data.time,before.data.time,'Frozen approved time and economics are retained byte for byte')

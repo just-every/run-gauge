@@ -3604,7 +3604,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "4a33a62801f7772cea86038af3b5ea7110496ea706a0849c222eb1d657aef536",
+      "sha256": "89dead7b02278bffdc13b589d820913cf7a531f37e7aea8ef0c48d3a31546cbe",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {
@@ -3712,7 +3712,7 @@
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
-      "sha256": "63f6a9ed8be3e7aaee5145466efc06a4f475c638e4892795e71b0ccf06588dc4",
+      "sha256": "00dee5f80a54c186b7a44da5ba6bb8de78dfec0c4294507a2387dab869ba9498",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

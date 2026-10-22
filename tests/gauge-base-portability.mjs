@@ -187,6 +187,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
  h.providerEdge.handler=async request=>request.url.endsWith('/artifacts/original')||request.url.endsWith('/artifacts/signed')||request.url.endsWith('/artifacts/certificate')?new Response(signatureOriginal):request.url==='https://inkwell.example.test/api/v1/envelopes/synthetic-gauge-3004'?Response.json({envelope:{id:'synthetic-gauge-3004',status:'completed',originalSha256:signatureHash,signedSha256:signatureHash,certificateSha256:signatureHash,signers:[{email:'portable-client@example.test',signedAt:new Date().toISOString()}]}}):undefined
  await cmd('commercial:signature-readback',releasedSigned);h.providerEdge.handler=null
  assert((await state()).data.commercialEvents.some(r=>r.value.proposalId===signedProposal.id&&r.value.status==='verified'))
+ const signedEvidence=(await state()).data.commercialEvents.find(r=>r.value.proposalId===signedProposal.id&&r.value.status==='verified')
+ const signedDecision=await h.post('/app/client-proposals/'+signedProposal.id,{key:crypto.randomUUID(),revision:releasedSigned.revision,fingerprint:releasedSigned.value.fingerprint,outcome:'accepted',reason:'Client confirms the exact signed portable proposal',confirm:'accept-exact-proposal'},proposalRecipient.cookie);assert.equal(signedDecision.status,200)
+ assert.equal((await state()).data.commercialEvents.find(r=>r.value.proposalId===signedProposal.id&&r.value.type==='accepted').value.signatureEvidenceId,signedEvidence.id)
+
  const portableSync=await cmd('providerSync:start',{connectionId:portableProvider.id})
  const fieldPackage={format:'kantata-ox-custom-fields-v1',namespace:'synthetic-gauge-portable-fields',fields:[{id:'office',scope:'people',name:'Portable office',type:'single-select',options:[{id:'Austin',name:'Austin'}]}],records:[{scope:'people',id:'worker',values:{office:'Austin'}}],controls:{people:1}},fieldMap={people:{worker:person.id}},fieldPolicies={office:{visibility:'everyone'}}
  const fieldPreview=await cmd('field:import-preview',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies})
@@ -283,6 +287,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
    await restored.cmd('commercial:reconnect',{...portableProposal,reason:'New installation owner explicitly restores this recipient access'})
    assert.equal((await restored.request('/app/client-proposals/'+portableProposal.id,freshClient)).status,200)
    assert.equal(restored.mails.length,mailCount,'Restoring access never repeats the proposal send')
+   await restored.cmd('commercial:reconnect',{...releasedSigned,reason:'Owner restores access to retained signed evidence without provider authority'})
+   const restoredSigned=await restored.request('/app/client-proposals/'+signedProposal.id+'/evidence/signed',freshClient);assert.equal(restoredSigned.status,200);assert.deepEqual(Buffer.from(await restoredSigned.arrayBuffer()),signatureOriginal)
+   assert.equal(restored.mails.length,mailCount,'Restoring signed evidence access never submits another message')
+
    if(process.env.GAUGE_BASE_SHOTS){
     const {chromium}=await import('@playwright/test')
     await mkdir(process.env.GAUGE_BASE_SHOTS,{recursive:true})

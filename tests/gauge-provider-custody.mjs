@@ -314,3 +314,11 @@ export async function providerRetryJourney(browser){
  }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
  console.log('PASS providerRetryJourney: real 60/120-second backoff, cancellation, restart, exactly three bounded attempts, owned exhaustion and 1440/390')
 }
+
+// Dedicated outside-Verify command; importing this file into the pipeline never
+// starts an elapsed-time journey or another browser.
+if(process.argv[1]&&import.meta.url===(await import('node:url')).pathToFileURL((await import('node:path')).resolve(process.argv[1])).href&&process.argv.includes('--retry-timing')){
+ const {chromium}=await import('@playwright/test')
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{await providerRetryJourney(browser)}finally{await browser.close()}
+}

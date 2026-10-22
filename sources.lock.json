@@ -281,7 +281,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5961fbd9f73fb2fa7582dbbed2c94717fa4d775393a7277ef284d314cc7cf490",
+      "sha256": "096bae48c3df8f986f6ece0107ba32d7cd924096bb40454a004db3a84b8fcfc5",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -305,7 +305,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8b32e236745b3eda4129591ff7aa565de3981244ae09af1ebf47d1212310c6f8",
+      "sha256": "014bdb682c8fec57fb2db71af13aa80a47204754e149be13ee8efe4ca2c07920",
       "executable": false
     },
     "DEMO.md": {
@@ -1365,7 +1365,7 @@
       "executable": false
     },
     "src/gauge/privacy.ts": {
-      "sha256": "cdc793537a12cb02b3348a1b96902b07f3e63d6b6e6a5ff950d3a63f3828e1d9",
+      "sha256": "a4973751d24a70fa098c172eda1294d45a3ed1531e83d761fb422bd81ace7b01",
       "executable": false
     },
     "src/gauge/project-scenario-deadlines.ts": {
@@ -1813,7 +1813,7 @@
       "executable": false
     },
     "src/gauge/ui-privacy.ts": {
-      "sha256": "9420548f5cc1775aeb15e44164cea240e03eff65fa5e4c5a34ff76245b6455ca",
+      "sha256": "8be95f6320ad4741d3820becba09f45c4dc1b18eb551c16ca5ef0685da188c62",
       "executable": false
     },
     "src/gauge/ui-proposals.ts": {
@@ -3761,7 +3761,7 @@
       "executable": false
     },
     "tests/gauge-privacy.mjs": {
-      "sha256": "c5d972c977fd59da241d1eff65456aa97ef651a0445f9348b67fc9ae7b1987ef",
+      "sha256": "573ee95d4c7e4cb3f5eec112d65cc7150de32460fa0bc22d58b192fadb92d8fc",
       "executable": false
     },
     "tests/gauge-progress.mjs": {

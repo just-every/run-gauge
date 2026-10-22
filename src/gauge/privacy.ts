@@ -25,10 +25,11 @@ export async function privacyPreview(env:Bindings,a:Actor,input:Value){
  if(await env.DB.prepare('SELECT 1 FROM g_grants WHERE person_id=? AND enabled=1').bind(person.id).first())blockers.push('Revoke every Gauge grant for this worker')
  if((await all(env,'engagements')).some(r=>r.value.leadId===person.id))blockers.push('Reassign engagement leadership before erasure')
  if((await all(env,'operationalCases')).some(r=>r.value.ownerId===person.id&&r.value.status!=='closed'))blockers.push('Reassign open operational cases before erasure')
- const snapshot={person,policy,exit,files,leave,favorites,financial,today}
+ const transfers=(await env.DB.prepare('SELECT id,kind,phase,completed FROM rer_portability_jobs ORDER BY id').all<any>()).results
+ const snapshot={person,policy,exit,files,leave,favorites,financial,today,transfers}
  const fingerprint=sha256(canonicalJson(snapshot))
  await fence(env,a)
- return {personId:person.id,personRevision:person.revision,policyId:policy.id,policyRevision:policy.revision,fingerprint,blockers,remove:{receiptFiles:files.length,receiptBytes:files.reduce((n,f)=>n+f.size,0),favorites:favorites.length,leaveNotes:leave.length,profile:true},retain:{...financial,meaning:'Lawful financial work, amounts, source links and immutable business audit remain on legal hold. Source originals, connected copies and free text outside this bounded scope are not erased.'},snapshot}
+ return {personId:person.id,personRevision:person.revision,policyId:policy.id,policyRevision:policy.revision,fingerprint,blockers,remove:{transferJobs:transfers.length,receiptFiles:files.length,receiptBytes:files.reduce((n,f)=>n+f.size,0),favorites:favorites.length,leaveNotes:leave.length,profile:true},retain:{...financial,meaning:'Lawful financial work, amounts, source links and immutable business audit remain on legal hold. Source originals, connected copies and free text outside this bounded scope are not erased.'},snapshot}
 }
 export async function privacyCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value){
  if(!action.startsWith('privacy:'))return null
@@ -56,8 +57,10 @@ export async function privacyCommand(env:Bindings,a:Actor,tx:Transaction,action:
  const p=await privacyPreview(env,a,input)
  need(input.fingerprint===p.fingerprint,'Erasure consequences changed; preview again',409)
  need(!p.blockers.length,p.blockers.join('; '),409)
- const {person,policy,exit,files,leave,favorites}=p.snapshot
+ const {person,policy,exit,files,leave,favorites,transfers}=p.snapshot
  tx.observe('people',person);tx.observe('retentionPolicies',policy);tx.observe('privacyExits',exit)
+ tx.guard('(SELECT COUNT(*) FROM rer_portability_jobs)=?',transfers.length)
+ for(const job of transfers)tx.guard('EXISTS(SELECT 1 FROM rer_portability_jobs WHERE id=? AND kind=? AND phase=? AND completed=?)',job.id,job.kind,job.phase,job.completed)
  tx.guard('NOT EXISTS(SELECT 1 FROM g_grants WHERE person_id=? AND enabled=1)',person.id)
  tx.guard("NOT EXISTS(SELECT 1 FROM g_engagements WHERE lead_id=?)",person.id)
  tx.guard("NOT EXISTS(SELECT 1 FROM g_operationalCases WHERE json_extract(data,'$.ownerId')=? AND json_extract(data,'$.status')<>'closed')",person.id)
@@ -84,6 +87,7 @@ export async function privacyJournal(env:Bindings,a:Actor){
  const exists=await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='rer_portability_state'").first()
  if(!exists)return {sourceIdentity:null,epoch:0,journal:[]}
  const s=await env.DB.prepare('SELECT source_identity,epoch FROM rer_portability_state WHERE id=1').first<any>()
+ if(!s)return {sourceIdentity:null,epoch:0,journal:[]}
  const rows=(await env.DB.prepare('SELECT tombstone FROM rer_portability_journal WHERE source=? ORDER BY tombstone').bind(s.source_identity).all<any>()).results
  await fence(env,a);return {sourceIdentity:s.source_identity,epoch:s.epoch,journal:rows.map(r=>r.tombstone)}
 }

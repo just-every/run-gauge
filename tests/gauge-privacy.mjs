@@ -15,6 +15,7 @@ export async function privacyJourney(){
  const h=await harness({currency:'USD',timezone:'America/New_York'}),{cmd,request,owner}=h
  let browser
  try{
+  const emptyJournal=await request('/api/gauge/privacy/journal',owner);assert.equal(emptyJournal.status,200);assert.deepEqual(await emptyJournal.json(),{sourceIdentity:null,epoch:0,journal:[]},'An empty install can download an empty journal before its first transfer')
   const person=await cmd('save:people',{name:'synthetic-gauge-4101',timezone:'America/New_York'}),lead=await cmd('save:people',{name:'Retained project lead',timezone:'America/New_York'}),client=await cmd('save:clients',{name:'Retained lawful client'})
   const project=await cmd('save:engagements',{name:'Retained historical billed work',leadId:lead.id,clientId:client.id,members:[person.id],scope:'Historical work',timezone:'America/New_York'})
   await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:100000,effortSeconds:36000,roundingSeconds:1,reason:'Lawful billing'}))
@@ -44,15 +45,17 @@ export async function privacyJourney(){
   await cmd('privacy:erase',{personId:person.id,fingerprint:preview.fingerprint,reason:'Old preview',confirm:'erase-reviewed-native-scope',lawfulReceiptRemoval:'authorized'},owner,409)
   const service=await createPortability({db:h.db,policy:portabilityPolicy})
   const exportText=async()=>{const id=await service.exports.create();while((await service.exports.advance(id,{maxParts:16})).phase==='building'){}return new Response(await service.exports.download(id)).text()}
+  const beforeExportPreview=await cmd('privacy:preview',{personId:person.id})
   const oldArchive=await exportText(),before=await h.state(),oldPacket=await(await request('/api/gauge/packets/'+packet.id,owner)).text()
   assert(oldArchive.includes(Buffer.from('synthetic-gauge-4102 private receipt').toString('base64')))
+  await cmd('privacy:erase',{personId:person.id,fingerprint:beforeExportPreview.fingerprint,reason:'A new export invalidates the reviewed consequences',confirm:'erase-reviewed-native-scope',lawfulReceiptRemoval:'authorized'},owner,409)
   browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
   await context.addCookies(owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
   const shots=process.env.GAUGE_PRIVACY_SHOTS;if(shots)await mkdir(shots,{recursive:true})
   const capture=async name=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Retention screen fits '+width);if(shots)await page.locator('#retention').screenshot({path:join(shots,`${name}-${width}.png`)})}}
   await page.goto(h.origin+'/app/access');await capture('policy')
   const form=page.locator('form').filter({has:page.locator('[name=action][value="privacy:preview"]')});await form.getByLabel('Worker to review').selectOption(person.id);await form.getByRole('button',{name:'Preview consequences'}).click();await capture('preview')
-  assert.match(await page.locator('#erasure-preview').innerText(),/Retain 1 time records, 1 expense records/)
+  assert.match(await page.locator('#erasure-preview').innerText(),/Retain 1 time records, 1 expense records/);assert.match(await page.locator('#erasure-preview').innerText(),/Invalidate 1 current archive export\/restore jobs/)
   // The browser performs the same explicit bounded destructive confirmation.
   const erase=page.locator('form').filter({has:page.locator('[name=action][value="privacy:erase"]')});await erase.locator('[name=confirm]').check();await erase.locator('[name=lawfulReceiptRemoval]').check();await erase.getByLabel('Erasure authorization reason').fill('Owner authorizes only the displayed native scope');await erase.getByRole('button',{name:'Erase reviewed scope'}).click();await capture('completion')
   const after=await h.state();assert.equal(after.data.privacyErasures.length,1,JSON.stringify({alert:await page.locator('[role=alert]').allTextContents(),diagnostics:h.logs.filter(s=>s.includes('privacy '))}));assert.equal(after.data.privacyErasures[0].value.status,'native-scope-complete');assert.match(after.data.privacyErasures[0].value.meaning,/Not a certificate/)

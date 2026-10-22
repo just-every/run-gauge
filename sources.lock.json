@@ -3732,7 +3732,7 @@
       "executable": false
     },
     "tests/gauge-kantata.mjs": {
-      "sha256": "356e2a2f8e165e67d172efbf6b3d7b2c405ee4ba91cc2379f426ebd86fcf038a",
+      "sha256": "bda698b9151e4329cbdb1c68c6d768974a00503628c13de88c5a06ba40a2e885",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {

@@ -1,14 +1,15 @@
+import { webhookCredential } from './provider-job-webhook'
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { Fault, type Row, type Value, integer, need, text, uuid } from './model'
 import { type Actor, type Transaction, all, fence, get } from './store'
 
-export type Provider = 'resend' | 'crank' | 'inkwell'
+export type Provider = 'resend' | 'crank' | 'inkwell' | 'zapier' | 'webhook'
 export type ProviderOperation = 'email:send' | 'trigger:submit' | 'signature:read'
-export type ProviderOutcome = 'accepted' | 'rejected' | 'uncertain' | 'credential-rotated' | 'credential-revoked' | 'credential-disconnected'
+export type ProviderOutcome = 'accepted' | 'rejected' | 'uncertain' | 'credential-rotated' | 'credential-revoked' | 'credential-disconnected' | 'rate-limited'
 export interface ProviderUse { connectionId: string; credentialVersion: number; jobId: string; operation: ProviderOperation; outcome: ProviderOutcome }
 export interface ProviderAcknowledgement { id: string | null; revision: string | null; saved: true }
-const scopes: Record<Provider, ProviderOperation> = { resend: 'email:send', crank: 'trigger:submit', inkwell: 'signature:read' }
+const scopes: Record<Provider, ProviderOperation> = { resend: 'email:send', crank: 'trigger:submit', inkwell: 'signature:read', zapier:'trigger:submit', webhook:'trigger:submit' }
 const encode = new TextEncoder()
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
 const bytes = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0))
@@ -98,21 +99,24 @@ export async function providerCommand(env: Bindings, a: Actor, tx: Transaction, 
   return {id: saved.id, revision: saved.revision, saved: true}
  }
  const provider = row?.value.provider ?? input.provider
- need(provider === 'resend' || provider === 'crank' || provider === 'inkwell', 'Choose Resend, Crank or Inkwell')
+ need(provider === 'resend' || provider === 'crank' || provider === 'inkwell' || provider === 'zapier' || provider === 'webhook', 'Choose Resend, Crank, Inkwell, Zapier or a signed webhook')
  const accountLabel = row ? row.value.accountLabel : text(input.accountLabel, 'Provider account label', 120)
  const credential = input.credential
  need(typeof credential === 'string' && credential.length >= 8 && credential.length <= 4096 && !/\s/.test(credential), 'Enter a provider credential of 8 to 4096 characters without whitespace')
  need(!String(accountLabel).includes(credential), 'Use an account label without the credential')
  let origin: string | null = row?.value.origin ?? null
  if (provider === 'inkwell' && !row) {
-  const url = new URL(text(input.origin, 'Inkwell origin', 2000))
+  let url: URL
+  try{url=new URL(text(input.origin, 'Inkwell origin', 2000))}catch{need(false,'Use a complete HTTPS Inkwell origin')}
   need(url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash && url.pathname === '/' && !url.hostname.includes(credential), 'Use a complete HTTPS Inkwell origin without path or credentials')
   origin = url.origin
  }
+ let lastFour=credential.slice(-4)
+ if(['zapier','webhook'].includes(provider)){const hook=webhookCredential(credential,provider);need(!accountLabel.includes(hook.endpoint)&&!accountLabel.includes(hook.signingKey),'Use an account label without the hook URL or signing key');lastFour=hook.signingKey.slice(-4)}
  const id = row?.id ?? uuid(), version = row ? integer(row.value.version, 'Credential version', 1) + 1 : 1
  const sealed = await sealCredential(env, id, version, credential)
  const saved = await tx.record('providerConnections', {
-  provider, accountLabel, origin, scopes: [scopes[provider as Provider]], version, lastFour: credential.slice(-4),
+  provider, accountLabel, origin, scopes: [scopes[provider as Provider]], version, lastFour,
   createdAt: row?.value.createdAt ?? at, rotatedAt: row ? at : null, revokedAt: null,
  }, row, id, action)
  // Superseded ciphertext is unnecessary: queued work is refused rather than using an old key.
@@ -164,7 +168,7 @@ export async function dispatchCredential(env: Bindings, connectionId: string, ex
 /** Dispatch commits the outcome with its durable job, including every refused dispatch. */
 export async function recordProviderUse(tx: Transaction, use: ProviderUse): Promise<Row> {
  need(['email:send', 'trigger:submit', 'signature:read'].includes(use.operation), 'Unknown provider operation')
- need(['accepted', 'rejected', 'uncertain', 'credential-rotated', 'credential-revoked', 'credential-disconnected'].includes(use.outcome), 'Unknown provider outcome')
+ need(['accepted', 'rejected', 'uncertain', 'credential-rotated', 'credential-revoked', 'credential-disconnected','rate-limited'].includes(use.outcome), 'Unknown provider outcome')
  return tx.record('providerUses', {
   at: Date.now(), connectionId: text(use.connectionId, 'Provider connection'), credentialVersion: integer(use.credentialVersion, 'Credential version', 1),
   jobId: text(use.jobId, 'Job or request id', 200), operation: use.operation, outcome: use.outcome,

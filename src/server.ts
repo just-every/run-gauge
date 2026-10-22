@@ -25,7 +25,7 @@ function noTransform(response: Response): Response {
 }
 
 const worker = {
-  async scheduled(_event, env, _execution) { await runRetainerSchedules(runtimeBindings(env)) },
+  async scheduled(_event, env, _execution) { await runRetainerSchedules(runtimeBindings(env),undefined,_event.scheduledTime) },
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset

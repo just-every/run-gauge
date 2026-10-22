@@ -3,7 +3,7 @@ import type { Actor } from './store'
 import { all } from './store'
 import { providerRegister } from './provider-custody'
 import { providerJobsRegister } from './provider-jobs'
-import { escape as e, form, select, input, decision, table } from './ui-forms'
+import { escape as e, form, select, input, area, decision, table } from './ui-forms'
 import { chip } from './ui-format'
 
 const when = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
@@ -15,14 +15,20 @@ export async function providerJobsSection(env: Bindings, a: Actor): Promise<stri
  const connections = register.connections.filter(r => r.value.provider === 'crank' && r.value.status === 'connected').map(r => ({...r, value: {...r.value, name: r.value.accountLabel}}))
  const alerts = await all(env, 'budgetAlerts')
  // Each form binds both source identity and revision without accepting a caller-provided payload.
- let body = '<div class="g-titlebar" id="provider-jobs"><h2>Provider jobs</h2></div><p class="g-lede">Queue an exact budget exception for Crank, then explicitly dispatch it. Crank admission creates pending approval or a held event; it does not confirm any downstream action. Uncertain submissions require reconciliation in Crank and are never retried here.</p>'
+ let body = '<div class="g-titlebar" id="provider-jobs"><h2>Provider jobs</h2></div><p class="g-lede">Queue an exact budget exception for Crank, then explicitly dispatch it. Crank admission creates pending approval or a held event; it does not confirm any downstream action. Signed Zapier/webhook events also require explicit release of one exact source. Uncertain submissions require provider readback and are never retried. Only explicit rate-limit refusals permit up to three owner retries with backoff; cancelling queued work or revoking its connection stops dispatch.</p>'
  if (connections.length && alerts.length) for (const alert of alerts) body += form('providerJob:queue-crank', `Queue budget exception · ${projects.get(alert.value.engagementId)??'Archived engagement'}`, `<p class="g-note">${e(alert.value.metric)} · ${e(alert.value.threshold)}% threshold · alert ${e(alert.id)}</p><input type="hidden" name="alertId" value="${e(alert.id)}"><input type="hidden" name="alertRevision" value="${e(alert.revision)}">` + select('connectionId', 'Crank connection', connections) + input('endpoint', 'Crank HTTPS trigger endpoint', '', 'url'), undefined, 'Queue Crank event', 'g-card--form')
  else body += '<p class="g-empty">Connect Crank and record a budget threshold alert before queueing an event.</p>'
+ const hooks=register.connections.filter(r=>['zapier','webhook'].includes(r.value.provider)&&r.value.status==='connected').map(r=>({...r,value:{name:r.value.accountLabel}}))
+ if(hooks.length){
+  const sources=[]
+  for(const kind of ['budgetAlerts','engagements','time','invoices','payments'] as const)for(const row of await all(env,kind))if(kind!=='time'||row.value.status==='approved')sources.push({id:`${kind}:${row.id}:${row.revision}`,revision:row.revision,value:{name:`${kind} · ${row.value.name??row.value.number??row.value.metric??row.id}`}})
+  body+=form('providerJob:queue-webhook','Release a signed automation event',select('connectionId','Zapier or webhook connection',hooks)+select('sourceRef','Exact source record',sources)+area('reason','Explicit event release reason'),undefined,'Queue signed event','g-card--form')
+ }
  body += table('Queued work and outcomes', jobs, [
-  {label: 'Job', wrap: true, line: 1, cell: r => `${e(r.value.operation==='trigger:submit'?'Budget exception · '+(projects.get(alertProjects.get(r.value.source.id))??'Archived engagement'):proposals.get(r.value.source.id)??'Archived proposal')}<span class="g-sub">${e(r.value.operation)} · ${e(r.id)}</span>`},
+  {label: 'Job', wrap: true, line: 1, cell: r => `${e(r.value.operation==='trigger:submit'?(r.value.source.kind==='budgetAlerts'?'Budget exception · '+(projects.get(alertProjects.get(r.value.source.id))??'Archived engagement'):r.value.source.kind+' · '+r.value.source.id):proposals.get(r.value.source.id)??'Archived proposal')}<span class="g-sub">${e(r.value.operation)} · ${e(r.id)}</span>`},
   {label: 'Queued', size: 'date', line: 2, cell: r => e(when(r.value.createdAt))},
   {label: 'Credential', wrap: true, line: 2, cell: r => `${e(accounts.get(r.value.connectionId)??'Disconnected account')} · version ${e(r.value.credentialVersion)}`},
-  {label: 'Outcome', wrap: true, line: 3, cell: r => `${chip(r.value.status)}${r.value.exceptionClass ? `<span class="g-sub">${e(r.value.exceptionClass)}</span>` : ''}${r.value.providerRunId ? `<span class="g-sub">Crank pending run ${e(r.value.providerRunId)}</span>` : ''}${r.value.providerHoldId ? `<span class="g-sub">Crank held event ${e(r.value.providerHoldId)}</span>` : ''}`},
- ], r => r.value.ownerId !== a.session.operator.id ? '' : r.value.status === 'queued' ? decision('providerJob:dispatch', r.value.operation === 'email:send' ? 'Dispatch proposal email' : 'Dispatch Crank event', r) : r.value.status === 'exception' && r.value.exceptionClass === 'credential-rotated' ? decision('providerJob:requeue', 'Re-queue with current credential', r) : '', 'No provider jobs yet.')
+  {label: 'Outcome', wrap: true, line: 3, cell: r => `${chip(r.value.status)}${r.value.exceptionClass ? `<span class="g-sub">${e(r.value.exceptionClass)}</span>` : ''}${r.value.attempts?`<span class="g-sub">${e(r.value.attempts)} / ${e(r.value.retryLimit??3)} attempts</span>`:''}${r.value.providerRunId ? `<span class="g-sub">Crank pending run ${e(r.value.providerRunId)}</span>` : ''}${r.value.providerHoldId ? `<span class="g-sub">Crank held event ${e(r.value.providerHoldId)}</span>` : ''}`},
+ ], r => r.value.ownerId !== a.session.operator.id ? '' : ['queued','retry-wait'].includes(r.value.status) ? (r.value.nextAttemptAt>Date.now()?`<span>Retry after ${e(when(r.value.nextAttemptAt))}</span>`:decision('providerJob:dispatch', r.value.operation === 'email:send' ? 'Dispatch proposal email' : r.value.provider==='crank'?'Dispatch Crank event':'Dispatch signed event', r))+decision('providerJob:cancel','Cancel queued work',r,true,'quiet') : r.value.status === 'exception' && r.value.exceptionClass === 'credential-rotated' ? decision('providerJob:requeue', 'Re-queue with current credential', r) : '', 'No provider jobs yet.')
  return body
 }

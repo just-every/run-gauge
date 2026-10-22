@@ -9,11 +9,12 @@ export function crankEndpoint(value: unknown): string {
  return url.href
 }
 
-export interface CrankResult { status: 'submitted' | 'held' | 'exception'; exceptionClass?: 'provider-rejected' | 'uncertain'; providerRunId?: string; providerHoldId?: string }
+export interface CrankResult { status: 'submitted' | 'held' | 'retry-wait' | 'exception'; exceptionClass?: 'provider-rejected' | 'uncertain' | 'provider-rate-limit'; providerRunId?: string; providerHoldId?: string }
 const reference = (value: unknown, credential: string) => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value) && !value.includes(credential) ? value : null
 
 /** Only contract fields survive; arbitrary responses and transport errors are never retained. */
 export async function crankResult(response: Response, credential: string): Promise<CrankResult> {
+ if(response.status===429){void response.body?.cancel().catch(()=>{});return {status:'retry-wait',exceptionClass:'provider-rate-limit'}}
  if (response.status !== 201 && response.status !== 202) {
   await response.body?.cancel()
   // Only explicit client refusals are certain. A server/proxy failure may follow admission.

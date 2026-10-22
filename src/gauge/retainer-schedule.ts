@@ -38,6 +38,7 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  tx.guard('(SELECT COUNT(*) FROM g_retainerSchedules)=?',schedules.length)
  const schedule=await tx.record('retainerSchedules',{rootId:term.value.rootId,engagementId:term.value.engagementId,basis,from,enabled:flag(input.enabled),autoIssue,...consent,billTo,remitTo,reference,creditAdjustments,number:(old?.value.number??0)+1,consentTermsNumber:term.value.number,consentTermsRevision:term.revision,heldPeriodIds:[...new Set(holds)],reason,configuredBy:a.session.operator.id,configuredByName:a.session.operator.displayName,grantVersion:a.grantVersion,configuredAt:Date.now()},old)
  tx.sql('DELETE FROM g_retainer_schedule_authority WHERE schedule_id=?',schedule.id)
+ if(!schedule.value.enabled){const monitor=(await all(env,'retainerJobs')).find(r=>r.id==='job-'+schedule.id);if(monitor)await tx.record('retainerJobs',{...monitor.value,status:'cancelled',leaseUntil:null,nextAttemptAt:null,completedAt:Date.now()},monitor,undefined,'retainer:job-cancel')}
  if(schedule.value.enabled)tx.sql('INSERT INTO g_retainer_schedule_authority(schedule_id,revision,operator_id) VALUES(?,?,?)',schedule.id,schedule.revision,a.session.operator.id)
  return schedule
 }
@@ -129,15 +130,36 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
 
 /** Cron holds no session or reusable credential. Each committing batch rechecks
  * the installation-only consent and its granting operator's current authority. */
-export async function runRetainerSchedules(env:Bindings,asOf?:string){
- const settings=await agency(env),day=asOf??workDate(Date.now(),settings.timezone)
+export async function runRetainerSchedules(env:Bindings,asOf?:string,at=Date.now()){
+ const settings=await agency(env),day=asOf??workDate(at,settings.timezone)
  const grants=(await env.DB.prepare('SELECT schedule_id,revision,operator_id FROM g_retainer_schedule_authority ORDER BY schedule_id LIMIT 100').all<{schedule_id:string;revision:string;operator_id:string}>()).results
  for(const grant of grants){
   const schedule=await get(env,'retainerSchedules',grant.schedule_id)
   const a={...settings,session:{operator:{id:grant.operator_id},id:''},role:'finance',personId:null,grantVersion:schedule.value.grantVersion,scheduled:{id:grant.schedule_id,revision:grant.revision}} as Actor
-  try{await fence(env,a);const tx=new Transaction(env,a);tx.action='retainer:scheduled-run';await runPeriod(env,a,tx,schedule,day);await tx.commit()}catch(error){
-   // A refused run has made no partial financial writes. Durable owned failures remain FOLLOWUP-004; the manual run returns the refusal.
-   if(!(error instanceof Fault))throw error
+  // Authority itself is durable. A lost grant is an owned exception for finance;
+  // an expired principal never receives a write capability.
+  try{await fence(env,a)}catch(error){if(error instanceof Fault)continue;throw error}
+  const id='job-'+schedule.id,stored=(await all(env,'retainerJobs')).find(r=>r.id===id)
+  const same=stored?.value.scheduleRevision===schedule.revision
+  if(same&&(stored.value.status==='exhausted'||stored.value.nextAttemptAt>at||stored.value.status==='running'&&stored.value.leaseUntil>at))continue
+  const attempts=same?stored!.value.attempts:0
+  const tx=new Transaction(env,a);tx.action='retainer:job-claim';tx.observe('retainerSchedules',schedule)
+  if(!stored)tx.guard('NOT EXISTS(SELECT 1 FROM g_retainerJobs WHERE id=?)',id)
+  const value={engagementId:schedule.value.engagementId,rootId:schedule.value.rootId,scheduleId:schedule.id,scheduleRevision:schedule.revision,monitor:true,ownerId:grant.operator_id,status:'running',attempts:attempts+1,attemptedAt:at,leaseUntil:at+60000,nextAttemptAt:null,exceptions:[],periodId:null,issueDate:day,packetId:null,invoiceId:null,completedAt:null}
+  let claimed:Row
+  try{claimed=await tx.record('retainerJobs',value,stored,id,tx.action);await tx.commit()}catch(error){if(error instanceof Fault||error instanceof Error&&/constraint|D1_ERROR/.test(error.message))continue;throw error}
+  try{
+   const run=new Transaction(env,a);run.action='retainer:scheduled-run'
+   await runPeriod(env,a,run,schedule,day)
+   await run.record('retainerJobs',{...claimed.value,status:'idle',attempts:0,leaseUntil:null,completedAt:at},claimed,undefined,'retainer:job-complete')
+   await run.commit()
+  }catch(error){
+   // Atomic source/number/run writes either all committed or none did. Retry only
+   // a native ledger transaction; external mail is never scheduled here.
+   const failed=new Transaction(env,a);failed.action='retainer:job-exception'
+   const exhausted=claimed.value.attempts>=3
+   const state={...claimed.value,status:exhausted?'exhausted':'retry-wait',leaseUntil:null,nextAttemptAt:exhausted?null:at+Math.min(900000,60000*2**(claimed.value.attempts-1)),exceptions:[{reason:exhausted?'Native retainer retry limit exhausted; finance must review and renew schedule consent':'Native retainer transaction did not commit; bounded retry pending'}],completedAt:at}
+   try{await fence(env,a);await failed.record('retainerJobs',state,claimed,undefined,failed.action);await failed.commit()}catch(failure){if(!(failure instanceof Fault))throw failure}
   }
  }
 }

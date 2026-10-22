@@ -129,3 +129,46 @@ export async function commercialProposalJourney(h,browser){
   console.log('PASS commercialProposalJourney: exact version delivery, private-cost exclusion, recipient proof, question/rejection/acceptance, fresh price acceptance, primary native conversion, revoked links, signature refusal and 1440/390')
  }finally{await context.close()}
 }
+
+export async function commercialRestartJourney(browser){
+ const {harness}=await import('./gauge-harness.mjs'),{rm}=await import('node:fs/promises')
+ let h=await harness({currency:'USD',timezone:'America/New_York'});const directory=h.directory,cmd=(...args)=>h.cmd(...args),state=()=>h.state()
+ let sends=0,acceptedMail,observed;const atProvider=new Promise(resolve=>observed=resolve)
+ const context=await browser.newContext({ignoreHTTPSErrors:true})
+ try{
+  const zone='America/New_York',person=await cmd('save:people',{name:'Northline continuity lead',employmentType:'contractor',timezone:zone}),client=await cmd('save:clients',{name:'Northline continuity'})
+  await h.invite('synthetic-gauge-8001');await cmd('save:calendars',{personId:person.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:zone})
+  const opportunity=await cmd('save:opportunities',{name:'Northline continuity',clientId:client.id,ownerId:person.id,stage:'proposal',probability:75,amountMinor:10000,demandSeconds:3600,services:'Design',from:'2026-11-02',to:'2026-11-06'})
+  const estimate=await cmd('estimate:save',{opportunityId:opportunity.id,name:'Continuity offer',phases:[{key:'design',name:'Design',service:'Design',mode:'fixed',from:'2026-11-02',to:'2026-11-06'}],lines:[{key:'design',phaseKey:'design',kind:'subcontractor',name:'Design',personId:person.id,role:'Designer',effortSeconds:3600,billRateMinor:10000,costRateMinor:5000,costReference:'synthetic-gauge-8002'}],reason:'Exact continuity source'})
+  const proposal=await cmd('commercial:prepare',{estimateId:estimate.id,estimateRevision:estimate.revision,agencyName:'Northline',title:'Continuity proposal',recipientName:'Northline client',recipientContact:'synthetic-gauge-8001@example.test',scope:'One hour of design',deliverables:['Design handover'],exclusions:['Production'],from:'2026-11-02',to:'2026-11-06',expiry:new Date(Date.now()+7*86400000).toISOString().slice(0,10),paymentSchedule:[{name:'Handover',due:'2026-11-06',amountMinor:10000}],signatureRequired:false,reason:'Reviewed customer version'})
+  const connection=await cmd('provider:connect',{provider:'resend',accountLabel:'Northline continuity mail',credential:'synthetic-gauge-8003'})
+  h.providerEdge.handler=async(request,body)=>{
+   if(request.url!=='https://api.resend.com/emails'||body.subject!=='Continuity proposal · proposal version 1')return
+   sends++;acceptedMail=body;observed()
+   // The controlled provider has admitted one send but withholds its response
+   // beyond the real transport deadline. Interrupt the actual Worker in flight.
+   await new Promise(resolve=>setTimeout(resolve,20000));return Response.json({id:'synthetic-gauge-8004'})
+  }
+  const pending=h.post('/api/gauge/command',{action:'commercial:send',key:randomUUID(),...proposal,connectionId:connection.id,reason:'Owner authorizes this exact delivery'},h.owner).catch(()=>null)
+  await atProvider
+  await h.close();await pending
+  h=await harness({currency:'USD',timezone:zone,persistenceDirectory:directory})
+  h.providerEdge.handler=async request=>request.url==='https://api.resend.com/emails/synthetic-gauge-8004'?Response.json({id:'synthetic-gauge-8004',to:acceptedMail.to,subject:acceptedMail.subject,text:acceptedMail.text,last_event:'delivered'}):request.url.startsWith('https://api.resend.com/emails/')?new Response(null,{status:404}):undefined
+  let data=(await state()).data,job=data.providerJobs.find(j=>j.value.source.id===proposal.id),delivery=data.commercialEvents.find(e=>e.value.proposalId===proposal.id&&e.value.type==='delivery')
+  assert(['dispatching','exception'].includes(job.value.status),'Interrupted send is never silently reset to queued')
+  await cmd('providerJob:dispatch',job);assert.equal(sends,1,'The restarted job cannot resend a claimed email')
+  await cmd('commercial:delivery-readback',{...delivery,providerMessageId:'synthetic-gauge-8005',reason:'Owner checks an unconfirmed provider reference'})
+  data=(await state()).data;delivery=data.commercialEvents.find(e=>e.id===delivery.id)
+  assert.equal(delivery.value.mailboxState,'uncertain');assert.match(delivery.value.meaning,/owner must reconcile/i)
+  await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  const page=await context.newPage();await page.goto(h.origin+'/app/engagements?estimate='+estimate.id)
+  const shots=process.env.GAUGE_PROPOSAL_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.match(await page.locator('#commercial-'+proposal.id).innerText(),/owner must reconcile/i);if(shots)await page.locator('#commercial-'+proposal.id).screenshot({path:`${shots}/restarted-uncertain-email-${width}.png`})}
+  await cmd('commercial:delivery-readback',{...delivery,providerMessageId:'synthetic-gauge-8004',reason:'Owner reconciles the provider inbox reference after restart'})
+  data=(await state()).data;job=data.providerJobs.find(j=>j.id===job.id);delivery=data.commercialEvents.find(e=>e.id===delivery.id)
+  assert.equal(job.value.status,'submitted');assert.equal(delivery.value.mailboxState,'delivered');assert.equal(job.value.providerMessageId,'synthetic-gauge-8004');assert.equal(sends,1)
+  await cmd('providerJob:dispatch',job);assert.equal(sends,1)
+  await page.reload();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});if(shots)await page.locator('#commercial-'+proposal.id).screenshot({path:`${shots}/restarted-reconciled-email-${width}.png`})}
+ }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
+ console.log('PASS commercialRestartJourney: actual in-flight Worker restart beyond the mail deadline, no resend, visible owned uncertainty, exact provider readback and one confirmed message at 1440/390')
+}

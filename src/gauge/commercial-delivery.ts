@@ -28,9 +28,9 @@ export async function dispatchCommercial(env:Bindings,a:Actor,input:Value):Promi
  need(job.value.operation==='email:send'&&job.value.provider==='resend','Choose a proposal email job')
  const row=await get(env,'commercialProposals',job.value.source.id)
  need(row.value.status==='released'&&row.revision===job.value.source.revision,'Proposal access or source changed before dispatch',409)
- if(job.value.status==='queued')need(job.revision===input.revision,'Provider job changed; refresh before dispatch',409)
+ if(['queued','retry-wait'].includes(job.value.status))need(job.revision===input.revision,'Provider job changed; refresh before dispatch',409)
  const claimed=await claimProviderJob(env,a,job,key)
- if(!claimed)return {id:job.id,revision:job.revision,saved:true}
+ if(!claimed){const current=await get(env,'providerJobs',job.id);return {id:current.id,revision:current.revision,saved:true}}
  const v=row.value,link=env.AUTH_ORIGIN+'/app/client-proposals/'+row.id
  let result:ProviderJobResult={status:'exception',exceptionClass:'uncertain'},outcome:ProviderOutcome='uncertain'
  try{
@@ -40,12 +40,13 @@ export async function dispatchCommercial(env:Bindings,a:Actor,input:Value):Promi
   // Persist only an opaque provider id. Never preserve arbitrary response bodies or echoed secrets.
   const reference=response.providerMessageId
   if(response.status==='accepted'&&typeof reference==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(reference)&&!reference.includes(credential)){result={status:'submitted',providerMessageId:reference};outcome='accepted'}
+  else if(response.status==='rate_limited'){result={status:'retry-wait',exceptionClass:'provider-rate-limit'};outcome='rate-limited'}
   else if(response.status==='rejected'){result={status:'exception',exceptionClass:'provider-rejected'};outcome='rejected'}
  }catch(error){if(error instanceof ProviderDispatchError){result={status:error.outcome==='credential-revoked'?'revoked':'exception',exceptionClass:error.outcome};outcome=error.outcome}}
  const saved=await finishProviderJob(env,a,claimed,key,result,outcome)
  const delivery=(await all(env,'commercialEvents')).find(r=>r.value.jobId===job.id&&r.value.type==='delivery')
  if(delivery){const tx=new Transaction(env,a);tx.key=key;tx.action='commercial:delivery-result'
-  await tx.record('commercialEvents',{...delivery.value,status:outcome,provider:'resend',providerMessageId:result.providerMessageId??null,completedAt:Date.now(),meaning:outcome==='accepted'?'Provider accepted submission; mailbox delivery unconfirmed':outcome.startsWith('credential-')?'Credential exception; inspect the owned provider job':'Submission not confirmed; owner must reconcile before any further send'},delivery,undefined,tx.action)
+  await tx.record('commercialEvents',{...delivery.value,status:outcome,provider:'resend',providerMessageId:result.providerMessageId??null,completedAt:Date.now(),meaning:outcome==='accepted'?'Provider accepted submission; mailbox delivery unconfirmed':outcome==='rate-limited'?'Provider explicitly rate limited this request; bounded backoff applies before any owner retry':outcome.startsWith('credential-')?'Credential exception; inspect the owned provider job':'Submission not confirmed; owner must reconcile before any further send'},delivery,undefined,tx.action)
   await tx.commit()
  }
  return {id:saved.id,revision:saved.revision,saved:true}

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {randomUUID} from 'node:crypto'
+import {createHmac,randomUUID} from 'node:crypto'
 import {mkdir,rm} from 'node:fs/promises'
 import {harness} from './gauge-harness.mjs'
 
@@ -159,6 +159,43 @@ export async function providerCustodyJourney(browser){
   const finalReport=await state(),csv=await request('/api/gauge/report.csv?'+new URLSearchParams({from:'2026-10-01',to:'2026-10-31',fingerprint:finalReport.fingerprint}),owner)
   assert.equal(csv.status,200);scan('report export',await csv.text());scan('captured application logs',[...logHistory,...h.logs])
   assert.equal(edge().length,networkBefore+1,'Permission refusals, inspections and exports never submit provider work')
+  const hook='https://hooks.zapier.com/hooks/catch/synthetic-gauge-5001/synthetic-gauge-5002/',signingKey='synthetic-gauge-5003'
+  const bundle=JSON.stringify({endpoint:hook,signingKey})
+  h.providerEdge.handler=async request=>request.url===hook?Response.json({status:'success'}):request.url==='https://automation.example.test/events'?Response.json({accepted:true,event_id:request.headers.get('x-gauge-event-id')},{status:202}):undefined
+  const zapier=await cmd('provider:connect',{provider:'zapier',accountLabel:'Northline Zapier budget follow-up',credential:bundle})
+  const signedInput={connectionId:zapier.id,sourceRef:`budgetAlerts:${alert.id}:${alert.revision}`,reason:'Owner releases this exact budget exception; no automatic subscription'}
+  await cmd('providerJob:queue-webhook',signedInput,people.find(p=>p.role==='finance').cookie,403)
+  await page.reload();const signedForm=form('providerJob:queue-webhook')
+  await signedForm.getByLabel('Zapier or webhook connection',{exact:true}).selectOption(zapier.id);await signedForm.getByLabel('Exact source record',{exact:true}).selectOption(signedInput.sourceRef);await signedForm.getByLabel('Explicit event release reason',{exact:true}).fill(signedInput.reason)
+  await capture('signed-event-release',signedForm.locator('..'))
+  await signedForm.getByRole('button',{name:'Queue signed event',exact:true}).click()
+  const signedJob=(await state()).data.providerJobs.find(r=>r.value.connectionId===zapier.id)
+  assert(signedJob);assert.equal((await cmd('providerJob:queue-webhook',signedInput)).id,signedJob.id,'The same source revision cannot create another signed event')
+  assert(!JSON.stringify(signedJob).includes(hook)&&!JSON.stringify(signedJob).includes(signingKey),'Hook URL and signing key stay sealed')
+  await Promise.all([cmd('providerJob:dispatch',signedJob),cmd('providerJob:dispatch',signedJob)])
+  const signedRequests=h.providerRequests.filter(r=>r.url===hook);assert.equal(signedRequests.length,1)
+  const wire=signedRequests[0],signature=wire.headers.signature.match(/^t=(\d+),v1=([a-f0-9]{64})$/)
+  assert(signature);assert.equal(createHmac('sha256',signingKey).update(signature[1]+'.'+JSON.stringify(wire.body)).digest('hex'),signature[2],'The exact body is authenticated with HMAC-SHA-256')
+  assert.equal(wire.headers.eventId,signedJob.value.eventId);assert.equal(wire.headers.idempotencyKey,signedJob.value.eventId)
+  assert.equal(wire.body.type,'gauge.budget-exception');assert.equal(wire.body.sourceId,alert.id);assert.equal(wire.body.sourceRevision,alert.revision);assert.equal(wire.body.data.metric,alert.value.metric)
+  assert(!JSON.stringify(wire.body).includes('notes')&&!JSON.stringify(wire.body).includes('costMinor'))
+  await cmd('providerJob:dispatch',await read('providerJobs',signedJob.id));assert.equal(h.providerRequests.filter(r=>r.url===hook).length,1)
+  const webhook=await cmd('provider:connect',{provider:'webhook',accountLabel:'Northline signed project notifications',credential:JSON.stringify({endpoint:'https://automation.example.test/events',signingKey:'synthetic-gauge-5004'})})
+  const projectSource=await read('engagements',project.id),genericJob=await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`engagements:${projectSource.id}:${projectSource.revision}`,reason:'Owner releases project changes to a signed subscription'})
+  await cmd('provider:rotate',{...await read('providerConnections',webhook.id),credential:JSON.stringify({endpoint:'https://automation.example.test/events',signingKey:'synthetic-gauge-5005'})})
+  const genericBefore=h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length
+  await cmd('providerJob:dispatch',genericJob);const rotation=await read('providerJobs',genericJob.id)
+  assert.equal(rotation.value.exceptionClass,'credential-rotated');assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore)
+  await cmd('providerJob:requeue',rotation);await cmd('providerJob:dispatch',await read('providerJobs',rotation.id))
+  assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore+1)
+  assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').at(-1).body.type,'gauge.project.changed')
+  const approvedTime=await cmd('time:approve',await read('time',actual.id))
+  const revokedHookJob=await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`time:${approvedTime.id}:${approvedTime.revision}`,reason:'Owner releases the exact approval'})
+  await cmd('provider:revoke',await read('providerConnections',webhook.id));await cmd('providerJob:dispatch',revokedHookJob)
+  assert.equal((await read('providerJobs',revokedHookJob.id)).value.status,'revoked');assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore+1,'Revocation sends no new data')
+  await page.reload();await capture('signed-event-outcomes',section('Queued work and outcomes'))
+  for(const path of ['/api/gauge/state','/app/access','/api/gauge/audit/export']){const body=await(await request(path,owner)).text();for(const value of [bundle,hook,signingKey,'synthetic-gauge-5004','synthetic-gauge-5005'])assert(!body.includes(value),'Signed-hook custody is absent from '+path)}
+
  }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
  console.log('PASS GOVERN-008 owner provider custody: exact secret replay, native rotation and requeue, durable owned exceptions, one concurrent Crank submission, terminal revocation, owner-only metadata, secret-free public surfaces and 1440/390')
 }
@@ -177,7 +214,7 @@ export async function connectorHealthJourney(browser){
  }}
  const context=await browser.newContext({ignoreHTTPSErrors:true})
  try{
-  const zone='America/New_York',person=await cmd('save:people',{name:'Northline proposal lead',timezone:zone}),client=await cmd('save:clients',{name:'Northline reconciliation'})
+  const zone='America/New_York',person=await cmd('save:people',{name:'Northline proposal lead',employmentType:'contractor',timezone:zone}),client=await cmd('save:clients',{name:'Northline reconciliation'})
   await cmd('save:calendars',{personId:person.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:zone})
   await h.invite('synthetic-gauge-4003')
   const connection=await cmd('provider:connect',{provider:'resend',accountLabel:'Northline reconciliation mail',credential:credentials[0]})
@@ -227,4 +264,46 @@ export async function connectorHealthJourney(browser){
   }
  }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
  console.log('PASS connectorHealthJourney: exact source/value snapshot, expired token mid-page, durable cursor after restart and reauthorization, once-only controls, owner-only health and 1440/390')
+}
+
+// Run outside push Verify on the committed candidate for the real elapsed-time proof.
+export async function providerRetryJourney(browser){
+ let h=await harness({currency:'USD',timezone:'America/New_York'});const directory=h.directory
+ const cmd=(...args)=>h.cmd(...args),state=()=>h.state(),read=async id=>(await state()).data.providerJobs.find(j=>j.id===id)
+ let attempts=0
+ const attach=()=>{h.providerEdge.handler=async request=>{if(request.url==='https://crank.example.test/api/crank/flows/budget-exception/trigger'){attempts++;return Response.json({error:'Rate limited'},{status:429})}}}
+ const context=await browser.newContext({ignoreHTTPSErrors:true})
+ try{
+  const zone='America/New_York',person=await cmd('save:people',{name:'Northline retry lead',timezone:zone}),client=await cmd('save:clients',{name:'Northline retry controls'})
+  const project=await cmd('save:engagements',{name:'Northline bounded jobs',clientId:client.id,leadId:person.id,members:[person.id],scope:'Bounded provider job controls',timezone:zone})
+  await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:10000,effortSeconds:3600,roundingSeconds:60,reason:'One-hour allowance'}))
+  await cmd('budget:thresholds',{engagementId:project.id,thresholds:[50],reason:'Owner wants a budget-risk event'})
+  const task=await cmd('save:tasks',{engagementId:project.id,name:'Design',remainingSeconds:3600})
+  await cmd('time:submit',await cmd('time:save',{engagementId:project.id,taskId:task.id,personId:person.id,service:'Design',timezone:zone,billable:false,notes:'Native threshold source',start:'2026-10-08T09:00:00-04:00',end:'2026-10-08T10:00:00-04:00'}))
+  const alert=(await state()).data.budgetAlerts.find(a=>a.value.engagementId===project.id)
+  const connection=await cmd('provider:connect',{provider:'crank',accountLabel:'Northline bounded retry connection',credential:'synthetic-gauge-6001'})
+  const input={connectionId:connection.id,alertId:alert.id,alertRevision:alert.revision,endpoint:'https://crank.example.test/api/crank/flows/budget-exception/trigger'}
+  attach()
+  const cancelled=await cmd('providerJob:queue-crank',input);await cmd('providerJob:dispatch',cancelled)
+  let job=await read(cancelled.id);assert.equal(job.value.status,'retry-wait');assert(job.value.nextAttemptAt>=job.value.attemptedAt+60000)
+  const noRetry=attempts;await cmd('providerJob:dispatch',job);assert.equal(attempts,noRetry,'Dispatch before the persisted due time sends nothing')
+  await cmd('providerJob:cancel',{...job,reason:'Owner cancels before a provider retry'});job=await read(cancelled.id);assert.equal(job.value.status,'cancelled');await cmd('providerJob:dispatch',job);assert.equal(attempts,noRetry)
+  const queued=await cmd('providerJob:queue-crank',input);await cmd('providerJob:dispatch',queued);job=await read(queued.id)
+  await h.close();h=await harness({currency:'USD',timezone:zone,persistenceDirectory:directory});attach()
+  assert.deepEqual((await read(queued.id)).value,job.value,'Actual Worker restart retains attempt count and backoff')
+  for(const expected of [2,3]){
+   const delay=Math.max(0,job.value.nextAttemptAt-Date.now()+30)
+   console.log(`WAIT providerRetryJourney: attempt ${expected}, persisted backoff ${delay} ms`)
+   await new Promise(resolve=>setTimeout(resolve,delay))
+   await cmd('providerJob:dispatch',job);job=await read(job.id)
+   assert.equal(job.value.attempts,expected)
+   if(expected===2){assert.equal(job.value.status,'retry-wait');assert(job.value.nextAttemptAt>=job.value.attemptedAt+120000)}
+  }
+  assert.equal(job.value.status,'exception');assert.equal(job.value.exceptionClass,'retry-exhausted');assert.equal(job.value.nextAttemptAt,null)
+  const exhausted=attempts;await cmd('providerJob:dispatch',job);assert.equal(attempts,exhausted,'Exhaustion cannot silently create another attempt')
+  await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  const page=await context.newPage();await page.goto(h.origin+'/app/access');const shots=process.env.GAUGE_PROVIDER_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const row=page.locator('[id="'+job.id+'"]');assert.match(await row.innerText(),/retry-exhausted/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await row.screenshot({path:`${shots}/bounded-retry-exhausted-${width}.png`})}
+ }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
+ console.log('PASS providerRetryJourney: real 60/120-second backoff, cancellation, restart, exactly three bounded attempts, owned exhaustion and 1440/390')
 }

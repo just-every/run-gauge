@@ -1,5 +1,5 @@
 import { providerCustodyJourney, connectorHealthJourney } from './gauge-provider-custody.mjs'
-import { commercialProposalJourney } from './gauge-commercial-proposals.mjs'
+import { commercialProposalJourney,commercialRestartJourney } from './gauge-commercial-proposals.mjs'
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
@@ -141,6 +141,6 @@ try {
  assert.equal((await request(`/api/gauge/history/opportunities/${first.id}`, lead.cookie)).status, 403)
  await commercialProposalJourney(h,browser)
  await estimateJourney(h)
- await h.close();await providerCustodyJourney(browser);await connectorHealthJourney(browser)
+ await h.close();await providerCustodyJourney(browser);await connectorHealthJourney(browser);await commercialRestartJourney(browser)
  console.log('PASS SALES-001 two probabilities, won/lost history, separate tentative demand, exact replay, scoped access and booked backlog without double counting')
 } finally { await browser?.close(); await h.dispose() }

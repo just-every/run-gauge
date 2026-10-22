@@ -191,6 +191,7 @@ export async function retainerScheduleJourney(h,browser,{client,lead,manager,sta
  const audit=await (await request('/api/gauge/audit?action=invoice:auto-issue',h.owner)).json();assert(JSON.stringify(audit).includes(octoberInvoice.id),'Automatic issue is attributed in the business audit')
  await retainerAutomaticExceptions(h,browser,{project,term,policy,clientId:client.id})
  await retainerRestartAndCloseJourney(browser)
+ await retainerDurableJobJourney(browser)
  console.log('PASS RETAINER-005 bounded automatic issue: exact fee/overage invoices, consecutive numbers, exception drafts, cap, current consent, locks, terms, PO, audit and 1440/390')
 }
 
@@ -324,4 +325,48 @@ async function retainerRestartAndCloseJourney(browser){
   assert.equal(d.packets.filter(p=>p.value.scheduleId===held.id).length,1,'Closed-period retries retain one exception draft without writing financial sources')
   console.log('PASS retainerRestartAndCloseJourney: two month ends, real restart, atomic numbered issue, closed-period exception draft')
  }finally{await restarted?.dispose();await h.dispose()}
+}
+
+export async function retainerDurableJobJourney(browser){
+ let h=await harness({currency:'USD',timezone:'America/New_York'});const directory=h.directory
+ const cmd=(...args)=>h.cmd(...args),state=()=>h.state(),job=async id=>(await state()).data.retainerJobs.find(j=>j.value.scheduleId===id)
+ const context=await browser.newContext({ignoreHTTPSErrors:true})
+ try{
+  await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:[],reason:'Retainer scheduler workweek'})
+  const person=await cmd('save:people',{name:'Northline finance owner',timezone:'America/New_York'}),client=await cmd('save:clients',{name:'Northline durable billing'})
+  const project=await cmd('save:engagements',{name:'Northline durable advisory',clientId:client.id,leadId:person.id,members:[],scope:'Native draft scheduling only',timezone:'America/New_York'})
+  const preview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',from:'2026-01-01',to:'2026-01-31',terms:{name:'Durable advisory',feeMinor:30000,frequency:'monthly',unit:'hours',allowance:3600,services:['Advisory'],consumes:'billable',proration:'calendar',start:'2026-01-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:0,carryPeriods:0,deficit:false,overage:'bill',overageRate:10000}}})
+  const term=await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Owner agrees immutable monthly service'})
+  const policy={retainerId:term.id,basis:'advance',from:'2026-03-01',enabled:true,autoIssue:false,heldPeriodIds:[],reason:'Finance authorizes native drafts, no external sending'}
+  const schedule=await cmd('retainer:schedule',policy),at=Date.parse('2026-03-02T12:00:00Z')
+  // Missing intervening periods are a real source precondition. The scheduler
+  // commits its durable claim, then its atomic draft transaction refuses it.
+  assert.equal((await h.scheduled(at)).status,200)
+  const failed=await job(schedule.id);assert.equal(failed.value.status,'retry-wait');assert.equal(failed.value.attempts,1);assert.equal(failed.value.nextAttemptAt,at+60000)
+  assert.equal((await state()).data.packets.length,0,'A refused attempt creates no partial draft or financial source')
+  assert.equal((await h.scheduled(at+30000)).status,200);assert.equal((await job(schedule.id)).revision,failed.revision,'Backoff prevents another claim before it is due')
+  await h.close();h=await harness({currency:'USD',timezone:'America/New_York',persistenceDirectory:directory})
+  assert.deepEqual((await job(schedule.id)).value,failed.value,'The claimed failed draft and retry bound survive a real Worker restart')
+  const periods=await cmd('retainer:preview',{engagementId:project.id,operation:'periods',retainerId:term.id,from:'2026-02-01',to:'2026-02-28'})
+  await cmd('retainer:approve',{...periods.input,fingerprint:periods.fingerprint,reason:'Finance opens the missing intervening period'})
+  assert.equal((await h.scheduled(at+60000)).status,200)
+  const recovered=await job(schedule.id);assert.equal(recovered.value.status,'idle');assert.equal(recovered.value.attempts,0)
+  let data=(await state()).data;assert.equal(data.packets.length,1);assert.equal(data.packets[0].value.totalMinor,30000);assert.equal(data.packets[0].value.status,'draft');assert.equal(data.retainerRuns.length,1)
+  await h.scheduled(at+120000);data=(await state()).data;assert.equal(data.packets.length,1,'A restarted due job creates one native draft');assert.equal(data.retainerCharges.length,1)
+  const finance=await h.invite('synthetic-gauge-7001');await cmd('grant',{operatorId:finance.id,personId:person.id,role:'finance',enabled:true})
+  const revised=await cmd('retainer:schedule',{...policy,...schedule,reason:'Finance takes responsibility for the next recurring draft'},finance.cookie)
+  await cmd('grant',{operatorId:finance.id,personId:person.id,role:'staff',enabled:true})
+  await h.scheduled(Date.parse('2026-04-02T12:00:00Z'))
+  const report=await state();assert.equal(report.retainerScheduleHealth.find(s=>s.id===schedule.id).status,'authority-expired');assert.equal(report.data.packets.length,1,'Expired authority produces an owned exception without another financial write')
+  assert.deepEqual((await h.state(finance.cookie)).data.retainerJobs,[])
+  await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  const page=await context.newPage();await page.goto(h.origin+'/app/engagements?edit='+project.id)
+  const shots=process.env.GAUGE_RETAINER_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.match(await page.locator('#retainer-schedules').innerText(),/authority-expired/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await page.locator('#retainer-schedules').screenshot({path:`${shots}/owned-job-authority-${width}.png`})}
+  await cmd('retainer:schedule',{...policy,...revised,enabled:false,reason:'Owner cancels scheduled draft work'})
+  assert.equal((await job(schedule.id)).value.status,'cancelled')
+  await h.scheduled(Date.parse('2026-05-02T12:00:00Z'));assert.equal((await state()).data.packets.length,1)
+  assert(!h.providerRequests.some(r=>r.url!=='https://api.resend.com/emails'),'Native scheduling creates no external business write')
+ }finally{await context.close();await h.close();const {rm}=await import('node:fs/promises');await rm(directory,{recursive:true,force:true})}
+ console.log('PASS retainerDurableJobJourney: durable claim/refused transaction, backoff, actual restart, once-only native draft recovery, expired authority and cancellation with 1440/390')
 }

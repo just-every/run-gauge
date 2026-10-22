@@ -3614,7 +3614,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "5c176115d92a7449d1dd1d0c18e31e80bd17924433659477ebdcc8a659aad333",
+      "sha256": "512c974e4db7f318ceefa0d96ea5ed09230bc0a48ded852841440fe1ddf0e496",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {

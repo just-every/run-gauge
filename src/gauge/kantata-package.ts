@@ -78,7 +78,7 @@ export function kantataPackage(pkg:Value){
   })
   need(new Set(records[kind].map(r=>r.sourceId)).size===records[kind].length,`Duplicate ${kind} source identity`)
  }
- const rowCount=Object.values(records).reduce((n,rows)=>n+rows.length,0);need(rowCount<=1000,'Measured Kantata package limit is 1000 source records; split at complete project boundaries')
+ const rowCount=Object.values(records).reduce((n,rows)=>n+rows.length,0);need(rowCount<=1000,'This bounded Kantata importer accepts at most 1000 source records; split at complete project boundaries')
  for(const name of [...(zipped?zipped.files.keys():Object.keys(pkg.files??{}))])need(claimed.has(name),'Every supplied artifact must be included in the reviewed object mapping: '+name)
  const lookup=(kind:string,id:any)=>records[kind]?.find(r=>r.sourceId===id)
  for(const [kind,rows]of Object.entries(records))for(const row of rows){

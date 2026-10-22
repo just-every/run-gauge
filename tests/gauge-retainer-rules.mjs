@@ -110,6 +110,7 @@ export async function retainerScheduleJourney(h,browser,{client,lead,manager,sta
  assert.equal(packet.value.totalMinor,300000);assert.equal(packet.value.lines.length,1)
  await run('2026-08-01');assert.equal((await state()).data.packets.filter(p=>p.value.scheduleId===schedule.id).length,1,'Restart with a new request key never duplicates a fee draft')
  await cmd('packet:create',{engagementId:project.id,title:'Duplicate period fee',sources:[`retainerCharges:${fee.id}`]},h.owner,409)
+ const csv=await request(`/api/gauge/packets/${packet.id}`,h.owner);assert.equal(csv.status,200);const bytes=await csv.text();assert(bytes.includes('300000')&&bytes.includes(fee.id),'Automatic packet approval retains its exact downloadable source artifact');assert.equal(await(await request(`/api/gauge/packets/${packet.id}`,h.owner)).text(),bytes)
  assert.equal(packet.value.status,'approved')
  const invoice=data.data.invoices.find(i=>i.value.packetId===packet.id)
  assert(invoice,'Eligible fee issues atomically with packet approval and the run receipt')

@@ -1660,7 +1660,7 @@
       "executable": false
     },
     "src/gauge/scoro-common.ts": {
-      "sha256": "bb399f8d862ad4134e5e658710b8b91e7d1491a11b53f5e0cda4a457da81eea3",
+      "sha256": "ee68158474648a0f75ff14c0d157cc7bc12f52124184be76d993d2fa8aba2702",
       "executable": false
     },
     "src/gauge/scoro-import.ts": {
@@ -3744,7 +3744,7 @@
       "executable": false
     },
     "tests/fixtures/scoro.mjs": {
-      "sha256": "f9856a06e5fd79b1986e35065dc5060a2bd44f6f87d214b7487cb84b9386d018",
+      "sha256": "9093096bcd6a779ec72b8013a8ede5c064d15b8d9bdf2af195ac1d9922e9ab2b",
       "executable": false
     },
     "tests/fixtures/teamwork.mjs": {
@@ -3864,7 +3864,7 @@
       "executable": false
     },
     "tests/gauge-productive.mjs": {
-      "sha256": "b96bb2dff98ae9ac378a470300dc7c100c4f8f8cb24790025736ac0ece670587",
+      "sha256": "da507fa9158780b8743c75eb663f3d7c9016d85e0a83e93a9ff089cecd93bfc7",
       "executable": false
     },
     "tests/gauge-progress.mjs": {

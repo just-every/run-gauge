@@ -933,7 +933,7 @@
       "executable": false
     },
     "scripts/gauge-tests.mjs": {
-      "sha256": "e2254322a62b1e63672e47d0d71aa5f83e1e6a2ed3f10e8dfd273e7305f43c1f",
+      "sha256": "c4c4b34330a3b0ef707c035873b0e71ac0bbea873a7dc1e1788b8f512b2dfd6e",
       "executable": false
     },
     "scripts/install.mjs": {

@@ -39,6 +39,19 @@ export function rateOn(rates: Row[], currency: string, day: string) {
  return rates.filter(r => r.value.currency === currency && r.value.effective <= day).sort((x, y) => x.value.effective.localeCompare(y.value.effective) || x.value.approvedAt - y.value.approvedAt).at(-1)
 }
 
+/** Each dated amount converted at the rate in force on its own day, half up; an amount with no rate stays unconverted. */
+export function convertDated(rates: Row[], currency: string, items: { day: string; minor: number }[]) {
+ const used = new Map<string, { row: Row; sourceMinor: number; convertedMinor: number }>(); let unconverted = 0, converted = 0
+ for (const item of items) {
+  const row = rateOn(rates, currency, item.day)
+  if (!row) { unconverted += item.minor; continue }
+  const value = half(item.minor, row.value.rateMicro), entry = used.get(row.id) ?? { row, sourceMinor: 0, convertedMinor: 0 }
+  entry.sourceMinor += item.minor; entry.convertedMinor += value; used.set(row.id, entry); converted += value
+ }
+ return { convertedMinor: used.size ? converted : null, unconvertedMinor: unconverted,
+  conversions: [...used.values()].map(u => ({ rateId: u.row.id, rate: u.row.value.rate, effective: u.row.value.effective, source: u.row.value.source, sourceMinor: u.sourceMinor, convertedMinor: u.convertedMinor })) }
+}
+
 interface Item { currency: string; day: string; time: number; expense: number }
 /** The consolidation read: approved billable time value and approved expenses by currency, converted entry by entry. */
 export async function consolidate(env: Bindings, a: Actor, input: Value) {
@@ -55,16 +68,9 @@ export async function consolidate(env: Bindings, a: Actor, input: Value) {
  const buckets = [...new Set(items.map(i => i.currency))].sort().map(currency => {
   const mine = items.filter(i => i.currency === currency), amountMinor = sum(mine.map(i => i.time + i.expense))
   if (currency === a.currency) return { currency, amountMinor, timeMinor: sum(mine.map(i => i.time)), expenseMinor: sum(mine.map(i => i.expense)), convertedMinor: amountMinor, unconvertedMinor: 0, conversions: [] as Value[], status: 'reporting currency' }
-  const used = new Map<string, { row: Row; sourceMinor: number; convertedMinor: number }>(); let unconverted = 0, converted = 0
-  for (const item of mine) {
-   const amount = item.time + item.expense, row = rateOn(rates, currency, item.day)
-   if (!row) { unconverted += amount; continue }
-   const value = half(amount, row.value.rateMicro), entry = used.get(row.id) ?? { row, sourceMinor: 0, convertedMinor: 0 }
-   entry.sourceMinor += amount; entry.convertedMinor += value; used.set(row.id, entry); converted += value
-  }
-  return { currency, amountMinor, timeMinor: sum(mine.map(i => i.time)), expenseMinor: sum(mine.map(i => i.expense)), convertedMinor: used.size ? converted : null, unconvertedMinor: unconverted,
-   conversions: [...used.values()].map(u => ({ rateId: u.row.id, rate: u.row.value.rate, effective: u.row.value.effective, source: u.row.value.source, sourceMinor: u.sourceMinor, convertedMinor: u.convertedMinor })),
-   status: unconverted ? (used.size ? 'partly unconverted' : 'no approved rate') : 'converted' }
+  const c = convertDated(rates, currency, mine.map(i => ({ day: i.day, minor: i.time + i.expense })))
+  return { currency, amountMinor, timeMinor: sum(mine.map(i => i.time)), expenseMinor: sum(mine.map(i => i.expense)), ...c,
+   status: c.unconvertedMinor ? (c.conversions.length ? 'partly unconverted' : 'no approved rate') : 'converted' }
  })
  const complete = buckets.every(b => b.unconvertedMinor === 0)
  const knownMinor = sum(buckets.map(b => b.convertedMinor ?? 0))

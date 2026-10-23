@@ -3,12 +3,15 @@ import { projectFieldLabels,projectMatches,customMeasures } from './custom-repor
 import { portfolioLabor } from './portfolio-labor'
 import { retainerFees } from './retainer-fees'
 import type { financeForecast } from './finance-forecast'
+import { convertDated } from './fx-rates'
 
 const groups=['firm','client','project','team','service','lead','person']
-/** REPORT-001: whole-engagement cohorts; team/service cohorts can overlap and are never summed into the firm total. */
-export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof financeForecast>,balances:Value[],from:string,to:string,options:Value={}) {
+const nextDay=(day:string)=>new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().slice(0,10)
+/** REPORT-001: whole-engagement cohorts; team/service cohorts can overlap and are never summed into the firm total.
+ * SETUP-005: the window's earned value also converts to the reporting currency, each amount at the rate effective on its own date. */
+export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof financeForecast>,balances:Value[],from:string,to:string,options:Value,reporting:string) {
  const group:string=options.portfolioGroup||'project',custom=group.startsWith('custom:')?data.customFields.find(f=>f.id===group.slice(7)):undefined;need(groups.includes(group)||custom,'Choose an available portfolio grouping')
- const fees=retainerFees(data,forecast.asOf),filters=Object.fromEntries(['Client','Project','Team','Service','Lead','Person'].map(k=>[k.toLowerCase(),String(options['portfolio'+k]??'')]))
+ const earnedItems=new WeakMap<object,{day:string,minor:number}[]>(),fees=retainerFees(data,forecast.asOf),filters=Object.fromEntries(['Client','Project','Team','Service','Lead','Person'].map(k=>[k.toLowerCase(),String(options['portfolio'+k]??'')]))
  const slice=(from:string,to:string)=>forecast.engagements.map(f=>{
   const project=data.engagements.find(e=>e.id===f.engagementId)!,id=project.id,end=to<forecast.asOf?to:forecast.asOf
   const mine=(kind:string)=>(data[kind]??[]).filter(r=>r.value.engagementId===id)
@@ -19,14 +22,17 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
   const periodFees=fees.filter(fee=>fee.engagementId===id&&fee.activeStart<=end&&fee.activeEnd>=from)
   const costUnknown:string[]=[],feeUnknown:string[]=[],sources:Record<string,string[]>={engagements:[id],clients:[project.value.clientId],people:[],time:time.map(t=>t.id),expenses:expenses.map(t=>t.id),budgets:budget?[budget.id]:[],milestones:[],retainers:[],retainerPeriods:[]}
   let costMinor=sum(expenses.map(r=>r.value.amountMinor)),earnedMinor=sum(expenses.filter(r=>r.value.reimbursable).map(r=>r.value.amountMinor))
+  const items=expenses.filter(r=>r.value.reimbursable).map(r=>({day:r.value.date as string,minor:r.value.amountMinor as number}))
   for(const row of time){const x=row.value.economics??{};if(x.costMinor==null)costUnknown.push(`time:${row.id}: frozen cost unknown`);else if((x.costCurrency??x.currency)!==f.currency)costUnknown.push(`time:${row.id}: unconverted ${x.costCurrency??x.currency} cost`);else costMinor+=x.costMinor
-   if((f.basis==='hourly'||f.basis==='mixed'&&x.mode==='hourly')&&row.value.billable){if(x.billMinor==null)feeUnknown.push(`time:${row.id}: frozen bill value unknown`);else earnedMinor+=x.billMinor}}
-  if(f.basis==='fixed'||f.basis==='mixed'){earnedMinor+=sum(milestones.map(m=>m.value.amountMinor));sources.milestones=milestones.map(m=>m.id)}
+   if((f.basis==='hourly'||f.basis==='mixed'&&x.mode==='hourly')&&row.value.billable){if(x.billMinor==null)feeUnknown.push(`time:${row.id}: frozen bill value unknown`);else{earnedMinor+=x.billMinor;items.push({day:row.value.workDate,minor:x.billMinor})}}}
+  if(f.basis==='fixed'||f.basis==='mixed'){earnedMinor+=sum(milestones.map(m=>m.value.amountMinor));items.push(...milestones.map(m=>({day:m.value.due as string,minor:m.value.amountMinor as number})));sources.milestones=milestones.map(m=>m.id)}
   if(f.basis==='retainer'){
-   for(const fee of periodFees){sources.retainers.push(fee.retainerId);sources.retainerPeriods.push(fee.periodId);const earned=fee.earnedBetween(from,to);if(earned===null)feeUnknown.push(`retainers:${fee.retainerId}: period fee not recorded`);else earnedMinor+=earned}
+   for(const fee of periodFees){sources.retainers.push(fee.retainerId);sources.retainerPeriods.push(fee.periodId);const earned=fee.earnedBetween(from,to);if(earned===null)feeUnknown.push(`retainers:${fee.retainerId}: period fee not recorded`);else{earnedMinor+=earned
+    // A period fee accrues day by day, so each day's share converts at that day's rate.
+    for(let day=from>fee.activeStart?from:fee.activeStart;day<=end&&day<=fee.activeEnd;day=nextDay(day)){const minor=fee.earnedBetween(day,day);if(minor)items.push({day,minor})}}}
    for(const p of mine('retainerPeriods').filter(p=>p.value.periodEnd>=from&&p.value.periodEnd<=end)){
     const b=balances.find(b=>b.periodId===p.id),t=data.retainers.find(r=>r.id===p.value.retainerId)?.value.terms
-    if(t?.rules.overage==='bill'){sources.retainerPeriods.push(p.id);if(b?.overageMinor==null)feeUnknown.push(`retainerPeriods:${p.id}: overage unknown`);else earnedMinor+=b.overageMinor}
+    if(t?.rules.overage==='bill'){sources.retainerPeriods.push(p.id);if(b?.overageMinor==null)feeUnknown.push(`retainerPeriods:${p.id}: overage unknown`);else{earnedMinor+=b.overageMinor;items.push({day:p.value.periodEnd,minor:b.overageMinor})}}
    }
   }
   const involved=new Set([project.value.leadId,...(project.value.members??[]),...mine('staffing').map(r=>r.value.personId),...mine('time').map(r=>r.value.personId)])
@@ -34,7 +40,8 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
   const teams=[...new Set(people.map(p=>String(p.value.team||'Unassigned')))].sort()
   const services=[...new Set([...mine('time'),...mine('staffing')].map(r=>String(r.value.service||'Unspecified')))].sort()
   const unknown=[...costUnknown,...feeUnknown]
-  return {engagementId:id,name:project.value.name,peopleIds:people.map(p=>p.id),clientId:project.value.clientId,leadId:project.value.leadId,teams,services:services.length?services:['Unspecified'],currency:f.currency,basis:f.basis,budgetMinor:budget?.value.amountMinor??null,costMinor:costUnknown.length?null:costMinor,knownCostMinor:costMinor,earnedMinor:feeUnknown.length?null:earnedMinor,knownEarnedMinor:earnedMinor,marginMinor:unknown.length?null:earnedMinor-costMinor,knownMarginMinor:earnedMinor-costMinor,eacFeesMinor:f.complete?f.eacFeesMinor:null,eacCostMinor:f.complete?f.eacCostMinor:null,forecastMarginMinor:f.complete?f.marginMinor:null,forecastUnknown:f.incomplete,forecastSources:f.sources,sources,unknown}
+  const result={engagementId:id,name:project.value.name,peopleIds:people.map(p=>p.id),clientId:project.value.clientId,leadId:project.value.leadId,teams,services:services.length?services:['Unspecified'],currency:f.currency,basis:f.basis,budgetMinor:budget?.value.amountMinor??null,costMinor:costUnknown.length?null:costMinor,knownCostMinor:costMinor,earnedMinor:feeUnknown.length?null:earnedMinor,knownEarnedMinor:earnedMinor,marginMinor:unknown.length?null:earnedMinor-costMinor,knownMarginMinor:earnedMinor-costMinor,eacFeesMinor:f.complete?f.eacFeesMinor:null,eacCostMinor:f.complete?f.eacCostMinor:null,forecastMarginMinor:f.complete?f.marginMinor:null,forecastUnknown:f.incomplete,forecastSources:f.sources,sources,unknown}
+  earnedItems.set(result,items);return result
  }).filter(p=>projectMatches(data,p.engagementId,options.customFilters??{})&&(!filters.client||p.clientId===filters.client)&&(!filters.project||p.engagementId===filters.project)&&(!filters.lead||p.leadId===filters.lead)&&(!filters.team||p.teams.includes(filters.team))&&(!filters.service||p.services.includes(filters.service))&&(!filters.person||p.peopleIds.includes(filters.person)))
  const dimensions=(p:ReturnType<typeof slice>[number])=>custom?projectFieldLabels(data,custom,p.engagementId).map(l=>l.id):group==='firm'?['Firm']:group==='project'?[p.name]:group==='client'?[data.clients.find(c=>c.id===p.clientId)?.value.name??'Unknown client']:group==='lead'?[data.people.find(c=>c.id===p.leadId)?.value.name??'Unassigned']:group==='team'?p.teams:group==='person'?p.peopleIds:p.services
  const groupRows=(projects:ReturnType<typeof slice>)=>{
@@ -55,10 +62,18 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
  const feesByCurrency=new Map<string,{currency:string;projects:typeof projects;knownMinor:number;minor:number|null}>()
  for(const p of projects.filter(p=>p.basis!=='hourly')){const bucket=feesByCurrency.get(p.currency)??{currency:p.currency,projects:[] as typeof projects,knownMinor:0,minor:0};bucket.projects.push(p);const passThrough=sum(p.sources.expenses.map(id=>data.expenses.find(r=>r.id===id)!).filter(r=>r.value.reimbursable).map(r=>r.value.amountMinor));const hourly=p.basis==='mixed'?sum(p.sources.time.map(id=>data.time.find(t=>t.id===id)!).filter(t=>t.value.billable&&t.value.economics?.mode==='hourly').map(t=>t.value.economics.billMinor??0)):0;bucket.knownMinor+=p.knownEarnedMinor-passThrough-hourly;if(p.earnedMinor===null)bucket.minor=null;feesByCurrency.set(p.currency,bucket)}
  const unattributedFees=[...feesByCurrency.values()].map(r=>({...r,minor:r.minor===null?null:r.knownMinor}))
+ // Earned value in the reporting currency: other currencies convert only at owner-approved dated rates (SETUP-003);
+ // an amount with no rate stays unconverted and an unknown fee keeps the total unknown, never zero.
+ const byCurrency=new Map<string,{currency:string,items:{day:string,minor:number}[],unknown:boolean}>()
+ for(const p of projects){const bucket=byCurrency.get(p.currency)??{currency:p.currency,items:[] as {day:string,minor:number}[],unknown:false};bucket.items.push(...earnedItems.get(p)!);if(p.earnedMinor===null)bucket.unknown=true;byCurrency.set(p.currency,bucket)}
+ const convertedBuckets=[...byCurrency.values()].filter(b=>b.items.length||b.unknown).sort((x,y)=>x.currency.localeCompare(y.currency)).map(b=>{const amountMinor=sum(b.items.map(i=>i.minor))
+  return {currency:b.currency,amountMinor,unknown:b.unknown,...(b.currency===reporting?{convertedMinor:amountMinor,unconvertedMinor:0,conversions:[]}:convertDated(data.fxRates??[],b.currency,b.items))}})
+ const convertedKnown=sum(convertedBuckets.map(b=>b.convertedMinor??0)),convertedComplete=convertedBuckets.every(b=>!b.unknown&&b.unconvertedMinor===0)
+ const convertedEarned={reportingCurrency:reporting,basis:'Earned value in the window, each amount converted at the rate effective on its own date',buckets:convertedBuckets,knownMinor:convertedKnown,minor:convertedComplete?convertedKnown:null,missingRates:convertedBuckets.filter(b=>b.unconvertedMinor>0).map(b=>b.currency),unknownCurrencies:convertedBuckets.filter(b=>b.unknown).map(b=>b.currency)}
  for(let cursor=from.slice(0,7)+'-01';cursor<=to;){
   const date=new Date(cursor+'T00:00:00Z');date.setUTCMonth(date.getUTCMonth()+1);const next=date.toISOString().slice(0,10),last=new Date(Date.parse(next)-86400000).toISOString().slice(0,10)
   const monthFrom=cursor<from?from:cursor,monthTo=last>to?to:last
   trends.push({month:cursor.slice(0,7),from:monthFrom,to:monthTo,rows:groupRows(slice(monthFrom,monthTo))});cursor=next
  }
- return {customFilters:options.customFilters??{},customMeasureIds:options.customMeasures??[],customField:custom??null,from,to,asOf:forecast.asOf,group,filters,projects,rows,trends,unattributedFees,labor:portfolioLabor(data,projects,from,to<forecast.asOf?to:forecast.asOf)}
+ return {customFilters:options.customFilters??{},customMeasureIds:options.customMeasures??[],customField:custom??null,from,to,asOf:forecast.asOf,group,filters,projects,rows,trends,unattributedFees,convertedEarned,labor:portfolioLabor(data,projects,from,to<forecast.asOf?to:forecast.asOf)}
 }

@@ -153,8 +153,17 @@ export async function clientCurrencyJourney(h, page, capture) {
  assert.deepEqual(october.buckets.map(b=>[b.currency,b.amountMinor,b.convertedMinor]),[['CAD',1000000,730000],['GBP',10000,null],['USD',500000,500000]])
  assert.deepEqual([october.consolidatedMinor,october.knownMinor,october.missingRates],[null,1230000,['GBP']])
  assert.deepEqual(october.buckets[0].conversions.map(c=>[c.rate,c.effective,c.sourceMinor,c.convertedMinor]),[['0.7300','2026-10-01',1000000,730000]])
+ // SETUP-005: the October portfolio's earned value converts amount by amount at the labelled approved rate; GBP stays unconverted.
+ const portfolioOctober=(await state()).portfolio.convertedEarned
+ assert.deepEqual(portfolioOctober.buckets.map(b=>[b.currency,b.amountMinor,b.convertedMinor,b.unconvertedMinor]),[['CAD',1000000,730000,0],['GBP',10000,null,10000],['USD',500000,500000,0]])
+ assert.deepEqual([portfolioOctober.knownMinor,portfolioOctober.minor,portfolioOctober.missingRates,portfolioOctober.buckets[0].conversions.map(c=>[c.rate,c.effective])],[1230000,null,['GBP'],[['0.7300','2026-10-01']]])
  await cmd('fx:approve',{currency:'CAD',rate:'0.7400',effective:'2026-11-01',source:'Published rate synthetic-gauge-46',reason:'November reporting'})
  assert.deepEqual(await cmd('fx:consolidate',window),october,'November rate leaves October figures unchanged')
+ assert.deepEqual((await state()).portfolio.convertedEarned,portfolioOctober,'November rate leaves the October portfolio conversion unchanged')
+ await page.goto(h.origin+'/app/review?from=2026-10-01&to=2026-10-31')
+ const converted=(await page.locator('#portfolio-converted').innerText()).replaceAll('\u00a0',' ')
+ for(const line of ['$12,300.00 known','CA$10,000.00 → $7,300.00 · 0.7300 from Oct 1, 2026 (Published rate synthetic-gauge-45)','£100.00 → Unconverted · no approved rate'])assert(converted.includes(line),`Portfolio conversion shows ${line}: ${converted}`)
+ await page.locator('#portfolio-converted').scrollIntoViewIfNeeded();await capture('portfolio-conversion')
  for(const invoice of currencies)assert.deepEqual((await state()).data.invoices.find(r=>r.id===invoice.id),invoice,'Conversion never changes an issued document')
  await page.goto(h.origin+'/app/imports')
  const issuedTotals=(await page.locator('section.g-card').filter({has:page.getByRole('heading',{name:'Issued invoice currency totals',exact:true})}).innerText()).replaceAll('\u00a0',' ')

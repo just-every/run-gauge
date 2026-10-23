@@ -25,6 +25,7 @@ export function sourceControls(records:Record<string,Value[]>,groupBy='project')
  const groups:Record<string,Value>={},lookup=(kind:string,id:string)=>records[kind]?.find(r=>r.id===id)
  const add=(bucket:Value,k:string,v:number)=>bucket[k]=sum([bucket[k],v])
  for(const [kind,rows] of Object.entries(records))for(const v of rows){
+  if(v.sourceDeleted===true)continue
   if(!['time','expenses','invoices','payments','bookings','allocations','leave','budgets','retainers'].includes(kind))continue
   const project=lookup('projects',kind==='payments'?lookup('invoices',v.invoiceId)?.projectId:v.projectId),dimension=groupBy==='client'?project?.clientId:groupBy==='person'?v.personId:project?.id
   const day=v.workDate??v.date??v.from

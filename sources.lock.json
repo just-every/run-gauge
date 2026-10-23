@@ -287,7 +287,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "902fa410877d1473f7224d3163bd81c42faf303a6980fbf922e24592d5137b5b",
+      "sha256": "53d369660ed9d32ac41cb7577edc5d86dfc51ce912b3cdda626b370634e362aa",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -311,7 +311,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "892240d5263b42802c6d2e7ec6d37133d6f70d37b67e82ae84912ba1b1b56e23",
+      "sha256": "7aa036370c529cf7db49119574a4876a504cf7312ce111c4e1c3c878a2d7cad4",
       "executable": false
     },
     "DEMO.md": {
@@ -1319,7 +1319,7 @@
       "executable": false
     },
     "src/gauge/fx-rates.ts": {
-      "sha256": "763e6db54678f576fd48030ef1e2ac591e7ae4c8980708783e2b574573a945e3",
+      "sha256": "4ab25cbcbe50377c780a72195a76aba9be57d80b42cc9ad979582aec593dbfd9",
       "executable": false
     },
     "src/gauge/harvest-rates.ts": {
@@ -1423,7 +1423,7 @@
       "executable": false
     },
     "src/gauge/portfolio.ts": {
-      "sha256": "9ebec559e11d2a1466f33fe7dfb07830aa08917b701541df859ff09f492509d6",
+      "sha256": "b6ade771238b4c2471a4fe8b42f8331e368214078713dc2dab90d7842a007b23",
       "executable": false
     },
     "src/gauge/privacy.ts": {
@@ -1591,7 +1591,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "6fb0ed842ed807c54979dc1bc9ec2f8de6bf24c86ddc823f83bb8e493905288a",
+      "sha256": "7e22b5c152490d095cda620d9151f9c38894fc441b817fd691a297c47ed2619d",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -1763,7 +1763,7 @@
       "executable": false
     },
     "src/gauge/ui-agency.ts": {
-      "sha256": "4ad4b9deb3e04a38d9e4bbf5fe08dc543f7fb0cf77d89841701c1fa9a7bfd796",
+      "sha256": "06a1021bb87b0ca747c33ca574183390eca502af347c0bb75102714783069844",
       "executable": false
     },
     "src/gauge/ui-api-keys.ts": {
@@ -1808,6 +1808,10 @@
     },
     "src/gauge/ui-commercial-proposals.ts": {
       "sha256": "1c973102b3bb71c28bc82683eedd79810499c0a1e19d22f7bc893285f2189203",
+      "executable": false
+    },
+    "src/gauge/ui-conversion.ts": {
+      "sha256": "5ff5a11ca301a070f4431ebff6dfa379af4a5fcb9ebd9dc8150c7b262075889c",
       "executable": false
     },
     "src/gauge/ui-custom-fields.ts": {
@@ -1923,7 +1927,7 @@
       "executable": false
     },
     "src/gauge/ui-portfolio.ts": {
-      "sha256": "8c4707a7d4cf02f87bdf8cba92ac22b1c02838c87e88b12a51f045a032348f7c",
+      "sha256": "d05da104775c310782b0123b01d309cede83f9e884c06cfa240d0fb1984808f3",
       "executable": false
     },
     "src/gauge/ui-privacy.ts": {
@@ -3827,7 +3831,7 @@
       "executable": false
     },
     "tests/gauge-agency.mjs": {
-      "sha256": "aea2a1bd5498bbed9cf004c522706bc6c96f93e8c4495d24bc9e50554fadbbe3",
+      "sha256": "490b83c3009a4a406244f2dd1d098123372ab8f91f6b93689649ba23b74f6f12",
       "executable": false
     },
     "tests/gauge-agent.mjs": {

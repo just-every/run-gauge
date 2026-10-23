@@ -175,5 +175,5 @@ export async function clientCurrencyJourney(h, page, capture) {
  for(const [rate,effective,source] of [['0.7300','Oct 1, 2026','synthetic-gauge-45'],['0.7400','Nov 1, 2026','synthetic-gauge-46']])assert(rateRows.some(row=>row.includes(rate)&&row.includes(effective)&&row.includes(source)&&row.includes('Test owner')),`The rates table shows who approved ${rate}: ${rateRows.join(' | ')}`)
  await capture('exchange-rates')
  await page.goto(h.origin+'/app/rates');await capture('client-currency-rates')
- console.log('PASS SETUP-003 client defaults, pre-commercial engagement override and lock, scoped CAD rates, CAD and USD native invoices, labelled 0.7300 conversion, November stability, missing GBP rate and approver on the rates table')
+ console.log('PASS SETUP-003 client defaults, pre-commercial engagement override and lock, scoped CAD rates, CAD and USD native invoices, labelled 0.7300 conversion, November stability, missing GBP rate, approver on the rates table and the labelled October portfolio conversion')
 }

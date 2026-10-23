@@ -1,3 +1,4 @@
+import { invoiceDocumentResponse } from './invoice-documents'
 import { kantataCommand } from './kantata'
 import { privacyJournal } from './privacy'
 import { commercialClientResponse } from './commercial-client'
@@ -30,13 +31,14 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
  // Resolve complete declared paths before admitting a command or reading its body.
  if(path.startsWith('/app/client-proposals/')||path.startsWith('/app/proposal-originals/'))return commercialClientResponse(request,runtimeBindings(original))
+ const invoiceDocumentRoute=path.match(/^\/api\/gauge\/(invoice-drafts|invoice-documents)\/([^/%]+)$/)
  const mutation=path==='/api/gauge/command'||path==='/app/action'
  const historyRoute=path.match(/^\/api\/gauge\/history\/([^/%]+)\/([^/%]+)$/)
  const savedRoute=path.match(/^\/api\/gauge\/saved\/([^/%]+)$/)
  const resourceRoute=path.match(/^\/api\/gauge\/resources\/([^/%]+)$/)
  const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports|handoffs|closes)\/([^/%]+)$/)
  const page=path==='/app'?'review':path.match(/^\/app\/(review|engagements|time|expenses|capacity|rates|billing|imports|access)$/)?.[1]
- if((!mutation&&!historyRoute&&!resourceRoute&&!savedRoute&&!download&&!['/api/gauge/privacy/journal','/api/gauge/receivables','/api/gauge/receivables.csv','/api/gauge/state','/api/gauge/clients','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke','/api/gauge/audit','/api/gauge/audit/export','/api/gauge/audit/verify','/app/audit'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
+ if((!mutation&&!invoiceDocumentRoute&&!historyRoute&&!resourceRoute&&!savedRoute&&!download&&!['/api/gauge/privacy/journal','/api/gauge/receivables','/api/gauge/receivables.csv','/api/gauge/state','/api/gauge/clients','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke','/api/gauge/audit','/api/gauge/audit/export','/api/gauge/audit/verify','/app/audit'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
  const env=runtimeBindings(original)
  // A refused page form shows its reason on the page it came from; programs keep the JSON answer.
  let refused:{a:Actor,action:string}|undefined
@@ -97,6 +99,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    const back=typeof input.page==='string'&&tabsFor(a).includes(input.page)?input.page:sectionFor(action)
    return new Response(null,{status:303,headers:{...headers,location:`/app/${back}?saved=1`}})
   }
+  if(invoiceDocumentRoute)return await invoiceDocumentResponse(env,a,url,invoiceDocumentRoute[2],invoiceDocumentRoute[1]==='invoice-documents')
   if(path==='/api/gauge/privacy/journal')return Response.json(await privacyJournal(env,a),{headers:{...headers,'content-disposition':'attachment; filename="gauge-erasure-journal.json"'}})
   if(savedRoute)return Response.json(await savedRead(env,a,savedRoute[1]),{headers})
   if(resourceRoute)return Response.json(await resourceCandidates(env,a,await get(env,'resourceRequests',resourceRoute[1])),{headers})

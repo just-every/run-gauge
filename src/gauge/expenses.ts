@@ -15,7 +15,7 @@ export async function expenseCommand(env: Bindings,a: Actor,tx: Transaction,acti
   const taskId=input.taskId===undefined?old?.value.taskId??null:input.taskId||null
   if(taskId){const task=await get(env,'tasks',taskId);need(task.value.engagementId===e.id,'Task belongs to another engagement');tx.observe('tasks',task)}
   const phase=await phaseFor(env,tx,e.id,taskId?(await get(env,'tasks',taskId)).value.phaseKey:undefined)
-  return tx.record('expenses',{...(phase?{phaseKey:phase.key}:{}),taskId,engagementId:e.id,personId:person.id,date:date(input.date),description:text(input.description,'Description'),amountMinor:money(input.amountMinor),currency,reimbursable:flag(input.reimbursable),attachmentIds:old?.value.attachmentIds??[],status:'draft'},old)
+  return tx.record('expenses',{...(phase?{phaseKey:phase.key}:{}),taskId,engagementId:e.id,personId:person.id,date:date(input.date),description:text(input.description,'Description'),category:String(input.category??old?.value.category??'Uncategorized').trim().slice(0,100)||'Uncategorized',vendor:String(input.vendor??old?.value.vendor??'').trim().slice(0,200),amountMinor:money(input.amountMinor),currency,reimbursable:flag(input.reimbursable),attachmentIds:old?.value.attachmentIds??[],status:'draft'},old)
  }
  need(old,'Expense not found',404)
  const e = await access(env,a,old.value.engagementId,['expense:approve','expense:return'].includes(action)); tx.observe('engagements',e)

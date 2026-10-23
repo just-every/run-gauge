@@ -114,6 +114,7 @@ export async function retainerScheduleJourney(h,browser,{client,lead,manager,sta
  assert.equal(packet.value.status,'approved')
  const invoice=data.data.invoices.find(i=>i.value.packetId===packet.id)
  assert(invoice,'Eligible fee issues atomically with packet approval and the run receipt')
+ assert.equal(invoice.value.document.totalMinor,invoice.value.totalMinor);assert(invoice.value.pdf.sha256);assert(invoice.value.detailPdf.sha256)
  assert.deepEqual([invoice.value.issueDate,invoice.value.dueDate,invoice.value.autoIssue.scheduleRevision,invoice.value.autoIssue.termsVersion],['2026-08-01','2026-08-31',schedule.revision,1])
  assert.equal(data.data.retainerRuns.find(r=>r.value.periodId===aug.id).value.invoiceId,invoice.id)
  data=await state();assert(data.data.invoices.find(i=>i.id===invoice.id).value.lines[0].sourceSnapshot)

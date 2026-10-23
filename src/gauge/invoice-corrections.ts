@@ -1,3 +1,5 @@
+import { presentationDocument, invoiceDetailCsv } from './invoice-presentation'
+import { invoicePdf } from './invoice-pdf'
 import type { Bindings } from '../auth.server'
 import { type Row, type Value, decode, need, text, date, integer, sum, uuid } from './model'
 import { type Actor, type Transaction, authority, finance, fence, get } from './store'
@@ -41,9 +43,15 @@ async function issueVoid(env: Bindings, a: Actor, tx: Transaction, invoice: Row,
  const client = await activeClient(env, v.clientId); tx.observe('clients', client)
  const terms = client.value.paymentTermsDays == null ? 30 : integer(client.value.paymentTermsDays, 'Client payment terms days', 0, 365)
  const lines = (value.reissueLines as Value[]).filter(l => l.amountMinor > 0).map(l => ({ ...structuredClone(v.lines[l.index]), amountMinor: l.amountMinor, originalAmountMinor: v.lines[l.index].amountMinor }))
+ const engagement=await get(env,'engagements',v.engagementId);tx.observe('engagements',engagement)
+ const packet={...v.packetSnapshot,value:{...v.packetSnapshot.value,totalMinor:value.reissueTotalMinor}}
+ const document=await presentationDocument(env,tx,packet,client,engagement,lines,v.document?.settings??{})
+ const number=await reserveNumber(env,tx,'g_invoice_sequence','INV'),header={number,issueDate:value.date,dueDate:plusDays(value.date,terms),billTo:v.billTo,remitTo:v.remitTo,reference:v.reference}
+ const pdf=await invoicePdf(document,header),detailPdf=document.settings.attachDetail?await invoicePdf(document,header,true):null
  await tx.record('invoices', {
+  document,pdf,detailPdf,detailCsv:document.settings.attachDetail?invoiceDetailCsv(document):null,
   packetId: v.packetId, packetRevision: v.packetRevision, engagementId: v.engagementId, clientId: v.clientId,
-  number: await reserveNumber(env, tx, 'g_invoice_sequence', 'INV'), issueDate: value.date, dueDate: plusDays(value.date, terms),
+  number, issueDate: value.date, dueDate: plusDays(value.date, terms),
   billTo: v.billTo, remitTo: v.remitTo, reference: v.reference, currency: v.currency, totalMinor: value.reissueTotalMinor, lines,
   issuedBy: a.session.operator.id, issuedAt: Date.now(), paymentTermsDays: terms, termsLabel: client.value.paymentTermsDays == null ? 'Net 30 assumed' : `Net ${terms}`,
   clientSnapshot: structuredClone(client), engagementSnapshot: v.engagementSnapshot, packetSnapshot: v.packetSnapshot,

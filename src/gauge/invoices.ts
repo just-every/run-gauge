@@ -1,3 +1,5 @@
+import { presentationDocument, invoiceDetailCsv } from './invoice-presentation'
+import { invoicePdf } from './invoice-pdf'
 import type { Bindings } from '../auth.server'
 import { type Row, type Value, need, text, date, integer, sum } from './model'
 import { type Actor, type Transaction, authority, finance, fence, access, get } from './store'
@@ -28,7 +30,7 @@ export async function settledMinor(env: Bindings, invoiceId: string) {
 
 /** Only ordinary, already approved packet sources enter this pre-tax ledger.
  * Keep both the approved packet line and the exact native source as evidence. */
-async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagement: Row, issueDate: string) {
+export async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagement: Row, issueDate: string) {
  need(Array.isArray(packet.value.lines) && packet.value.lines.length > 0, 'Approved packet has no source lines', 409)
  const seen = new Set<string>(), lines: Value[] = []
  for (const line of packet.value.lines as Value[]) {
@@ -112,9 +114,14 @@ export async function invoiceCommand(env: Bindings, a: Actor, tx: Transaction, a
   const billTo = text(input.billTo, 'Bill-to'), remitTo = text(input.remitTo, 'Remit-to'), reference = text(input.reference, 'Invoice reference')
   need(!client.value.poRequired || (client.value.poNumbers ?? []).some((po: string) => po.toLowerCase() === reference.toLowerCase()), 'This client requires an invoice reference matching a saved PO number')
   const lines = await invoiceLines(env, tx, packet, engagement, issueDate)
+  const document=await presentationDocument(env,tx,packet,client,engagement,lines,input)
+  const number=await reserveNumber(env,tx,'g_invoice_sequence','INV')
+  const header={number,issueDate,dueDate,billTo,remitTo,reference}
+  const pdf=await invoicePdf(document,header), detailPdf=document.settings.attachDetail?await invoicePdf(document,header,true):null
   return tx.record('invoices', {
+   document,pdf,detailPdf,detailCsv:document.settings.attachDetail?invoiceDetailCsv(document):null,
    packetId: packet.id, packetRevision: packet.revision, engagementId: engagement.id, clientId: client.id,
-   number: await reserveNumber(env, tx, 'g_invoice_sequence', 'INV'), issueDate, dueDate, billTo, remitTo, reference,
+   number, issueDate, dueDate, billTo, remitTo, reference,
    currency: packet.value.currency, totalMinor, lines, issuedBy: a.session.operator.id, issuedAt: Date.now(),
    paymentTermsDays, termsLabel: client.value.paymentTermsDays == null ? 'Net 30 assumed' : `Net ${paymentTermsDays}`,
    clientSnapshot: snapshot(client), engagementSnapshot: snapshot(engagement), packetSnapshot: snapshot(packet),

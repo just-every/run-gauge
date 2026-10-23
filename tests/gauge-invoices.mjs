@@ -221,7 +221,8 @@ export async function notToExceedJourney(h){
  assert.deepEqual(data.data.time.filter(t=>t.value.engagementId===first.project.id),before,'Splitting billing never changes approved time or its economics')
  await cmd('cap:draft',{engagementId:first.project.id,budgetId:first.budget.id,budgetRevision:first.budget.revision,title:'No excess billing'},owner,409)
  const approved=await cmd('packet:approve',packet),invoice=await cmd('invoice:issue',{...approved,issueDate:'2026-01-31',dueDate:'2026-03-02',billTo:'Capped hourly client',remitTo:'Agency',reference:'January cap'})
- assert.equal((await state()).data.invoices.find(i=>i.id===invoice.id).value.totalMinor,1000000)
+ const cappedDocument=(await(await request(`/api/gauge/invoice-documents/${invoice.id}?format=json`,owner)).json()).document
+ assert.equal(cappedDocument.totalMinor,1000000);assert.equal(cappedDocument.detail.reduce((n,r)=>n+r.billedSeconds,0),240000);assert.equal(cappedDocument.detail.reduce((n,r)=>n+r.actualSeconds,0),252000);assert(cappedDocument.detail.every(r=>r.person==='Change-order release specialist'&&r.task==='Capped delivery'&&r.rateMinor===15000&&first.entries.some(t=>t.id===r.originalSourceId)))
  const report=await(await request('/api/gauge/state?from=2026-01-01&to=2026-01-31&asOf=2026-02-01',owner)).json()
  assert(!report.cash.engagements.find(e=>e.engagementId===first.project.id).items.some(i=>!i.issued&&i.openMinor>0),'Held excess is excluded from expected cash')
  const cappedRealization=report.performance.byPerson.find(p=>p.id===first.worker.id).money.find(b=>b.currency==='USD');assert.equal(cappedRealization.standardMinor,1000000);assert.equal(cappedRealization.billedMinor,1000000);assert.equal(cappedRealization.billedSeconds,240000);assert.equal(cappedRealization.unbilledStandardMinor,50000);assert.equal(cappedRealization.realizationPercent,100,'Capped portions use their original frozen standard rather than the whole held entry')
@@ -398,7 +399,7 @@ export async function agencyCloseJourney(h){
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('#period-close').scrollIntoViewIfNeeded();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Agency close fits ${width}`);assert.match(await page.locator('#period-close').innerText(),/September|2026-09/);if(process.env.GAUGE_CLOSE_SHOTS){await mkdir(process.env.GAUGE_CLOSE_SHOTS,{recursive:true});await page.locator('#period-close').screenshot({path:`${process.env.GAUGE_CLOSE_SHOTS}/agency-close-${width}.png`})}}
  }finally{await browser.close()}
  const finalPolicy=(await state()).data.approvalPolicies[0];await cmd('approval:limit',{...finalPolicy,reviewAboveMinor:oldLimit?.value.reviewAboveMinor??null,reason:'Restore review policy after isolated close proof'})
- console.log('PASS FINANCE-004 agency close: missing time/cost/unapproved cost/unmatched invoice refused then resolved; explicit WIP/unbilled reconciliation; held TIME-003 cutoff; immutable retainer links/open exception; stale and independent review; financial-date lock; authorized late reopen and linked reclose; role privacy and 1440/390')
+ console.log('PASS FINANCE-004 agency close: missing time/cost/unapproved cost/unmatched invoice refused then resolved; explicit WIP/unbilled reconciliation; held TIME-003 cutoff; immutable retainer links/open exception; stale and independent review; financial-date lock; authorized late reopen and linked reclose; role privacy at 1440 and 390')
 }
 
 // SETUP-004: typed source fields, native creation doors, reports and scoped resource search.
@@ -632,4 +633,101 @@ export async function estimateJourney(h){
  await context.clearCookies();await context.addCookies(cookies(lead.cookie));for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(h.origin+`/app/engagements?estimate=${second.id}#estimates`);const section=page.locator('#estimates');assert.match(await section.innerText(),/restricted to finance/i);assert.equal(await section.getByText('Estimated cost',{exact:true}).count(),0);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await section.screenshot({path:`${shots}/estimate-lead-${width}.png`})}
  }finally{await browser.close()}
  console.log('PASS SALES-002 priced design/engineering/contractor/expense lines, exact contingency/discount/margin versions, immutable rates, feasible dates and private source boundaries, mixed/hourly phases, unknown refusal, structured owner attestation, missing-field refusals, audited pre-conversion withdrawal, post-conversion refusal, exact unverified labels/history/exports, exact-version one-engagement conversion, required fields, draft budget/tasks/milestones and 1440/390; external client identity unverified')
+}
+
+// One immutable source set rendered through the finance HTTP and native Billing doors.
+export async function invoicePresentationJourney(h) {
+ const {PDFDocument, PDFName, PDFArray, PDFDict, decodePDFRawStream} = await import('pdf-lib')
+ const {cmd,request,owner,state}=h
+ const previousNumber=Math.max(0,...(await state()).data.invoices.map(i=>Number(i.value.number.slice(4))))
+ const profile=(await state()).data.agencyProfiles[0]
+ await cmd('agency:profile',{...profile,legalBusiness:'Document Agency LLC',addressLine1:'44 Example Street',city:'New York',state:'NY',postalCode:'10001',einReference:'12-3456789',fiscalYearStartMonth:1,reason:'Document legal business proof'})
+ const client=await cmd('save:clients',{name:'Presentation client',paymentTermsDays:30})
+ const person=await cmd('save:people',{name:'Document specialist',timezone:'America/New_York'})
+ await cmd('save:rates',{personId:person.id,service:'*',effective:'2026-01-01',costMinor:7000,billMinor:12345})
+ const project=await cmd('save:engagements',{name:'Document project',clientId:client.id,leadId:person.id,members:[person.id],scope:'Invoice source presentation',timezone:'America/New_York'})
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:1000000,effortSeconds:100000,roundingSeconds:60,reason:'Reviewed invoice sources'}))
+ const task=await cmd('save:tasks',{engagementId:project.id,name:'Document task',remainingSeconds:0})
+ const sources=[]
+ for(let i=1;i<=14;i++){
+  const day=`2026-10-${String(i).padStart(2,'0')}`
+  let row=await cmd('time:save',{personId:person.id,engagementId:project.id,taskId:task.id,service:i%2?'Design':'Support',notes:`Approved work ${i}`,timezone:'America/New_York',billable:true,start:day+'T09:00:00-04:00',end:day+'T10:00:01-04:00'})
+  row=await cmd('time:approve',await cmd('time:submit',row));sources.push(`time:${row.id}`)
+ }
+ const amounts=[1234,2345,3456]
+ for(let i=0;i<3;i++){
+  let row=await cmd('expense:save',{engagementId:project.id,personId:person.id,date:'2026-10-14',description:`Approved expense ${i}`,category:i===2?'Materials':'Travel',vendor:'Reviewed vendor',amountMinor:amounts[i],reimbursable:true})
+  const form=new FormData();for(const[k,v]of Object.entries({...row,key:randomUUID(),action:'expense:file'}))form.set(k,String(v));form.set('file',new File([`synthetic-gauge-${i}`],`receipt-${i}.txt`,{type:'text/plain'}))
+  const uploaded=await request('/api/gauge/command',owner,{method:'POST',headers:{origin:h.origin},body:form});assert.equal(uploaded.status,200);row=await uploaded.json()
+  row=await cmd('expense:approve',await cmd('expense:submit',row));sources.push(`expenses:${row.id}`)
+ }
+ const packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Fourteen time entries and three expenses',sources}))
+ const expected=14*Number((3660n*12345n+1800n)/3600n)+amounts.reduce((a,b)=>a+b,0)
+ const agency=await cmd('invoice:settings',{clientId:null,timeMode:'project',expenseMode:'itemized',attachDetail:true,footer:'Agency remittance',additionalDetails:'<p>Agency details</p>',reason:'Agency document defaults'})
+ const clientSettings={clientId:client.id,timeMode:'service',expenseMode:'category',attachDetail:true,footer:'Client remittance: synthetic-gauge-44',additionalDetails:'<p><b>Thank you</b><br>Pay under the agreed terms.</p>',reason:'Client document defaults'}
+ const logoForm=new FormData();for(const[k,v]of Object.entries({key:randomUUID(),action:'invoice:settings',...clientSettings}))logoForm.set(k,String(v))
+ logoForm.set('file',new File([Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0, 0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 252, 255, 31, 0, 3, 3, 2, 0, 239, 163, 71, 219, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130])],'logo.png',{type:'image/png'}))
+ const savedSettings=await request('/api/gauge/command',owner,{method:'POST',headers:{origin:h.origin},body:logoForm});assert.equal(savedSettings.status,200);let settings=await savedSettings.json()
+ await cmd('invoice:settings',{...settings,...clientSettings,additionalDetails:'<img src="https://example.test/tracker">'},owner,400)
+ const path=`/api/gauge/invoice-drafts/${packet.id}`,get=async(mode,format='json',cookie=owner)=>request(path+'?'+new URLSearchParams({revision:packet.revision,...mode,format}),cookie)
+ const summarized=await(await get({})).json(),itemized=await(await get({timeMode:'entry',expenseMode:'itemized'})).json()
+ assert.equal(summarized.document.agencyName,'Document Agency LLC');assert.equal(summarized.document.address.city,'New York');assert(!JSON.stringify(summarized.document).includes('12-3456789'));assert.equal(summarized.number,null);assert.equal(summarized.document.totalMinor,expected);assert.equal(itemized.document.totalMinor,expected)
+ assert.equal(summarized.document.lines.length,4);assert.equal(itemized.document.lines.length,17)
+ assert.deepEqual(summarized.document.detail,itemized.document.detail,'Presentation changes no exact source or money')
+ assert.equal(summarized.document.settings.footer,clientSettings.footer);assert(summarized.document.settings.logo)
+ assert(summarized.document.detail.filter(r=>r.kind==='expenses').every(r=>r.receipts.length===1&&r.vendor==='Reviewed vendor'))
+ const sourceIds=sources.map(s=>s.split(':')[1]).sort()
+ assert.deepEqual(summarized.document.detail.map(r=>r.sourceId).sort(),sourceIds)
+ assert.equal(summarized.document.detail.filter(r=>r.kind==='time').reduce((n,r)=>n+r.actualSeconds,0),14*3601)
+ assert.equal(summarized.document.detail.filter(r=>r.kind==='time').reduce((n,r)=>n+r.billedSeconds,0),14*3660)
+ for(const timeMode of ['task','person','phase','project']){const d=await(await get({timeMode})).json();assert.equal(d.document.totalMinor,expected);assert.equal(d.document.lines.length,3);assert.deepEqual(d.document.detail,summarized.document.detail)}
+ // Read the actual PDF glyph streams and Unicode font map; do not take amounts from the JSON document.
+ const pdfText=async(bytes)=>{
+  const pdf=await PDFDocument.load(bytes),texts=[]
+  for(const page of pdf.getPages()){
+   const fonts=page.node.Resources().lookup(PDFName.of('Font'),PDFDict),map=new Map()
+   for(const [,ref]of fonts.entries()){
+    const font=pdf.context.lookup(ref,PDFDict),unicode=font.lookup(PDFName.of('ToUnicode'))
+    if(!unicode)continue
+    const cmap=Buffer.from(decodePDFRawStream(unicode).decode()).toString()
+    for(const block of cmap.matchAll(/beginbfchar([\s\S]*?)endbfchar/g))for(const m of block[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g))map.set(m[1].toUpperCase(),String.fromCharCode(...m[2].match(/.{4}/g).map(s=>parseInt(s,16))))
+   }
+   const content=page.node.Contents(),streams=content instanceof PDFArray?content.asArray():[content]
+   for(const ref of streams){const stream=pdf.context.lookup(ref);for(const m of Buffer.from(decodePDFRawStream(stream).decode()).toString().matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g))texts.push(m[1].match(/.{4}/g).map(s=>map.get(s.toUpperCase())??'').join(''))}
+  }
+  return texts.join('\n')
+ }
+ for(const mode of [{},{timeMode:'entry',expenseMode:'itemized'}]){
+  const response=await get(mode,'pdf');assert.equal(response.status,200);const text=await pdfText(new Uint8Array(await response.arrayBuffer()))
+  assert(text.includes(`Total (pre-tax): USD ${(expected / 100).toFixed(2)}`));assert(text.includes(clientSettings.footer));assert(text.includes('Thank you'));assert(text.includes('Document Agency LLC'));assert(text.includes('44 Example Street'));assert(!text.includes('12-3456789'));assert(!text.includes('<b>'))
+ }
+ const csvResponse=await get({},'csv'),csvRows=JSON.parse(execFileSync('python3',['-c','import csv,json,sys; print(json.dumps(list(csv.DictReader(sys.stdin))))'],{input:await csvResponse.text(),encoding:'utf8'}))
+ assert.equal(csvRows.length,17);assert.equal(csvRows.reduce((n,r)=>n+Number(r['amount minor']),0),expected);assert.deepEqual(csvRows.map(r=>r['source id']).sort(),sourceIds)
+ const detailText=await pdfText(new Uint8Array(await(await get({},'detail-pdf')).arrayBuffer()))
+ for(const id of sourceIds)assert.equal(detailText.split(`Source ${id} ·`).length-1,1)
+ assert.equal((await state()).data.invoices.filter(i=>i.value.packetId===packet.id).length,0,'Previews reserve neither invoice nor number')
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{
+  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage();await context.addCookies(owner.split('; ').map(part=>{const i=part.indexOf('=');return{name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
+  const shots=process.env.GAUGE_INVOICE_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  const capture=async(name,selector)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Invoice presentation fits ${width}`);assert(await page.locator(selector).isVisible());if(shots)await page.locator(selector).screenshot({path:`${shots}/${name}-${width}.png`});const unlabeled=await page.locator('button,a,summary').evaluateAll(nodes=>nodes.filter(n=>!n.textContent.trim()&&n.querySelector('svg,img')).map(n=>n.outerHTML));assert.deepEqual(unlabeled,[],'Touched screens contain no icon-only controls without visible labels')}}
+  await page.goto(h.origin+path+'?revision='+packet.revision);await capture('draft-service','#invoice-document')
+  await page.locator('select[name="timeMode"]').selectOption('entry');await page.locator('select[name="expenseMode"]').selectOption('itemized');await page.getByRole('button',{name:'Preview presentation',exact:true}).click();assert.equal(await page.locator('#invoice-document li').count(),17);await capture('draft-entry','#invoice-document')
+  await page.goto(h.origin+'/app/billing');await page.locator('#invoice-settings details').filter({has:page.getByText('Presentation client',{exact:true})}).locator('summary').click();await capture('document-defaults','#invoice-settings')
+  const issueForm=page.locator('form').filter({has:page.locator('input[value="invoice:issue"]')}).filter({has:page.locator(`input[name="id"][value="${packet.id}"]`)})
+  await issueForm.locator('..').locator('..').locator('summary').click();await issueForm.getByLabel('Issue date',{exact:true}).fill('2026-10-15');await issueForm.getByLabel('Due date under saved client terms').fill('2026-11-14');await issueForm.getByLabel('Remit to',{exact:true}).fill('Agency operating account');await issueForm.getByLabel('PO or billing reference').fill('Presentation October');await issueForm.getByRole('button',{name:'Issue invoice',exact:true}).click();await page.waitForURL('**/app/billing?saved=1')
+  const issued=(await state()).data.invoices.find(i=>i.value.packetId===packet.id);assert(issued);assert.equal(Number(issued.value.number.slice(4)),previousNumber+1,'Previews consume no invoice number');assert.equal(issued.value.document.settings.timeMode,'service');assert.equal(issued.value.totalMinor,expected)
+  const issuedPath=`/api/gauge/invoice-documents/${issued.id}`,original=Buffer.from(await(await request(issuedPath+'?format=pdf',owner)).arrayBuffer())
+  assert.equal(Buffer.compare(original,Buffer.from(issued.value.pdf.base64,'base64')),0)
+  assert((await pdfText(original)).includes(issued.value.number))
+  await page.goto(h.origin+issuedPath);await capture('issued-invoice','#invoice-document')
+  settings=(await state()).data.invoiceSettings.find(r=>r.value.clientId===client.id);await cmd('invoice:settings',{...settings,...clientSettings,footer:'New default only',timeMode:'entry'})
+  assert.equal(Buffer.compare(original,Buffer.from(await(await request(issuedPath+'?format=pdf',owner)).arrayBuffer())),0,'Issued original stays exact after client defaults change')
+  await cmd('invoice:issue',{...packet,issueDate:'2026-10-15',dueDate:'2026-11-14',billTo:'Presentation client',remitTo:'Agency',reference:'Replay'},owner,409)
+  assert.equal((await state()).data.invoices.filter(i=>i.value.packetId===packet.id).length,1)
+  for(const role of ['staff','lead','agent']){const user=await h.invite(`presentation-${role}`);await cmd('grant',{operatorId:user.id,personId:person.id,role,enabled:true,...(role==='agent'?{purpose:'billing',engagementIds:[project.id]}:{})});assert.equal((await get({},'pdf',user.cookie)).status,403);assert.equal((await request(issuedPath+'?format=pdf',user.cookie)).status,403);assert.deepEqual((await h.state(user.cookie)).data.invoiceSettings,[]);await cmd('invoice:settings',{...agency,clientId:null,reason:'Refused write'},user.cookie,403)}
+  assert.equal((await get({},'pdf','')).status,401)
+  const history=await(await request(`/api/gauge/history/invoiceSettings/${settings.id}`,owner)).json();assert(history.history.length>0)
+ }finally{await browser.close()}
+ console.log('PASS INVOICE-008 fourteen approved time entries and three receipt-backed expenses, all time groupings, independent PDF totals, exact detail sources and durations, client footer and logo, once-only native issue, immutable originals, role privacy at 1440 and 390')
 }

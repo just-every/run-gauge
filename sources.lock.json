@@ -1654,7 +1654,7 @@
       "executable": false
     },
     "src/gauge/scoro-native.ts": {
-      "sha256": "bca13c15b166bfbbda562c07b14807091be1d9096ef8351ea1a53dee69f2139f",
+      "sha256": "73477a9bd4243e91e251fd1049a126fb75e707b500e99e651f3ff7de476e466e",
       "executable": false
     },
     "src/gauge/scoro-workbook.ts": {
@@ -3705,6 +3705,10 @@
       "sha256": "687980ee4677a5d22dc4751b0521e6c363827a262d60f355d6dd1e88573a32a9",
       "executable": false
     },
+    "tests/fixtures/scoro-restore.mjs": {
+      "sha256": "1cb85aa52cf6db4db18d81c06a07eab1b2d067935617400224d3dc4699680187",
+      "executable": false
+    },
     "tests/fixtures/scoro.mjs": {
       "sha256": "f9856a06e5fd79b1986e35065dc5060a2bd44f6f87d214b7487cb84b9386d018",
       "executable": false
@@ -3894,7 +3898,7 @@
       "executable": false
     },
     "tests/gauge-scoro.mjs": {
-      "sha256": "443a1e9ca334bc49158cc6b67a461f949a0bbc7c5335537d2cf62de8fbdaae57",
+      "sha256": "dffb640d4d58598ccb25bd7e0eeca4be5541f78e04ab790f6b2e8bd4e683c4b0",
       "executable": false
     },
     "tests/gauge-tasks.mjs": {

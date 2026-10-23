@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "gauge-local/edition",
-  "manifest": "a5a8a12bcdb3ae581a1a962cb948f5ad0a0309d48293640e1a41f2c8fac996cd",
+  "manifest": "9474dd3f20b8eb68178eed44c3444e7b68d40feb37851aee3ccb9cad1807bc05",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -65,7 +65,8 @@
           "migrations/core/0055_gauge_operational_cases.sql",
           "migrations/core/0056_gauge_kantata.sql",
           "migrations/core/0057_gauge_kantata_native.sql",
-          "migrations/core/0059_gauge_scoro.sql"
+          "migrations/core/0059_gauge_scoro.sql",
+          "migrations/core/0060_gauge_teamwork.sql"
         ]
       },
       "baseline": null
@@ -382,7 +383,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "a5a8a12bcdb3ae581a1a962cb948f5ad0a0309d48293640e1a41f2c8fac996cd",
+      "sha256": "9474dd3f20b8eb68178eed44c3444e7b68d40feb37851aee3ccb9cad1807bc05",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -623,6 +624,10 @@
     },
     "migrations/core/0059_gauge_scoro.sql": {
       "sha256": "90a0d39482f312d1d584ec71cf90ede210f09e9ee9fd178dbc9562561147a5ea",
+      "executable": false
+    },
+    "migrations/core/0060_gauge_teamwork.sql": {
+      "sha256": "e8b72aa229dd244f03f0fc6ddea031454984a791e23c45c17f03d772b5284cf6",
       "executable": false
     },
     "MOVE-IN.md": {
@@ -934,7 +939,7 @@
       "executable": false
     },
     "scripts/gauge-tests.mjs": {
-      "sha256": "a9008d915b4009297058d86b233835b0c543a36e358e7acb69352f86b0936050",
+      "sha256": "694f285f32ddf16822dc1a0c94f4a0e38c647ae9eb5ac45f27bcd88cdc318fb9",
       "executable": false
     },
     "scripts/install.mjs": {
@@ -1650,7 +1655,7 @@
       "executable": false
     },
     "src/gauge/scoro-import.ts": {
-      "sha256": "131333fc80a13fb461882feb1b6e3135b0e89ddf8d20bb32736ca6a11b9b7649",
+      "sha256": "7a4271aa68bdb69249086a21fa0825ba0e09e3e18b011bf3652b9bbe3cbabbc6",
       "executable": false
     },
     "src/gauge/scoro-native.ts": {
@@ -1679,6 +1684,10 @@
     },
     "src/gauge/tasks.ts": {
       "sha256": "b4cf7e5bc54d7ec8d5875472a91d681afe1a1046638ce1ce462fa0a4880e8d0d",
+      "executable": false
+    },
+    "src/gauge/teamwork.ts": {
+      "sha256": "fa8e788af7f9fe6c8a4f21e3a72c1888bfdccdb68e556b1c055000ddcab41111",
       "executable": false
     },
     "src/gauge/time-favorites.ts": {
@@ -1945,6 +1954,10 @@
       "sha256": "375e82da00c51ad70135442db1a05732d97d4b74b199fd0c3493f996f194ccda",
       "executable": false
     },
+    "src/gauge/ui-teamwork.ts": {
+      "sha256": "96159f47e8416178ad6599369db4690463f66dab547e9748a99aefebe5c5c902",
+      "executable": false
+    },
     "src/gauge/ui-time-policy.ts": {
       "sha256": "2118c2961f11210155931409069664b848d14ed24bb9355981d608230c800b01",
       "executable": false
@@ -1962,7 +1975,7 @@
       "executable": false
     },
     "src/gauge/ui.ts": {
-      "sha256": "91c6da2da709fdb9f4258ec6f3eb46f1ec815dcf863728648903730d54b1152d",
+      "sha256": "308a0afaf79d9c2b53420a99e87401de529bc166c0419a0b8c5af073d6bf57ec",
       "executable": false
     },
     "src/gauge/utilization.ts": {
@@ -3705,12 +3718,20 @@
       "sha256": "687980ee4677a5d22dc4751b0521e6c363827a262d60f355d6dd1e88573a32a9",
       "executable": false
     },
+    "tests/fixtures/scoro-journey.mjs": {
+      "sha256": "468074fb10165db53c6eb3eb0a12844e8650e0a08f826c741806a65d4e89737c",
+      "executable": false
+    },
     "tests/fixtures/scoro-restore.mjs": {
       "sha256": "1cb85aa52cf6db4db18d81c06a07eab1b2d067935617400224d3dc4699680187",
       "executable": false
     },
     "tests/fixtures/scoro.mjs": {
       "sha256": "f9856a06e5fd79b1986e35065dc5060a2bd44f6f87d214b7487cb84b9386d018",
+      "executable": false
+    },
+    "tests/fixtures/teamwork.mjs": {
+      "sha256": "8469384498f2e052c86f28a780aa6577d5b92d3683e703889e499c6314094e7f",
       "executable": false
     },
     "tests/fresh-clone.mjs": {
@@ -3903,6 +3924,10 @@
     },
     "tests/gauge-tasks.mjs": {
       "sha256": "cb45d3ff23e86b9265c39b2312fa0c80ce701c87941b912c4cd6c5c5f31c27e4",
+      "executable": false
+    },
+    "tests/gauge-teamwork.mjs": {
+      "sha256": "1ff1a30d2aee0aa3ce39062797f68bfcd4c6fb8a8c6e2159d931a981c06c1138",
       "executable": false
     },
     "tests/gauge-time-review.mjs": {

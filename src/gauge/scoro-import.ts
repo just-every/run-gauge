@@ -1,3 +1,4 @@
+import { teamworkSpec } from './teamwork'
 import type { Bindings } from '../auth.server'
 import { type Actor, authority, finance, fence } from './store'
 import { type Value, need, text } from './model'
@@ -6,7 +7,7 @@ import { moveInPackage, sourceControls, type MoveInSpec } from './scoro-common'
 import { moveInDrafts } from './scoro-native'
 import { scoroSpec } from './scoro'
 import { moveInTargets } from './import-targets'
-export const moveInSpecs:Record<string,MoveInSpec>={scoro:scoroSpec}
+export const moveInSpecs:Record<string,MoveInSpec>={scoro:scoroSpec,teamwork:teamworkSpec}
 const context=(env:Bindings,a:Actor,provider:string,namespace:string):D1ImportContext=>({destination:'gauge-'+provider,namespace,mappingVersion:provider+'-v1',batchSize:10,maxBatches:1,storage:{database:env.DB,targets:moveInTargets(provider)},authorization:{principalId:a.session.operator.id,predicate:()=>authority(a,true)}})
 export async function moveInCommand(env:Bindings,a:Actor,provider:string,action:string,input:Value){
  need(finance(a),'Finance or the owner manages source evidence',403);await fence(env,a);const spec=moveInSpecs[provider];need(spec,'Unsupported source importer')

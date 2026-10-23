@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict'
+import {mkdir} from 'node:fs/promises'
+import {join} from 'node:path'
+import {chromium} from '@playwright/test'
+import {harness} from '../gauge-harness.mjs'
+import {inFormat} from './scoro-formats.mjs'
+import {sourceRestore} from './scoro-restore.mjs'
+/** Shared public transport/custody assertions; provider acceptance remains in
+ * its own journey callback, with independent manually supplied source totals. */
+export async function sourceJourney({provider,name,pkg,verify,invalid=[],formats=['xlsx','json'],version='v1',after}){
+ const h=await harness({currency:'USD',timezone:'America/New_York'}),{cmd,owner,state,request}=h,action=v=>'import:'+provider+':'+v;let browser
+ try{
+  const p=await cmd(action('preview'),{package:pkg});assert(p.canApply,JSON.stringify(p.findings));assert.deepEqual(p.financial,pkg.manifest.controls.financial);assert.equal((await state()).data.time.length,0)
+  for(const [reason,alter]of [['permission',p=>p.manifest.authorized=false],['missing window',p=>p.manifest.windows[0].complete=false],...invalid]){const bad=structuredClone(pkg);alter(bad);const preview=await cmd(action('preview'),{package:bad});assert(!preview.canApply,reason);await cmd(action('create'),{package:bad,fingerprint:preview.fingerprint,confirm:'adopt-reviewed-native-drafts'},owner,400)}
+  const currency=structuredClone(pkg);currency.manifest.currency='CAD';await cmd(action('preview'),{package:currency},owner,400)
+  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage();await context.addCookies(owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
+  const shots=process.env.GAUGE_MOVEIN_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  const capture=async stage=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),provider+' '+stage+' fits '+width);const icons=await page.locator('button,a,summary').evaluateAll(nodes=>nodes.filter(n=>!n.textContent.trim()&&n.querySelector('svg,img')).map(n=>n.outerHTML));assert.deepEqual(icons,[],'All Imports controls have visible text');if(shots)await page.locator('#'+provider+'-import').screenshot({path:join(shots,provider+'-'+stage+'-'+width+'.png')})}}
+  await page.goto(h.origin+'/app/imports');const form=page.locator('form').filter({has:page.locator('[name=action][value="'+action('preview')+'"]')});await form.getByLabel(name+' package JSON').fill(JSON.stringify(pkg));await form.getByRole('button',{name:'Preview '+name+' import'}).click();assert.match(await page.locator('#'+provider+'-preview').innerText(),/Every declared source control reconciles/);await capture('preview')
+  const apply=async pack=>{const preview=await cmd(action('preview'),{package:pack});assert(preview.canApply,JSON.stringify(preview.findings));let j=await cmd(action('create'),{package:pack,fingerprint:preview.fingerprint,confirm:'adopt-reviewed-native-drafts'});while(j.state==='applying')j=await cmd(action('resume'),{id:j.id});assert.equal(j.state,'completed');return j}
+  const job=await apply(pkg),report=await cmd(action('report'),{namespace:p.namespace});assert.deepEqual(report.groups,pkg.manifest.controls.financial);await verify({h,report,preview:p,job,apply})
+  const original=await(await request('/api/gauge/imports/'+job.id,owner)).json();for(const [file,content]of Object.entries(pkg.files))assert.equal(original.find(a=>a.name===file).original.base64,/\.xlsx?$/.test(file)?content:Buffer.from(content).toString('base64'),'Original '+file)
+  const count=(await state()).data.time.length;await apply(pkg);assert.equal((await state()).data.time.length,count,'Replay cannot duplicate native time')
+  for(const format of formats){const pack=inFormat(pkg,'time',format,{version,pages:2});await apply(pack);assert.equal((await state()).data.time.length,count,format+' replay cannot duplicate native time')}
+  await page.goto(h.origin+'/app/imports');const reportForm=page.locator('form').filter({has:page.locator('[name=action][value="'+action('report')+'"]')});await reportForm.getByRole('button',{name:'Read '+name+' source controls'}).click();assert.match(await page.locator('#'+provider+'-report').innerText(),/Historical source controls/);await capture('report')
+  const staff=await h.invite(provider+'-staff'),person=(await state()).data.people[0]??await cmd('save:people',{name:'Scoped worker',timezone:'America/New_York'});await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd(action('report'),{namespace:p.namespace},staff.cookie,403);await cmd(action('preview'),{package:pkg},staff.cookie,403);assert.equal((await request('/api/gauge/imports/'+job.id,staff.cookie)).status,403)
+  for(const t of (await state(staff.cookie)).data.time){assert.equal(t.value.source.costMinor,undefined);assert.equal(t.value.source.billMinor,undefined);assert.equal(t.value.source.sourceEvidence,undefined)}
+  if(after)await after({h,report,preview:p,job,apply,staff})
+  await sourceRestore(h,provider);await context.close();console.log('PASS '+provider+'Journey: provider source semantics, independent controls, original custody, format/replay/privacy/restore, public Imports at 1440/390')
+ }finally{await browser?.close();await h.dispose()}
+}

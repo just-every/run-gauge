@@ -311,7 +311,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5ef257e253efa038042577d7128027c1a07ff21ac92f74ac73d524f55d93d65a",
+      "sha256": "84c02f03f81dcd69f8d21b2f5c714e6ad71acc796dc0bde755cd921e7cef1e21",
       "executable": false
     },
     "DEMO.md": {
@@ -1295,7 +1295,7 @@
       "executable": false
     },
     "src/gauge/fixed-charges.ts": {
-      "sha256": "e4b16e5d82fd140af111eb99bb94155bc5115ca76e07b5973da10978d501df0d",
+      "sha256": "284877d0dad857158018ffc7acb4fb0dce4016c8f8b228b64bb06fc80114f526",
       "executable": false
     },
     "src/gauge/float.ts": {

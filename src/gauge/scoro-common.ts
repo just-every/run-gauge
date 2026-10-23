@@ -76,7 +76,7 @@ export function moveInPackage(spec:MoveInSpec,pkg:Value,agencyCurrency:string){
     else{need(cfg.format==='json','Use a documented CSV, value-only XLSX or paginated JSON capture');let doc:Value;try{doc=parseApiJson(pkg.files[name],{artifact:name},[],{namespace,url:'https://source.invalid/',preserveNumberLexeme:path=>path[0]===cfg.array,parsePage:()=>({records:[]})}).value as Value}catch(error){if(error instanceof ReaderError)need(false,'Invalid original JSON capture: '+error.code);throw error}rows=doc[cfg.array];need(Array.isArray(rows),'The mapped JSON capture array is missing');const p=cfg.pagination;if(doc[p.page]!==pageIndex+1||doc[p.total]!==pages.length||doc[p.next]!== (pageIndex+1===pages.length?null:pages[pageIndex+1].cursor))finding(kind,'API pagination is incomplete or out of order')}
     physicalRows+=rows.length;need(physicalRows<=1000,'This measured adapter accepts at most 1000 physical source rows, including repeated reports')
     for(const [index,raw]of rows.entries()){
-     need(raw&&typeof raw==='object'&&!Array.isArray(raw),'Source rows must be objects');const v:Value={}
+     need(raw&&typeof raw==='object'&&!Array.isArray(raw),'Source rows must be objects');const v:Value=Object.create(null)
      for(const [semantic,column]of Object.entries(cfg.columns)){need(typeof column==='string'&&Object.hasOwn(raw,column),`${kind} mapped column ${String(column)} is missing`);v[semantic]=raw[column]}
      v.id=text(v.id,`${kind} stable source ID`,200);need(!copyIds.has(v.id),`Duplicate ${kind} identity within one report: ${v.id}`);copyIds.add(v.id)
      for(const key of fields)need(v[key]!==undefined&&v[key]!==null&&v[key]!=='',`${kind}.${key} must be explicitly captured`)
@@ -110,6 +110,6 @@ export function moveInPackage(spec:MoveInSpec,pkg:Value,agencyCurrency:string){
  if(canonicalJson(m.controls.counts)!==canonicalJson(counts))finding('controls','Independent source counts do not reconcile')
  if(canonicalJson(m.controls.financial)!==canonicalJson(financial))finding('controls','Independent project/month financial and schedule totals do not reconcile')
  const id=(kind:string,sourceId:string)=>'mi_'+sha256(`${namespace}:${kind}:${sourceId}`).slice(0,32)
- for(const [key,source]of sources){bundle.records.push(source);effects.set(key,[{targetKind:spec.provider+'Records',targetId:id(source.kind,source.sourceId),value:{provider:spec.provider,namespace,sourceKind:source.kind,sourceId:source.sourceId,timezone,currency:m.currency,data:source.payload,meaning:'Historical source evidence; no native approval, access, issuance, settlement or cutover authority.'}}])}
+ for(const [key,source]of sources){source.payloadHash=sha256(canonicalJson(source.payload));bundle.records.push(source);effects.set(key,[{targetKind:spec.provider+'Records',targetId:id(source.kind,source.sourceId),value:{provider:spec.provider,namespace,sourceKind:source.kind,sourceId:source.sourceId,timezone,currency:m.currency,data:source.payload,meaning:'Historical source evidence; no native approval, access, issuance, settlement or cutover authority.'}}])}
  return {provider:spec.provider,namespace,timezone,currency:m.currency,records,counts,financial,findings,canApply:findings.length===0,bundle,effects,id,mapping:{version:m.mappingVersion,map:(r:SourceRecord)=>({effects:effects.get(r.kind+':'+r.sourceId)??[]})}}
 }

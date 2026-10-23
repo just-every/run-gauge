@@ -1,3 +1,5 @@
+import { rocketlaneSpec } from './rocketlane'
+import { rocketlaneCutover } from './rocketlane-cutover'
 import { productiveSpec } from './productive'
 import { teamworkSpec } from './teamwork'
 import type { Bindings } from '../auth.server'
@@ -8,10 +10,11 @@ import { moveInPackage, sourceControls, type MoveInSpec } from './scoro-common'
 import { moveInDrafts } from './scoro-native'
 import { scoroSpec } from './scoro'
 import { moveInTargets } from './import-targets'
-export const moveInSpecs:Record<string,MoveInSpec>={scoro:scoroSpec,teamwork:teamworkSpec,productive:productiveSpec}
+export const moveInSpecs:Record<string,MoveInSpec>={scoro:scoroSpec,teamwork:teamworkSpec,productive:productiveSpec,rocketlane:rocketlaneSpec}
 const context=(env:Bindings,a:Actor,provider:string,namespace:string):D1ImportContext=>({destination:'gauge-'+provider,namespace,mappingVersion:provider+'-v1',batchSize:10,maxBatches:1,storage:{database:env.DB,targets:moveInTargets(provider)},authorization:{principalId:a.session.operator.id,predicate:()=>authority(a,true)}})
 export async function moveInCommand(env:Bindings,a:Actor,provider:string,action:string,input:Value){
  need(finance(a),'Finance or the owner manages source evidence',403);await fence(env,a);const spec=Object.hasOwn(moveInSpecs,provider)?moveInSpecs[provider]:undefined;need(spec,'Unsupported source importer')
+ if(provider==='rocketlane'&&action.startsWith('cutover-'))return rocketlaneCutover(env,a,action,input)
  if(action==='preview'||action==='create'){
   const p=moveInPackage(spec,input.package,a.currency);moveInDrafts(p,input.package.manifest)
   const ctx=context(env,a,provider,p.namespace),plan=await planD1Import(p.bundle,p.mapping,ctx).catch(error=>{if(error instanceof Error&&error.message==='CREDENTIAL_IN_DURABLE_DATA')need(false,'Remove credential fields or credential-shaped text from the original source export');throw error})

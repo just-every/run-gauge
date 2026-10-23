@@ -67,7 +67,8 @@
           "migrations/core/0057_gauge_kantata_native.sql",
           "migrations/core/0059_gauge_scoro.sql",
           "migrations/core/0060_gauge_teamwork.sql",
-          "migrations/core/0061_gauge_productive.sql"
+          "migrations/core/0061_gauge_productive.sql",
+          "migrations/core/0062_gauge_rocketlane.sql"
         ]
       }
     },

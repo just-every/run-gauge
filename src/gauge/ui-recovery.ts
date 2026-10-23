@@ -49,7 +49,7 @@ export function alternativeEffect(report: Report, a: Actor, p: Row, alt: any) {
   // The person the alternative covers for: on leave in its window with committed hours on this engagement.
   const covered = d.people.filter(x => x.id !== alt.personId).map(x => {
    let seconds = 0
-   for (let day = alt.from; day <= alt.to; day = shift(day, 1)) if (d.leave.some(r => r.value.personId === x.id && r.value.from <= day && r.value.to >= day)) seconds += d.staffing.filter(r => r.value.personId === x.id && r.value.engagementId === p.value.engagementId && r.value.commitment === 'committed' && r.value.from <= day && r.value.to >= day).reduce((n, r) => n + r.value.dailySeconds, 0)
+   for (let day = alt.from; day <= alt.to; day = shift(day, 1)) if (d.leave.some(r => (!r.value.status || r.value.status === 'approved') && r.value.personId === x.id && r.value.from <= day && r.value.to >= day)) seconds += d.staffing.filter(r => r.value.personId === x.id && r.value.engagementId === p.value.engagementId && r.value.commitment === 'committed' && r.value.from <= day && r.value.to >= day).reduce((n, r) => n + r.value.dailySeconds, 0)
    return { person: x, seconds, rate: rate(x.id) }
   }).filter(x => x.seconds > 0)
   const own = rate(alt.personId), known = own !== null && covered.every(x => x.rate !== null)

@@ -64,7 +64,7 @@ function pack(items: Omit<Segment, 'track'>[]) {
 }
 
 /** The leave a person is on for a date: the committed hours booked that date are struck, not worked. */
-export const onLeave = (report: Report, personId: string, date: string) => report.data.leave.find(r => r.value.personId === personId && r.value.from <= date && r.value.to >= date)
+export const onLeave = (report: Report, personId: string, date: string) => report.data.leave.find(r => (!r.value.status || r.value.status === 'approved') && r.value.personId === personId && r.value.from <= date && r.value.to >= date)
 /** Committed hours that will be worked over `days`: a date on leave counts none of its committed hours. */
 export const workedCommitted = (report: Report, person: Report['capacity'][number], days: string[]) => person.days.filter(x => days.includes(x.date) && !onLeave(report, person.personId, x.date)).reduce((n, x) => n + x.committedSeconds, 0)
 
@@ -76,7 +76,7 @@ export function lanes(report: Report, cols: Column[], tintOf: (clientId: string)
  const label = (engagementId: string) => nameOf(d.clients, client(engagementId), nameOf(d.engagements, engagementId, 'Engagement'))
  return report.capacity.map(person => {
   const own = d.staffing.filter(r => r.value.personId === person.personId && r.value.from <= to && r.value.to >= from)
-  const leave = d.leave.filter(r => r.value.personId === person.personId && r.value.from <= to && r.value.to >= from)
+  const leave = d.leave.filter(r => (!r.value.status || r.value.status === 'approved') && r.value.personId === person.personId && r.value.from <= to && r.value.to >= from)
   const leaveOn = (date: string) => leave.find(r => r.value.from <= date && r.value.to >= date), working = (date: string) => !leaveOn(date)
   const bars: Omit<Segment, 'track'>[] = []
   for (const a of merge(own)) {

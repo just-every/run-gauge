@@ -2,6 +2,7 @@ import { observedQuoteBill } from './quote-pricing'
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, integer, money, date, charge } from './model'
 import { type Actor, Transaction, finance, get, all } from './store'
+import { currencies } from './agency'
 import { activeClient } from './clients'
 
 // RATE-002 rate cards. One effective-dated, immutable `rates` row is one card version.
@@ -37,8 +38,10 @@ export async function rateCard(env: Bindings, a: Actor, tx: Transaction, input: 
  need(v.scope !== 'service' || v.service !== '*', 'Choose a project, client, role, person or named service')
  v.effective = date(input.effective)
  v.billMinor = money(input.billMinor)
- // Until SETUP-003 gives a client its own billing currency, every card bills in the agency currency.
- v.currency = a.currency
+ // Scoped bill cards inherit the saved client or engagement currency. Costs retain their declared USD.
+ const scope = v.engagementId ? await get(env, 'engagements', v.engagementId) : v.clientId ? await activeClient(env, v.clientId) : null
+ v.currency = scope ? (v.engagementId ? scope.value.currency : scope.value.billingCurrency ?? a.currency) : input.currency || a.currency
+ need(currencies.includes(v.currency), 'Choose a supported billing currency')
  v.costMinor = input.costMinor === '' || input.costMinor === null || input.costMinor === undefined ? null : money(input.costMinor)
  need(v.costMinor === null || (costLevels as readonly string[]).includes(v.scope), 'Client and project cards carry bill rates; declare costs on person, role or service cards')
  // A cost is a declared input in USD (W-2 loaded or 1099 contract), never a payroll calculation.

@@ -2,6 +2,7 @@
 // their estimate, clients and people, and one engagement's detail (?edit=<id>):
 // its facts, scope, terms, tasks, milestones and economics, with the forms that
 // change them. Forms keep their actions and field names.
+import { currencies } from './agency'
 import { estimateSection } from './ui-estimates'
 import { acceptanceSummary } from './ui-estimate-attestation'
 import { fieldInputs } from './ui-custom-fields'
@@ -35,7 +36,7 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
  const taskForm = (engagementId?: string) => taskEditor(a,report,edit('tasks'),engagementId)
  const milestoneForm = (engagementId?: string) => form('save:milestones', 'Fixed-fee milestone', s('engagementId', 'Engagement', managed, m.engagementId ?? engagementId) + phasePicker(report,m.engagementId??engagementId,m.phaseKey,'fixed') + i('name', 'Milestone name', m.name) + i('due', 'Due date', m.due ?? today, 'date') + amount('amountDollars', `Milestone fee (${m.currency ?? d.engagements.find(r => r.id === engagementId)?.value.currency ?? a.currency})`, m.amountMinor ?? ''), edit('milestones'))
  const x = focus?.value ?? v('engagements')
- const engagementForm = () => form('save:engagements', 'Engagement', i('name', 'Engagement name', x.name) + c('type','Engagement type',['client','internal'],x.type??'client') + c('internalCategory','Internal category',['admin','sales','training','PTO','other'],x.internalCategory??'other') + s('clientId', 'Client', activeClients(d.clients), x.clientId, true) + s('leadId', 'Responsible lead', d.people, x.leadId) + checks('members', 'Assigned people', d.people, x.members) + area('scope', 'Agreed scope', x.scope) + i('timezone', 'Work timezone', x.timezone ?? report.agency.timezone)+fieldInputs(report,'engagements',x), focus)
+ const engagementForm = () => form('save:engagements', 'Engagement', i('name', 'Engagement name', x.name) + c('type','Engagement type',['client','internal'],x.type??'client') + c('internalCategory','Internal category',['admin','sales','training','PTO','other'],x.internalCategory??'other') + s('clientId', 'Client', activeClients(d.clients), x.clientId, true) + s('currency', 'Engagement billing currency', currencies.map(id => ({id, revision:'', value:{name:id}})), x.currency, 'Use client default') + s('leadId', 'Responsible lead', d.people, x.leadId) + checks('members', 'Assigned people', d.people, x.members) + area('scope', 'Agreed scope', x.scope) + i('timezone', 'Work timezone', x.timezone ?? report.agency.timezone)+fieldInputs(report,'engagements',x), focus)
  const overspent = new Set(report.exceptions.filter(x => x.type === 'overspend').map(x => x.source.split(':')[1]))
  const reading = (r: Row) => {
   const econ = report.economics.find(x => x.engagementId === r.id), estimate = econ ? estimateOf(report, econ.budgetId) : null, approved = econ?.approvedSeconds ?? 0
@@ -45,7 +46,7 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
  }
  if (focus) {
   const id = focus.id, own = <T extends Row>(rows: T[]) => rows.filter(r => r.value.engagementId === id)
-  const facts = `<section class="g-card g-facts"><h2 class="g-hide">Facts</h2><dl><div><dt>Client</dt><dd>${e(x.type==='internal'?`Internal · ${x.internalCategory}`:nameOf(d.clients, x.clientId))}</dd></div><div><dt>Responsible lead</dt><dd>${e(nameOf(d.people, x.leadId))}</dd></div><div class="g-fact-people"><dt>Assigned people</dt><dd>${e((x.members ?? []).map((p: string) => nameOf(d.people, p)).join(', ') || '—')}</dd></div><div><dt>Work timezone</dt><dd>${e(x.timezone)}</dd></div></dl></section>`
+  const facts = `<section class="g-card g-facts"><h2 class="g-hide">Facts</h2><dl><div><dt>Client</dt><dd>${e(x.type==='internal'?`Internal · ${x.internalCategory}`:nameOf(d.clients, x.clientId))}</dd></div><div><dt>Responsible lead</dt><dd>${e(nameOf(d.people, x.leadId))}</dd></div><div class="g-fact-people"><dt>Assigned people</dt><dd>${e((x.members ?? []).map((p: string) => nameOf(d.people, p)).join(', ') || '—')}</dd></div><div><dt>Billing currency</dt><dd>${e(x.currency)}</dd></div><div><dt>Work timezone</dt><dd>${e(x.timezone)}</dd></div></dl></section>`
   const scope = `<section class="g-card"><h2>Agreed scope</h2><p>${e(x.scope)}</p>${acceptanceSummary(x)}</section>`
   const budgets = own(d.budgets), milestones = own(d.milestones)
   const budgetCard = manager ? `<section class="g-card"><h2>Budget versions</h2>${budgets.length ? `<ul class="g-versions">${budgets.map(b => `<li id="${e(b.id)}"><p class="g-summary">${e(termsLine(b))} · ${chip(b.value.status)}</p><p class="g-note">${e(b.value.reason)}</p>${acceptanceSummary(b.value)}${b.value.status === 'draft' ? decision('budget:approve', 'Approve terms', b) : '<p class="g-note">Immutable approved version</p>'}</li>`).join('')}</ul>` : '<p class="g-empty">No records yet.</p>'}</section>` : ''
@@ -67,7 +68,7 @@ export function engagementsSection(a: Actor, report: Report, options: Value, tod
  if (finance(a)) {
   const p = v('people')
   body += `<div class="g-pair"><div>${clientsTable(d)}${clientSearchSection(d, options.clientSearch)}</div>${table('People', d.people, [{ label: 'Name', cell: r => open('engagements', r, r.value.name)+acceptanceSummary(r.value) }, { label: 'Work timezone', cell: r => e(r.value.timezone) }, { label: 'Contractor', cell: r => yesNo(r.value.contractor) }])}</div>`
-  body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${engagementForm()}${clientForm(edit('clients'),fieldInputs(report,'clients',v('clients')))}${clientMergeForm(d, edit('clients'))}${form('save:people', 'Person', i('name', 'Name', p.name) + i('timezone', 'Work timezone', p.timezone ?? report.agency.timezone) + resourceProfileFields(p)+fieldInputs(report,'people',p), edit('people'))}${terms()}${taskForm()}${milestoneForm()}</div>`
+  body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${engagementForm()}${clientForm(edit('clients'),fieldInputs(report,'clients',v('clients')), a.currency)}${clientMergeForm(d, edit('clients'))}${form('save:people', 'Person', i('name', 'Name', p.name) + i('timezone', 'Work timezone', p.timezone ?? report.agency.timezone) + resourceProfileFields(p)+fieldInputs(report,'people',p), edit('people'))}${terms()}${taskForm()}${milestoneForm()}</div>`
  } else if (manager) body += `<h2 class="g-subhead">Add or change</h2><div class="g-forms">${terms()}${taskForm()}${milestoneForm()}</div>`
  return body+estimateSection(a,report,options) + tasksSection(a,report,options) + templatesSection(a,report) + pipelineSection(a, report, options.opportunity)
 }

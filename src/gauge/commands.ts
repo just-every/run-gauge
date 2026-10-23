@@ -51,6 +51,7 @@ import { fixedChargeCommand } from './fixed-charges'
 import { estimateCommand,estimateCompare } from './estimates'
 import { customCommand,customPreview } from './custom-fields'
 import { clientCommand } from './clients'
+import { leaveCommand } from './leave-approvals'
 import { agencyProfileCommand } from './agency-profile'
 import { fxCommand, consolidate } from './fx-rates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
@@ -108,6 +109,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await rateCommand(env,a,tx,action,input)
  if(!result)result=await targetCommand(env,a,tx,action,input)
  if(!result)result=await approvalCommand(env,a,tx,action,input)
+ if(!result)result=await leaveCommand(env,a,tx,action,input)
  if(!result)result=await agencyProfileCommand(env,a,tx,action,input)
  if(!result)result=await fxCommand(env,a,tx,action,input)
  if(!result)result=await projectScenarioCommand(env,a,tx,action,input)

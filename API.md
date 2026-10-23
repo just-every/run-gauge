@@ -793,3 +793,39 @@ Money descriptors may explicitly set `moneyUnit: "decimal-major"`; exact decimal
 text with at most two places converts once to integer cents. Otherwise
 `units.money: "minor-units"` (the default) requires whole integer minor units.
 There is no inferred unit, rounded source decimal or currency conversion.
+
+### Rocketlane source semantics and held cutover
+
+`provider: "rocketlane"`, `mappingVersion: "rocketlane-v1"` and
+`import:rocketlane:*` accept owner-authorized tracked-time reports and complete
+uploaded v1 API captures. Source accounts map to client identities; phase/task
+and ad-hoc time remain distinct. `minutes` is a positive integer, and captured
+`auditEpoch` retains its explicit `units.auditEpoch` (`seconds` or `milliseconds`).
+Source approval decisions and rate histories retain original identities;
+current time names its exact approval and effective rate override. Neither
+source approval nor imported rate history approves native work.
+
+Allocations preserve `SOFT`/`HARD`, named-person versus placeholder identity,
+explicit `minutes-per-day`, and the original unique `dates` inside the captured
+period. No dates are distributed or invented and no placeholder becomes a real
+person or receives access. Additional original invoice, payment and attribution
+exports must be named in `financeExports.artifacts` with `complete: true`.
+Limited time APIs alone cannot establish billing/payment completeness. Finance
+allocation joins establish source-billed time and must reconcile independently
+to invoices and project/month source totals. The synthetic documented package is
+`tests/fixtures/rocketlane.mjs`.
+
+Conservative default pending ct: `import:rocketlane:cutover-preview` reviews a
+completed owner source job and fingerprints its current records, revisions,
+original job fingerprint and agency currency. `cutover-approve` requires the
+exact review fingerprint, a unique request key, a reason and
+`confirm: "accept-source-comparison-only"`. It writes an owner-attributed audit
+receipt for the source comparison only. There is no provider action, automatic
+shutdown/deletion, native financial ownership transfer or payment authority;
+operational cutover remains held. The same request cannot create a second
+receipt. An accepted receipt holds source undo until the owner audits a
+`cutover-withdraw` with its `id` and reason. These receipts remain historical
+annotations after restore; fresh native owner authentication is still required.
+MIGRATE-008 remains partial until the operational cutover policy is decided and
+its resulting native ownership workflow is proven; MIGRATE-010 retains the
+broader parallel-run and retirement comparison.

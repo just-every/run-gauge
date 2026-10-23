@@ -167,3 +167,19 @@ duplicate keys are checked before mapping. See API.md and the synthetic package
 native rebilling without inventing an invoice number. Source financial history
 remains evidence, while separately confirmed native drafts need ordinary native
 terms and approval. MIGRATE-010 retains separate operational cutover.
+
+## Rocketlane move-in (partial)
+
+Tracked-time CSV/Excel and complete uploaded API pages preserve phase/ad-hoc
+entries, integer minutes, SOFT/HARD daily allocations, unfilled placeholders,
+epoch audit units, source approvals and dated overrides. Separate original
+finance exports reconcile invoice allocations, invoices and payments before a
+source comparison can be accepted. API.md and `tests/fixtures/rocketlane.mjs`
+document the synthetic format. Explicit native drafts preserve source-billed
+exclusion and carry no approval or settlement authority.
+
+Operational cutover is held pending ct's policy ruling. The conservative owner
+form records only an exact, explicit, audited source-comparison acceptance;
+it performs no provider shutdown, deletion or native financial transfer. Its
+receipt holds source reversal until an audited owner withdrawal. This is honest
+partial progress, not a completed operational move from Rocketlane.

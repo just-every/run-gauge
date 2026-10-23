@@ -36,7 +36,21 @@ jobs:
       - run: npm install --global pnpm@10.12.4
       - run: pnpm install --frozen-lockfile
       - run: pnpm run deps
-      - run: pnpm exec playwright install --with-deps chromium
+      - name: Install Chromium and system libraries
+        # Base 144aa3f: the runner's Azure mirror can have a dead package path. Attempt 1 uses it; attempts 2 and 3 switch to
+        # other mirrors serving the same Ubuntu-signed archive. Keep this list in step with apt_fallback_mirrors in Base's
+        # scripts/agent-bootstrap.sh.
+        run: |
+          mirrors=(http://azure.archive.ubuntu.com/ubuntu http://mirrors.edge.kernel.org/ubuntu http://us-east-1.ec2.archive.ubuntu.com/ubuntu)
+          for attempt in 1 2 3; do
+            mirror=${mirrors[attempt - 1]}
+            sudo sed -i -E "s@^(URIs:[[:space:]]*)https?://(([a-z0-9.-]+\.)?archive\.ubuntu\.com|security\.ubuntu\.com|mirrors\.edge\.kernel\.org)/ubuntu/?@\1${mirror}/@" /etc/apt/sources.list.d/ubuntu.sources
+            printf 'Chromium apt: attempt %s/3 (mirror %s)\n' "$attempt" "$mirror"
+            if timeout --kill-after=5s 300s pnpm exec playwright install --with-deps chromium; then exit 0; fi
+            if (( attempt < 3 )); then sleep "$((attempt * 2))"; fi
+          done
+          printf 'Chromium apt: failed after 3 attempts\n' >&2
+          exit 1
       - run: pnpm run verify
 
   verify:

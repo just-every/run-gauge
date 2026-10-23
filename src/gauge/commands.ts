@@ -51,6 +51,8 @@ import { fixedChargeCommand } from './fixed-charges'
 import { estimateCommand,estimateCompare } from './estimates'
 import { customCommand,customPreview } from './custom-fields'
 import { clientCommand } from './clients'
+import { agencyProfileCommand } from './agency-profile'
+import { fxCommand, consolidate } from './fx-rates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
@@ -64,6 +66,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
  if(action==='estimate:compare')return estimateCompare(env,a,input)
+ if(action==='fx:consolidate')return consolidate(env,a,input)
  if(action==='kantataAdopt:preview')return nativeAdoptionPreview(env,a,input)
  if(action==='kantata:report')return kantataReport(env,a,input)
  if(action.startsWith('kantata:')){const result=await kantataCommand(env,a,action,input);await seal(env,true);return result}
@@ -105,6 +108,8 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await rateCommand(env,a,tx,action,input)
  if(!result)result=await targetCommand(env,a,tx,action,input)
  if(!result)result=await approvalCommand(env,a,tx,action,input)
+ if(!result)result=await agencyProfileCommand(env,a,tx,action,input)
+ if(!result)result=await fxCommand(env,a,tx,action,input)
  if(!result)result=await projectScenarioCommand(env,a,tx,action,input)
  if(!result)result=await demandScenarioCommand(env,a,tx,action,input)
  if(!result)result=await invoiceCommand(env,a,tx,action,input)

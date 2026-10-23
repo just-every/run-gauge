@@ -19,3 +19,18 @@
  font: inherit;
 }
 .g-agency-currency:focus-visible { outline: 3px solid var(--rer-focus); outline-offset: 3px; }
+
+/* The optional agency profile groups its fields without a second frame. */
+.g-agency-profile {
+ display: grid;
+ gap: 16px;
+ min-width: 0;
+ margin: 0 0 16px;
+ padding: 0;
+ border: 0;
+}
+.g-agency-profile legend {
+ padding: 0 0 8px;
+ color: var(--g-slate, var(--rer-muted));
+ font-size: .875rem;
+}

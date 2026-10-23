@@ -3,6 +3,7 @@ import { readFile, mkdir } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { agencyJourney } from './gauge-agency.mjs'
 
 const h = await harness({ finishSetup: false }), { cmd, state, request, owner } = h
 let browser
@@ -23,6 +24,10 @@ try {
  await page.goto(h.origin + '/setup')
  assert.equal(await page.locator('[name=currency]').inputValue(), 'USD')
  await page.getByLabel('Work timezone').fill('America/New_York')
+ // SETUP-001: the New York agency's legal business, US address, EIN and fiscal year are saved with the first-run form.
+ await page.getByLabel('Legal business name').fill('Hudson Studio LLC'); await page.getByLabel('US billing address').fill('1 Pier Plaza')
+ await page.getByLabel('City').fill('New York'); await page.getByLabel('State').fill('NY'); await page.getByLabel('ZIP code').fill('10001')
+ await page.getByLabel('EIN (owner-only, never printed on documents)').fill('123456789'); await page.getByLabel('Fiscal year starts in').selectOption('1')
  await capture('setup')
  await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Finish setup' }).click(); await page.waitForURL('**/app')
  assert.deepEqual((await state()).agency, { currency: 'USD', timezone: 'America/New_York' })
@@ -99,6 +104,7 @@ try {
  await cmd('packet:approve', adjustment)
  assert.equal((await state()).data.packets.find(row => row.id === adjustment.id).value.totalMinor, -2)
  console.log('PASS USD setup → Harvest preview/apply → exact cents → approval → report → billing CSV and correction; mismatch refused')
+ await agencyJourney(h, page, capture)
 } finally { await browser?.close(); await h.dispose() }
 
 // Legacy milestones inherited currency from their engagement. Populate that old

@@ -287,7 +287,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "53d369660ed9d32ac41cb7577edc5d86dfc51ce912b3cdda626b370634e362aa",
+      "sha256": "b04fa9db8f76e98fb291e1fa3f2859d26638f3e163f1c3a58222c8a2796e48a0",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -311,7 +311,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7aa036370c529cf7db49119574a4876a504cf7312ce111c4e1c3c878a2d7cad4",
+      "sha256": "dc617f2a5d13ceff5650074b850f691ff37cab0b4db715a4ee03602048018dd9",
       "executable": false
     },
     "DEMO.md": {
@@ -1202,6 +1202,10 @@
       "sha256": "b4e7c532bebb63977ec18b5411d64dcc09a8dc797ecec24a4c2490305fa01e19",
       "executable": false
     },
+    "src/gauge/cash-conversion.ts": {
+      "sha256": "631bf0dfe7665eca551e97110f412c8b567894faa4ad94499c5a341554f36ca6",
+      "executable": false
+    },
     "src/gauge/cash-forecast.ts": {
       "sha256": "f77870f02c3e14c817016ba5aa777450cc92b9f154671ce8ba69cfbba439c88a",
       "executable": false
@@ -1591,7 +1595,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "7e22b5c152490d095cda620d9151f9c38894fc441b817fd691a297c47ed2619d",
+      "sha256": "61adc4ba088b83636a45724b34740bf787c6ad695b51e1d526319a2194c31c9e",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -1795,7 +1799,7 @@
       "executable": false
     },
     "src/gauge/ui-cash.ts": {
-      "sha256": "7453710221d7fce0f9f6a97b7a12e5135d18ceab5201065f18ea66caa5a6269e",
+      "sha256": "37ae238b915251df0a0ada1f439257a89c3d8ac22db05be48c583daf781e71b0",
       "executable": false
     },
     "src/gauge/ui-clients.ts": {
@@ -1811,7 +1815,7 @@
       "executable": false
     },
     "src/gauge/ui-conversion.ts": {
-      "sha256": "5ff5a11ca301a070f4431ebff6dfa379af4a5fcb9ebd9dc8150c7b262075889c",
+      "sha256": "71f967c2ad908535fec8b641c6e0c0508938abeed9c5cab22d32dec7d603c9fc",
       "executable": false
     },
     "src/gauge/ui-custom-fields.ts": {
@@ -3831,7 +3835,7 @@
       "executable": false
     },
     "tests/gauge-agency.mjs": {
-      "sha256": "490b83c3009a4a406244f2dd1d098123372ab8f91f6b93689649ba23b74f6f12",
+      "sha256": "4b385e385f8fb92a16d72b74f1c3d2055761cb133e0bf425063ee6ba33f188b2",
       "executable": false
     },
     "tests/gauge-agent.mjs": {

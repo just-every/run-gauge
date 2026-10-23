@@ -55,6 +55,7 @@ export async function invoiceCorrectionJourney(h,{worker}) {
  const record=d.data.invoiceCorrections.find(x=>x.id===voided.id),reissue=d.data.invoices.find(x=>x.id===record.value.reissueInvoiceId)
  assert.equal(record.value.status,'issued');assert.equal(record.value.amountMinor,45000);assert.equal(record.value.writtenDownMinor,15000)
  assert.deepEqual(d.data.invoices.find(x=>x.id===second.invoice.id),voidedBefore,'INVOICE-004 a void never rewrites the original')
+ assert.equal(reissue.value.document.totalMinor,30000);assert.equal(reissue.value.document.detail.reduce((n,l)=>n+l.amountMinor,0),30000);assert.equal(reissue.value.document.detail.length,1);assert(reissue.value.pdf.sha256);assert.equal((await request(`/api/gauge/invoice-documents/${reissue.id}?format=pdf`,owner)).status,200)
  assert.equal(reissue.value.reissueOf,second.invoice.id);assert.equal(reissue.value.packetId,second.packet.id);assert.notEqual(reissue.value.number,voidedBefore.value.number)
  assert.deepEqual(reissue.value.lines.map(l=>[l.sourceId,l.amountMinor]),[[valid.id,30000]]);assert.equal(reissue.value.totalMinor,30000);assert.equal(reissue.value.dueDate,'2026-11-14')
  for(const action of ['payment:record','invoice:promise'])await cmd(action,{...second.invoice,date:'2026-10-16',amountMinor:100,reference:'Void'},owner,409)

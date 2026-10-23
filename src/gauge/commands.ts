@@ -1,3 +1,4 @@
+import { invoiceSettingsCommand } from './invoice-presentation'
 import { nativeAdoptionPreview,nativeAdoptionCommand } from './kantata-native'
 import { kantataCommand,kantataReport } from './kantata'
 import { caseCommand,caseClosePreview } from './operational-cases'
@@ -112,6 +113,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await fxCommand(env,a,tx,action,input)
  if(!result)result=await projectScenarioCommand(env,a,tx,action,input)
  if(!result)result=await demandScenarioCommand(env,a,tx,action,input)
+ if(!result)result=await invoiceSettingsCommand(env,a,tx,action,input)
  if(!result)result=await invoiceCommand(env,a,tx,action,input)
  if(!result)result=await invoiceCorrectionCommand(env,a,tx,action,input)
  if(!result)result=await receiptCommand(env,a,tx,action,input)

@@ -1646,15 +1646,19 @@
       "executable": false
     },
     "src/gauge/scoro-common.ts": {
-      "sha256": "832c063b00482736502071c686da40c6ebe0d3a3fbdcd4d56a59fb0ed058e30c",
+      "sha256": "bb399f8d862ad4134e5e658710b8b91e7d1491a11b53f5e0cda4a457da81eea3",
       "executable": false
     },
     "src/gauge/scoro-import.ts": {
-      "sha256": "975626dc67b0407cf446e771cdf011d09c3b3548b08e75bd102a9254674ac8e7",
+      "sha256": "131333fc80a13fb461882feb1b6e3135b0e89ddf8d20bb32736ca6a11b9b7649",
       "executable": false
     },
     "src/gauge/scoro-native.ts": {
       "sha256": "bca13c15b166bfbbda562c07b14807091be1d9096ef8351ea1a53dee69f2139f",
+      "executable": false
+    },
+    "src/gauge/scoro-workbook.ts": {
+      "sha256": "3973e28d8b035c4596c4669b136a889515cbdc3ffe78c5faa836572eba7580d8",
       "executable": false
     },
     "src/gauge/scoro.ts": {
@@ -3695,6 +3699,10 @@
     },
     "tests/fixtures/kantata.mjs": {
       "sha256": "71f352b9fbcdb9fc7f432db5fcf048b6e20e45830352dab6b10491ca49ab39b4",
+      "executable": false
+    },
+    "tests/fixtures/scoro-formats.mjs": {
+      "sha256": "f713eb917c6a764efc6d8c77d0e6ff294067546bf3d9ee1760cea27cbbef80a3",
       "executable": false
     },
     "tests/fixtures/scoro.mjs": {

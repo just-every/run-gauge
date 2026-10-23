@@ -70,7 +70,7 @@ export function moveInPackage(spec:MoveInSpec,pkg:Value,agencyCurrency:string){
     let rows:Value[],rowNumbers:number[]|undefined
     if(cfg.format==='xlsx'||cfg.format==='xls'){const book=(cfg.format==='xls'?legacyWorkbook:harvestWorkbook)(pkg.files[name],cfg.worksheet,cfg.columns.workDate??cfg.columns.date??'Date');rows=book.records.map(r=>r.value);rowNumbers=book.records.map(r=>r.row);if(!bundle.artifacts.some(a=>a.name===name))addArtifact(name,book.bytes)}
     else if(cfg.format==='csv')rows=parseCsv(pkg.files[name])
-    else{need(cfg.format==='json','Use a documented CSV, value-only XLSX or paginated JSON capture');const doc=JSON.parse(pkg.files[name]);rows=doc[cfg.array];need(Array.isArray(rows),'The mapped JSON capture array is missing');const p=cfg.pagination;if(doc[p.page]!==pageIndex+1||doc[p.total]!==pages.length||doc[p.next]!== (pageIndex+1===pages.length?null:pages[pageIndex+1].token))finding(kind,'API pagination is incomplete or out of order')}
+    else{need(cfg.format==='json','Use a documented CSV, value-only XLSX or paginated JSON capture');const doc=JSON.parse(pkg.files[name]);rows=doc[cfg.array];need(Array.isArray(rows),'The mapped JSON capture array is missing');const p=cfg.pagination;if(doc[p.page]!==pageIndex+1||doc[p.total]!==pages.length||doc[p.next]!== (pageIndex+1===pages.length?null:pages[pageIndex+1].cursor))finding(kind,'API pagination is incomplete or out of order')}
     physicalRows+=rows.length;need(physicalRows<=1000,'This measured adapter accepts at most 1000 physical source rows, including repeated reports')
     for(const [index,raw]of rows.entries()){
      need(raw&&typeof raw==='object'&&!Array.isArray(raw),'Source rows must be objects');const v:Value={}

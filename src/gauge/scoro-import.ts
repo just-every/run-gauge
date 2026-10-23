@@ -12,7 +12,7 @@ export async function moveInCommand(env:Bindings,a:Actor,provider:string,action:
  need(finance(a),'Finance or the owner manages source evidence',403);await fence(env,a);const spec=moveInSpecs[provider];need(spec,'Unsupported source importer')
  if(action==='preview'||action==='create'){
   const p=moveInPackage(spec,input.package,a.currency);moveInDrafts(p,input.package.manifest)
-  const ctx=context(env,a,provider,p.namespace),plan=await planD1Import(p.bundle,p.mapping,ctx)
+  const ctx=context(env,a,provider,p.namespace),plan=await planD1Import(p.bundle,p.mapping,ctx).catch(error=>{if(error instanceof Error&&error.message==='CREDENTIAL_IN_DURABLE_DATA')need(false,'Remove credential fields or credential-shaped text from the original source export');throw error})
   if(plan.counts.rejected)p.findings.push({kind:'native',reason:'Required fields, source conflicts or current native constraints reject one or more effects'})
   const canApply=!p.findings.length
   if(action==='preview'){await fence(env,a);return {provider,namespace:p.namespace,currency:p.currency,agencyCurrency:a.currency,timezone:p.timezone,fingerprint:plan.fingerprint,counts:p.counts,financial:p.financial,findings:p.findings,canApply,nativeDrafts:input.package.manifest.nativeDrafts===true,meaning:'Historical source finance stays evidence. Reviewed native core/time drafts require fresh native approval; source-billed time cannot rebill. Cutover is not authorized.',package:input.package}}

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "gauge-local/edition",
-  "manifest": "6b9069b36fc281d768db8dfe7db9e1df395133e2ee0a768dcce3121ae3ffc81f",
+  "manifest": "a5a8a12bcdb3ae581a1a962cb948f5ad0a0309d48293640e1a41f2c8fac996cd",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -64,7 +64,8 @@
           "migrations/core/0054_gauge_privacy.sql",
           "migrations/core/0055_gauge_operational_cases.sql",
           "migrations/core/0056_gauge_kantata.sql",
-          "migrations/core/0057_gauge_kantata_native.sql"
+          "migrations/core/0057_gauge_kantata_native.sql",
+          "migrations/core/0059_gauge_scoro.sql"
         ]
       },
       "baseline": null
@@ -381,7 +382,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "6b9069b36fc281d768db8dfe7db9e1df395133e2ee0a768dcce3121ae3ffc81f",
+      "sha256": "a5a8a12bcdb3ae581a1a962cb948f5ad0a0309d48293640e1a41f2c8fac996cd",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -620,6 +621,10 @@
       "sha256": "8e7edd43d9846e26fc742f5f1d8ce4fd70fcc68c5a430e86eaed21677875e2a0",
       "executable": false
     },
+    "migrations/core/0059_gauge_scoro.sql": {
+      "sha256": "90a0d39482f312d1d584ec71cf90ede210f09e9ee9fd178dbc9562561147a5ea",
+      "executable": false
+    },
     "MOVE-IN.md": {
       "sha256": "ef29d083042c5c8083bb171dd837708cc99b82589197952fb9301cb2b69675a7",
       "executable": false
@@ -637,11 +642,11 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "06db0c05a5a9c744e2390246b9f3689041777870224975ce7af2964560d0334b",
+      "sha256": "3c5dd271c3b55f279e4b37959eefd660dbf25db011be8c230279d576eb4d4bce",
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "6e0e09f452c09f369257cd3d02b9b6ee5df392d825c2bd713455610d40ae74aa",
+      "sha256": "efd00d03528573698e143f96020733d19da7b4a4aa2eeebc5d7b4f601f779a69",
       "executable": false
     },
     "PROVENANCE.md": {
@@ -1640,6 +1645,22 @@
       "sha256": "43451df3e861366c4889e1e5086dac40f4759c62422ea38173770c643993a169",
       "executable": false
     },
+    "src/gauge/scoro-common.ts": {
+      "sha256": "832c063b00482736502071c686da40c6ebe0d3a3fbdcd4d56a59fb0ed058e30c",
+      "executable": false
+    },
+    "src/gauge/scoro-import.ts": {
+      "sha256": "975626dc67b0407cf446e771cdf011d09c3b3548b08e75bd102a9254674ac8e7",
+      "executable": false
+    },
+    "src/gauge/scoro-native.ts": {
+      "sha256": "bca13c15b166bfbbda562c07b14807091be1d9096ef8351ea1a53dee69f2139f",
+      "executable": false
+    },
+    "src/gauge/scoro.ts": {
+      "sha256": "a570e87e816835c7000f59344170da767764a8ee52cfc88342ac3df64ecf1f2f",
+      "executable": false
+    },
     "src/gauge/setup.ts": {
       "sha256": "2db160a8ef441e53b44a4b6dc2e1f346f333500709903453285a1e372c5a9fef",
       "executable": false
@@ -1902,6 +1923,10 @@
     },
     "src/gauge/ui-schedule.ts": {
       "sha256": "953fd84f2f8d7e9155ba71ef05aff9aff68c8652b6ed703733f31797c2c57299",
+      "executable": false
+    },
+    "src/gauge/ui-scoro.ts": {
+      "sha256": "faa5eef976f5ab4c7b9d41e496360e068a678ab8dce6c8b003afe0326230c1be",
       "executable": false
     },
     "src/gauge/ui-shell.ts": {
@@ -3672,6 +3697,10 @@
       "sha256": "71f352b9fbcdb9fc7f432db5fcf048b6e20e45830352dab6b10491ca49ab39b4",
       "executable": false
     },
+    "tests/fixtures/scoro.mjs": {
+      "sha256": "f9856a06e5fd79b1986e35065dc5060a2bd44f6f87d214b7487cb84b9386d018",
+      "executable": false
+    },
     "tests/fresh-clone.mjs": {
       "sha256": "ebce680f5900d56dcc12c4d7ac918c0ea26c2d17f2a55f76a0d53968380d1be6",
       "executable": false
@@ -3854,6 +3883,10 @@
     },
     "tests/gauge-schedule.mjs": {
       "sha256": "198a6ebf3e7313671776948016fb37ed95161dfbe1939514500abc01fd66388c",
+      "executable": false
+    },
+    "tests/gauge-scoro.mjs": {
+      "sha256": "a6681219ae0244032232d482ea83da780cad90338adb5aad481d2461ae7f9f32",
       "executable": false
     },
     "tests/gauge-tasks.mjs": {

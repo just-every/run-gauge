@@ -3,6 +3,7 @@ import { canonicalJson, sha256, type SourceBundle, type SourceRecord, type Targe
 import { type Value, need, text, integer, date, zone, sum } from './model'
 import { parseCsv } from './harvest'
 import { harvestWorkbook } from './harvest-workbook'
+import { legacyWorkbook } from './scoro-workbook'
 
 export interface MoveInSpec {
  provider:string; name:string; versions:string[]; objects:Record<string,string[]>;
@@ -14,7 +15,7 @@ export function sourceBoolean(v:unknown,label:string){need([true,false,'true','f
 export function sourceInstant(v:unknown,label:string){need(typeof v==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?(?:Z|[+-]\d\d:\d\d)$/.test(v)&&Number.isFinite(Date.parse(v)),label+' requires a timezone-bearing timestamp');return v}
 export function sourceSeconds(v:unknown,unit:unknown,label:string){need(['seconds','minutes','hours'].includes(String(unit)),label+' requires captured units');const raw=String(v);need(/^\d+(?:\.\d{1,6})?$/.test(raw),label+' requires an exact nonnegative decimal');const [whole,fraction='']=raw.split('.'),den=10n**BigInt(fraction.length),num=(BigInt(whole)*den+BigInt(fraction||'0'))*BigInt(unit==='seconds'?1:unit==='minutes'?60:3600);need(num%den===0n&&num/den<=BigInt(Number.MAX_SAFE_INTEGER),label+' must resolve to exact whole seconds');return Number(num/den)}
 export const commonObjects={clients:['name'],people:['name'],projects:['name','clientId'],tasks:['name','projectId'],rates:['personId','effective','billRateMinor','costRateMinor','currency'],expenses:['projectId','date','amountMinor','currency'],invoices:['projectId','date','amountMinor','paidMinor','currency'],payments:['invoiceId','date','amountMinor','currency']}
-const references:Record<string,Record<string,string>>={projects:{clientId:'clients'},tasks:{projectId:'projects',parentId:'tasks',phaseId:'phases'},phases:{projectId:'projects'},rates:{personId:'people',projectId:'projects'},time:{projectId:'projects',personId:'people',taskId:'tasks',phaseId:'phases',rateId:'rates',invoiceId:'invoices'},expenses:{projectId:'projects',personId:'people'},invoices:{projectId:'projects'},payments:{invoiceId:'invoices'},bookings:{projectId:'projects',personId:'people'},allocations:{projectId:'projects',personId:'people',phaseId:'phases'},retainers:{projectId:'projects'},proofs:{projectId:'projects',taskId:'tasks'},approvals:{timeId:'time',personId:'people'},history:{recordId:'time'},workweeks:{personId:'people'},leave:{personId:'people'},quotes:{clientId:'clients'},budgets:{projectId:'projects',phaseId:'phases'}}
+const references:Record<string,Record<string,string>>={projects:{clientId:'clients'},tasks:{projectId:'projects',parentId:'tasks',phaseId:'phases'},phases:{projectId:'projects'},rates:{personId:'people',projectId:'projects'},time:{projectId:'projects',personId:'people',taskId:'tasks',phaseId:'phases',rateId:'rates',invoiceId:'invoices'},expenses:{projectId:'projects',personId:'people'},invoices:{projectId:'projects'},payments:{invoiceId:'invoices'},invoiceLines:{invoiceId:'invoices'},bookings:{projectId:'projects',personId:'people'},allocations:{projectId:'projects',personId:'people',phaseId:'phases'},retainers:{projectId:'projects'},proofs:{projectId:'projects',taskId:'tasks'},approvals:{timeId:'time',personId:'people'},history:{recordId:'time'},workweeks:{personId:'people'},leave:{personId:'people'},quotes:{clientId:'clients'},budgets:{projectId:'projects',phaseId:'phases'}}
 const metrics=['rawSeconds','billableSeconds','billedSeconds','unbilledSeconds','billMinor','costMinor','expenseMinor','invoiceMinor','paidMinor','scheduledSeconds','leaveSeconds','budgetMinor','openingMinor','closingMinor','carryInMinor','carryOutMinor'] as const
 export const emptyControl=()=>Object.fromEntries(metrics.map(k=>[k,0])) as Value
 export function sourceControls(records:Record<string,Value[]>,groupBy='project'){
@@ -49,23 +50,25 @@ export function moveInPackage(spec:MoveInSpec,pkg:Value,agencyCurrency:string){
  const addArtifact=(name:string,bytes:Uint8Array)=>{need(bytes.length<=2*1024*1024,'Each source artifact is limited to 2 MiB');bundle.artifacts.push({name,sha256:sha256(bytes),size:bytes.length,original:{status:'available',base64:Buffer.from(bytes).toString('base64')}})}
  addArtifact('move-in-manifest.json',Buffer.from(canonicalJson(m)))
  const artifactNames=Object.keys(pkg.files??{});need(artifactNames.length<=80,'Too many source artifacts')
- for(const name of artifactNames){need(/^[A-Za-z0-9_.-]+\.(csv|json|xlsx)$/.test(name)&&name!=='move-in-manifest.json','Use a unique flat CSV/JSON/XLSX artifact filename');need(typeof pkg.files[name]==='string','Source file content must be text or XLSX base64');if(!name.endsWith('.xlsx'))addArtifact(name,Buffer.from(pkg.files[name]))}
+ for(const name of artifactNames){need(/^[A-Za-z0-9_.-]+\.(csv|json|xlsx|xls)$/.test(name)&&name!=='move-in-manifest.json','Use a unique flat CSV/JSON/XLSX artifact filename');need(typeof pkg.files[name]==='string','Source file content must be text or XLSX base64');if(!/\.xlsx?$/.test(name))addArtifact(name,Buffer.from(pkg.files[name]))}
  let physicalRows=0
  for(const [kind,fields]of Object.entries(spec.objects)){
   records[kind]=[];if(m.permissions?.[kind]!==true)finding(kind,'Source object permission is missing')
   const configs=m.objects?.[kind];need(Array.isArray(configs)&&configs.length>0&&configs.length<=20,`Map every ${kind} export, including explicitly empty objects`)
-  const seen=new Map<string,string>()
+  const seen=new Map<string,string>(),coverage:Value[]=[]
   for(const cfg of configs){
    need(cfg.columns&&typeof cfg.columns==='object'&&cfg.columns.id,`Map stable ${kind} source IDs; row numbers are not identities`)
    need(Array.isArray(cfg.grouping)&&cfg.grouping.every((g:unknown)=>typeof g==='string'),'Declare the source report grouping explicitly, including an empty array')
-   if(cfg.filters!=='all-records')finding(kind,'Filtered report coverage is not complete; supply the full original export')
+   if(cfg.filters==='all-records')coverage.push(...m.windows)
+   else if(cfg.filters&&typeof cfg.filters==='object'&&!Array.isArray(cfg.filters)&&Object.keys(cfg.filters).every(k=>['from','to','includeArchived'].includes(k))&&cfg.filters.includeArchived===true){const from=date(cfg.filters.from),to=date(cfg.filters.to);need(from<=to,'Invalid export date filter');coverage.push({from,to})}
+   else finding(kind,'Filtered report coverage is not complete; supply date-only exports including archived records')
    const pages=cfg.format==='json'?cfg.pages:[{artifact:cfg.artifact}];need(Array.isArray(pages)&&pages.length>0&&pages.length<=100,'Declare every captured API page')
    if(cfg.format==='json'){need(spec.versions.includes(cfg.apiVersion),'Select a supported captured API version');need(typeof cfg.array==='string'&&/^[A-Za-z][A-Za-z0-9_]*$/.test(cfg.array),'Map a top-level captured data array');need(cfg.pagination&&['page','next','total'].every(k=>typeof cfg.pagination[k]==='string'),'Map captured page/next/total metadata explicitly')}
    const copyIds=new Set<string>()
    for(const [pageIndex,page]of pages.entries()){
     const name=text(page.artifact,'Original source filename',200);need(Object.hasOwn(pkg.files??{},name),'Mapped original artifact is missing: '+name);claimed.add(name)
     let rows:Value[],rowNumbers:number[]|undefined
-    if(cfg.format==='xlsx'){const book=harvestWorkbook(pkg.files[name],cfg.worksheet,cfg.columns.workDate??cfg.columns.date??'Date');rows=book.records.map(r=>r.value);rowNumbers=book.records.map(r=>r.row);if(!bundle.artifacts.some(a=>a.name===name))addArtifact(name,book.bytes)}
+    if(cfg.format==='xlsx'||cfg.format==='xls'){const book=(cfg.format==='xls'?legacyWorkbook:harvestWorkbook)(pkg.files[name],cfg.worksheet,cfg.columns.workDate??cfg.columns.date??'Date');rows=book.records.map(r=>r.value);rowNumbers=book.records.map(r=>r.row);if(!bundle.artifacts.some(a=>a.name===name))addArtifact(name,book.bytes)}
     else if(cfg.format==='csv')rows=parseCsv(pkg.files[name])
     else{need(cfg.format==='json','Use a documented CSV, value-only XLSX or paginated JSON capture');const doc=JSON.parse(pkg.files[name]);rows=doc[cfg.array];need(Array.isArray(rows),'The mapped JSON capture array is missing');const p=cfg.pagination;if(doc[p.page]!==pageIndex+1||doc[p.total]!==pages.length||doc[p.next]!== (pageIndex+1===pages.length?null:pages[pageIndex+1].token))finding(kind,'API pagination is incomplete or out of order')}
     physicalRows+=rows.length;need(physicalRows<=1000,'This measured adapter accepts at most 1000 physical source rows, including repeated reports')
@@ -78,15 +81,17 @@ export function moveInPackage(spec:MoveInSpec,pkg:Value,agencyCurrency:string){
      if(v.from&&v.to)need(v.from<=v.to,'Source period ends before it starts')
      spec.normalize(kind,v,m)
      const day=v.workDate??v.date??v.effective??v.from
+     if(cfg.filters&&typeof cfg.filters==='object'&&day&&(day<cfg.filters.from||day>cfg.filters.to))finding(kind,'Captured row lies outside its declared original report filter',v.id)
      if(day&&!m.windows.some((w:Value)=>w.from<=day&&day<=w.to))finding(kind,'Record lies outside declared source windows',v.id)
      if(v.to&&!m.windows.some((w:Value)=>w.from<=v.to&&v.to<=w.to))finding(kind,'Record ends outside declared source windows',v.id)
      const content=canonicalJson(v),prior=seen.get(v.id)
      if(prior){if(prior!==content)finding(kind,'Repeated report identity has conflicting values; do not sum grouped rows',v.id);continue}
      seen.set(v.id,content);records[kind].push(v)
-     const artifact=bundle.artifacts.find(a=>a.name===name)!;sources.set(kind+':'+v.id,{namespace,kind,sourceId:v.id,payload:v,payloadHash:sha256(content),artifactHash:artifact.sha256,location:{artifact:name,row:rowNumbers?.[index]??index+(cfg.format==='csv'?2:0),...(cfg.format==='xlsx'?{pointer:cfg.worksheet}:cfg.format==='json'?{pointer:cfg.array}:{})}})
+     const artifact=bundle.artifacts.find(a=>a.name===name)!;sources.set(kind+':'+v.id,{namespace,kind,sourceId:v.id,payload:v,payloadHash:sha256(content),artifactHash:artifact.sha256,location:{artifact:name,row:rowNumbers?.[index]??index+(cfg.format==='csv'?2:0),...(['xlsx','xls'].includes(cfg.format)?{pointer:cfg.worksheet}:cfg.format==='json'?{pointer:cfg.array}:{})}})
     }
    }
   }
+  for(const window of m.windows){let cursor=window.from;for(const part of [...coverage].sort((a,b)=>a.from.localeCompare(b.from))){if(part.from>cursor||part.to<cursor)continue;if(part.to>=window.to){cursor='complete';break}cursor=new Date(Date.parse(part.to+'T00:00:00Z')+86400000).toISOString().slice(0,10)}if(cursor!=='complete')finding(kind,'Date filters do not cover every declared historical window')}
  }
  for(const name of artifactNames)need(claimed.has(name),'Every original artifact must have a reviewed mapping: '+name)
  const lookup=(kind:string,id:string)=>records[kind]?.find(v=>v.id===id)

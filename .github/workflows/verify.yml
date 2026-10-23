@@ -46,7 +46,11 @@ jobs:
             mirror=${mirrors[attempt - 1]}
             sudo sed -i -E "s@^(URIs:[[:space:]]*)https?://(([a-z0-9.-]+\.)?archive\.ubuntu\.com|security\.ubuntu\.com|mirrors\.edge\.kernel\.org)/ubuntu/?@\1${mirror}/@" /etc/apt/sources.list.d/ubuntu.sources
             printf 'Chromium apt: attempt %s/3 (mirror %s)\n' "$attempt" "$mirror"
-            if timeout --kill-after=5s 300s pnpm exec playwright install --with-deps chromium; then exit 0; fi
+            if timeout --kill-after=5s 240s pnpm exec playwright install --with-deps chromium; then exit 0; fi
+            # The timeout stops Playwright, not the root apt-get it started, which would still hold the dpkg lock for the next attempt.
+            sudo kill -9 $(pidof apt-get dpkg 2>/dev/null) 2>/dev/null || true
+            sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock
+            sudo dpkg --configure -a || true
             if (( attempt < 3 )); then sleep "$((attempt * 2))"; fi
           done
           printf 'Chromium apt: failed after 3 attempts\n' >&2

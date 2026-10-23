@@ -742,3 +742,26 @@ evidence. `import:scoro:report` takes `namespace` and `groupBy` (`project`, `cli
 or `person`) and returns reconciled controls and source records, including the
 separate raw and billable durations, original offset timestamps and billing links.
 Cutover is a separate MIGRATE-010 obligation and remains unavailable here.
+
+### Teamwork.com source semantics
+
+The same reviewed package protocol uses `provider: "teamwork"`,
+`mappingVersion: "teamwork-v1"` and the `import:teamwork:*` actions. Uploaded JSON
+captures declare `apiVersion: "v1"` or `"v3"`. Timesheet CSV/Excel, invoice
+Excel/accounting exports and capture pages all retain original custody; they
+must reconcile under the same stable identities. See
+`tests/fixtures/teamwork.mjs` for every required semantic object and field.
+
+Time maps positive integer `minutes`, `userWorkDate`, UTC `auditTimestamp`,
+explicit `isbillable`/`isbilled` and optional `invoiceId`; `units.time` is
+`"minutes"`. The work date is never recomputed from the UTC audit timestamp,
+including across DST. Project `archived` is retained source evidence. Task lists,
+subtask `parentId`, dependencies, milestones and proof decisions retain their
+source relationships. A captured proof approval grants no native approval.
+Value-retainer periods carry `familyId`, inclusive dates, signed `openingMinor`,
+`allowanceMinor`, `usedMinor`, `closingMinor`, `carryInMinor` and `carryOutMinor`.
+Opening plus allowance minus use must equal closing and outgoing carry; each
+later period's opening/incoming carry equals the prior signed outgoing carry.
+Project/month source controls reconcile time, invoices, payments, budgets and
+retainer balances. Source retainer periods do not create native recurring bills;
+RETAINER-001 through RETAINER-005 retain their ordinary native review doors.

@@ -141,3 +141,16 @@ payments and quote/history records remain source-owned evidence, not issued or
 settled Gauge records. Undo preserves later edits/approvals and dependencies.
 MIGRATE-010 owns the separate retirement/cutover comparison; CONNECT-013 and other
 connection clauses retain ongoing provider access/sync obligations.
+
+## Teamwork.com move-in
+
+The Teamwork.com section accepts reviewed timesheet CSV/value-only Excel,
+invoice/accounting exports and complete uploaded v1/v3 JSON captures under the
+shared original-custody, currency, coverage, identity and independent-control
+rules above. `tests/fixtures/teamwork.mjs` is a synthetic documented package;
+`tests/gauge-teamwork.mjs` proves the DST-boundary work date versus UTC audit
+instant, archived source project, task/subtask dependencies, billed/unbilled
+minutes, proof approval evidence, signed retainer carry and independent
+project/period financial balances. Source history does not approve native work,
+reactivate provider accounts or issue a native invoice. Explicit native drafts
+still need fresh owner/native review; MIGRATE-010 retains financial cutover.

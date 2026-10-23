@@ -283,7 +283,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "66bb17eeb3f3de945f9fb8c90d627ef583c5257ae227c8b4e1d71126a4e25609",
+      "sha256": "b627d0d88903c7bf649fd45c479d3224a7fa62ce9579c6b86bc5f76f7e8e3107",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -295,7 +295,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "324237658dcfe18f76b06a041211fff8a7ab89686b1e22d89d83b6b5cf14c902",
+      "sha256": "1c34947fc9b7af872f6568230641e3808f4c094c20094636f4a3b88f1f332481",
       "executable": false
     },
     "base-copies.json": {
@@ -307,7 +307,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c64b809e21469877ed3f747413622d5336a73bc3143f7846ec12f1b955d40255",
+      "sha256": "d7694041aca9446841810b40cd26c46052ba7f1308f566c4b59bb63f922ca9cf",
       "executable": false
     },
     "DEMO.md": {
@@ -631,7 +631,7 @@
       "executable": false
     },
     "MOVE-IN.md": {
-      "sha256": "80d07a5ee8b4a2272e9a1c2ed8c2d55c6eafda9592b5418d52a86aaf9913b08e",
+      "sha256": "cf0d672a6560b57ce90bf56ea96b50b1c2e7ee9edfc08e3b458fcf0b70242fe0",
       "executable": false
     },
     "ONBOARDING.md": {

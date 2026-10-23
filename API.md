@@ -765,3 +765,31 @@ later period's opening/incoming carry equals the prior signed outgoing carry.
 Project/month source controls reconcile time, invoices, payments, budgets and
 retainer balances. Source retainer periods do not create native recurring bills;
 RETAINER-001 through RETAINER-005 retain their ordinary native review doors.
+
+### Productive source semantics
+
+`provider: "productive"`, `mappingVersion: "productive-v1"` and
+`import:productive:*` use the same review/journal/report doors. Manager-authorized
+CSV/value-only XLSX table exports and uploaded v2 JSON captures must retain deals,
+phases, service/phase/person rates, bookings, recurring budgets, time versions,
+expenses, invoice attributions and retainer periods. The executable documented
+synthetic format is `tests/fixtures/productive.mjs`.
+
+Every time/current-version row captures its `unit` and it must match
+`units.time`; worked and billable quantities are converted independently into
+exact whole seconds. Each current time revision must reconcile to its retained
+latest version. `draftInvoiced` requires an attribution with the captured draft
+identity, even when there is no invoice number. `invoicedManually` remains a
+billed state without manufacturing a number or native invoice. Either flag blocks
+native rebilling after fresh approval. Each time row's captured `rateId` must
+cover its person/service/phase/work date, and independently captured bill/cost
+values must equal those quantities at the dated override. Retainer opening,
+allowance, use and signed closing balances reconcile separately from recurring
+budget history; neither creates native recurring billing authority.
+
+All incumbent capture adapters now preserve numeric JSON lexemes before mapping
+and reject duplicate keys rather than accepting a rounded/last-key-wins value.
+Money descriptors may explicitly set `moneyUnit: "decimal-major"`; exact decimal
+text with at most two places converts once to integer cents. Otherwise
+`units.money: "minor-units"` (the default) requires whole integer minor units.
+There is no inferred unit, rounded source decimal or currency conversion.

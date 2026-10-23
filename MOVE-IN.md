@@ -154,3 +154,16 @@ minutes, proof approval evidence, signed retainer carry and independent
 project/period financial balances. Source history does not approve native work,
 reactivate provider accounts or issue a native invoice. Explicit native drafts
 still need fresh owner/native review; MIGRATE-010 retains financial cutover.
+
+## Productive move-in
+
+Productive source imports retain current and prior time versions, distinct worked
+and billable quantities, dated rate overrides, unnumbered draft attribution,
+manual invoiced state, recurring budgets and retainer opening/period balances.
+Manager-level CSV/value-only XLSX and complete uploaded API captures require
+explicit units and the same independent source controls; JSON number lexemes and
+duplicate keys are checked before mapping. See API.md and the synthetic package
+`tests/fixtures/productive.mjs`. Imported draft/manual invoice state excludes
+native rebilling without inventing an invoice number. Source financial history
+remains evidence, while separately confirmed native drafts need ordinary native
+terms and approval. MIGRATE-010 retains separate operational cutover.

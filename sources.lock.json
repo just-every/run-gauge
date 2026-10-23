@@ -296,7 +296,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "1c34947fc9b7af872f6568230641e3808f4c094c20094636f4a3b88f1f332481",
+      "sha256": "d8ca70f1f2a0672332da4823a12e42d3496f9e1b0a38d161993c9f2b4803849d",
       "executable": false
     },
     "base-copies.json": {
@@ -636,7 +636,7 @@
       "executable": false
     },
     "MOVE-IN.md": {
-      "sha256": "cf0d672a6560b57ce90bf56ea96b50b1c2e7ee9edfc08e3b458fcf0b70242fe0",
+      "sha256": "134bc6e6398a3320f0d996a33217c5bbf38d309f849a22fab103bf1e5fc67d2a",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1664,7 +1664,7 @@
       "executable": false
     },
     "src/gauge/scoro-import.ts": {
-      "sha256": "10161a4f92a927beb42b5c913ce942dc2717426e458850119c7b029fce338d57",
+      "sha256": "e371a1fecd15c426915e1294b506e83ded985a9c2e0ccf8275f23556999c0fad",
       "executable": false
     },
     "src/gauge/scoro-native.ts": {
@@ -3736,7 +3736,7 @@
       "executable": false
     },
     "tests/fixtures/scoro-journey.mjs": {
-      "sha256": "468074fb10165db53c6eb3eb0a12844e8650e0a08f826c741806a65d4e89737c",
+      "sha256": "e834df7d646818a0d8ed900da308c9f9a03ab4d8216c58f8e990abb70d8e1902",
       "executable": false
     },
     "tests/fixtures/scoro-restore.mjs": {

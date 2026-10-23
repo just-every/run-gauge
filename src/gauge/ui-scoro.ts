@@ -1,0 +1,18 @@
+import type { Bindings } from '../auth.server'
+import { type Actor, finance } from './store'
+import { type Value } from './model'
+import { form,area,input,choices,escape as e,decision,check } from './ui-forms'
+import { moveInSpecs } from './scoro-import'
+export async function moveInSection(env:Bindings,a:Actor,options:Value,provider:string){
+ if(!finance(a))return ''
+ const name=moveInSpecs[provider].name,action=(verb:string)=>`import:${provider}:${verb}`,p=options.moveInPreview?.provider===provider?options.moveInPreview:null,r=options.moveInReport?.provider===provider?options.moveInReport:null
+ let html=`<section id="${provider}-import"><h2>${e(name)} move-in</h2><p class="g-note">Review original exports, exact units, complete coverage, source relationships and independent controls. Source finance stays historical evidence. Native core and time drafts require explicit owner confirmation and fresh approval. No access or cutover authority is imported.</p>`
+ html+=form(action('preview'),`Review ${name} exports`,area('package',`${name} package JSON`),undefined,`Preview ${name} import`)
+ if(p){html+=`<section id="${provider}-preview" class="g-card"><h3>Source reconciliation</h3><p>${p.canApply?'Every declared source control reconciles.':'Resolve every finding before applying.'}</p><p>${e(p.currency)} · ${e(p.timezone)} · ${p.nativeDrafts?'Reviewed native drafts included':'Historical evidence only'}</p><dl>${Object.entries(p.counts).map(([k,n])=>`<div><dt>${e(k)}</dt><dd>${e(n)}</dd></div>`).join('')}</dl><ul>${p.findings.map((f:Value)=>`<li>${e(f.kind)} ${e(f.sourceId)}: ${e(f.reason)}</li>`).join('')}</ul><details><summary>Independent project and period controls</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${e(JSON.stringify(p.financial,null,2))}</pre></details></section>`;if(p.canApply)html+=form(action('create'),`Apply reviewed ${name} import`,`<input type="hidden" name="package" value="${e(JSON.stringify(p.package))}"><input type="hidden" name="fingerprint" value="${e(p.fingerprint)}">`+(p.nativeDrafts?check('confirm','Adopt only the reviewed native drafts; source finance remains evidence.',false,'adopt-reviewed-native-drafts'):''),undefined,`Apply first ${name} batch`)}
+ const jobs=(await env.DB.prepare('SELECT id,namespace,state,checkpoint,total FROM ik_jobs WHERE principal_id=? AND destination=? ORDER BY rowid DESC').bind(a.session.operator.id,'gauge-'+provider).all<any>()).results
+ for(const j of jobs){const row={id:j.id,revision:'',value:j};html+=`<article class="g-card"><h3>${e(name)} import · ${e(j.state)}</h3><p>${e(j.namespace)} · ${j.checkpoint} of ${j.total} source records</p><div class="g-row-actions">${decision(action('resume'),'Continue import',row,false,'secondary')}${decision(action('rollback'),'Roll back partial import',row,false,'secondary')}${decision(action('undo'),'Undo untouched import',row,false,'secondary')}<a href="/api/gauge/imports/${e(j.id)}">Download original artifacts and reviewed map</a></div></article>`}
+ if(jobs.length)html+=form(action('report'),`Reconcile ${name} source history`,input('namespace','Source account',p?.namespace??jobs[0].namespace)+choices('groupBy','Group source controls by',['project','client','person'],'project'),undefined,`Read ${name} source controls`)
+ if(r)html+=`<section id="${provider}-report" class="g-card"><h3>Historical source controls by ${e(r.groupBy)}</h3><p>${e(r.meaning)}</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${e(JSON.stringify(r.groups,null,2))}</pre></section>`
+ return html+'</section>'
+}
+export const scoroSection=(env:Bindings,a:Actor,options:Value)=>moveInSection(env,a,options,'scoro')

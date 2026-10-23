@@ -281,7 +281,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "16c8780eaa95537a8864eb1abc942a1d0118f337a2357bd9acbbaf944c17c2d2",
+      "sha256": "17911514bd1eac762ec6ee56ba3c389d75d5bc302eb3fa8422a7b72c1be7e773",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -305,7 +305,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5d94e9c04900e19144686b0583dbca1fcb3f8410447f7b0b3caf0de03b18fa9e",
+      "sha256": "1b5fe94b8388ed248ae57d0b2b5a0b37660be16d00fdb8522b569efd5f56120d",
       "executable": false
     },
     "DEMO.md": {
@@ -929,7 +929,7 @@
       "executable": false
     },
     "scripts/gauge-tests.mjs": {
-      "sha256": "660bfdcd4cae34c8deb7450383822bdc35312257b65d3e62df09e59e61e2cde3",
+      "sha256": "a9008d915b4009297058d86b233835b0c543a36e358e7acb69352f86b0936050",
       "executable": false
     },
     "scripts/install.mjs": {
@@ -1305,15 +1305,15 @@
       "executable": false
     },
     "src/gauge/http.ts": {
-      "sha256": "d4b4993881527a0ace92c781af299474ba49c7c77c892a99812fed306c6295fa",
+      "sha256": "4188fdbf382173202c77082eeed0a2230438d0f10f87db68f1bca2b67663ae63",
       "executable": false
     },
     "src/gauge/import-targets.ts": {
-      "sha256": "853c306fc2462ad75c343e90d5ae0d4ccc5706acf0dd8580290943d41f1aa869",
+      "sha256": "f3996c006d4e2a963bd7c213e31d9e3674df726452f18a8220064f54a02107d1",
       "executable": false
     },
     "src/gauge/imports.ts": {
-      "sha256": "9ed451a052c6d93a61bf705c8273605db963f7cebe7fb4a8893ff4f6988ccca5",
+      "sha256": "3b2e4cefc65b1e45d4dd05b9dae29a9cd05ace60512413bbcba55f5e9df16d57",
       "executable": false
     },
     "src/gauge/invoice-corrections.ts": {
@@ -1933,7 +1933,7 @@
       "executable": false
     },
     "src/gauge/ui.ts": {
-      "sha256": "84fd6cfc79b977784eb2d9e8a89cae76f5ca0a489e1e968aad1a22aab735f386",
+      "sha256": "91c6da2da709fdb9f4258ec6f3eb46f1ec815dcf863728648903730d54b1152d",
       "executable": false
     },
     "src/gauge/utilization.ts": {

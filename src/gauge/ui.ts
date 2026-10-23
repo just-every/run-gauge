@@ -1,3 +1,4 @@
+import { scoroSection } from './ui-scoro'
 import { kantataSection } from './ui-kantata'
 import { agencySection, consolidationSection } from './ui-agency'
 import { casesSection } from './ui-operational-cases'
@@ -59,7 +60,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  if(section==='access')body+=privacySection(a,report,options)
  if(section==='imports')body+=await consolidationSection(env,a)
  if(section==='review')body+=casesSection(a,report,options)
- if(section==='imports')body+=await kantataSection(env,a,report,options)
+ if(section==='imports')body+=await kantataSection(env,a,report,options)+await scoroSection(env,a,options)
  if(['review','engagements','capacity','billing'].includes(section))body+=reportEvidence(report,options.calculation)
  const notice=await agentNotice(env,a,report,zone,today)
  await fence(env,a)

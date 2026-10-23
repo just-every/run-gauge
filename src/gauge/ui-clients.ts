@@ -2,7 +2,8 @@
 // or external ID, the client form with its contacts, addresses, tax, PO, tag and external-ID fields, and, on a
 // client's edit view, the merge of that duplicate into a surviving client.
 import type { Row, Value } from './model'
-import { escape as e, input as i, area, check, form, table, open } from './ui-forms'
+import { currencies } from './agency'
+import { escape as e, input as i, area, check, choices, form, table, open } from './ui-forms'
 import type { Report } from './ui-describe'
 import { searchClients, termsLabel } from './clients'
 
@@ -17,6 +18,7 @@ export function clientsTable(d: Report['data']) {
  const merged = d.clients.filter(r => r.value.merge)
  return table('Clients', activeClients(d.clients), [
   { label: 'Client', line: 1, cell: r => open('engagements', r, r.value.name) },
+  { label: 'Billing currency', line: 2, cell: r => e(r.value.billingCurrency ?? 'Legacy agency currency') },
   { label: 'Payment terms', line: 2, cell: r => e(termsLabel(r.value)) },
   { label: 'Projects', num: true, line: 2, cell: r => String(projects(d, r.id)) },
  ]) + (merged.length ? `<p class="g-note">Merged: ${merged.map(r => `${e(r.value.name)} into ${e(d.clients.find(c => c.id === r.value.merge.into)?.value.name ?? 'another client')} (${e(r.value.merge.reason)})`).join('; ')}</p>` : '')
@@ -29,9 +31,10 @@ export function clientSearchSection(d: Report['data'], query: unknown) {
  return `<section class="g-card" id="client-search"><h2>Find a client</h2><form class="g-form" method="get" action="/app/engagements#client-search">${i('clientSearch', 'Name, PO number or external ID', q)}<div class="g-actions"><button class="g-btn g-btn--secondary">Search</button></div></form>${found}</section>`
 }
 
-export function clientForm(row?: Row,custom='') {
+export function clientForm(row?: Row,custom='',defaultCurrency='USD') {
  const v = row?.value ?? {}
  return form('save:clients', 'Client', i('name', 'Client name', v.name) + i('legalName', 'Legal name', v.legalName ?? '', 'text', false)
+  + choices('billingCurrency', 'Default billing currency', [...currencies], v.billingCurrency ?? defaultCurrency)
   + i('paymentTermsDays', 'Payment terms (Net days)', v.paymentTermsDays ?? '', 'number', false) + i('daysLate', 'Approved average days late', v.daysLate ?? '', 'number', false) + i('collectionPercent', 'Collection probability (%)', v.collectionPercent ?? 100, 'number', false)
   + area('contacts', 'Contacts, one per line: billing or project; name; email; phone', contactLines(v), false)
   + area('addresses', 'Addresses, one per line: billing, legal or project; line 1; line 2; city; state; postal code; country', addressLines(v), false)

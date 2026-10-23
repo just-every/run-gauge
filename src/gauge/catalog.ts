@@ -1,5 +1,5 @@
 import type { Bindings } from '../auth.server'
-import { type Value, type Kind, type Row, need, text, integer, money, date, zone, flag, sum } from './model'
+import { type Value, type Kind, type Row, need, text, integer, money, date, zone, flag, sum, workDate } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
 import { saveAgentScope } from './agent-grants'
 import { resourceProfile } from './resource-profiles'
@@ -7,8 +7,11 @@ import { rateCard } from './rate-cards'
 import { normalizePhases, phaseFor } from './budget-phases'
 import { latestBudget } from './budget-caps'
 import { estimateLineage } from './estimate-attestation'
+import { currencies } from './agency'
+import { calendarFields, protectCalendar } from './work-calendar'
 import { activeClient, claimIdentities, clientDetails } from './clients'
 export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | Value | null> {
+ let calendarParent:Row|undefined
  if (action === 'grant') {
   need(a.role === 'owner', 'Only the owner assigns access', 403)
   const operatorId = text(input.operatorId, 'Operator')
@@ -24,6 +27,19 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   tx.audit('grant', 'grants', operatorId, { personId, role: input.role, enabled: flag(input.enabled), ...scope })
   return { granted: true }
  }
+ if (action === 'calendar:change') {
+  need(finance(a), 'Finance access required', 403)
+  const old = await get(env, 'calendars', text(input.id, 'Calendar'))
+  need(old.revision === input.revision, 'Calendar changed; reload', 409)
+  const from = date(input.from)
+  need(from > workDate(Date.now(), old.value.timezone) && from > old.value.from && from <= old.value.to, 'Choose a future effective date inside this calendar', 409)
+  const before = new Date(Date.parse(from+'T00:00:00Z')-86400000).toISOString().slice(0,10)
+  await tx.record('calendars', {...old.value, to: before}, old, undefined, action)
+  calendarParent=old
+  const remaining=(raw:unknown)=>(Array.isArray(raw)?raw:String(raw??'').split(',').map(s=>s.trim()).filter(Boolean)).map(date).filter(d=>d>=from)
+  input = {...old.value, ...input, id: undefined, revision: undefined, from, to: old.value.to, personId: old.value.personId, holidays:remaining(input.holidays??old.value.holidays),workdays:remaining(input.workdays??old.value.workdays)}
+  action = 'save:calendars'
+ }
  if (!action.startsWith('save:')) return null
  const k = action.slice(5) as Kind
  need(['clients','people','engagements','budgets','milestones','rates','calendars','leave','staffing'].includes(k), 'Unsupported editor')
@@ -38,6 +54,8 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   if (k === 'clients') {
    need(!previous?.value.merge, 'This client was merged into another client; edit the surviving client', 409)
    const days = (key: string, label: string) => input[key] === undefined ? previous?.value[key] ?? null : input[key] === '' || input[key] === null ? null : integer(input[key], label, 0, 365)
+   v.billingCurrency = input.billingCurrency || previous?.value.billingCurrency || a.currency
+   need(currencies.includes(v.billingCurrency), 'Choose a supported billing currency')
    v.paymentTermsDays = days('paymentTermsDays', 'Payment terms days'); v.daysLate = days('daysLate', 'Days late')
    v.daysLateApprovedBy = v.daysLate === null ? null : v.daysLate === (previous?.value.daysLate ?? null) ? previous?.value.daysLateApprovedBy ?? a.session.operator.id : a.session.operator.id
    v.collectionPercent = input.collectionPercent === undefined ? previous?.value.collectionPercent ?? 100 : input.collectionPercent === '' ? 100 : integer(input.collectionPercent, 'Collection probability percent', 0, 100)
@@ -50,10 +68,22 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   need(['client','internal'].includes(v.type),'Choose client or internal work')
   need(!previous || v.type === (previous.value.type ?? 'client'),'Engagement type cannot change; create a separate engagement')
   v.clientId = null
-  if (v.type === 'client') { const client = await activeClient(env,input.clientId); tx.observe('clients',client); v.clientId=client.id }
+  let clientCurrency = a.currency
+  if (v.type === 'client') { const client = await activeClient(env,input.clientId); tx.observe('clients',client); v.clientId=client.id; clientCurrency=client.value.billingCurrency ?? a.currency }
   else { need(!input.clientId,'Internal work has no client'); need(['admin','sales','training','PTO','other'].includes(input.internalCategory),'Choose an internal category'); v.internalCategory=input.internalCategory }
   const lead = await get(env,'people',text(input.leadId,'Lead')); tx.observe('people',lead)
-  v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = previous ? previous.value.currency : a.currency; v.timezone = zone(input.timezone)
+  v.leadId = lead.id; v.name = text(input.name,'Name',200); v.scope = text(input.scope,'Scope'); v.currency = input.currency || previous?.value.currency || clientCurrency;
+  need(currencies.includes(v.currency), 'Choose a supported billing currency')
+  if (previous && v.currency !== previous.value.currency) {
+   need(!previous.value.estimateId, 'Currency is locked by an accepted commercial estimate', 409)
+   for (const kind of ['budgets','retainers','invoices','packets','time','milestones'] as const) {
+    const rows = (await all(env, kind)).filter(r => r.value.engagementId === previous.id)
+    for(const row of rows)tx.observe(kind,row)
+    need(!rows.some(r => kind === 'retainers' || kind === 'invoices' || r.value.status === 'approved' || !!r.value.economics), 'Currency is locked by approved commercial work', 409)
+    tx.guard(`(SELECT COUNT(*) FROM g_${kind} WHERE json_extract(data,'$.engagementId')=?)=?`, previous.id, rows.length)
+   }
+  }
+  v.timezone = zone(input.timezone)
   v.members = Array.isArray(input.members) ? input.members : String(input.members ?? '').split(',').filter(Boolean)
   for (const id of v.members) tx.observe('people',await get(env,'people',id))
   Object.assign(v,estimateLineage(previous?.value))
@@ -94,8 +124,11 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
    need(Array.isArray(holidays) || typeof holidays==='string','Use holiday dates')
    v.holidays = [...new Set((Array.isArray(holidays)?holidays:holidays.split(',').map((s:string)=>s.trim()).filter(Boolean)).map(date))].sort()
    need(v.holidays.every((day:string)=>day>=v.from&&day<=v.to),'Holiday dates must be inside the calendar period')
+   Object.assign(v, await calendarFields(env, tx, input, v, previous))
+   if(calendarParent){v.previousCalendarId=calendarParent.id;v.agencyCalendarId=calendarParent.value.agencyCalendarId??null}
+   if (previous) protectCalendar(previous.value, v, previous.value.timezone)
    tx.guard("NOT EXISTS(SELECT 1 FROM g_calendars WHERE person_id=? AND id<>? AND json_extract(data,'$.from')<=? AND json_extract(data,'$.to')>=?)",p.id,previous?.id ?? '',v.to,v.from) }
-  if (k === 'leave') { v.dailySeconds = integer(input.dailySeconds,'Leave seconds per day',0,86400); v.note = text(input.note,'Leave reason') }
+  if (k === 'leave') { need(!previous?.value.status, 'Use the reviewed leave decision controls', 409); v.dailySeconds = integer(input.dailySeconds,'Leave seconds per day',0,86400); v.note = text(input.note,'Leave reason') }
   if (k === 'staffing') { v.dailySeconds = integer(input.dailySeconds,'Allocation seconds per day',0,86400); need(['tentative','committed'].includes(input.commitment),'Choose tentative or committed'); v.commitment = input.commitment
    need(input.resourceRequestId===undefined,'Request links are created only by approving an open request')
    if(previous?.value.resourceRequestId)v.resourceRequestId=previous.value.resourceRequestId
@@ -110,7 +143,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   if(latest){tx.observe('deliveryPlans',latest);tx.guard('(SELECT COUNT(*) FROM g_deliveryPlans)=?',plans.length)}
   need(!latest?.value.schedule.nodes.some((n:Value)=>n.staffingIds.includes(previous.id)),'This booking belongs to the approved delivery baseline; preview schedule changes first',409)
  }
- if (v.currency !== undefined) need(input.currency === undefined || input.currency === v.currency, 'Currency differs from record; no implicit FX')
+ if (v.currency !== undefined) need(input.currency === undefined || input.currency === '' || input.currency === v.currency, 'Currency differs from record; no implicit FX')
  return tx.record(k,v,previous)
 }
 export async function approveTerms(env: Bindings,a: Actor,tx: Transaction, k: 'budgets'|'milestones', input: Value) {
@@ -118,7 +151,7 @@ export async function approveTerms(env: Bindings,a: Actor,tx: Transaction, k: 'b
  const row = await get(env,k,text(input.id,'Record')); need(row.revision === input.revision,'Revision changed',409); const e = await access(env,a,row.value.engagementId,true); tx.observe('engagements',e)
  need(row.value.status === 'draft','Already reviewed',409)
  // Older milestones inherit their engagement's currency; saved historical rows are left intact.
- need((row.value.currency ?? (k === 'milestones' ? e.value.currency : undefined)) === e.value.currency, 'Terms currency differs from engagement; no implicit FX')
+ need((row.value.currency ?? (k === 'milestones' ? e.value.currency : undefined)) === e.value.currency, 'Terms currency differs from engagement; no implicit FX', 409)
  need(input.currency === undefined || input.currency === e.value.currency, 'Currency differs from engagement; no implicit FX')
  if(k==='budgets'){const prior=latestBudget(await all(env,'budgets'),e.id);if(prior?.value.phases?.length){for(const phase of prior.value.phases){const next=row.value.phases?.find((p:Value)=>p.key===phase.key);need(next&&next.mode===phase.mode&&next.service===phase.service,'Retain each approved phase identity, service and billing basis; transfer allowances with a new version',409)}}}
  if(k==='budgets'&&row.value.phases?.length){const keys=new Set(row.value.phases.map((p:Value)=>p.key));need(!(await all(env,'retainers')).some(r=>r.value.engagementId===e.id),'Retainer and phase commercial bases must be separate engagements');for(const kind of ['time','expenses','staffing','milestones'] as const){const rows=(await all(env,kind)).filter(r=>r.value.engagementId===e.id);for(const r of rows){if(kind==='time'&&r.value.economics)need(row.value.phases.find((p:Value)=>p.key===r.value.phaseKey)?.mode===r.value.economics.mode,'Keep the frozen billing basis of approved phase time',409);need(keys.has(r.value.phaseKey),'Assign every existing work source to a retained phase before approving phase budgets',409);tx.observe(kind,r)}tx.guard(`(SELECT COUNT(*) FROM g_${kind} WHERE engagement_id=?)=?`,e.id,rows.length)}}

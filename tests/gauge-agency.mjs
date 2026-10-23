@@ -87,6 +87,8 @@ export async function agencyJourney(h, page, capture) {
  await cmd('estimate:approve', { ...quote, attest: 'owner-recorded-external-acceptance', acceptorName: 'Rae Brooks', acceptorContact: 'synthetic-gauge-34', acceptanceDate: '2026-03-05', channel: 'email', evidenceRef: 'synthetic-gauge-35', reason: 'Owner records reported acceptance' })
  const engagement = await cmd('estimate:convert', quote); data = await state()
  assert.equal(data.data.engagements.find(e => e.id === engagement.id).value.currency, 'USD')
+ const acceptedWork=data.data.engagements.find(e=>e.id===engagement.id)
+ await cmd('save:engagements',{...acceptedWork,...acceptedWork.value,currency:'CAD'},owner,409)
  await cmd('budget:approve', data.data.budgets.find(b => b.value.engagementId === engagement.id))
  const task = data.data.tasks.find(t => t.value.engagementId === engagement.id), entries = []
  for (const [start, end] of [['2026-03-08T01:00:00-05:00', '2026-03-08T04:00:00-04:00'], ['2026-03-09T09:00:00-04:00', '2026-03-09T13:00:00-04:00']]) {
@@ -102,4 +104,59 @@ export async function agencyJourney(h, page, capture) {
  assert.equal(issued.totalMinor, quoted.totalMinor, 'The invoice equals the quote')
  await page.goto(h.origin + '/app/billing'); assert.match(await page.locator('main').innerText(), /\$900\.00/); await capture('invoice')
  console.log('PASS SETUP-001 agency profile privacy → workweek → old AUD import stays AUD until an approved rate → USD quote and invoice across the spring-forward')
+}
+
+// SETUP-003 native billing currencies, exact invoice values and labelled dated conversion.
+export async function clientCurrencyJourney(h, page, capture) {
+ const {cmd,state}=h,zone=(await state()).agency.timezone,person=await cmd('save:people',{name:'Casey Currency',timezone:zone})
+ const currencies=[]
+ for(const [name,currency,amount] of [['Toronto Studio','CAD',1000000],['New York Studio','USD',500000],['London Studio','GBP',10000]]) {
+  const client=await cmd('save:clients',{name,billingCurrency:currency})
+  let engagement=await cmd('save:engagements',{name:name+' delivery',clientId:client.id,leadId:person.id,members:[person.id],scope:'Independent delivery',timezone:zone})
+  let row=(await state()).data.engagements.find(r=>r.id===engagement.id)
+  assert.equal(row.value.currency,currency,'New work inherits its client currency')
+  if(currency==='CAD') {
+   await page.goto(h.origin+'/app/engagements?edit='+engagement.id)
+   const form=page.locator('form').filter({has:page.locator('[name=action][value="save:engagements"]')})
+   await form.locator('[name=currency]').selectOption('USD');await form.getByRole('button',{name:'Save',exact:true}).click()
+   row=(await state()).data.engagements.find(r=>r.id===engagement.id);assert.equal(row.value.currency,'USD', await page.locator('main').innerText())
+   engagement=await cmd('save:engagements',{...row,...row.value,currency:'CAD'})
+   await page.goto(h.origin+'/app/engagements?edit='+client.id)
+   assert.equal(await page.getByLabel('Default billing currency').inputValue(),'CAD');await capture('client-currency')
+   await page.goto(h.origin+'/app/engagements?edit='+engagement.id);await capture('engagement-currency')
+  }
+  const task=await cmd('save:tasks',{engagementId:engagement.id,name:'Delivery',remainingSeconds:0})
+  await cmd('save:rates',{engagementId:engagement.id,service:'*',effective:'2026-10-01',billMinor:amount})
+  const card=(await state()).data.rates.at(-1);assert.equal(card.value.currency,currency)
+  await cmd('budget:approve',await cmd('save:budgets',{engagementId:engagement.id,mode:'hourly',amountMinor:amount,effortSeconds:3600,roundingSeconds:1,reason:'Approved client-currency work'}))
+  row=(await state()).data.engagements.find(r=>r.id===engagement.id)
+  await cmd('save:engagements',{...row,...row.value,currency:currency==='USD'?'CAD':'USD'},h.owner,409)
+  const entry=await cmd('time:approve',await cmd('time:submit',await cmd('time:save',{personId:person.id,engagementId:engagement.id,taskId:task.id,service:'Delivery',notes:'One hour of agreed delivery',timezone:zone,billable:true,start:`2026-10-08T${String(9+currencies.length).padStart(2,'0')}:00:00-04:00`,end:`2026-10-08T${String(10+currencies.length).padStart(2,'0')}:00:00-04:00`})))
+  const packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:engagement.id,title:name+' October delivery',sources:['time:'+entry.id]}))
+  const invoice=await cmd('invoice:issue',{...packet,issueDate:'2026-10-09',dueDate:'2026-11-08',billTo:name,remitTo:'Studio operating account',reference:'October delivery'})
+  currencies.push((await state()).data.invoices.find(r=>r.id===invoice.id))
+  const c=(await state()).data.clients.find(r=>r.id===client.id)
+  await cmd('save:clients',{...c,...c.value,billingCurrency:currency==='CAD'?'USD':currency})
+  assert.equal((await state()).data.engagements.find(r=>r.id===engagement.id).value.currency,currency,'A later client default never relabels saved work')
+ }
+ const raceClient=await cmd('save:clients',{name:'Commercial approval race',billingCurrency:'USD'})
+ const raceEngagement=await cmd('save:engagements',{name:'Currency review race',clientId:raceClient.id,leadId:person.id,members:[person.id],scope:'Review one commercial basis',timezone:zone})
+ const draft=await cmd('save:budgets',{engagementId:raceEngagement.id,mode:'hourly',amountMinor:10000,effortSeconds:3600,roundingSeconds:1,reason:'Review currency once'})
+ const raceRow=(await state()).data.engagements.find(r=>r.id===raceEngagement.id)
+ const outcomes=await Promise.all([h.post('/api/gauge/command',{key:crypto.randomUUID(),action:'save:engagements',...raceRow,...raceRow.value,currency:'CAD'},h.owner),h.post('/api/gauge/command',{key:crypto.randomUUID(),action:'budget:approve',...draft},h.owner)])
+ assert.deepEqual(outcomes.map(r=>r.status).sort(),[200,409],'Commercial approval and a currency change cannot both commit')
+ const raced=await state(),agreed=raced.data.budgets.find(r=>r.id===draft.id),work=raced.data.engagements.find(r=>r.id===raceEngagement.id)
+ if(agreed.value.status==='approved')assert.equal(work.value.currency,agreed.value.currency)
+ await cmd('save:clients',{name:'Unsupported',billingCurrency:'JPY'},h.owner,400)
+ await cmd('fx:approve',{currency:'CAD',rate:'0.7300',effective:'2026-10-01',source:'Published rate synthetic-gauge-45',reason:'October reporting'})
+ const window={basis:'issued-invoices',from:'2026-10-01',to:'2026-10-31'},october=await cmd('fx:consolidate',window)
+ assert.deepEqual(october.buckets.map(b=>[b.currency,b.amountMinor,b.convertedMinor]),[['CAD',1000000,730000],['GBP',10000,null],['USD',500000,500000]])
+ assert.deepEqual([october.consolidatedMinor,october.knownMinor,october.missingRates],[null,1230000,['GBP']])
+ assert.deepEqual(october.buckets[0].conversions.map(c=>[c.rate,c.effective,c.sourceMinor,c.convertedMinor]),[['0.7300','2026-10-01',1000000,730000]])
+ await cmd('fx:approve',{currency:'CAD',rate:'0.7400',effective:'2026-11-01',source:'Published rate synthetic-gauge-46',reason:'November reporting'})
+ assert.deepEqual(await cmd('fx:consolidate',window),october,'November rate leaves October figures unchanged')
+ for(const invoice of currencies)assert.deepEqual((await state()).data.invoices.find(r=>r.id===invoice.id),invoice,'Conversion never changes an issued document')
+ await page.goto(h.origin+'/app/imports');assert.match(await page.locator('main').innerText(),/Issued invoice currency totals/);await capture('invoice-consolidation')
+ await page.goto(h.origin+'/app/rates');await capture('client-currency-rates')
+ console.log('PASS SETUP-003 client defaults, pre-commercial engagement override and lock, scoped CAD rates, CAD and USD native invoices, labelled 0.7300 conversion, November stability and missing GBP rate')
 }

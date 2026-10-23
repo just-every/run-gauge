@@ -14,8 +14,8 @@ const work = {
  milestones: ['engagementId','name','due','status'],
 }
 const scheduling = {
- calendars: ['personId','from','to','dailySeconds','weekdays','holidays','timezone'],
- leave: ['personId','from','to','dailySeconds'],
+ calendars: ['personId','from','to','dailySeconds','weekdays','weekdaySeconds','holidays','timezone'],
+ leave: ['personId','from','to','dailySeconds','status'],
  staffing: ['engagementId','personId','from','to','dailySeconds','commitment'],
 }
 export const agentFields: Record<string, Partial<Record<Kind, readonly string[]>>> = {

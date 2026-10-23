@@ -40,10 +40,11 @@ export async function agencySection(env: Bindings, a: Actor, report: Report) {
 /** Finance's read of what can be consolidated: each currency, its approved rate and date, and what stays unconverted. */
 export async function consolidationSection(env: Bindings, a: Actor) {
  if (!finance(a)) return ''
- const c = await consolidate(env, a, {})
+ const c = await consolidate(env, a, {}), issued = await consolidate(env, a, {basis:'issued-invoices'})
  const summary = c.complete ? (c.buckets.length ? `Consolidated approved value: ${e(money(c.consolidatedMinor, c.reportingCurrency))}, every amount converted at its labelled rate.` : 'No approved time or expenses yet.')
   : `Not consolidated: no approved ${c.missingRates.map(e).join(', ')} rate for ${c.missingRates.length === 1 ? 'its' : 'their'} work dates. Those amounts stay in their own currency, never as zero; the owner approves a rate on Access. Converted so far: ${e(money(c.knownMinor, c.reportingCurrency))}.`
- return table('Currency consolidation', c.buckets.map(b => ({ id: `consolidation-${b.currency}`, revision: '', value: b })), [
+ const invoiceSummary = `<section class="g-card"><h2>Issued invoice currency totals</h2><p>Face values before credits and receipts. ${issued.complete ? `In ${e(issued.reportingCurrency)}: ${e(money(issued.consolidatedMinor, issued.reportingCurrency))}` : 'Incomplete: an issued amount has no approved dated rate.'}</p><ul>${issued.buckets.map(b => `<li>${e(money(b.amountMinor,b.currency))} → ${b.convertedMinor == null ? 'Unconverted' : e(money(b.convertedMinor,issued.reportingCurrency))} · ${b.conversions.map((c:any)=>e(`${c.rate} from ${c.effective} (${c.source})`)).join('; ') || e(b.status)}</li>`).join('')}</ul></section>`
+ return invoiceSummary + table('Currency consolidation', c.buckets.map(b => ({ id: `consolidation-${b.currency}`, revision: '', value: b })), [
   { label: 'Currency', cell: r => e(r.value.currency) },
   { label: 'Approved value', num: true, cell: r => e(money(r.value.amountMinor, r.value.currency)) },
   { label: `In ${c.reportingCurrency}`, num: true, cell: r => r.value.convertedMinor == null ? 'Not converted' : e(money(r.value.convertedMinor, c.reportingCurrency)) },

@@ -33,8 +33,9 @@ export async function periodPreview(env:Bindings,a:Actor,input:Value,tx?:Transac
   let expected=0,known=false
   for(let day=window.from;day<=window.to;day=plus(day,1)){
    const c=data.calendars.find(c=>c.value.personId===person.id&&c.value.from<=day&&c.value.to>=day);if(!c)continue;known=true
-   if(!c.value.weekdays.split(',').includes(String(new Date(day+'T00:00:00Z').getUTCDay()))||c.value.holidays?.includes(day))continue
-   const leave=sum(data.leave.filter(l=>l.value.personId===person.id&&l.value.from<=day&&l.value.to>=day).map(l=>l.value.dailySeconds));expected+=Math.max(0,c.value.dailySeconds-leave)
+   const weekday=new Date(day+'T00:00:00Z').getUTCDay(),base=c.value.weekdaySeconds?c.value.weekdaySeconds[weekday]:c.value.weekdays.split(',').includes(String(weekday))?c.value.dailySeconds:0
+   if(!base||c.value.holidays?.includes(day))continue
+   const leave=sum(data.leave.filter(l=>(!l.value.status||l.value.status==='approved')&&l.value.personId===person.id&&l.value.from<=day&&l.value.to>=day).map(l=>l.value.dailySeconds));expected+=Math.max(0,base-leave)
   }
   if(!known)unknownCalendars.push(person.id)
   const recorded=sum(time.filter(t=>t.value.personId===person.id&&t.value.durationSeconds>0).map(t=>t.value.durationSeconds))

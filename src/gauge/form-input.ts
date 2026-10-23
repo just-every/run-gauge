@@ -77,6 +77,7 @@ export function formInput(form: FormData): Value {
   else continue
   delete input[key]
  }
+ if (['save:calendars','calendar:change'].includes(input.action) && input.weekday0Seconds !== undefined) { input.weekdaySeconds = [0,1,2,3,4,5,6].map(n => input['weekday'+n+'Seconds']); input.weekdays = input.weekdaySeconds.map((v:number,n:number)=>v>0?String(n):'').filter(Boolean).join(',') || '1' }
  if(input.action==='commercial:prepare'){
   input.deliverables=String(input.deliverables??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean)
   input.exclusions=String(input.exclusions??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean)

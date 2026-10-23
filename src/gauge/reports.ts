@@ -45,6 +45,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  value=visibleCustom(a,k,value)
  if(k==='deliveryTemplates')value={...value,items:value.items.map((item:Value)=>visibleCustom(a,'tasks',item))}
  if(k==='savedReports'&&!savedVisible(a,value))return {}
+ if (k === 'leave' && value.requestedBy) value = {...value, note: value.personId === a.personId ? value.note : 'Private leave', conflicts: (value.conflicts ?? []).filter((c:Value) => finance(a) || c.leadId === a.personId)}
  if (finance(a)) return value
  if(k==='budgetAlerts'){const {actual,budget,...alert}=value;return alert}
  if(k==='retainerCloses'||k==='retainerAdjustments')return correctionValue(a,k,value)
@@ -64,6 +65,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  data.customFields=data.customFields.filter(f=>canField(a,f));data.customImports=finance(a)?data.customImports:[];data.savedReports=data.savedReports.filter(r=>savedVisible(a,r.value))
  for(const k of ['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.kantataRecords=finance(a)?data.kantataRecords:[]
+ data.leave=data.leave.map(r=>({...r,value:redact(a,'leave',r.value)}))
  data.fxRates=finance(a)?data.fxRates:[];data.agencyProfiles=finance(a)?data.agencyProfiles.map(r=>({...r,value:redact(a,'agencyProfiles',r.value)})):[]
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
  for(const k of ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups'] as const)data[k]=a.role==='owner'?data[k]:[]
@@ -102,6 +104,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   data.billabilityTargets=data.billabilityTargets.filter(r=>r.value.scope==='person'?personIds.has(r.value.personId):data.people.some(p=>String(p.value.role??'').trim()===r.value.role))
   for (const k of Object.keys(data) as Kind[]) data[k]=data[k].map(r=>({...r,value:redact(a,k,r.value)}))
  }
+ if(!finance(a)) data.leave=data.leave.map(r=>({...r,value:{...r.value,conflicts:(r.value.conflicts??[]).filter((c:Value)=>data.engagements.some(e=>e.id===c.engagementId&&e.value.leadId===a.personId))}}))
  const clientIds=new Set([...data.engagements,...data.opportunities].map(r=>r.value.clientId)); if(!finance(a))data.clients=data.clients.filter(r=>clientIds.has(r.id))
  await fence(env,a); return data
 }
@@ -112,11 +115,11 @@ export function capacity(data: Pick<Awaited<ReturnType<typeof visible>>,'people'
   for (let ms=Date.parse(from);ms<=Date.parse(to);ms+=86400000) {
    const day=new Date(ms).toISOString().slice(0,10),weekday=String(new Date(ms).getUTCDay())
    const c=data.calendars.find(r=>r.value.personId===person.id && r.value.from<=day && r.value.to>=day)
-   const workingDay=c?c.value.weekdays.split(',').includes(weekday):null
+   const workingDay=c?(c.value.weekdaySeconds ? c.value.weekdaySeconds[weekday] > 0 : c.value.weekdays.split(',').includes(weekday)):null
    const holiday=!!c?.value.holidays?.includes(day)
-   const base=c?(workingDay?c.value.dailySeconds:0):null
+   const base=c?(c.value.weekdaySeconds ? c.value.weekdaySeconds[weekday] : workingDay?c.value.dailySeconds:0):null
    const holidaySeconds=holiday?(base??0):0
-   const leave=data.leave.filter(r=>r.value.personId===person.id && r.value.from<=day && r.value.to>=day)
+   const leave=data.leave.filter(r=>(!r.value.status || r.value.status==='approved') && r.value.personId===person.id && r.value.from<=day && r.value.to>=day)
    const leaveSeconds=leave.reduce((n,r)=>n+r.value.dailySeconds,0),free=base===null?null:Math.max(0,base-holidaySeconds-leaveSeconds)
    const allocations=data.staffing.filter(r=>r.value.personId===person.id && r.value.from<=day && r.value.to>=day)
    const confirmed=allocations.filter(r=>r.value.commitment==='committed'),pending=allocations.filter(r=>r.value.commitment==='tentative')

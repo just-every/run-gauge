@@ -3,7 +3,7 @@ import { readFile, mkdir } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
-import { agencyJourney } from './gauge-agency.mjs'
+import { agencyJourney, clientCurrencyJourney } from './gauge-agency.mjs'
 
 const h = await harness({ finishSetup: false }), { cmd, state, request, owner } = h
 let browser
@@ -105,6 +105,7 @@ try {
  assert.equal((await state()).data.packets.find(row => row.id === adjustment.id).value.totalMinor, -2)
  console.log('PASS USD setup → Harvest preview/apply → exact cents → approval → report → billing CSV and correction; mismatch refused')
  await agencyJourney(h, page, capture)
+ await clientCurrencyJourney(h, page, capture)
 } finally { await browser?.close(); await h.dispose() }
 
 // Legacy milestones inherited currency from their engagement. Populate that old

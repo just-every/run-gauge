@@ -287,7 +287,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "10a3db2fe821588b460ad99ba6ecfbe4fb82090214f43bed7be7df9172a3d02a",
+      "sha256": "38098bddc82b4622dc4ae36e7ae80c72e6cd633e3e939febbdae6babf17f52d6",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -311,7 +311,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a42ced4ecd29973d592dabc9b0899bb6fc7f09ef0b41648c17e6737f74f9f975",
+      "sha256": "f7751b2c7a83113e6b04e12603aa7f9c1f9c3a70246260595d168a07db04e2f6",
       "executable": false
     },
     "DEMO.md": {
@@ -3827,7 +3827,7 @@
       "executable": false
     },
     "tests/gauge-agency.mjs": {
-      "sha256": "ea7ad3ed9b4ca51777bb67d68e0ded48686e0397012ec8ba0511838c274b8d56",
+      "sha256": "9882ac005e6d3e8f9bdbfbb9ff71f7f667e7dd3c6cdfa494adcfc43ca56f9f54",
       "executable": false
     },
     "tests/gauge-agent.mjs": {

@@ -160,7 +160,7 @@ export async function clientCurrencyJourney(h, page, capture) {
  for(const label of [/Issued invoice currency totals/,/0\.7300 from 2026-10-01 \(Published rate synthetic-gauge-45\)/,/Unconverted/])assert.match(totals,label);await capture('invoice-consolidation')
  // The owner's rates table names who approved each rate and when, beside its rate, effective date and source.
  await page.goto(h.origin+'/app/access')
- const rateRows=(await page.locator('section.g-card--table').filter({has:page.getByRole('heading',{name:'Approved exchange rates',exact:true})}).locator('tbody tr').allInnerTexts()).map(row=>row.replace(/\u00a0/g,' '))
+ const rateRows=(await page.locator('section.g-card--table').filter({has:page.getByRole('heading',{name:'Approved exchange rates',exact:true})}).locator('tbody tr').allInnerTexts()).map(row=>row.replaceAll('\u00a0',' '))
  for(const [rate,effective,source] of [['0.7300','Oct 1, 2026','synthetic-gauge-45'],['0.7400','Nov 1, 2026','synthetic-gauge-46']])assert(rateRows.some(row=>row.includes(rate)&&row.includes(effective)&&row.includes(source)&&row.includes('Test owner')),`The rates table shows who approved ${rate}: ${rateRows.join(' | ')}`)
  await capture('exchange-rates')
  await page.goto(h.origin+'/app/rates');await capture('client-currency-rates')

@@ -294,7 +294,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "8f769bc361884477a57b55d493fb05a1a21a0ef4f6186ede4bb9c01e243500ce",
+      "sha256": "324237658dcfe18f76b06a041211fff8a7ab89686b1e22d89d83b6b5cf14c902",
       "executable": false
     },
     "base-copies.json": {
@@ -626,7 +626,7 @@
       "executable": false
     },
     "MOVE-IN.md": {
-      "sha256": "ef29d083042c5c8083bb171dd837708cc99b82589197952fb9301cb2b69675a7",
+      "sha256": "80d07a5ee8b4a2272e9a1c2ed8c2d55c6eafda9592b5418d52a86aaf9913b08e",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -3702,7 +3702,7 @@
       "executable": false
     },
     "tests/fixtures/scoro-formats.mjs": {
-      "sha256": "f713eb917c6a764efc6d8c77d0e6ff294067546bf3d9ee1760cea27cbbef80a3",
+      "sha256": "687980ee4677a5d22dc4751b0521e6c363827a262d60f355d6dd1e88573a32a9",
       "executable": false
     },
     "tests/fixtures/scoro.mjs": {
@@ -3894,7 +3894,7 @@
       "executable": false
     },
     "tests/gauge-scoro.mjs": {
-      "sha256": "a6681219ae0244032232d482ea83da780cad90338adb5aad481d2461ae7f9f32",
+      "sha256": "443a1e9ca334bc49158cc6b67a461f949a0bbc7c5335537d2cf62de8fbdaae57",
       "executable": false
     },
     "tests/gauge-tasks.mjs": {

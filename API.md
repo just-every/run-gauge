@@ -682,3 +682,63 @@ The source controls are `{counts: {ROLE: count}, financial: {"clientSourceId/YYY
 `kantataAdopt:preview` (native owner only) takes a completed imported `namespace` and `config: {scheduleAllocations: {SOURCE_SCHEDULE_ID: [{date,seconds}]}}`. Multi-date source schedules require explicit unique dates within their captured period, whole-day-bounded seconds and an exact sum equal to the source; no dates are inferred. Missing mappings and existing required native fields are findings, with no write. `kantataAdopt:create` requires the exact fingerprint/config, `confirm: "adopt-reviewed-native-drafts"` and reason. It creates a journal; `kantataAdopt:advance` with exact journal id/revision and reason creates up to ten effects per stage. It retains source IDs/custody and creates finance-only field definitions, draft work and tentative allocations, with no operator or approval. Custom values are applied under the actual definition revision using the ordinary field normalization after their native relationships exist. Each batch binds the source fingerprint; changed source evidence refuses continuation. An already-existing native target is never overwritten.
 
 The adoption journal is owner-only, including audit exports. `kantataAdopt:undo` takes exact id/revision, `confirm: "undo-untouched-native-adoption"` and reason. It removes at most ten untouched effects per call, refuses native edits/approvals/dependencies and protects field values/reports outside the adoption. Reverse native adoption before source evidence can be undone. Source estimates, invoices, payments and WIP remain historical evidence, and native receipt adoption and cutover remain unavailable. An old source approval never approves a draft; after the owner performs ordinary native review, native Practice/Office reports reconcile, while source-billed time stays excluded from new billing.
+
+## Reviewed incumbent move-in
+
+Scoro now uses `import:scoro:preview`, `import:scoro:create`, `import:scoro:read`,
+`import:scoro:resume`, `import:scoro:rollback`, `import:scoro:undo`,
+`import:scoro:originals` and `import:scoro:report` through the ordinary authenticated
+command door. Finance/owner authorization is repeated in each handler and each
+import-kit transaction. `GET /api/gauge/imports/{id}` downloads the original
+artifacts and manifest for that operator's import job. Source records do not enter
+non-finance state, history or native reports.
+
+`package` has `manifest` and `files`. `manifest` names `provider: "scoro"`,
+`mappingVersion: "scoro-v1"`, stable `account`, agency-matching ISO `currency`,
+IANA `timezone`, `authorized: true`, ordered inclusive `windows` with `from`, `to`
+and `complete`, and object-level `permissions`. The importer reads the agency
+currency and refuses all mismatches without conversion. `units.time` and
+`units.bookings` explicitly select `seconds`, `minutes` or `hours`; quantities
+must convert exactly to whole seconds. `objects` maps each source object to an
+array of independently grouped original report/capture descriptors. Every object,
+including empty objects, needs its own stable ID mapping and permission. See
+`tests/fixtures/scoro.mjs` for the executable synthetic documented format.
+
+Each descriptor has `columns` (semantic field to original header/JSON field),
+`grouping` (explicit dimension array), `format`, and either `artifact` or JSON
+`pages`. CSV is exact UTF-8 text. XLS/XLSX files are original base64 bytes and
+require an exact `worksheet`; formulas are refused and nothing executes macros,
+external links or source notes. Legacy XLS accepts compound BIFF workbooks;
+XLSX uses the bounded value-only ZIP decoder. `filters: "all-records"` declares
+an unfiltered report. A date-only filter is `{from,to,includeArchived:true}`;
+its union must cover every declared historical window. Other filters and missing
+coverage produce findings and prevent apply. Distinct grouped reports reuse stable
+source identities; conflicting values refuse apply instead of being summed.
+
+JSON descriptors declare captured `apiVersion: "v2"`, a top-level `array`,
+`pagination: {page,next,total}` mapping metadata field names, and ordered
+`pages: [{artifact,cursor}, ...]`. Each original page must declare its sequential
+page number, total pages and next cursor (null on the last page). A missing,
+truncated or out-of-order capture cannot be applied. This is uploaded capture
+intake; it never contacts Scoro or represents a live connection.
+
+`controls.counts` holds independent source object counts. `controls.financial`
+holds independent `projectId/YYYY-MM/currency` controls for raw, billable, billed
+and unbilled seconds; bill/cost, expenses, invoices and payments in minor units;
+scheduled/leave seconds, budgets and signed retainer balances. Every measure is
+explicit, including zero. The fixture documents the field names. The preview
+returns discrepancies and `canApply`; create requires its exact `fingerprint` and
+a unique request `key`. At most ten unique source records apply per request.
+Changed source identities conflict; a changed namespace is not a reconciliation.
+
+`nativeDrafts: true` additionally prepares source-linked clients, people,
+engagements, tasks, dated rates and time drafts. `projectLeads` and
+`projectMembers` must explicitly map captured people. Only an owner create with
+`confirm: "adopt-reviewed-native-drafts"` can apply these effects. No account,
+grant, terms, approval, invoice issuance or payment settlement is imported.
+Source invoice-line/allocation links mark time billed, blocking native rebilling
+even after fresh native approval. Source finances remain labelled historical
+evidence. `import:scoro:report` takes `namespace` and `groupBy` (`project`, `client`
+or `person`) and returns reconciled controls and source records, including the
+separate raw and billable durations, original offset timestamps and billing links.
+Cutover is a separate MIGRATE-010 obligation and remains unavailable here.

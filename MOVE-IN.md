@@ -112,3 +112,32 @@ new migrations remain forward-only after the first release.
 Imports now has a separate **Kantata OX and SX source evidence** section. It requires a flavor-specific reviewed object map, complete year windows, source administrator/object permission attestations and independent client/month/currency controls. OX CSV, value-only time XLSX and completed asynchronous JSON artifacts, or SX Salesforce flat CSV ZIP/API captures retain their original bytes. See API.md and the synthetic documented adapter in `tests/fixtures/kantata.mjs`. The preview names unresolved relationships/options and incomplete source coverage before any apply. Batches are resumable and untouched historical effects can be undone.
 
 This is historical source evidence, not an approved switch to native billing or staffing. It grants no user access and imports no approval, invoice issuance or payment settlement authority. Practice/Office historical source controls are labelled separately from native reports. The native owner can separately preview and confirm bounded native draft adoption: clients, people/skills, projects, tasks, rates, time and expenses; tentative exact-date staffing; and private native custom fields/values. Multi-date schedules need explicit reviewed allocations; no daily facts are invented. Ordinary native approval is still required and source-billed time cannot rebill. Undo holds later edits/approvals and dependencies. Source estimates/invoices/payments/WIP remain historical evidence; receipt adoption and approved cutover remain unimplemented.
+
+## Scoro move-in
+
+Imports has a Scoro source-package preview, exact-fingerprint apply, bounded
+resume, rollback/undo, original-artifact download and historical-control report.
+The documented adapter is synthetic-only: `tests/fixtures/scoro.mjs` and
+`tests/gauge-scoro.mjs`. No consenting customer export or live connection is
+claimed. CSV, original value-only legacy BIFF XLS/XLSX and uploaded paginated v2
+JSON use explicit reviewed mappings. API.md documents the package and complete
+filter/window checks. Records are bounded at 1000 physical rows (including
+repeated report rows), artifacts at 2 MiB, the HTTP request at 8 MiB, and each
+write at ten unique source records. Packages above these measured bounds refuse.
+
+Scoro `duration` and `billable_duration` remain separate whole-second quantities.
+Original timezone-bearing timestamps are retained alongside work dates. Either
+`invoice_line_id` or `allocated_invoice_id` establishes source billed state;
+invoice relationships, line totals and payment allocations must reconcile.
+Differently grouped reports with the same stable source IDs count once. Missing
+permissions, unreviewed filters, gaps, incomplete pages, unresolved joins and
+independent control mismatches prevent apply. Date-only filters must cover all
+historical windows and include archived work. No source notes execute.
+
+Native core/time draft adoption is an explicit owner decision using reviewed
+leads/memberships. Source approval is historical evidence; fresh native terms and
+approval are required. Source-billed time cannot rebill. Historical invoices,
+payments and quote/history records remain source-owned evidence, not issued or
+settled Gauge records. Undo preserves later edits/approvals and dependencies.
+MIGRATE-010 owns the separate retirement/cutover comparison; CONNECT-013 and other
+connection clauses retain ongoing provider access/sync obligations.

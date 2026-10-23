@@ -5,8 +5,8 @@ import {pathToFileURL} from 'node:url'
 import {chromium} from '@playwright/test'
 import {harness} from './gauge-harness.mjs'
 import {scoroFixture} from './fixtures/scoro.mjs'
-import {inFormat} from './fixtures/scoro-formats.mjs'
-import * as XLS from '@e965/xlsx'
+import {inFormat,legacyFormula} from './fixtures/scoro-formats.mjs'
+import {sourceRestore} from './fixtures/scoro-restore.mjs'
 export async function scoroJourney(){
  const h=await harness({currency:'USD',timezone:'America/New_York'}),{cmd,owner,state,request}=h;let browser
  try{
@@ -29,13 +29,14 @@ export async function scoroJourney(){
   const replay=await cmd('import:scoro:preview',{package:pkg});let repeated=await cmd('import:scoro:create',{package:pkg,fingerprint:replay.fingerprint,confirm:'adopt-reviewed-native-drafts'});while(repeated.state==='applying')repeated=await cmd('import:scoro:resume',{id:repeated.id});assert.equal((await state()).data.time.length,3)
   for(const format of ['xlsx','xls','json']){const pack=inFormat(pkg,'time',format,{pages:2}),p=await cmd('import:scoro:preview',{package:pack});assert(p.canApply,format+': '+JSON.stringify(p.findings));assert.deepEqual(p.financial,preview.financial);let j=await cmd('import:scoro:create',{package:pack,fingerprint:p.fingerprint,confirm:'adopt-reviewed-native-drafts'});while(j.state==='applying')j=await cmd('import:scoro:resume',{id:j.id});assert.equal((await state()).data.time.length,3,format+' cross-format replay');const artifacts=await cmd('import:scoro:originals',{id:j.id});for(const [name,content]of Object.entries(pack.files).filter(([name])=>name.endsWith('.'+format)))assert.equal(artifacts.find(a=>a.name===name).original.base64,format==='json'?Buffer.from(content).toString('base64'):content,'Exact original '+format)}
   const missingPage=inFormat(pkg,'time','json',{pages:2});missingPage.manifest.objects.time[0].pages.pop();const incomplete=await cmd('import:scoro:preview',{package:{...missingPage,files:Object.fromEntries(Object.entries(missingPage.files).filter(([name])=>name!=='time-2.json'))}});assert(!incomplete.canApply,'Missing captured page prevents apply')
-  const formula=inFormat(pkg,'time','xls'),book=XLS.read(Buffer.from(formula.files['time.xls'],'base64'),{type:'buffer'});book.Sheets['Source rows'].D2={t:'n',v:7200,f:'1+1'};formula.files['time.xls']=XLS.write(book,{type:'buffer',bookType:'biff8'}).toString('base64');await cmd('import:scoro:preview',{package:formula},owner,400)
+  const formula=legacyFormula(pkg);await cmd('import:scoro:preview',{package:formula},owner,400)
   await page.goto(h.origin+'/app/imports');const reportForm=page.locator('form').filter({has:page.locator('[name=action][value="import:scoro:report"]')});await reportForm.getByLabel('Source account',{exact:true}).fill(preview.namespace);await reportForm.getByRole('button',{name:'Read Scoro source controls'}).click();assert.match(await page.locator('#scoro-report').innerText(),/Historical source controls by project/);await capture('scoro-reconciled')
   // Native source-billed time is denied even after a new owner approves ordinary
   // native terms and the exact imported draft. This uses the billing command.
   const project=native.engagements[0],billed=native.time.find(t=>t.value.source.externalId==='t1');await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:37500,effortSeconds:12600,roundingSeconds:1,reason:'Fresh native review'}));await cmd('time:approve',await cmd('time:submit',billed));await cmd('packet:create',{engagementId:project.id,title:'Must not rebill allocated invoice',sources:['time:'+billed.id]},owner,400)
   await cmd('import:scoro:undo',{id:jobId},owner,409)
   const person=await cmd('save:people',{name:'Scoped worker',timezone:'America/New_York'}),staff=await h.invite('scoro-staff');await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd('import:scoro:preview',{package:pkg},staff.cookie,403);await cmd('import:scoro:report',{namespace:preview.namespace},staff.cookie,403);assert.equal((await request('/api/gauge/imports/'+jobId,staff.cookie)).status,403)
+  await sourceRestore(h,'scoro')
   await cmd('import:scoro:cutover',{namespace:preview.namespace},owner,409)
   await context.close();console.log('PASS scoroJourney: allocated-invoice-only billed flag, two grouped originals, exact duration/value/invoice controls, original custody, native draft/rebill fence, replay and scoped denials at 1440/390')
  }finally{await browser?.close();await h.dispose()}

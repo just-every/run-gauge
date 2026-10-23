@@ -148,6 +148,8 @@ export async function clientCurrencyJourney(h, page, capture) {
  const raced=await state(),agreed=raced.data.budgets.find(r=>r.id===draft.id),work=raced.data.engagements.find(r=>r.id===raceEngagement.id)
  if(agreed.value.status==='approved')assert.equal(work.value.currency,agreed.value.currency)
  await cmd('save:clients',{name:'Unsupported',billingCurrency:'JPY'},h.owner,400)
+ // A CAD cost on the Toronto work, for the converted approved burn.
+ await cmd('expense:approve',await cmd('expense:submit',await cmd('expense:save',{engagementId:currencies[0].value.engagementId,personId:person.id,date:'2026-10-08',description:'Toronto venue deposit',amountMinor:20000,reimbursable:false})))
  await cmd('fx:approve',{currency:'CAD',rate:'0.7300',effective:'2026-10-01',source:'Published rate synthetic-gauge-45',reason:'October reporting'})
  const window={basis:'issued-invoices',from:'2026-10-01',to:'2026-10-31'},october=await cmd('fx:consolidate',window)
  assert.deepEqual(october.buckets.map(b=>[b.currency,b.amountMinor,b.convertedMinor]),[['CAD',1000000,730000],['GBP',10000,null],['USD',500000,500000]])
@@ -157,6 +159,10 @@ export async function clientCurrencyJourney(h, page, capture) {
  const portfolioOctober=(await state()).portfolio.convertedEarned
  assert.deepEqual(portfolioOctober.buckets.map(b=>[b.currency,b.amountMinor,b.convertedMinor,b.unconvertedMinor]),[['CAD',1000000,730000,0],['GBP',10000,null,10000],['USD',500000,500000,0]])
  assert.deepEqual([portfolioOctober.knownMinor,portfolioOctober.minor,portfolioOctober.missingRates,portfolioOctober.buckets[0].conversions.map(c=>[c.rate,c.effective])],[1230000,null,['GBP'],[['0.7300','2026-10-01']]])
+ // Approved burn converts each cost on its own date; time with no frozen cost keeps the burn and margin totals unknown.
+ const burnOctober=(await state()).portfolio.convertedBurn,cadBurn=burnOctober.buckets.find(b=>b.currency==='CAD')
+ assert.deepEqual([cadBurn.amountMinor,cadBurn.convertedMinor,cadBurn.conversions.map(c=>[c.rate,c.effective]),burnOctober.minor,burnOctober.unknownCurrencies.length>0],[20000,14600,[['0.7300','2026-10-01']],null,true])
+ assert.deepEqual((await state()).portfolio.convertedMargin,{reportingCurrency:'USD',knownMinor:1230000-burnOctober.knownMinor,minor:null})
  // Expected cash converts at the rate in force on the day it is expected (8 November, or the as-of day once past due).
  const cadCash=s=>s.cashConverted.find(m=>m.buckets.some(b=>b.currency==='CAD'&&b.amountMinor===1000000)),cadRates=m=>m.buckets.find(b=>b.currency==='CAD').conversions.map(c=>[c.rate,c.effective,c.convertedMinor])
  let expectedCash=cadCash(await state())
@@ -167,7 +173,7 @@ export async function clientCurrencyJourney(h, page, capture) {
  expectedCash=cadCash(await state());assert.deepEqual(cadRates(expectedCash),[['0.7400','2026-11-01',740000]],'Cash expected in November converts at the rate in force that day')
  await page.goto(h.origin+'/app/review?from=2026-10-01&to=2026-10-31')
  const converted=(await page.locator('#portfolio-converted').innerText()).replaceAll('\u00a0',' ')
- for(const line of ['$12,300.00 known','CA$10,000.00 → $7,300.00 · 0.7300 from Oct 1, 2026 (Published rate synthetic-gauge-45)','£100.00 → Unconverted · no approved rate'])assert(converted.includes(line),`Portfolio conversion shows ${line}: ${converted}`)
+ for(const line of ['$12,300.00 known','CA$10,000.00 → $7,300.00 · 0.7300 from Oct 1, 2026 (Published rate synthetic-gauge-45)','£100.00 → Unconverted · no approved rate','CA$200.00 → $146.00 · 0.7300 from Oct 1, 2026 (Published rate synthetic-gauge-45)'])assert(converted.includes(line),`Portfolio conversion shows ${line}: ${converted}`)
  await page.locator('#portfolio-converted').scrollIntoViewIfNeeded();await capture('portfolio-conversion')
  const cashLines=(await page.locator('#cash-converted').innerText()).replaceAll('\u00a0',' ')
  for(const line of ['CA$10,000.00 → $7,400.00 · 0.7400 from Nov 1, 2026 (Published rate synthetic-gauge-46)','£100.00 → Unconverted · no approved rate'])assert(cashLines.includes(line),`Expected cash conversion shows ${line}: ${cashLines}`)
@@ -183,5 +189,5 @@ export async function clientCurrencyJourney(h, page, capture) {
  for(const [rate,effective,source] of [['0.7300','Oct 1, 2026','synthetic-gauge-45'],['0.7400','Nov 1, 2026','synthetic-gauge-46']])assert(rateRows.some(row=>row.includes(rate)&&row.includes(effective)&&row.includes(source)&&row.includes('Test owner')),`The rates table shows who approved ${rate}: ${rateRows.join(' | ')}`)
  await capture('exchange-rates')
  await page.goto(h.origin+'/app/rates');await capture('client-currency-rates')
- console.log('PASS SETUP-003 client defaults, pre-commercial engagement override and lock, scoped CAD rates, CAD and USD native invoices, labelled 0.7300 conversion, November stability, missing GBP rate, approver on the rates table, the labelled October portfolio conversion and expected cash at the rate in force on its day')
+ console.log('PASS SETUP-003 client defaults, pre-commercial engagement override and lock, scoped CAD rates, CAD and USD native invoices, labelled 0.7300 conversion, November stability, missing GBP rate, approver on the rates table, the labelled October portfolio earned value and burn and expected cash at the rate in force on its day')
 }

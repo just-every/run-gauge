@@ -112,3 +112,93 @@ new migrations remain forward-only after the first release.
 Imports now has a separate **Kantata OX and SX source evidence** section. It requires a flavor-specific reviewed object map, complete year windows, source administrator/object permission attestations and independent client/month/currency controls. OX CSV, value-only time XLSX and completed asynchronous JSON artifacts, or SX Salesforce flat CSV ZIP/API captures retain their original bytes. See API.md and the synthetic documented adapter in `tests/fixtures/kantata.mjs`. The preview names unresolved relationships/options and incomplete source coverage before any apply. Batches are resumable and untouched historical effects can be undone.
 
 This is historical source evidence, not an approved switch to native billing or staffing. It grants no user access and imports no approval, invoice issuance or payment settlement authority. Practice/Office historical source controls are labelled separately from native reports. The native owner can separately preview and confirm bounded native draft adoption: clients, people/skills, projects, tasks, rates, time and expenses; tentative exact-date staffing; and private native custom fields/values. Multi-date schedules need explicit reviewed allocations; no daily facts are invented. Ordinary native approval is still required and source-billed time cannot rebill. Undo holds later edits/approvals and dependencies. Source estimates/invoices/payments/WIP remain historical evidence; receipt adoption and approved cutover remain unimplemented.
+
+## Scoro move-in
+
+Imports has a Scoro source-package preview, exact-fingerprint apply, bounded
+resume, rollback/undo, original-artifact download and historical-control report.
+The documented adapter is synthetic-only: `tests/fixtures/scoro.mjs` and
+`tests/gauge-scoro.mjs`. No consenting customer export or live connection is
+claimed. CSV, original value-only legacy BIFF XLS/XLSX and uploaded paginated v2
+JSON use explicit reviewed mappings. API.md documents the package and complete
+filter/window checks. Records are bounded at 1000 physical rows (including
+repeated report rows), artifacts at 2 MiB, the HTTP request at 8 MiB, and each
+write at ten unique source records. Packages above these measured bounds refuse.
+
+Scoro `duration` and `billable_duration` remain separate whole-second quantities.
+Original timezone-bearing timestamps are retained alongside work dates. Either
+`invoice_line_id` or `allocated_invoice_id` establishes source billed state;
+invoice relationships, line totals and payment allocations must reconcile.
+Differently grouped reports with the same stable source IDs count once. Missing
+permissions, unreviewed filters, gaps, incomplete pages, unresolved joins and
+independent control mismatches prevent apply. Date-only filters must cover all
+historical windows and include archived work. No source notes execute.
+
+Native core/time draft adoption is an explicit owner decision using reviewed
+leads/memberships. Source approval is historical evidence; fresh native terms and
+approval are required. Source-billed time cannot rebill. Historical invoices,
+payments and quote/history records remain source-owned evidence, not issued or
+settled Gauge records. Undo preserves later edits/approvals and dependencies.
+MIGRATE-010 owns the separate retirement/cutover comparison; CONNECT-013 and other
+connection clauses retain ongoing provider access/sync obligations.
+
+## Teamwork.com move-in
+
+The Teamwork.com section accepts reviewed timesheet CSV/value-only Excel,
+invoice/accounting exports and complete uploaded v1/v3 JSON captures under the
+shared original-custody, currency, coverage, identity and independent-control
+rules above. `tests/fixtures/teamwork.mjs` is a synthetic documented package;
+`tests/gauge-teamwork.mjs` proves the DST-boundary work date versus UTC audit
+instant, archived source project, task/subtask dependencies, billed/unbilled
+minutes, proof approval evidence, signed retainer carry and independent
+project/period financial balances. Source history does not approve native work,
+reactivate provider accounts or issue a native invoice. Explicit native drafts
+still need fresh owner/native review; MIGRATE-010 retains financial cutover.
+
+## Productive move-in
+
+Productive source imports retain current and prior time versions, distinct worked
+and billable quantities, dated rate overrides, unnumbered draft attribution,
+manual invoiced state, recurring budgets and retainer opening/period balances.
+Manager-level CSV/value-only XLSX and complete uploaded API captures require
+explicit units and the same independent source controls; JSON number lexemes and
+duplicate keys are checked before mapping. See API.md and the synthetic package
+`tests/fixtures/productive.mjs`. Imported draft/manual invoice state excludes
+native rebilling without inventing an invoice number. Source financial history
+remains evidence, while separately confirmed native drafts need ordinary native
+terms and approval. MIGRATE-010 retains separate operational cutover.
+
+## Rocketlane move-in (partial)
+
+Tracked-time CSV/Excel and complete uploaded API pages preserve phase/ad-hoc
+entries, integer minutes, SOFT/HARD daily allocations, unfilled placeholders,
+epoch audit units, source approvals and dated overrides. Separate original
+finance exports reconcile invoice allocations, invoices and payments before a
+source comparison can be accepted. API.md and `tests/fixtures/rocketlane.mjs`
+document the synthetic format. Explicit native drafts preserve source-billed
+exclusion and carry no approval or settlement authority.
+
+Operational cutover is held pending ct's policy ruling. The conservative owner
+form records only an exact, explicit, audited source-comparison acceptance;
+it performs no provider shutdown, deletion or native financial transfer. Its
+receipt holds source reversal until an audited owner withdrawal. This is honest
+partial progress, not a completed operational move from Rocketlane.
+
+
+## Float move-in (partial)
+
+The Float Imports section accepts bounded complete-year schedule/report CSVs,
+value-only workbooks and paginated uploaded v3 JSON captures. The synthetic
+`tests/fixtures/float.mjs` and API.md document explicit maps for allocations,
+actuals, effective workweeks, leave, phases and historical project rates.
+Independent project/month controls reconcile schedule and actuals; task rows
+reference one stable phase-budget identity so repeated budgets count once.
+Captured deletion events retain the original row and exclude it once from
+historical controls. A missing event interval requires a newer complete original
+comparison; the adapter never treats an old report as fresh deletion coverage.
+
+This slice retains historical evidence and exact originals. It does not yet
+adopt native calendars, allocations or leave, erase native work on a source
+deletion, maintain a live event feed or authorize operational cutover. Those
+unproved points keep MIGRATE-009 partial. The Imports controls have visible
+text labels; no icon-only control is introduced.

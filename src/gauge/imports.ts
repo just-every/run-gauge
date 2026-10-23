@@ -1,3 +1,4 @@
+import { moveInCommand,moveInSpecs } from './scoro-import'
 import type { Bindings } from '../auth.server'
 import { planD1Import, createD1ImportJob, applyD1ImportBatches, resumeD1Import, rollbackD1Import, undoD1Import, readD1ImportJob, readD1ImportOriginals, type D1ImportContext } from '../modules/import-kit/src/d1/index'
 import { type Actor, authority, finance, fence, all } from './store'
@@ -7,6 +8,9 @@ import { targets } from './import-targets'
 export function importContext(env: Bindings,a: Actor,namespace:string):D1ImportContext { return {destination:'gauge',namespace,mappingVersion:'gauge-harvest-1',batchSize:10,maxBatches:1,storage:{database:env.DB,targets},authorization:{principalId:a.session.operator.id,predicate:()=>authority(a,true)}} }
 export async function importCommand(env: Bindings,a: Actor,action:string,input:Value) {
  need(finance(a),'Finance access required',403)
+ const sourceAction=/^import:([a-z]+):([a-z-]+)$/.exec(action)
+ if(sourceAction)return moveInCommand(env,a,sourceAction[1],sourceAction[2],input)
+ if(input.id){const job=await env.DB.prepare('SELECT destination FROM ik_jobs WHERE id=? AND principal_id=?').bind(input.id,a.session.operator.id).first<{destination:string}>();const provider=job?.destination.replace(/^gauge-/, '');if(provider&&moveInSpecs[provider])return moveInCommand(env,a,provider,action.replace(/^import:/,''),input)}
  if(action==='import:preview'||action==='import:create') {
   const source=input.package as HarvestInput;need(source?.files,'Upload a Harvest package');const parsed=harvest(source,a.currency),ctx=importContext(env,a,parsed.namespace),plan=await planD1Import(parsed.bundle,parsed.mapping,ctx)
   const required=(await all(env,'customFields')).filter(f=>f.value.required&&!f.value.retired),fieldFindings:Value[]=[]

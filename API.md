@@ -682,3 +682,200 @@ The source controls are `{counts: {ROLE: count}, financial: {"clientSourceId/YYY
 `kantataAdopt:preview` (native owner only) takes a completed imported `namespace` and `config: {scheduleAllocations: {SOURCE_SCHEDULE_ID: [{date,seconds}]}}`. Multi-date source schedules require explicit unique dates within their captured period, whole-day-bounded seconds and an exact sum equal to the source; no dates are inferred. Missing mappings and existing required native fields are findings, with no write. `kantataAdopt:create` requires the exact fingerprint/config, `confirm: "adopt-reviewed-native-drafts"` and reason. It creates a journal; `kantataAdopt:advance` with exact journal id/revision and reason creates up to ten effects per stage. It retains source IDs/custody and creates finance-only field definitions, draft work and tentative allocations, with no operator or approval. Custom values are applied under the actual definition revision using the ordinary field normalization after their native relationships exist. Each batch binds the source fingerprint; changed source evidence refuses continuation. An already-existing native target is never overwritten.
 
 The adoption journal is owner-only, including audit exports. `kantataAdopt:undo` takes exact id/revision, `confirm: "undo-untouched-native-adoption"` and reason. It removes at most ten untouched effects per call, refuses native edits/approvals/dependencies and protects field values/reports outside the adoption. Reverse native adoption before source evidence can be undone. Source estimates, invoices, payments and WIP remain historical evidence, and native receipt adoption and cutover remain unavailable. An old source approval never approves a draft; after the owner performs ordinary native review, native Practice/Office reports reconcile, while source-billed time stays excluded from new billing.
+
+## Reviewed incumbent move-in
+
+Scoro now uses `import:scoro:preview`, `import:scoro:create`, `import:scoro:read`,
+`import:scoro:resume`, `import:scoro:rollback`, `import:scoro:undo`,
+`import:scoro:originals` and `import:scoro:report` through the ordinary authenticated
+command door. Finance/owner authorization is repeated in each handler and each
+import-kit transaction. `GET /api/gauge/imports/{id}` downloads the original
+artifacts and manifest for that operator's import job. Source records do not enter
+non-finance state, history or native reports.
+
+`package` has `manifest` and `files`. `manifest` names `provider: "scoro"`,
+`mappingVersion: "scoro-v1"`, stable `account`, agency-matching ISO `currency`,
+IANA `timezone`, `authorized: true`, ordered inclusive `windows` with `from`, `to`
+and `complete`, and object-level `permissions`. The importer reads the agency
+currency and refuses all mismatches without conversion. `units.time` and
+`units.bookings` explicitly select `seconds`, `minutes` or `hours`; quantities
+must convert exactly to whole seconds. `objects` maps each source object to an
+array of independently grouped original report/capture descriptors. Every object,
+including empty objects, needs its own stable ID mapping and permission. See
+`tests/fixtures/scoro.mjs` for the executable synthetic documented format.
+
+Each descriptor has `columns` (semantic field to original header/JSON field),
+`grouping` (explicit dimension array), `format`, and either `artifact` or JSON
+`pages`. CSV is exact UTF-8 text. XLS/XLSX files are original base64 bytes and
+require an exact `worksheet`; formulas are refused and nothing executes macros,
+external links or source notes. Legacy XLS accepts compound BIFF workbooks;
+XLSX uses the bounded value-only ZIP decoder. `filters: "all-records"` declares
+an unfiltered report. A date-only filter is `{from,to,includeArchived:true}`;
+its union must cover every declared historical window. Other filters and missing
+coverage produce findings and prevent apply. Distinct grouped reports reuse stable
+source identities; conflicting values refuse apply instead of being summed.
+
+JSON descriptors declare captured `apiVersion: "v2"`, a top-level `array`,
+`pagination: {page,next,total}` mapping metadata field names, and ordered
+`pages: [{artifact,cursor}, ...]`. Each original page must declare its sequential
+page number, total pages and next cursor (null on the last page). A missing,
+truncated or out-of-order capture cannot be applied. This is uploaded capture
+intake; it never contacts Scoro or represents a live connection.
+
+`controls.counts` holds independent source object counts. `controls.financial`
+holds independent `projectId/YYYY-MM/currency` controls for raw, billable, billed
+and unbilled seconds; bill/cost, expenses, invoices and payments in minor units;
+scheduled/leave seconds, budgets and signed retainer balances. Every measure is
+explicit, including zero. The fixture documents the field names. The preview
+returns discrepancies and `canApply`; create requires its exact `fingerprint` and
+a unique request `key`. At most ten unique source records apply per request.
+Changed source identities conflict; a changed namespace is not a reconciliation.
+
+`nativeDrafts: true` additionally prepares source-linked clients, people,
+engagements, tasks, dated rates and time drafts. `projectLeads` and
+`projectMembers` must explicitly map captured people. Only an owner create with
+`confirm: "adopt-reviewed-native-drafts"` can apply these effects. No account,
+grant, terms, approval, invoice issuance or payment settlement is imported.
+Source invoice-line/allocation links mark time billed, blocking native rebilling
+even after fresh native approval. Source finances remain labelled historical
+evidence. `import:scoro:report` takes `namespace` and `groupBy` (`project`, `client`
+or `person`) and returns reconciled controls and source records, including the
+separate raw and billable durations, original offset timestamps and billing links.
+Cutover is a separate MIGRATE-010 obligation and remains unavailable here.
+
+### Teamwork.com source semantics
+
+The same reviewed package protocol uses `provider: "teamwork"`,
+`mappingVersion: "teamwork-v1"` and the `import:teamwork:*` actions. Uploaded JSON
+captures declare `apiVersion: "v1"` or `"v3"`. Timesheet CSV/Excel, invoice
+Excel/accounting exports and capture pages all retain original custody; they
+must reconcile under the same stable identities. See
+`tests/fixtures/teamwork.mjs` for every required semantic object and field.
+
+Time maps positive integer `minutes`, `userWorkDate`, UTC `auditTimestamp`,
+explicit `isbillable`/`isbilled` and optional `invoiceId`; `units.time` is
+`"minutes"`. The work date is never recomputed from the UTC audit timestamp,
+including across DST. Project `archived` is retained source evidence. Task lists,
+subtask `parentId`, dependencies, milestones and proof decisions retain their
+source relationships. A captured proof approval grants no native approval.
+Value-retainer periods carry `familyId`, inclusive dates, signed `openingMinor`,
+`allowanceMinor`, `usedMinor`, `closingMinor`, `carryInMinor` and `carryOutMinor`.
+Opening plus allowance minus use must equal closing and outgoing carry; each
+later period's opening/incoming carry equals the prior signed outgoing carry.
+Project/month source controls reconcile time, invoices, payments, budgets and
+retainer balances. Source retainer periods do not create native recurring bills;
+RETAINER-001 through RETAINER-005 retain their ordinary native review doors.
+
+### Productive source semantics
+
+`provider: "productive"`, `mappingVersion: "productive-v1"` and
+`import:productive:*` use the same review/journal/report doors. Manager-authorized
+CSV/value-only XLSX table exports and uploaded v2 JSON captures must retain deals,
+phases, service/phase/person rates, bookings, recurring budgets, time versions,
+expenses, invoice attributions and retainer periods. The executable documented
+synthetic format is `tests/fixtures/productive.mjs`.
+
+Every time/current-version row captures its `unit` and it must match
+`units.time`; worked and billable quantities are converted independently into
+exact whole seconds. Each current time revision must reconcile to its retained
+latest version. `draftInvoiced` requires an attribution with the captured draft
+identity, even when there is no invoice number. `invoicedManually` remains a
+billed state without manufacturing a number or native invoice. Either flag blocks
+native rebilling after fresh approval. Each time row's captured `rateId` must
+cover its person/service/phase/work date, and independently captured bill/cost
+values must equal those quantities at the dated override. Retainer opening,
+allowance, use and signed closing balances reconcile separately from recurring
+budget history; neither creates native recurring billing authority.
+
+All incumbent capture adapters now preserve numeric JSON lexemes before mapping
+and reject duplicate keys rather than accepting a rounded/last-key-wins value.
+Money descriptors may explicitly set `moneyUnit: "decimal-major"`; exact decimal
+text with at most two places converts once to integer cents. Otherwise
+`units.money: "minor-units"` (the default) requires whole integer minor units.
+There is no inferred unit, rounded source decimal or currency conversion.
+
+### Rocketlane source semantics and held cutover
+
+`provider: "rocketlane"`, `mappingVersion: "rocketlane-v1"` and
+`import:rocketlane:*` accept owner-authorized tracked-time reports and complete
+uploaded v1 API captures. Source accounts map to client identities; phase/task
+and ad-hoc time remain distinct. `minutes` is a positive integer, and captured
+`auditEpoch` retains its explicit `units.auditEpoch` (`seconds` or `milliseconds`).
+Source approval decisions and rate histories retain original identities;
+current time names its exact approval and effective rate override. Neither
+source approval nor imported rate history approves native work.
+
+Allocations preserve `SOFT`/`HARD`, named-person versus placeholder identity,
+explicit `minutes-per-day`, and the original unique `dates` inside the captured
+period. No dates are distributed or invented and no placeholder becomes a real
+person or receives access. Additional original invoice, payment and attribution
+exports must be named in `financeExports.artifacts` with `complete: true`.
+Limited time APIs alone cannot establish billing/payment completeness. Finance
+allocation joins establish source-billed time and must reconcile independently
+to invoices and project/month source totals. The synthetic documented package is
+`tests/fixtures/rocketlane.mjs`.
+
+Conservative default pending ct: `import:rocketlane:cutover-preview` reviews a
+completed owner source job and fingerprints its current records, revisions,
+original job fingerprint and agency currency. `cutover-approve` requires the
+exact review fingerprint, a unique request key, a reason and
+`confirm: "accept-source-comparison-only"`. It writes an owner-attributed audit
+receipt for the source comparison only. There is no provider action, automatic
+shutdown/deletion, native financial ownership transfer or payment authority;
+operational cutover remains held. The same request cannot create a second
+receipt. An accepted receipt holds source undo until the owner audits a
+`cutover-withdraw` with its `id` and reason. These receipts remain historical
+annotations after restore; fresh native owner authentication is still required.
+MIGRATE-008 remains partial until the operational cutover policy is decided and
+its resulting native ownership workflow is proven; MIGRATE-010 retains the
+broader parallel-run and retirement comparison.
+
+
+### Float source snapshots (MIGRATE-009, partial)
+
+`import:float:preview/create/resume/read/report/originals/rollback/undo` uses
+that same exact-fingerprint, live finance/owner, ten-record journal. Use
+`provider: "float"`, `mappingVersion: "float-v1"`, complete contiguous calendar
+year windows, explicit object permissions and independent counts/project-month
+controls. `tests/fixtures/float.mjs` documents a synthetic two-window package.
+The native Imports section provides preview, apply, retained originals and
+source controls. This adapter does not contact Float or claim provider access.
+
+Map `clients`, `people`, `projects`, `phases`, `rates`, `budgets`, `allocations`,
+`time`, `workweeks`, `leave` and `deletions`. Float `/tasks` allocations are
+separate from `/logged-time` actuals and `/timeoffs` leave. Uploaded v3 JSON
+pages declare their array, page/next/total metadata and every original page;
+CSV and value-only workbook rows use the same stable source identities.
+
+- Allocations carry `projectId`, `personId`, `phaseId`, inclusive `from/to`,
+  `unit: "hours-per-day"`, and the exact original `daily: [{date,hours}]`.
+  No aggregate is distributed into invented dates. Split allocation/leave
+  rows at month boundaries using original daily detail. `budgetId` and repeated
+  `phaseBudgetMinor` must match one independent `budgets` identity; repeated
+  task-row budget values never add to the project budget.
+- Actuals carry `workDate`, `duration`, `billable`, their explicit `unit`,
+  `rateId`, `billMinor` and `costMinor`. Rates retain person/project, effective
+  date, historical cost and project bill rate. The latest applicable captured
+  rate must reproduce actual cost/value exactly, rounded half up per entry.
+- Workweeks carry non-overlapping effective `from/to` and all seven `weekdays`
+  keyed `0` (Sunday) through `6`, in `hours-per-weekday`. Each actual needs a
+  captured workweek covering its date. Leave retains exact daily hours.
+- Deletion records carry a stable event `id`, `entity` (`allocations`, `time`
+  or `leave`), `recordId`, positive integer `sequence` and timezone-bearing
+  `auditTimestamp`. Identical repeated events across reports count once;
+  conflicting event identity, duplicate sequence or a missing sequence refuses.
+  The original target row remains in custody with `sourceDeleted: true` and is
+  excluded from source totals. This never deletes native business records.
+- `deletionCoverage: {complete:true,fromSequence,toSequence,missed:false}`
+  declares the exact uploaded event interval. If `missed:true`, include
+  `missedAt` and `fullComparison: {complete:true,asOf,artifacts:[...]}`.
+  `asOf` must be newer than the missed interval and `artifacts` must name
+  every mapped allocation, actual, leave, people, project, phase, rate,
+  workweek and budget original. An old or incomplete comparison cannot repair
+  missed coverage. This is reviewed uploaded evidence, not a live event-feed
+  freshness or webhook claim.
+
+Float currently imports historical source evidence only. `nativeDrafts:true`
+refuses rather than silently omitting native capacity, allocation or leave
+adoption. Native adoption and follow-on deletion reconciliation remain pending;
+MIGRATE-010 retains operational cutover and billing-ownership obligations.

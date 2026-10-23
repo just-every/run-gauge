@@ -156,8 +156,10 @@ export async function clientCurrencyJourney(h, page, capture) {
  await cmd('fx:approve',{currency:'CAD',rate:'0.7400',effective:'2026-11-01',source:'Published rate synthetic-gauge-46',reason:'November reporting'})
  assert.deepEqual(await cmd('fx:consolidate',window),october,'November rate leaves October figures unchanged')
  for(const invoice of currencies)assert.deepEqual((await state()).data.invoices.find(r=>r.id===invoice.id),invoice,'Conversion never changes an issued document')
- await page.goto(h.origin+'/app/imports');const totals=await page.locator('main').innerText()
- for(const label of [/Issued invoice currency totals/,/0\.7300 from 2026-10-01 \(Published rate synthetic-gauge-45\)/,/Unconverted/])assert.match(totals,label);await capture('invoice-consolidation')
+ await page.goto(h.origin+'/app/imports')
+ const issuedTotals=(await page.locator('section.g-card').filter({has:page.getByRole('heading',{name:'Issued invoice currency totals',exact:true})}).innerText()).replaceAll('\u00a0',' ')
+ for(const line of ['CA$10,000.00 → $7,300.00 · 0.7300 from Oct 1, 2026 (Published rate synthetic-gauge-45)','£100.00 → Unconverted'])assert(issuedTotals.includes(line),`Issued invoice totals show ${line}: ${issuedTotals}`)
+ await capture('invoice-consolidation')
  // The owner's rates table names who approved each rate and when, beside its rate, effective date and source.
  await page.goto(h.origin+'/app/access')
  const rateRows=(await page.locator('section.g-card--table').filter({has:page.getByRole('heading',{name:'Approved exchange rates',exact:true})}).locator('tbody tr').allInnerTexts()).map(row=>row.replaceAll('\u00a0',' '))

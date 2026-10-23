@@ -29,7 +29,8 @@ async function fixedBudget(env: Bindings, tx: Transaction, engagement: Row, budg
 
 async function priorCharges(env:Bindings,tx:Transaction,engagement:Row,phaseKey?:string){
  const groups=await Promise.all([all(env,'fixedCharges'),all(env,'milestones')])
- for(const [i,rows] of groups.entries()){const kind=i?'milestones':'fixedCharges';for(const row of rows)tx.observe(kind,row);tx.guard(`(SELECT COUNT(*) FROM g_${kind})=?`,rows.length)}
+ // Approved rows are immutable and only ever added, so this engagement's approved count is the whole dependency; drafts prepared concurrently do not conflict.
+ for(const [i,rows] of groups.entries()){const kind=i?'milestones':'fixedCharges';tx.guard(`(SELECT COUNT(*) FROM g_${kind} WHERE engagement_id=? AND status='approved')=?`,engagement.id,rows.filter(r=>r.value.engagementId===engagement.id&&r.value.status==='approved').length)}
  const approved=groups.flat().filter(r=>r.value.engagementId===engagement.id&&r.value.status==='approved'&&(!phaseKey||r.value.phaseKey===phaseKey))
  return {total:sum(approved.map(r=>money(r.value.amountMinor))),count:approved.length}
 }

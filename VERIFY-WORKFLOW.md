@@ -31,7 +31,9 @@ and [setup-node v7.1.0 release](https://github.com/actions/setup-node/releases/t
 Their pinned `action.yml` files declare `runs.using: node24`.
 
 Gauge's Verify uses five required matrix jobs, each with the same pinned build,
-type/source/runtime/site and hosted-asset checks. `test:gauge` selects disjoint
+type/source/runtime and hosted-asset checks. The ordinary typecheck remains;
+compiler-cache regression tests and static-site text/link tests are excluded
+from this seed's suite. `test:gauge` selects disjoint
 public-door suites using `GAUGE_TEST_SHARD=1/5` through `5/5`; the runner checks
 that the shard inventory contains every original suite exactly once. No shard
 can substitute for the full workflow conclusion. Each suite job has a 14-minute

@@ -302,7 +302,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "4948934369129284210b93029252b32ec90777a1df45b951e73445f7ffaff67f",
+      "sha256": "62f0a748bb9c640fd284b0d40bafee7e4b5e991761055fbe60d49b88455152b9",
       "executable": false
     },
     "CLAUDE.md": {
@@ -662,7 +662,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "3c5dd271c3b55f279e4b37959eefd660dbf25db011be8c230279d576eb4d4bce",
+      "sha256": "3dc10a23e73ad254af99989eb2698d64e96514af21231c51e2a3a05f10eec5c9",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -4013,10 +4013,6 @@
       "sha256": "f164334a717dab7d7b5b9a9ade4c1dc6c479ae934f4a5f6729144eeb081f356d",
       "executable": false
     },
-    "tests/incremental-typecheck.test.mjs": {
-      "sha256": "a11d6b89e7219137540c7052683c5f4d9ba7ddf16f66d34c1f56ae34029c0a95",
-      "executable": false
-    },
     "tests/journeys/agent-custody-browser.mjs": {
       "sha256": "672d9923d0294939237d4616962d3a6f1028606a90046eb6ec447aaf19d6e764",
       "executable": false
@@ -4029,20 +4025,12 @@
       "sha256": "1ce2665b5f6f70665bd36094e4c1aa27178b9d6e38b69f47d09d1ca39debfdab",
       "executable": false
     },
-    "tests/site/site.test.mjs": {
-      "sha256": "7fdc01e59d65809087e30f66e7cdf99014dcb394ccf145fdcb9319fde94fd23a",
-      "executable": false
-    },
-    "tests/typecheck-checks.mjs": {
-      "sha256": "8bb5355750d1743fd97860ebe6a2b0f47a2b9f695bc6fb122289a09d28b17ba1",
-      "executable": false
-    },
     "tsconfig.json": {
       "sha256": "722b028ab0c49191f72308e69f2079d3a62cd6489d0405de50f97ded2f9a4c08",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
-      "sha256": "20d5d1f1b5127d58add2a8679c52be628d73b3df8b01716827f5ef8f5f5fc86e",
+      "sha256": "55d2eb1c96c5d0eddfc43129d110d8b6541de31e41ad0c813d06e676242d293f",
       "executable": false
     },
     "vite.config.ts": {

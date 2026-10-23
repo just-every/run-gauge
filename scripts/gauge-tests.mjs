@@ -51,6 +51,10 @@ const suites = [
  ],
  [
   "node",
+  "tests/gauge-scope-changes.mjs"
+ ],
+ [
+  "node",
   "tests/gauge-report-lineage.mjs"
  ],
  [
@@ -116,6 +120,7 @@ const groups = [
  ],
  [
   "gauge-agent.mjs",
+  "gauge-scope-changes.mjs",
   "gauge-finance-forecast.mjs",
   "gauge-project-scenarios.mjs",
   "gauge-handoffs.mjs"

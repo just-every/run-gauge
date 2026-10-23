@@ -1,5 +1,6 @@
 import { kantataSection } from './ui-kantata'
 import { agencySection, consolidationSection } from './ui-agency'
+import { scopeChangesSection } from './ui-scope-changes'
 import { casesSection } from './ui-operational-cases'
 import { privacySection } from './ui-privacy'
 import { customDefinitionSection,customRecordSection,customReportsSection,customImportSection } from './ui-custom-fields'
@@ -52,7 +53,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
  if(section==='time')body+=timeSection(a,report,options)
  if(section==='access')body+=await agencySection(env,a,report)+customDefinitionSection(a,report,options)
- if(section==='engagements')body+=customRecordSection(a,report,options)
+ if(section==='engagements')body+=customRecordSection(a,report,options)+scopeChangesSection(a,report)
  if(section==='review'||section==='capacity')body+=customReportsSection(a,report,options)
  if(section==='imports')body+=customImportSection(a,options)
  body+=await operations(env,a,section,{...options,today,zone},report)

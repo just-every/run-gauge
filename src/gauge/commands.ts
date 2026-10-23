@@ -52,6 +52,7 @@ import { estimateCommand,estimateCompare } from './estimates'
 import { customCommand,customPreview } from './custom-fields'
 import { clientCommand } from './clients'
 import { agencyProfileCommand } from './agency-profile'
+import { scopeCommand } from './scope-changes'
 import { fxCommand, consolidate } from './fx-rates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
@@ -110,6 +111,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await approvalCommand(env,a,tx,action,input)
  if(!result)result=await agencyProfileCommand(env,a,tx,action,input)
  if(!result)result=await fxCommand(env,a,tx,action,input)
+ if(!result)result=await scopeCommand(env,a,tx,action,input)
  if(!result)result=await projectScenarioCommand(env,a,tx,action,input)
  if(!result)result=await demandScenarioCommand(env,a,tx,action,input)
  if(!result)result=await invoiceCommand(env,a,tx,action,input)

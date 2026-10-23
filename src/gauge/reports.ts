@@ -52,6 +52,8 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(a.role==='staff'&&k==='retainerPeriods'){const {reason,openedBy,openedAt,...period}=value;return period}
  // Cash assumptions (FINANCE-002/FINANCE-007) and the SETUP-002 client workspace are finance's: others see the client's name.
  if(k==='clients')return Object.fromEntries(Object.entries(value).filter(([key])=>!privateClientKeys.includes(key)))
+ if(k==='scopeChanges'){const {impact,...rest}=value;const {costMinor,marginMinor,...visibleImpact}=impact;return {...rest,impact:visibleImpact}}
+ if(k==='scopeEvents'){const {acceptorContact,evidenceRef,...rest}=value;return rest}
  const v: Value = { ...value }
  if(k==='retainers')v.terms=Object.fromEntries(Object.entries(value.terms).filter(([key])=>!['feeMinor','feeBasis'].includes(key)))
  if(a.role==='staff'&&k==='time'){delete v.retainerRootId;delete v.retainerAllocation}
@@ -83,6 +85,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   // Agency delivery templates are planning configuration for those who start projects.
   if(a.role!=='lead')data.deliveryTemplates=[]
   const leadIds=new Set(data.engagements.filter(e=>(a.role==='lead' && e.value.leadId===a.personId)).map(e=>e.id))
+  for(const k of ['scopeChanges','scopeEvents'] as const)data[k]=data[k].filter(r=>leadIds.has(r.value.engagementId))
   // Leads see staffing, time and change orders on their engagements; everyone sees time drafted for them. Billing proposals are finance's.
   data.proposals=data.proposals.filter(r=>(leadIds.has(r.value.engagementId) && r.value.kind!=='billing') || (r.value.kind==='time' && r.value.plan.personId===a.personId))
   for (const k of ['time','expenses'] as Kind[]) data[k]=data[k].filter(r=>r.value.personId===a.personId || leadIds.has(r.value.engagementId) || (k==='time'&&delegatedIds.has(r.value.engagementId)&&data.timeDelegations.some(d=>activeDelegation(d,data.engagements.find(e=>e.id===r.value.engagementId)!,a,today,r.value.workDate))))

@@ -378,6 +378,9 @@ export async function agencyCloseJourney(h){
  assert(original.value.snapshot.checklist.retainers.find(r=>r.rootId===families[0].id).periods.some(p=>p.closeId===retainerClose.id))
  assert(original.value.snapshot.checklist.retainers.find(r=>r.rootId===families[1].id).exception)
  assert(!JSON.stringify(original.value.snapshot).includes('fifoState'),'Agency close links retainer immutable snapshots without copying them')
+ // SETUP-003: a rate effective inside the closed month would rewrite that month's conversion, so it is refused.
+ const midMonthRate={currency:'NZD',rate:'0.5900',effective:'2026-09-15',source:'Published rate synthetic-gauge-61',reason:'Mid-September rate approved after the close'}
+ assert.match((await cmd('fx:approve',midMonthRate,owner,409)).error,/closed period protects exchange rates through 2026-09-30/)
  const timeInput={personId:worker.id,engagementId:project.id,taskId:task.id,service:'Close service',timezone:zone,start:'2026-09-02T10:00:00-04:00',end:'2026-09-02T11:00:00-04:00',notes:'Late confirmed correction',billable:true}
  await cmd('time:save',timeInput,owner,409)
  const heldPolicy=data.data.timePolicies[0]
@@ -388,6 +391,7 @@ export async function agencyCloseJourney(h){
  const reopening=await cmd('period:reopen-prepare',{...close,reason:'Authorize a late September correction with retained original snapshot'})
  await cmd('period:reopen',reopening,owner,403);await cmd('period:reopen',reopening,reviewer.cookie)
  assert.equal((await state()).data.timePolicies[0].value.lockThrough,'2026-08-31')
+ await cmd('fx:approve',midMonthRate) // the authorized reopen lifts the protection, as for every dated financial fact
  let late=await cmd('time:save',timeInput);late=await cmd('time:approve',await cmd('time:submit',late))
  assert.deepEqual((await state()).data.periodCloses.find(c=>c.id===close.id),original,'Authorized reopen never rewrites the original reconciliation');assert.equal(await(await request(`/api/gauge/closes/${close.id}`,owner)).text(),download)
  const reopenedPolicy=(await state()).data.timePolicies[0];await cmd('time:policy',{...reopenedPolicy,lockThrough:'2026-09-30',reason:'Relock corrected September time'})

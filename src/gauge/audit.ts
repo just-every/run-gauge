@@ -90,7 +90,7 @@ async function present(env: Bindings, a: Actor, r: AuditRow, names: Map<string, 
  }
 }
 
-const operatorNames = async (env: Bindings) => new Map((await env.DB.prepare('SELECT id,display_name FROM oa_operators').all<{ id: string; display_name: string }>()).results.map(o => [o.id, o.display_name]))
+export const operatorNames = async (env: Bindings) => new Map((await env.DB.prepare('SELECT id,display_name FROM oa_operators').all<{ id: string; display_name: string }>()).results.map(o => [o.id, o.display_name]))
 
 /** Finance and the owner search the audit; newest first, at most 500 entries per read. */
 export async function auditSearch(env: Bindings, a: Actor, q: AuditQuery) {

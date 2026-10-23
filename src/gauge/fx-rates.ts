@@ -6,7 +6,9 @@ import { currencies } from './agency'
 // SETUP-001 / SETUP-003: Gauge never converts silently. Money in a currency other than the agency's reporting currency
 // is consolidated only at an owner-approved, effective-dated rate; with no approved rate an amount stays in its own
 // currency and the consolidated total is withheld, never shown with the amount as zero. A new or corrected rate
-// applies forward only: it cannot be effective before the latest rate already approved for that currency.
+// applies forward only: it cannot be effective before the latest rate already approved for that currency, nor on or
+// before the end of a closed agency period (FINANCE-004); an authorized reopen lifts that protection as it does for
+// every other dated financial fact.
 const rateMicro = (raw: unknown) => {
  const s = String(raw ?? '').trim()
  need(/^\d{1,6}(\.\d{1,6})?$/.test(s), 'Use an exchange rate such as 0.6500 (up to six decimals)')
@@ -24,9 +26,10 @@ export async function fxCommand(env: Bindings, a: Actor, tx: Transaction, action
  const { rate, micro } = rateMicro(input.rate), effective = date(input.effective), rows = (await all(env, 'fxRates')).filter(r => r.value.currency === currency)
  const latest = rows.map(r => r.value.effective as string).sort().at(-1)
  need(!latest || effective >= latest, `A new rate applies forward only: ${currency} already has a rate effective ${latest}`, 409)
- const closed = await all(env, 'periodCloses')
- need(!closed.some(r => r.value.to >= effective), 'A closed period protects its dated exchange rates; approve a rate after that period', 409)
- tx.guard("NOT EXISTS(SELECT 1 FROM g_periodCloses WHERE json_extract(data,'$.to')>=?)", effective)
+ const reopened = new Set((await all(env, 'periodReopens')).map(r => r.value.closeId))
+ const closedThrough = (await all(env, 'periodCloses')).filter(r => !reopened.has(r.id) && r.value.to >= effective).map(r => r.value.to as string).sort().at(-1)
+ need(!closedThrough, `A closed period protects exchange rates through ${closedThrough}; approve a rate effective after it`, 409)
+ tx.guard("NOT EXISTS(SELECT 1 FROM g_periodCloses c WHERE json_extract(c.data,'$.to')>=? AND NOT EXISTS(SELECT 1 FROM g_periodReopens r WHERE r.close_id=c.id))", effective)
  tx.guard("(SELECT COUNT(*) FROM g_fxRates WHERE json_extract(data,'$.currency')=?)=?", currency, rows.length)
  return tx.record('fxRates', { currency, to: a.currency, rate, rateMicro: micro, effective, source: text(input.source, 'Rate source (the accounting provider or a named published rate)', 300), reason: text(input.reason, 'Reason for the rate'), approvedBy: a.session.operator.id, approvedAt: Date.now() }, undefined, undefined, action)
 }

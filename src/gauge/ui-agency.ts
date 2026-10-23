@@ -6,6 +6,7 @@ import { day, money, when } from './ui-format'
 import { currencies } from './agency'
 import { fiscalYear, monthName } from './agency-profile'
 import { consolidate } from './fx-rates'
+import { operatorNames } from './audit'
 import type { Report } from './ui-describe'
 
 const hidden = (name: string, value: string) => `<input type="hidden" name="${name}" value="${e(value)}">`
@@ -25,12 +26,13 @@ export async function agencySection(env: Bindings, a: Actor, report: Report) {
  html += `<section class="g-card"><h2>Workweek and holidays</h2><p class="g-note">${calendar ? `Working weekdays ${e(calendar.value.calendar.weekdays.join(', '))} (0 is Sunday); ${calendar.value.calendar.holidays.length} holiday date${calendar.value.calendar.holidays.length === 1 ? '' : 's'}; saved ${e(when(calendar.value.savedAt, a.timezone))}.` : 'Monday to Friday with no holidays until the owner saves a calendar.'}</p></section>`
  html += form('agency:calendar', 'Agency calendar version', hidden('previousId', calendar?.id ?? '') + hidden('page', 'access') + weekdayChecks(calendar?.value.calendar.weekdays.join(',') ?? '1,2,3,4,5')
   + i('holidays', 'Agency holidays (comma-separated dates)', calendar?.value.calendar.holidays.join(', ') ?? '', 'text', false) + area('reason', 'Calendar change reason'), undefined, 'Save agency calendar')
- const rates = report.data.fxRates as Row[]
+ const rates = report.data.fxRates as Row[], names = await operatorNames(env)
  html += table('Approved exchange rates', [...rates].reverse(), [
-  { label: 'Currency', cell: r => e(`${r.value.currency} → ${r.value.to}`) },
-  { label: 'Rate', num: true, cell: r => e(r.value.rate) },
-  { label: 'Effective', cell: r => e(day(r.value.effective)) },
-  { label: 'Source', wrap: true, cell: r => e(r.value.source) },
+  { label: 'Currency', line: 1, cell: r => e(`${r.value.currency} → ${r.value.to}`) },
+  { label: 'Rate', num: true, line: 1, cell: r => e(r.value.rate) },
+  { label: 'Effective', line: 2, cell: r => e(day(r.value.effective)) },
+  { label: 'Approved by', line: 2, cell: r => e(`${names.get(r.value.approvedBy) ?? r.value.approvedBy} · ${when(r.value.approvedAt, a.timezone)}`) },
+  { label: 'Source', wrap: true, line: 3, cell: r => e(r.value.source) },
  ], undefined, 'No exchange rates approved. Amounts in other currencies stay in their own currency.')
  html += form('fx:approve', 'Approve an exchange rate', select('currency', 'Currency to convert', currencies.filter(c => c !== a.currency).map(c => ({ id: c, revision: '', value: { name: `${c} → ${a.currency}` } })))
   + i('rate', `Rate (one unit of that currency in ${a.currency})`, '', 'text') + i('effective', 'Effective from', '', 'date') + i('source', 'Source (accounting provider or a named published rate)') + area('reason', 'Reason for the rate'), undefined, 'Approve rate')

@@ -1175,7 +1175,7 @@
       "executable": false
     },
     "src/gauge/audit.ts": {
-      "sha256": "778947333e99bdcdaa8fae9c4c5c8545beddef0e046c4760ba73c0d09143aa39",
+      "sha256": "c353228aa8d995a83726c47d547a168fc539ccb2aebd6c6d8c0e7395c7acc815",
       "executable": false
     },
     "src/gauge/billability.ts": {
@@ -1319,7 +1319,7 @@
       "executable": false
     },
     "src/gauge/fx-rates.ts": {
-      "sha256": "5c36df579422030cf3be67e240acf89e9658c5939901f5394277aebed75054cb",
+      "sha256": "763e6db54678f576fd48030ef1e2ac591e7ae4c8980708783e2b574573a945e3",
       "executable": false
     },
     "src/gauge/harvest-rates.ts": {
@@ -1763,7 +1763,7 @@
       "executable": false
     },
     "src/gauge/ui-agency.ts": {
-      "sha256": "0f781566f3c877322c00c4fbbdc260654a384fc2a338cf54bbdf6f9d5ec0362e",
+      "sha256": "a5313100be50531c24a703098ddf87c00ac036b6ecc35607c37dea7f37e6f799",
       "executable": false
     },
     "src/gauge/ui-api-keys.ts": {
@@ -3827,7 +3827,7 @@
       "executable": false
     },
     "tests/gauge-agency.mjs": {
-      "sha256": "84ee89538da22d33b928714a8e6030cbfd64ee590ef6db924f1f6d79f889ee62",
+      "sha256": "ea7ad3ed9b4ca51777bb67d68e0ded48686e0397012ec8ba0511838c274b8d56",
       "executable": false
     },
     "tests/gauge-agent.mjs": {
@@ -3911,7 +3911,7 @@
       "executable": false
     },
     "tests/gauge-invoices.mjs": {
-      "sha256": "c1464142737fffb4275724058894af279864290cbd160f43f89d13410868b1de",
+      "sha256": "40ff5cee326a7de00a28b2d6d8ab7624e2697bf06b75b343d2ed320c7e3e1d53",
       "executable": false
     },
     "tests/gauge-kantata.mjs": {

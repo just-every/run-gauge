@@ -156,7 +156,13 @@ export async function clientCurrencyJourney(h, page, capture) {
  await cmd('fx:approve',{currency:'CAD',rate:'0.7400',effective:'2026-11-01',source:'Published rate synthetic-gauge-46',reason:'November reporting'})
  assert.deepEqual(await cmd('fx:consolidate',window),october,'November rate leaves October figures unchanged')
  for(const invoice of currencies)assert.deepEqual((await state()).data.invoices.find(r=>r.id===invoice.id),invoice,'Conversion never changes an issued document')
- await page.goto(h.origin+'/app/imports');assert.match(await page.locator('main').innerText(),/Issued invoice currency totals/);await capture('invoice-consolidation')
+ await page.goto(h.origin+'/app/imports');const totals=await page.locator('main').innerText()
+ for(const label of [/Issued invoice currency totals/,/0\.7300 from 2026-10-01 \(Published rate synthetic-gauge-45\)/,/Unconverted/])assert.match(totals,label);await capture('invoice-consolidation')
+ // The owner's rates table names who approved each rate and when, beside its rate, effective date and source.
+ await page.goto(h.origin+'/app/access')
+ const rateRows=(await page.locator('section.g-card--table').filter({has:page.getByRole('heading',{name:'Approved exchange rates',exact:true})}).locator('tbody tr').allInnerTexts()).map(row=>row.replace(/\u00a0/g,' '))
+ for(const [rate,effective,source] of [['0.7300','Oct 1, 2026','synthetic-gauge-45'],['0.7400','Nov 1, 2026','synthetic-gauge-46']])assert(rateRows.some(row=>row.includes(rate)&&row.includes(effective)&&row.includes(source)&&row.includes('Test owner')),`The rates table shows who approved ${rate}: ${rateRows.join(' | ')}`)
+ await capture('exchange-rates')
  await page.goto(h.origin+'/app/rates');await capture('client-currency-rates')
- console.log('PASS SETUP-003 client defaults, pre-commercial engagement override and lock, scoped CAD rates, CAD and USD native invoices, labelled 0.7300 conversion, November stability and missing GBP rate')
+ console.log('PASS SETUP-003 client defaults, pre-commercial engagement override and lock, scoped CAD rates, CAD and USD native invoices, labelled 0.7300 conversion, November stability, missing GBP rate and approver on the rates table')
 }

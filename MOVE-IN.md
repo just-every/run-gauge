@@ -183,3 +183,22 @@ form records only an exact, explicit, audited source-comparison acceptance;
 it performs no provider shutdown, deletion or native financial transfer. Its
 receipt holds source reversal until an audited owner withdrawal. This is honest
 partial progress, not a completed operational move from Rocketlane.
+
+
+## Float move-in (partial)
+
+The Float Imports section accepts bounded complete-year schedule/report CSVs,
+value-only workbooks and paginated uploaded v3 JSON captures. The synthetic
+`tests/fixtures/float.mjs` and API.md document explicit maps for allocations,
+actuals, effective workweeks, leave, phases and historical project rates.
+Independent project/month controls reconcile schedule and actuals; task rows
+reference one stable phase-budget identity so repeated budgets count once.
+Captured deletion events retain the original row and exclude it once from
+historical controls. A missing event interval requires a newer complete original
+comparison; the adapter never treats an old report as fresh deletion coverage.
+
+This slice retains historical evidence and exact originals. It does not yet
+adopt native calendars, allocations or leave, erase native work on a source
+deletion, maintain a live event feed or authorize operational cutover. Those
+unproved points keep MIGRATE-009 partial. The Imports controls have visible
+text labels; no icon-only control is introduced.

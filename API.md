@@ -829,3 +829,53 @@ annotations after restore; fresh native owner authentication is still required.
 MIGRATE-008 remains partial until the operational cutover policy is decided and
 its resulting native ownership workflow is proven; MIGRATE-010 retains the
 broader parallel-run and retirement comparison.
+
+
+### Float source snapshots (MIGRATE-009, partial)
+
+`import:float:preview/create/resume/read/report/originals/rollback/undo` uses
+that same exact-fingerprint, live finance/owner, ten-record journal. Use
+`provider: "float"`, `mappingVersion: "float-v1"`, complete contiguous calendar
+year windows, explicit object permissions and independent counts/project-month
+controls. `tests/fixtures/float.mjs` documents a synthetic two-window package.
+The native Imports section provides preview, apply, retained originals and
+source controls. This adapter does not contact Float or claim provider access.
+
+Map `clients`, `people`, `projects`, `phases`, `rates`, `budgets`, `allocations`,
+`time`, `workweeks`, `leave` and `deletions`. Float `/tasks` allocations are
+separate from `/logged-time` actuals and `/timeoffs` leave. Uploaded v3 JSON
+pages declare their array, page/next/total metadata and every original page;
+CSV and value-only workbook rows use the same stable source identities.
+
+- Allocations carry `projectId`, `personId`, `phaseId`, inclusive `from/to`,
+  `unit: "hours-per-day"`, and the exact original `daily: [{date,hours}]`.
+  No aggregate is distributed into invented dates. Split allocation/leave
+  rows at month boundaries using original daily detail. `budgetId` and repeated
+  `phaseBudgetMinor` must match one independent `budgets` identity; repeated
+  task-row budget values never add to the project budget.
+- Actuals carry `workDate`, `duration`, `billable`, their explicit `unit`,
+  `rateId`, `billMinor` and `costMinor`. Rates retain person/project, effective
+  date, historical cost and project bill rate. The latest applicable captured
+  rate must reproduce actual cost/value exactly, rounded half up per entry.
+- Workweeks carry non-overlapping effective `from/to` and all seven `weekdays`
+  keyed `0` (Sunday) through `6`, in `hours-per-weekday`. Each actual needs a
+  captured workweek covering its date. Leave retains exact daily hours.
+- Deletion records carry a stable event `id`, `entity` (`allocations`, `time`
+  or `leave`), `recordId`, positive integer `sequence` and timezone-bearing
+  `auditTimestamp`. Identical repeated events across reports count once;
+  conflicting event identity, duplicate sequence or a missing sequence refuses.
+  The original target row remains in custody with `sourceDeleted: true` and is
+  excluded from source totals. This never deletes native business records.
+- `deletionCoverage: {complete:true,fromSequence,toSequence,missed:false}`
+  declares the exact uploaded event interval. If `missed:true`, include
+  `missedAt` and `fullComparison: {complete:true,asOf,artifacts:[...]}`.
+  `asOf` must be newer than the missed interval and `artifacts` must name
+  every mapped allocation, actual, leave, people, project, phase, rate,
+  workweek and budget original. An old or incomplete comparison cannot repair
+  missed coverage. This is reviewed uploaded evidence, not a live event-feed
+  freshness or webhook claim.
+
+Float currently imports historical source evidence only. `nativeDrafts:true`
+refuses rather than silently omitting native capacity, allocation or leave
+adoption. Native adoption and follow-on deletion reconciliation remain pending;
+MIGRATE-010 retains operational cutover and billing-ownership obligations.

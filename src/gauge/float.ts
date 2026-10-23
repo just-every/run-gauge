@@ -16,6 +16,8 @@ export const floatSpec: MoveInSpec = {
   deletions: ['entity', 'recordId', 'sequence', 'auditTimestamp']
  },
  normalize(kind, v, m) {
+  // Only a reconciled captured deletion event derives this marker.
+  delete v.sourceDeleted
   if (kind === 'allocations' || kind === 'leave') {
    need(v.unit === 'hours-per-day' && m.units?.allocations === v.unit, 'Float daily quantities need explicit hours-per-day units')
    const daily = typeof v.daily === 'string' ? JSON.parse(v.daily) : v.daily

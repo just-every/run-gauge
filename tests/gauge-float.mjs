@@ -25,6 +25,7 @@ export const floatJourney = () => sourceJourney({
   assert.equal(report.records.time.find(t=>t.id==='t1').costMinor,9000)
   assert.equal(report.records.time.find(t=>t.id==='t2').costMinor,20000)
   assert.equal((await h.state()).data.time.length,0,'Source comparison does not create or erase native time')
+  const forged=floatFixture();forged.manifest.objects.time.forEach(c=>c.columns.sourceDeleted='sourceDeleted');for(const file of Object.keys(forged.files).filter(f=>/^time-/.test(f))){forged.files[file]=forged.files[file].trimEnd().split('\n').map((line,i)=>line+','+(i===0?'"sourceDeleted"':'"true"')).join('\n')+'\n'};assert((await h.cmd('import:float:preview',{package:forged})).canApply,'Mapped input cannot forge the derived deletion marker or exclude actual totals')
   const fresh=floatFixture();fresh.manifest.deletionCoverage={complete:true,fromSequence:1,toSequence:1,missed:true,missedAt:'2026-03-05T12:00:00Z',fullComparison:{complete:true,asOf:'2026-03-06T12:00:00Z',artifacts:Object.keys(fresh.files)}}
   const reviewed=await h.cmd('import:float:preview',{package:fresh});assert(reviewed.canApply,JSON.stringify(reviewed.findings))
   fresh.manifest.deletionCoverage.fullComparison.asOf='2026-03-04T12:00:00Z';assert.equal((await h.cmd('import:float:preview',{package:fresh})).canApply,false,'Old comparison cannot repair missed deletion coverage')

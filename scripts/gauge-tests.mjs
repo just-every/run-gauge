@@ -107,12 +107,11 @@ const suites = [
 const groups = [
  [
   "gauge.mjs",
-  "gauge-currency.mjs",
   "gauge-harvest-history.mjs",
-  "gauge-rate-cards.mjs",
-  "gauge-pipeline.mjs"
+  "gauge-rate-cards.mjs"
  ],
  [
+  "gauge-currency.mjs",
   "gauge-cash-forecast.mjs",
   "gauge-clients.mjs",
   "gauge-expected-cash.mjs",
@@ -137,7 +136,8 @@ const groups = [
   "gauge-report-lineage.mjs",
   "gauge-utilization.mjs",
   "gauge-resources.mjs",
-  "gauge-schedule.mjs"
+  "gauge-schedule.mjs",
+  "gauge-pipeline.mjs"
  ]
 ]
 const names=suites.map(s=>basename(s.at(-1))),assigned=groups.flat()

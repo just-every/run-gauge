@@ -84,12 +84,20 @@ async function snapshot(env:Bindings,tx:Transaction,schedule:Row,input:Value,exc
  return {...(input.journalType!==undefined?{journalType}:{}),...(journalType==='correction'?{correctedAmountMinor:input.correctedAmountMinor}:{}),scheduleId:schedule.id,engagementId:s.engagementId,scheduleRevision:schedule.revision,currency:s.currency,mode:s.mode,policy:s.policy,accountant:s.accountant,accounts:s.accounts,date:day,amountMinor,evidence,sourceKey,sourceId:source?.id??null,sourceRevision:source?.revision??null,sources,sequence:prior.length+1,previous,balances,journal,notice:recognitionNotice}
 }
 export async function revenueCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null>{
- if(!['revenue:schedule','revenue:prepare','revenue:approve','revenue:withdraw'].includes(action))return null
+ if(!['revenue:schedule','revenue:policy','revenue:prepare','revenue:approve','revenue:withdraw'].includes(action))return null
  need(finance(a),'Finance access required',403)
+ if(action==='revenue:policy'){
+  need(a.role==='owner','Only the owner records the accountant policy',403)
+  const schedule=await get(env,'revenueSchedules',text(input.id,'Revenue schedule'))
+  need(schedule.revision===input.revision,'Schedule changed; reload',409)
+  return tx.record('revenueSchedules',{...schedule.value,policy:text(input.policy,'Accountant policy reference'),accountant:text(input.accountant,'Appointed accountant'),reason:text(input.reason,'Policy revision reason'),recordedBy:a.session.operator.id,recordedAt:Date.now()},schedule,undefined,action)
+ }
  if(action==='revenue:schedule'){
   need(a.role==='owner','Only the owner records the accountant policy',403)
   const engagement=await access(env,a,text(input.engagementId,'Engagement'),true);tx.observe('engagements',engagement)
   need(engagement.value.type!=='internal','Internal work has no revenue schedule')
+  need(!(await all(env,'revenueSchedules')).some(r=>r.value.engagementId===engagement.id),'This engagement already has a revenue schedule; revise its accountant policy instead',409)
+  tx.guard("NOT EXISTS(SELECT 1 FROM g_revenueSchedules WHERE json_extract(data,'$.engagementId')=?)",engagement.id)
   const budget=await get(env,'budgets',text(input.budgetId,'Approved budget'));tx.observe('budgets',budget)
   need(budget.revision===input.budgetRevision&&budget.value.status==='approved'&&budget.value.engagementId===engagement.id&&budget.value.currency===engagement.value.currency,'Review the exact approved engagement budget',409)
   need(['service-delivery','milestone','time'].includes(input.mode),'Choose service-delivery, milestone or time')

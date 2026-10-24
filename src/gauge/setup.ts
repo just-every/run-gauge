@@ -35,7 +35,9 @@ export async function agencySetupResponse(request: Request, env: Bindings, auth:
    tx.sql('INSERT INTO oa_first_run(singleton,completed_by,completed_at) VALUES(1,?,?)', session.operator.id, Date.now())
    if (profile) await tx.record('agencyProfiles', profile, undefined, undefined, 'agency:profile')
    tx.audit('agency:setup', 'agency', 'agency', { currency, timezone })
-   await initializeProviderKey(env, tx)
+   // Local review sessions complete agency setup without acquiring provider custody.
+   // Native owners initialize custody here or explicitly from Access later.
+   if (session.kind === 'native') await initializeProviderKey(env, tx)
    await tx.commit()
    return new Response(null, { status: 303, headers: { ...headers, location: '/app' } })
   }

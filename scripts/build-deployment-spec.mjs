@@ -8,7 +8,7 @@ if (process.argv.includes('--check')) {
   if (await readFile(target, 'utf8') !== bytes) throw Error('Deployment specification is stale; run pnpm delivery:spec after building.');
   console.log('Deployment specification is current.');
 } else {
-  await mkdir('management/integration', {recursive: true});
+  await mkdir('./management/integration', {recursive: true});
   await writeFile(target, bytes);
   console.log('Deployment specification written.');
 }

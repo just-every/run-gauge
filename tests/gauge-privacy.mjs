@@ -75,7 +75,7 @@ export async function privacyJourney(){
   const newArchive=await exportText();assert(!newArchive.includes(Buffer.from('synthetic-gauge-4102 private receipt').toString('base64')),'Post-erasure archive has no erased receipt bytes')
   const dir=await mkdtemp(join(tmpdir(),'gauge-privacy-restore-'));let proxy
   try{
-   execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',dir,'--config','dist/server/wrangler.json'],{stdio:'pipe',env:{...process.env,CI:'true',WRANGLER_SEND_METRICS:'false'}})
+   execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',dir,'--config','dist/server/wrangler.json'],{stdio:'pipe',maxBuffer:8*1024*1024,env:{...process.env,CI:'true',WRANGLER_SEND_METRICS:'false'}})
    proxy=await getPlatformProxy({configPath:resolve('wrangler.jsonc'),persist:{path:join(dir,'v3')},remoteBindings:false});const restore=await createPortability({db:proxy.env.DB,policy:portabilityPolicy})
    const read=async text=>{const rows=[];for await(const row of readArchive(new Response(text).body))rows.push(row);return rows}
    const old=await read(oldArchive),id=await restore.imports.create(old[0]);for(const p of old.filter(r=>r.kind==='part'))await restore.imports.uploadPart(id,p.index,p)

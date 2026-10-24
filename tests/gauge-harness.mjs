@@ -13,7 +13,7 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  const directory=persistenceDirectory??await mkdtemp(join(tmpdir(),'gauge-flow-')),origin=`https://127.0.0.1:${port}`,secret=()=>randomBytes(32).toString('hex'),mails=[],providerRequests=[],providerEdge={handler:null}
  const vars={AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret(),SETUP_TOKEN:secret(),MAIL_PROVIDER:'resend',MAIL_FROM:'Gauge <auth@example.test>',MAIL_API_KEY:'synthetic-gauge-900001'}
  const config=JSON.parse(await readFile('dist/server/wrangler.json','utf8')),server=resolve('dist/server')
- if(!persistenceDirectory)execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',env:{...process.env,WRANGLER_SEND_METRICS:'false',CI:'true'}})
+ if(!persistenceDirectory)execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',maxBuffer:8*1024*1024,env:{...process.env,WRANGLER_SEND_METRICS:'false',CI:'true'}})
  const logs=[]
  const log=new class extends Log {log(message){logs.push(String(message))}}(LogLevel.INFO)
  const mf=new Miniflare({log,...convertV4MiniflareOptions({

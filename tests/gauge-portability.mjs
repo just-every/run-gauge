@@ -20,7 +20,7 @@ export async function portability(source,{verifyRestored}={}){
  }finally{await proxy.dispose()}
  const destination=await mkdtemp(join(tmpdir(),'gauge-restored-'));let restored
  try{
-  execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',destination,'--config','wrangler.jsonc'],{stdio:'pipe',env:{...process.env,CI:'true',WRANGLER_SEND_METRICS:'false'}})
+  execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',destination,'--config','wrangler.jsonc'],{stdio:'pipe',maxBuffer:8*1024*1024,env:{...process.env,CI:'true',WRANGLER_SEND_METRICS:'false'}})
   restored=await getPlatformProxy({configPath:resolve('wrangler.jsonc'),persist:{path:join(destination,'v3')},remoteBindings:false});const service=await createPortability({db:restored.env.DB,policy}),manifest=expected[0],id=await service.imports.create(manifest)
   for(const part of expected.filter(r=>r.kind==='part'))await service.imports.uploadPart(id,part.index,part)
   await assert.rejects(()=>service.imports.finalize(id,{contentHash:'0'.repeat(64),archiveHash:expected.at(-1).archiveHash}));assert.equal((await restored.env.DB.prepare('SELECT COUNT(*) n FROM g_time').first()).n,0)

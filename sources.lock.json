@@ -813,6 +813,10 @@
       "sha256": "06e69ac905bf97916f65318928fd60cecff92182f6d41743f756701223b333f5",
       "executable": false
     },
+    "migrations/core/0069_gauge_revenue_policy_revisions.sql": {
+      "sha256": "54c449d71a01e66abed5190c72df222820fa3f21a59d2f32aa13781854dda553",
+      "executable": false
+    },
     "MOVE-IN.md": {
       "sha256": "b1782fdeab187ee5821b59097a59615291e1537b8c69957292d4c882cf00f96d",
       "executable": false
@@ -4214,7 +4218,7 @@
       "executable": false
     },
     "tests/fixtures/scoro-restore.mjs": {
-      "sha256": "5a8fd37821e092f8b296b8bb1a0cc390e5bbebd2a83e4bdd56815a1481d1c980",
+      "sha256": "880beffd34ff441c6f544f9990c620f20051a209b6d2b32c91c7f702dc6bb968",
       "executable": false
     },
     "tests/fixtures/scoro.mjs": {
@@ -4302,7 +4306,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "b3292da70ecf04128ee6f88d55e52183af072576237f0e6fe787ba58b0e629ac",
+      "sha256": "bc8d4e4d50d35ff5dd3bad59f95bccb1c7d43657616ef6c79e76955688eba90e",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4318,7 +4322,7 @@
       "executable": false
     },
     "tests/gauge-kantata.mjs": {
-      "sha256": "a5fce443fdaea5bdb161cdbc1c91fe2eafab22307b7e6f6148500aff4a73ba76",
+      "sha256": "34eee4b6c5b329856a6cd584ca9193dccd1bc391f663ac027b2b0fd974ac26dd",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
@@ -4330,7 +4334,7 @@
       "executable": false
     },
     "tests/gauge-portability.mjs": {
-      "sha256": "0ceea74eac389aacefd7b0fb5a17be9e8cec2c16291e0873971d5230b549a02c",
+      "sha256": "accbeb9814f306bbf995d14a7af1747beb03f6589ee5d7f769a6eb17d569e576",
       "executable": false
     },
     "tests/gauge-portfolio.mjs": {
@@ -4338,7 +4342,7 @@
       "executable": false
     },
     "tests/gauge-privacy.mjs": {
-      "sha256": "da3f4bbf0b9b8890a12ed4d1edeaf0a11a8082e1ecaaf11a731e473ce6bda374",
+      "sha256": "fa060521cdc802f720478633e84419d1788ded255e914bc9255b19485677b1c2",
       "executable": false
     },
     "tests/gauge-productive.mjs": {
@@ -4458,7 +4462,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "1ce2665b5f6f70665bd36094e4c1aa27178b9d6e38b69f47d09d1ca39debfdab",
+      "sha256": "34b6fda3e0330b05d7ddaa1b6f43be565a8acd45e1560f90ea2a7fed2aa52f3d",
       "executable": false
     },
     "tsconfig.json": {

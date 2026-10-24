@@ -6,7 +6,11 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "triggers": { "crons": ["15 * * * *"] },
+  "triggers": {
+    "crons": [
+      "15 * * * *"
+    ]
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -14,5 +18,17 @@
       "database_id": "local-gauge-only",
       "migrations_dir": "migrations/core"
     }
-  ]
+  ],
+  "vars": {
+    "AUTH_LOCAL": "false",
+    "AUTH_ORIGIN": "",
+    "MAIL_PROVIDER": "",
+    "MAIL_FROM": "",
+    "MAIL_RELAY_URL": "",
+    "MAIL_ACCOUNT_ID": "",
+    "IDENTITY_PROVIDER": "",
+    "OWNER_EMAIL": "",
+    "APP_NAME": "Gauge",
+    "PRIMARY_COLOR": "#174F84"
+  }
 }

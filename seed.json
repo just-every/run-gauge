@@ -1,7 +1,7 @@
 {
   "id": "gauge",
   "name": "Gauge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "maturity": "first-release-local",
   "category": "professional-services",
   "spine": {
@@ -26,12 +26,6 @@
         "REVIEW-001",
         "ACCESS-001",
         "MOVE-001"
-      ]
-    },
-    {
-      "id": "http-dispatch",
-      "clauses": [
-        "HTTP-001"
       ]
     }
   ],

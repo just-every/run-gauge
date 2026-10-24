@@ -1,6 +1,6 @@
 {
   "name": "@professional-services/gauge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "MIT",
   "repository": "https://github.com/just-every/run-gauge",
@@ -31,7 +31,10 @@
     "rer": "rer",
     "test:gauge": "node scripts/gauge-tests.mjs",
     "source:lock": "node scripts/edition-authoring/cli.mjs lock",
-    "source:check": "node scripts/edition-authoring/cli.mjs check && node scripts/edition-authoring/cli.mjs verify-base --offline"
+    "source:check": "node scripts/edition-authoring/cli.mjs check && node scripts/edition-authoring/cli.mjs verify-base --offline",
+    "delivery:spec": "node scripts/build-deployment-spec.mjs",
+    "check:deployment-spec": "node scripts/build-deployment-spec.mjs --check",
+    "delivery:artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json"
   },
   "dependencies": {
     "@e965/xlsx": "0.20.3",

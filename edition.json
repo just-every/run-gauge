@@ -89,7 +89,13 @@
           "paths": [
             "foundation/runtime"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/base",
+            "originPath": "foundation/runtime"
+          }
+        ]
       }
     },
     {
@@ -106,7 +112,13 @@
           "paths": [
             "modules/operator-auth"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/operator-auth",
+            "originPath": "modules/operator-auth"
+          }
+        ]
       }
     },
     {
@@ -123,7 +135,13 @@
           "paths": [
             "modules/mail"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/mail",
+            "originPath": "modules/mail"
+          }
+        ]
       }
     },
     {
@@ -140,7 +158,13 @@
           "paths": [
             "modules/ai"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/ai",
+            "originPath": "modules/ai"
+          }
+        ]
       }
     },
     {
@@ -157,7 +181,13 @@
           "paths": [
             "modules/dependencies"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/dependencies",
+            "originPath": "modules/dependencies"
+          }
+        ]
       }
     },
     {
@@ -174,7 +204,13 @@
           "paths": [
             "modules/owner-claim"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/owner-claim",
+            "originPath": "modules/owner-claim"
+          }
+        ]
       }
     },
     {
@@ -191,7 +227,13 @@
           "paths": [
             "modules/import-kit"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/import-kit",
+            "originPath": "modules/import-kit"
+          }
+        ]
       }
     },
     {
@@ -208,7 +250,13 @@
           "paths": [
             "modules/demo"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/demo",
+            "originPath": "modules/demo"
+          }
+        ]
       }
     },
     {
@@ -225,7 +273,82 @@
           "paths": [
             "modules/d1-transport"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/d1-transport",
+            "originPath": "modules/d1-transport"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gauge-local/integration",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/auth.server.ts",
+          "src/mail.server.mjs",
+          "src/server.ts",
+          "src/identity.ts"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+          "paths": [
+            "foundation/template/src/auth.server.ts",
+            "foundation/template/src/mail.server.mjs",
+            "foundation/template/src/server.ts",
+            "foundation/template/src/identity.ts"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "src/auth.server.ts",
+            "originPath": "foundation/template/src/auth.server.ts"
+          },
+          {
+            "path": "src/mail.server.mjs",
+            "originPath": "foundation/template/src/mail.server.mjs"
+          },
+          {
+            "path": "src/server.ts",
+            "originPath": "foundation/template/src/server.ts"
+          },
+          {
+            "path": "src/identity.ts",
+            "originPath": "foundation/template/src/identity.ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "runeditrun/delivery-producer",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "scripts/delivery/base"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+          "paths": [
+            "modules/delivery-producer",
+            "schema"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "scripts/delivery/base",
+            "originPath": "modules/delivery-producer"
+          },
+          {
+            "path": "scripts/delivery/base/schema",
+            "originPath": "schema"
+          }
+        ]
       }
     }
   ]

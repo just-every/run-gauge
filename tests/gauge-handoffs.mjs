@@ -88,6 +88,7 @@ try{
  assert.equal((await request(`/api/gauge/handoffs/${handoff.id}`,finance.cookie)).status,403)
  const after=await state();for(const kind of ['time','expenses','packets'])assert.deepEqual(after.data[kind],snapshots[kind],'Handoff outcomes do not perform accounting, payroll, tax or source mutations')
  const history=await(await request(`/api/gauge/history/specialistHandoffs/${handoff.id}`,owner)).json();assert(history.history.some(r=>r.value.status==='awaiting-result'&&!r.value.result))
+ await expensePolicyJourney(h,page)
  await revenueScheduleJourney(h,page)
  console.log('PASS BOUNDARY-001: exact approved labor/expense/revenue input export, unknown and signed reconciliation, real test-receiver acceptance/rejection, honest labels, immutable results, replay and scoped privacy')
 }finally{await browser?.close();if(receiver)await new Promise(resolve=>receiver.close(resolve));await h.dispose()}
@@ -351,4 +352,75 @@ async function revenueScheduleJourney(h,page){
  assert(h.providerRequests.every(r=>r.url==='https://api.resend.com/emails'),'The journey makes authentication mail calls only; no accounting provider is called')
  console.log('PASS accountant access: read-only exact accounting downloads, payroll and raw-data refusals, native form and command mutation refusals, immediate revocation and 1440/390')
  console.log('PASS revenueScheduleJourney: prepaid monthly delivery, all three policies, deferred and unbilled, exact balanced journal reconciliation, stale reviews, duplicate refusals, role privacy and 1440/390')
+}
+
+// Native employee reimbursement and client recovery remain independent public doors.
+async function expensePolicyJourney(h,page){
+ const {cmd,state,request,owner}=h,person=await cmd('save:people',{name:'synthetic-gauge-7101',timezone:'America/New_York'}),client=await cmd('save:clients',{name:'Expense client'}),project=await cmd('save:engagements',{name:'Travel policy',clientId:client.id,leadId:person.id,members:[person.id],scope:'Travel receipts and unit claims',timezone:'America/New_York'})
+ const staff=await h.invite('synthetic-gauge-7102'),lead=await h.invite('synthetic-gauge-7103')
+ await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd('grant',{operatorId:lead.id,personId:person.id,role:'lead',enabled:true})
+ const row=async(k,id)=>(await state()).data[k].find(r=>r.id===id)
+ const base={engagementId:project.id,personId:person.id,date:'2026-10-06',category:'Travel',vendor:'Rail vendor',description:'Travel receipt',incurredCurrency:'CAD',amountMinor:10000,taxMinor:1000,markupBasisPoints:2000,reimbursable:true,clientBillable:true,policyException:'Late booking required by delivery'}
+ let receipt=await cmd('expense:save',base,staff.cookie)
+ const upload=new FormData();for(const[k,v]of Object.entries({...receipt,key:randomUUID(),action:'expense:file'}))upload.set(k,String(v));upload.set('file',new File(['synthetic-gauge-7104 receipt'],'travel.txt',{type:'text/plain'}))
+ const uploaded=await request('/api/gauge/command',staff.cookie,{method:'POST',headers:{origin:h.origin},body:upload});assert.equal(uploaded.status,200);receipt=await uploaded.json()
+ const file=(await row('expenses',receipt.id)).value.attachmentIds[0]
+ receipt=await cmd('expense:submit',receipt,staff.cookie)
+ await cmd('expense:approve',{...receipt,reason:'Lead cannot authorize policy economics'},lead.cookie,403)
+ await cmd('expense:approve',{...receipt,revision:'stale',reason:'Stale review'},owner,409)
+ await cmd('expense:approve',{...receipt,reason:'No exchange rate yet'},owner,409)
+ const beforeFx=(await state()).margin.find(x=>x.engagementId===project.id);assert.equal(beforeFx.provisionalCostMinor,null,'Missing FX is unknown, never zero')
+ await cmd('fx:approve',{currency:'CAD',rate:'0.7500',effective:'2026-10-01',source:'Published synthetic rate',reason:'Owner approves incurred travel conversion'})
+ receipt=await cmd('expense:approve',{...receipt,reason:'Finance reviews receipt and exception, authorizes 20 percent recovery'})
+ const frozen=await row('expenses',receipt.id);assert.equal(frozen.value.amountMinor,8250);assert.equal(frozen.value.reimbursementMinor,8250);assert.equal(frozen.value.clientRecoveryMinor,9900);assert.equal(frozen.value.fx.rate,'0.7500')
+ await cmd('fx:approve',{currency:'CAD',rate:'0.8000',effective:'2026-10-07',source:'Published synthetic rate',reason:'Forward rate change'})
+ await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-01',unitMinor:70,reason:'Finance approves mileage'})
+ await cmd('expense:rate',{unit:'per-diem',currency:'USD',effective:'2026-10-01',unitMinor:6000,reason:'Finance approves daily allowance'})
+ const claims=[]
+ for(const [unit,quantity,expected]of [['mileage',120,8400],['per-diem',2,12000],['per-diem',1.5,9000]]){
+  let claim=await cmd('expense:save',{...base,incurredCurrency:'USD',description:unit,category:unit,unit,quantity,amountMinor:0,taxMinor:0,markupBasisPoints:0,clientBillable:false,policyException:''},staff.cookie)
+  claim=await cmd('expense:approve',{...await cmd('expense:submit',claim,staff.cookie),reason:'Finance approves exact unit claim'})
+  assert.equal((await row('expenses',claim.id)).value.amountMinor,expected);claims.push(await row('expenses',claim.id))
+ }
+ await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-07',unitMinor:80,reason:'Tomorrow mileage rate'})
+ await cmd('expense:rate',{unit:'per-diem',currency:'USD',effective:'2026-10-07',unitMinor:6500,reason:'Tomorrow daily rate'})
+ assert.deepEqual(await row('expenses',receipt.id),frozen);assert.equal((await row('expenses',claims[0].id)).value.amountMinor,8400);assert.equal((await row('expenses',claims[1].id)).value.amountMinor,12000)
+ await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-08',unitMinor:80,reason:'Unauthorized'},staff.cookie,403)
+ const sources=[frozen,...claims].map(r=>({kind:'expenses',id:r.id,revision:r.revision})),handoffInput={purpose:'reimbursement',recipient:'Payroll travel desk',reason:'Reviewed employee reimbursements only',sources}
+ await cmd('handoff:prepare',{...handoffInput,sources:[{...sources[0],revision:'stale'}]},owner,409)
+ let handoff=await cmd('handoff:prepare',handoffInput);const exported=await row('specialistHandoffs',handoff.id)
+ assert.equal(exported.value.lines.reduce((n,l)=>n+l.amountMinor,0),37650);assert.equal(exported.value.controlTotals.length,3);assert(exported.value.lines.every(l=>l.category==='reimbursement'))
+ const bytes=await(await request('/api/gauge/handoffs/'+handoff.id,owner)).text();assert.equal(createHash('sha256').update(bytes).digest('hex'),exported.value.artifactHash)
+ await cmd('handoff:prepare',handoffInput,owner,409)
+ const outcome={handoffId:handoff.id,artifactHash:exported.value.artifactHash,lines:exported.value.lines.map((l,i)=>({id:l.id,currency:l.currency,amountMinor:l.amountMinor,durationSeconds:null,quantity:l.details.quantity,unit:l.details.unit,status:i===2?'rejected':'accepted',...(i===2?{reason:'Daily allowance needs payroll review'}:{})}))}
+ await cmd('handoff:record-result',{...handoff,result:{...outcome,artifactHash:'0'.repeat(64)}},owner,409)
+ const wrong=structuredClone(outcome);wrong.lines[1].quantity=121;await cmd('handoff:record-result',{...handoff,result:wrong},owner,400)
+ handoff=await cmd('handoff:record-result',{...handoff,result:outcome});const reconciled=await row('specialistHandoffs',handoff.id);assert.equal(reconciled.value.result.verification,'user-recorded');assert.equal(reconciled.value.result.rejectedCount,1)
+ await cmd('handoff:record-result',{...handoff,result:outcome},owner,409)
+ let packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Allowed travel recovery',sources:['expenses:'+receipt.id]}))
+ const invoice=await cmd('invoice:issue',{...packet,issueDate:'2026-10-07',dueDate:'2026-11-06',billTo:'Expense client',remitTo:'Agency',reference:'Travel recovery'})
+ assert.equal((await row('invoices',invoice.id)).value.totalMinor,9900)
+ await cmd('packet:create',{engagementId:project.id,title:'Duplicate recovery',sources:['expenses:'+receipt.id]},owner,409)
+ await cmd('packet:create',{engagementId:project.id,title:'Employee-only mileage',sources:['expenses:'+claims[0].id]},owner,400)
+ await cmd('handoff:adjust-reimbursement',{...handoff,sourceId:outcome.lines[0].id,correctedMinor:8251,reason:'Cannot reimburse above approved cost'},owner,400)
+ const correction=await cmd('handoff:adjust-reimbursement',{...handoff,sourceId:outcome.lines[0].id,correctedMinor:8000,reason:'Payroll records a reviewed employee adjustment'})
+ const corrected=await row('specialistHandoffs',correction.id);assert.equal(corrected.value.lines[0].amountMinor,-250);assert.equal(corrected.value.adjustmentOf,handoff.id);assert.equal(await(await request('/api/gauge/handoffs/'+handoff.id,owner)).text(),bytes)
+ await cmd('handoff:adjust-reimbursement',{...handoff,sourceId:outcome.lines[0].id,correctedMinor:7000,reason:'Duplicate adjustment branch'},owner,409)
+ const correctionResult={handoffId:correction.id,artifactHash:corrected.value.artifactHash,lines:corrected.value.lines.map(l=>({id:l.id,currency:l.currency,amountMinor:l.amountMinor,durationSeconds:null,quantity:l.details.quantity,unit:l.details.unit,status:'accepted'}))}
+ await cmd('handoff:record-result',{...correction,result:correctionResult})
+ assert.equal((await row('invoices',invoice.id)).value.totalMinor,9900,'Employee correction does not change client recovery')
+ assert.equal((await request('/api/gauge/handoffs/'+handoff.id,staff.cookie)).status,403);assert.equal((await request('/api/gauge/files/'+file,lead.cookie)).status,200,'The lead is the receipt owner in this fixture')
+ const outsider=await h.invite('synthetic-gauge-7105');await cmd('grant',{operatorId:outsider.id,personId:(await cmd('save:people',{name:'Other worker',timezone:'America/New_York'})).id,role:'staff',enabled:true})
+ assert.equal((await request('/api/gauge/files/'+file,outsider.cookie)).status,403);assert.deepEqual((await state(staff.cookie)).data.specialistHandoffs,[]);assert.equal(Object.hasOwn((await state(staff.cookie)).data.expenses.find(r=>r.id===receipt.id).value,'clientRecoveryMinor'),false);assert.equal(Object.hasOwn((await state(staff.cookie)).data.expenses.find(r=>r.id===receipt.id).value,'financeReviewNote'),false)
+ await page.context().clearCookies();await page.context().addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+ await page.goto(h.origin+'/app/expenses');await page.setViewportSize({width:390,height:1000})
+ const nativeForm=page.locator('form').filter({has:page.locator('[name=action][value="expense:save"]')})
+ await nativeForm.locator('[name=engagementId]').selectOption(project.id);await nativeForm.locator('[name=personId]').selectOption(person.id);await nativeForm.locator('[name=date]').fill('2026-10-06');await nativeForm.locator('[name=description]').fill('Native reimbursement without client recovery');await nativeForm.locator('[name=amountDollars]').fill('10.00');await nativeForm.locator('[name=clientBillable]').uncheck();await nativeForm.locator('[name=reimbursable]').check();await nativeForm.getByRole('button',{name:'Save',exact:true}).click()
+ const nativeExpense=(await state()).data.expenses.find(r=>r.value.description==='Native reimbursement without client recovery');assert(nativeExpense);assert.equal(nativeExpense.value.reimbursable,true);assert.equal(nativeExpense.value.clientBillable,false,'Unchecked native flag remains false independently of employee reimbursement')
+ for(const screen of ['expenses','billing','access'])for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/'+screen);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),screen+' fits '+width)
+  for(const control of await page.locator('button,a').all()){if(!await control.isVisible())continue;const label=(await control.innerText()).trim();if(!label){assert(await control.getAttribute('aria-label'),'Icon control has an accessible label: '+await control.evaluate(el=>el.outerHTML));assert(await control.getAttribute('data-tooltip'),'Icon control has a tooltip');await control.focus();assert.equal(await control.evaluate(el=>getComputedStyle(el,'::after').visibility),'visible');await control.blur();await control.hover();await page.waitForTimeout(350);assert.equal(await control.evaluate(el=>getComputedStyle(el,'::after').visibility),'visible')}}
+  if(process.env.GAUGE_HANDOFF_SHOTS){await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-'+screen+'-'+width+'.png',fullPage:true});const focus=screen==='billing'?page.locator('#specialist-handoffs'):screen==='access'?page.locator('section').filter({has:page.getByRole('heading',{name:'Expense unit rates',exact:true})}).last():page.locator('section').filter({has:page.getByRole('heading',{name:'Expense',exact:true})}).last();await focus.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-'+screen+'-detail-'+width+'.png'})}
+ }
+ console.log('PASS expensePolicyJourney: receipt exception, exact finance review, frozen FX, tax and markup, 120 miles, per diem, separate once-only reimbursement, quantity-bound results, once-only invoice and scoped reads at 1440 and 390')
 }

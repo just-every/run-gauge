@@ -37,7 +37,7 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    else if ((cost.value.costCurrency ?? cost.value.currency) !== f.currency) provisionalUnknown.push(`time:${t.id}: cost declared in ${cost.value.costCurrency}; SETUP-003 exchange rates convert it`)
    else provisionalLaborMinor += charge(t.value.durationSeconds, cost.value.costMinor)
   }
-  for (const x of mine('expenses').filter(r => r.value.status === 'submitted')) { provisionalSources.push(`expenses:${x.id}`); provisionalExpenseMinor += x.value.amountMinor }
+  for (const x of mine('expenses').filter(r => r.value.status === 'submitted')) { provisionalSources.push(`expenses:${x.id}`); if(x.value.amountMinor==null)provisionalUnknown.push(`expenses:${x.id}: FX or unit pricing pending`);else provisionalExpenseMinor += x.value.amountMinor }
   // Live invoices only: a void removes its original, and issued credit notes (INVOICE-004) are netted out of billed.
   const billing=projectBillingData(data,e.id,forecast.asOf)
   const standings = liveInvoices(billing, forecast.asOf).filter(s => s.invoice.value.engagementId === e.id), invoices = standings.map(s => s.invoice), invoiceCredits = standings.flatMap(s => s.credits), payments=billing.payments.filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))

@@ -65,8 +65,8 @@ export async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, 
    sourceDate = date(v.workDate)
    need(issueDate >= sourceDate, 'Invoice issue date precedes its time source date')
   } else if (kind === 'expenses') {
-   need(v.reimbursable, 'Invoice expense must be reimbursable', 409)
-   amountMinor = integer(v.amountMinor, 'Approved expense amount', 0, Number.MAX_SAFE_INTEGER)
+   need(v.clientBillable??v.reimbursable, 'Invoice expense must be client billable', 409)
+   amountMinor = integer(v.clientRecoveryMinor??v.amountMinor, 'Approved expense amount', 0, Number.MAX_SAFE_INTEGER)
    sourceDate = date(v.date)
    need(issueDate >= sourceDate, 'Invoice issue date precedes its expense source date')
   } else if (kind === 'fixedCharges' || kind === 'retainerCharges') {

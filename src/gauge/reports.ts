@@ -57,6 +57,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  // Cash assumptions (FINANCE-002/FINANCE-007) and the SETUP-002 client workspace are finance's: others see the client's name.
  if(k==='clients')return Object.fromEntries(Object.entries(value).filter(([key])=>!privateClientKeys.includes(key)))
  const v: Value = { ...value }
+ if(k==='expenses'){delete v.financeReviewNote;delete v.markupBasisPoints;delete v.clientRecoveryMinor;delete v.fx;delete v.unitRate;if(v.personId!==a.personId){delete v.policyException;delete v.attachmentIds}}
  if(k==='retainers')v.terms=Object.fromEntries(Object.entries(value.terms).filter(([key])=>!['feeMinor','feeBasis'].includes(key)))
  if(a.role==='staff'&&k==='time'){delete v.retainerRootId;delete v.retainerAllocation}
  delete v.economics; delete v.rateOverride; if (v.source) { v.source = { ...v.source }; delete v.source.costMinor; delete v.source.billMinor }
@@ -69,6 +70,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  data.customFields=data.customFields.filter(f=>canField(a,f));data.customImports=finance(a)?data.customImports:[];data.savedReports=data.savedReports.filter(r=>savedVisible(a,r.value))
  for(const k of ['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','floatAdoptions'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.kantataRecords=finance(a)?data.kantataRecords:[]
+ data.expenseRates=finance(a)?data.expenseRates:[]
  data.leave=data.leave.map(r=>({...r,value:redact(a,'leave',r.value)}))
  data.revenueSchedules=finance(a)?data.revenueSchedules:[];data.revenueRecognitions=finance(a)?data.revenueRecognitions:[];
  data.invoiceAccess=finance(a)?data.invoiceAccess:[];data.invoiceViews=finance(a)?data.invoiceViews:[];
@@ -110,7 +112,8 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
   data.billabilityTargets=data.billabilityTargets.filter(r=>r.value.scope==='person'?personIds.has(r.value.personId):data.people.some(p=>String(p.value.role??'').trim()===r.value.role))
   for (const k of Object.keys(data) as Kind[]) data[k]=data[k].map(r=>({...r,value:redact(a,k,r.value)}))
  }
- if(!finance(a)) data.leave=data.leave.map(r=>({...r,value:{...r.value,conflicts:(r.value.conflicts??[]).filter((c:Value)=>data.engagements.some(e=>e.id===c.engagementId&&e.value.leadId===a.personId))}}))
+ if(!finance(a)) data.expenseRates=finance(a)?data.expenseRates:[]
+ data.leave=data.leave.map(r=>({...r,value:{...r.value,conflicts:(r.value.conflicts??[]).filter((c:Value)=>data.engagements.some(e=>e.id===c.engagementId&&e.value.leadId===a.personId))}}))
  const clientIds=new Set([...data.engagements,...data.opportunities].map(r=>r.value.clientId)); if(!finance(a))data.clients=data.clients.filter(r=>clientIds.has(r.id))
  await fence(env,a); return data
 }
@@ -167,7 +170,7 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const partialSources=new Set(data.timeSlices.filter(s=>reservations.some(r=>r.kind==='timeSlices'&&r.source_id===s.id)).map(s=>s.value.sourceId))
  for(const k of ['time','expenses','milestones','budgets','fixedCharges'] as Kind[])for(const r of data[k]){
   if(r.value.status==='submitted'||((k==='milestones'||k==='budgets')&&r.value.status==='draft'))exceptions.push({type:'decision due',source:`${k}:${r.id}`})
-  if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&r.value.reimbursable)||k==='milestones'||k==='fixedCharges')&&!(k==='time'&&partialSources.has(r.id))&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&retainerCovers(data.retainers,r.value)?'retainer billing held':k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
+  if(finance(a)&&r.value.status==='approved'&&((k==='time'&&r.value.billable&&!r.value.source?.billed&&r.value.economics?.mode==='hourly')||(k==='expenses'&&(r.value.clientBillable??r.value.reimbursable))||k==='milestones'||k==='fixedCharges')&&!(k==='time'&&partialSources.has(r.id))&&!reservations.some(b=>b.kind===k&&b.source_id===r.id))exceptions.push({type:k==='time'&&retainerCovers(data.retainers,r.value)?'retainer billing held':k==='time'&&r.value.economics?.billMinor==null?'unbilled work missing bill rate':'unbilled approved work',source:`${k}:${r.id}`})
  }
  const retainerEligibility=a.role==='staff'?Object.fromEntries(await Promise.all((['retainers','retainerPeriods'] as const).map(async kind=>[kind,await all(env,kind)]))) as Pick<typeof data,'retainers'|'retainerPeriods'>:data
  const correctionData=['agent','resource-manager'].includes(a.role)?{retainerCloses:[],retainerAdjustments:[]}:{retainerCloses:await all(env,'retainerCloses'),retainerAdjustments:await all(env,'retainerAdjustments')}

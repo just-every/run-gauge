@@ -7,6 +7,17 @@ import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 // The caller closes the source before passing this verifier to portability().
 export async function prepareCurrentPortability(h,{importJob}) {
  const {cmd,state,request,owner}=h,zone='Australia/Brisbane'
+ // COST-002: retain receipt economics, unit rates, once-only reimbursement and honest receiver history.
+ const expensePerson=await cmd('save:people',{name:'synthetic-gauge-7201',timezone:zone})
+ const expenseClient=await cmd('save:clients',{name:'Portable travel client'})
+ const expenseProject=await cmd('save:engagements',{name:'Portable expense policy',clientId:expenseClient.id,leadId:expensePerson.id,members:[expensePerson.id],scope:'Portable travel review',timezone:zone})
+ await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-01-01',unitMinor:70,reason:'Portable finance unit policy'})
+ let portableClaim=await cmd('expense:save',{engagementId:expenseProject.id,personId:expensePerson.id,date:'2026-10-06',description:'Portable 120 mile claim',unit:'mileage',quantity:120,amountMinor:0,reimbursable:true,clientBillable:false,policyException:'Reviewed travel allowance'})
+ const upload=new FormData();for(const[k,v]of Object.entries({...portableClaim,key:crypto.randomUUID(),action:'expense:file'}))upload.set(k,String(v));upload.set('file',new File(['synthetic-gauge-7202 receipt'],'claim.txt',{type:'text/plain'}));const added=await request('/api/gauge/command',owner,{method:'POST',headers:{origin:h.origin},body:upload});assert.equal(added.status,200);portableClaim=await added.json()
+ portableClaim=await cmd('expense:approve',{...await cmd('expense:submit',portableClaim),reason:'Finance reviews portable exception'})
+ const reimbursement=await cmd('handoff:prepare',{purpose:'reimbursement',recipient:'Portable payroll desk',reason:'Portable exact claim',sources:[{kind:'expenses',id:portableClaim.id,revision:portableClaim.revision}]})
+ const reimbursementRow=(await state()).data.specialistHandoffs.find(r=>r.id===reimbursement.id)
+ await cmd('handoff:record-result',{...reimbursement,result:{handoffId:reimbursement.id,artifactHash:reimbursementRow.value.artifactHash,lines:reimbursementRow.value.lines.map(l=>({id:l.id,status:'accepted',currency:l.currency,amountMinor:l.amountMinor,durationSeconds:null,quantity:l.details.quantity,unit:l.details.unit}))}})
  const initial=await state(),engagement=initial.data.engagements.find(r=>!r.value.source&&r.value.type!=='internal')
  const person=await cmd('save:people',{name:'Portability resource specialist',timezone:zone,skills:[{name:'Research',proficiency:4}],team:'Strategy',location:'Brisbane',role:'Researcher',employmentType:'contractor'})
  await cmd('save:calendars',{personId:person.id,from:'2026-10-01',to:'2026-10-31',dailySeconds:28800,weekdays:'1,2,3,4,5',holidays:['2026-10-05'],timezone:zone})
@@ -280,6 +291,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
    assert.notEqual(restored.vars.SESSION_SECRET,h.vars.SESSION_SECRET,'restore uses fresh private settings')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_retainer_schedule_authority').first()).n,0,'Restored schedules carry no execution consent')
+   await restored.cmd('handoff:prepare',{purpose:'reimbursement',recipient:'Portable payroll desk',reason:'Restored replay must not reimburse twice',sources:[{kind:'expenses',id:portableClaim.id,revision:portableClaim.revision}]},restored.owner,409)
    const restoredBefore=await restored.state(),restoredRuns=restoredBefore.data.retainerRuns
    await restored.cmd('retainer:run',{...portableSchedule,asOf:'2026-10-16'},restored.owner,403)
    assert.equal((await restored.state()).data.invoices.length,restoredBefore.data.invoices.length,'Restored schedule cannot issue without fresh consent')

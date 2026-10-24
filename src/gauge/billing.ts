@@ -31,7 +31,7 @@ export async function billingCommand(env: Bindings,a: Actor,tx: Transaction,acti
    need(currency === e.value.currency, 'Source currency differs from engagement; no implicit FX')
    let amount:number, description:string
    if (k==='time') { await assertUncappedTime(env,tx,row); await assertAdHocTime(env,tx,v); need(v.billable && !v.source?.billed && v.economics?.mode==='hourly' && v.economics.billMinor!==null,'Time needs approved hourly terms and a bill rate and must be unbilled'); amount=v.economics.billMinor; description=v.notes; }
-   else if (k==='expenses') { need(v.reimbursable,'Expense is not reimbursable'); amount=v.amountMinor; description=v.description }
+   else if (k==='expenses') { need(v.clientBillable??v.reimbursable,'Expense is not client billable'); amount=v.clientRecoveryMinor??v.amountMinor; description=v.description }
    else { amount=v.amountMinor; description=v.name }
    lines.push({engagementId:project.id,projectName:project.value.name,phaseKey:v.phaseKey??null,kind:k,sourceId:id,sourceRevision:row.revision,description,amountMinor:amount,currency,durationSeconds:v.durationSeconds ?? null,billRateMinor:v.economics?.billRateMinor??null,roundedBillingSeconds:v.economics?.roundedBillingSeconds??null,roundingSeconds:v.economics?.roundingSeconds??null,roundingPolicy:k==='time'?'ceil duration to increment; round amount half-up to cents':'exact approved minor units',rateUnit:k==='time'?`${currency} cents per hour`:null,rateId:v.economics?.rateId ?? null,budgetId:v.economics?.budgetId ?? v.budgetId ?? null,...(k==='fixedCharges'?{chargeType:v.chargeType,cumulativeBasisPoints:v.cumulativeBasisPoints,grossMinor:v.grossMinor,priorMinor:v.priorMinor}: {})})
   }

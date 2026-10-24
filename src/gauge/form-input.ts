@@ -46,6 +46,7 @@ export function formInput(form: FormData): Value {
  if(input.action==='period:preview')input.retainerExceptions=Object.fromEntries(String(input.retainerExceptionLines??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(line=>{const at=line.indexOf('|');need(at>0,'Use family ID | exception reason');return [line.slice(0,at).trim(),line.slice(at+1).trim()]}))
  if(input.action==='period:preview'){const entries=[...form.entries()].filter(([key,value])=>key.startsWith('retainerException:')&&String(value).trim());if(entries.length)input.retainerExceptions=Object.fromEntries(entries.map(([key,value])=>[key.slice('retainerException:'.length),String(value).trim()]))}
  if(['time:save','timer:start'].includes(String(input.action)))input.billable=form.has('billable')
+ if(input.action==='expense:save'){input.clientBillable=form.has('clientBillable');input.reimbursable=form.has('reimbursable')}
  if(input.action==='save:clients')input.poRequired=form.has('poRequired')
  if(form.has('retainerInput'))Object.assign(input,JSON.parse(String(form.get('retainerInput'))))
  if(form.has('deliveryInput'))Object.assign(input,JSON.parse(String(form.get('deliveryInput'))))

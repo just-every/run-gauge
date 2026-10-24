@@ -14,14 +14,14 @@ export function revenueDashboard(data: Record<string, Row[]>, asOf: string) {
  const wip = currencies.map(currency => {
   const engagementIds = new Set(data.engagements.filter(r => r.value.currency === currency && r.value.type !== 'internal').map(r => r.id))
   const time = data.time.filter(r => engagementIds.has(r.value.engagementId) && r.value.status === 'approved' && r.value.workDate <= asOf && r.value.billable && !r.value.source?.billed && !issuedSources.has(`time:${r.id}`) && r.value.economics?.mode === 'hourly' && !retainerCovers(data.retainers, r.value))
-  const expenses = data.expenses.filter(r => engagementIds.has(r.value.engagementId) && r.value.status === 'approved' && r.value.date <= asOf && r.value.reimbursable && !r.value.source?.billed && !issuedSources.has(`expenses:${r.id}`))
+  const expenses = data.expenses.filter(r => engagementIds.has(r.value.engagementId) && r.value.status === 'approved' && r.value.date <= asOf && (r.value.clientBillable??r.value.reimbursable) && !r.value.source?.billed && !issuedSources.has(`expenses:${r.id}`))
   const unknownSources = time.filter(r => r.value.economics?.billMinor == null || r.value.economics.currency !== currency).map(r => `time:${r.id}`)
   for (const r of expenses) if(r.value.currency !== currency) unknownSources.push(`expenses:${r.id}`)
   const sliced=new Map<string,number>()
   for(const invoice of invoices.filter(i=>!i.value.reissueOf))for(const l of invoice.value.lines.filter((l:any)=>l.kind==='timeSlices')){const slice=data.timeSlices.find(s=>s.id===l.sourceId);if(slice)sliced.set(slice.value.sourceId,(sliced.get(slice.value.sourceId)??0)+l.amountMinor)}
-  const knownMinor = sum([...time.filter(r => r.value.economics?.billMinor != null && r.value.economics.currency === currency).map(r => r.value.economics.billMinor-(sliced.get(r.id)??0)), ...expenses.filter(r => r.value.currency === currency).map(r => r.value.amountMinor)])
+  const knownMinor = sum([...time.filter(r => r.value.economics?.billMinor != null && r.value.economics.currency === currency).map(r => r.value.economics.billMinor-(sliced.get(r.id)??0)), ...expenses.filter(r => r.value.currency === currency).map(r => r.value.clientRecoveryMinor??r.value.amountMinor)])
   const issued = live.filter(s => s.invoice.value.currency === currency), receipts = payments.filter(r => r.value.currency === currency)
-  const invoicedMinor = sum(issued.map(s => s.invoice.value.totalMinor)), creditedMinor = sum(issued.map(s => s.creditedMinor)), paidMinor = sum(receipts.map(r => r.value.amountMinor))
+  const invoicedMinor = sum(issued.map(s => s.invoice.value.totalMinor)), creditedMinor = sum(issued.map(s => s.creditedMinor)), paidMinor = sum(receipts.map(r => r.value.clientRecoveryMinor??r.value.amountMinor))
   const voids = standings.filter(s => s.voided && s.invoice.value.currency === currency)
   return { currency, amountMinor: unknownSources.length ? null : knownMinor, knownMinor, unknownSources, invoicedMinor, creditedMinor, paidMinor, openMinor: sum([invoicedMinor, -creditedMinor, -paidMinor]), invoiceIds: issued.map(s => s.invoice.id), creditIds: issued.flatMap(s => s.credits.map(c => c.id)), voidIds: voids.map(s => s.voided!.id), voidedInvoiceIds: voids.map(s => s.invoice.id), paymentIds: receipts.map(r => r.id), sources: [...time.map(r => ({kind:'time',id:r.id})), ...expenses.map(r => ({kind:'expenses',id:r.id}))] }
  })

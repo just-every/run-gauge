@@ -64,7 +64,7 @@ export function financeForecastBase(data: Record<string, Row[]>, asOf: string, r
    else m.actualCostMinor += x.costMinor
   }
   const spent = mine('expenses').filter(r => r.value.status === 'approved')
-  for (const x of spent) { const m = at(month(x.value.date)); sources.expenses.push(x.id); m.actualCostMinor += x.value.amountMinor; if (x.value.reimbursable) m.actualFeesMinor += x.value.amountMinor }
+  for (const x of spent) { const m = at(month(x.value.date)); sources.expenses.push(x.id); m.actualCostMinor += x.value.amountMinor; if (x.value.clientBillable??x.value.reimbursable) m.actualFeesMinor += x.value.clientRecoveryMinor??x.value.amountMinor }
   // ETC: future allocation days, priced at the rate effective on each day.
   const committedDays: string[] = []
   for (const s of mine('staffing')) {
@@ -86,7 +86,7 @@ export function financeForecastBase(data: Record<string, Row[]>, asOf: string, r
    }
   }
   // Remaining billable expense budget: billed and costed at the same pass-through amount.
-  const expenseBudgetMinor = terms?.value.expenseBudgetMinor ?? 0, remainingExpenseMinor = Math.max(0, expenseBudgetMinor - sum(spent.filter(x => x.value.reimbursable).map(x => x.value.amountMinor)))
+  const expenseBudgetMinor = terms?.value.expenseBudgetMinor ?? 0, remainingExpenseMinor = Math.max(0, expenseBudgetMinor - sum(spent.filter(x => (x.value.clientBillable??x.value.reimbursable)).map(x => x.value.amountMinor)))
   if (remainingExpenseMinor) {
    const planEnd = committedDays.sort().at(-1) ?? asOf
    for (const [m, minor] of terms!.value.expenseDate ? [[month(terms!.value.expenseDate), remainingExpenseMinor] as const] : spread(remainingExpenseMinor, monthsBetween(nextDay(asOf), planEnd > asOf ? planEnd : nextDay(asOf)))) { at(m).expenseFeesMinor += minor; at(m).expenseCostMinor += minor }

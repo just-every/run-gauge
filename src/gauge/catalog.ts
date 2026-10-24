@@ -42,7 +42,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  }
  if (!action.startsWith('save:')) return null
  const k = action.slice(5) as Kind
- need(['clients','people','engagements','budgets','milestones','rates','calendars','leave','staffing'].includes(k), 'Unsupported editor')
+ need(['clients','people','engagements','budgets','milestones','rates','calendars','staffing'].includes(k), 'Unsupported editor')
  let previous: Row | undefined
  if (input.id) { previous = await get(env, k, input.id); need(previous.revision === input.revision, 'This record changed; reload before saving', 409) }
  const v: Value = {}
@@ -115,9 +115,8 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   need(!latest?.value.schedule.nodes.some((n:Value)=>n.kind==='milestone'&&n.sourceId===previous.id),'This milestone belongs to the approved delivery baseline; preview schedule changes first',409)
  }
  if (k === 'rates') Object.assign(v, await rateCard(env, a, tx, input, previous))
- if (['calendars','leave','staffing'].includes(k)) {
+ if (['calendars','staffing'].includes(k)) {
   const p = await get(env,'people',text(input.personId,'Person')); tx.observe('people',p); v.personId = p.id
-  if (k === 'leave') {need(finance(a) || a.personId === p.id,'Only your own leave may be changed',403);if(previous)need(finance(a)||previous.value.personId===a.personId,'Only your own leave may be changed',403)}
   v.from = date(input.from); v.to = date(input.to); need(v.to >= v.from,'End date is before start date'); need((Date.parse(v.to)-Date.parse(v.from))/86400000 <= 366,'Use a period of at most one year')
   if (k === 'calendars') { v.dailySeconds = integer(input.dailySeconds,'Available seconds per working day',0,86400); v.weekdays = text(input.weekdays,'Weekdays (0 Sunday to 6 Saturday)'); need(/^[0-6](,[0-6])*$/.test(v.weekdays),'Use comma-separated weekday numbers'); v.timezone = zone(input.timezone)
    const holidays = input.holidays ?? previous?.value.holidays ?? []
@@ -128,7 +127,6 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
    if(calendarParent){v.previousCalendarId=calendarParent.id;v.agencyCalendarId=calendarParent.value.agencyCalendarId??null}
    if (previous) protectCalendar(previous.value, v, previous.value.timezone)
    tx.guard("NOT EXISTS(SELECT 1 FROM g_calendars WHERE person_id=? AND id<>? AND json_extract(data,'$.from')<=? AND json_extract(data,'$.to')>=?)",p.id,previous?.id ?? '',v.to,v.from) }
-  if (k === 'leave') { need(!previous?.value.status, 'Use the reviewed leave decision controls', 409); v.dailySeconds = integer(input.dailySeconds,'Leave seconds per day',0,86400); v.note = text(input.note,'Leave reason') }
   if (k === 'staffing') { v.dailySeconds = integer(input.dailySeconds,'Allocation seconds per day',0,86400); need(['tentative','committed'].includes(input.commitment),'Choose tentative or committed'); v.commitment = input.commitment
    need(input.resourceRequestId===undefined,'Request links are created only by approving an open request')
    if(previous?.value.resourceRequestId)v.resourceRequestId=previous.value.resourceRequestId

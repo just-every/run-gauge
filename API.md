@@ -879,3 +879,12 @@ Float currently imports historical source evidence only. `nativeDrafts:true`
 refuses rather than silently omitting native capacity, allocation or leave
 adoption. Native adoption and follow-on deletion reconciliation remain pending;
 MIGRATE-010 retains operational cutover and billing-ownership obligations.
+
+
+## Reviewed leave (RESOURCE-003)
+
+`leave:request` and the compatibility action `save:leave` both create a requested absence with `personId`, inclusive `from` and `to`, positive `dailySeconds` and `note`. The private `note` must be exactly `Personal time`, `Vacation` or `Prefer not to say`; free text is refused, including medical or legal details. Staff and leads request only their own absence; finance can submit for a person. Neither submission changes capacity, accepts an existing record id or trusts a supplied approval status.
+
+Only the owner uses `leave:decide` with the exact `id`, `revision` and `outcome`: approve or reject a request, or cancel an approved absence. The stored administrative reason is fixed by the outcome; optional `reason` must match that fixed text. Approval immediately recomputes staffing conflicts and supplies scoped in-app lead alerts. Every decision is audited. No outbound notification is sent. Previously declared absences retain their historical capacity effect and can be cancelled through the same owner decision controls.
+
+Only the person sees their private category in state, revision history and pages. Other people's audit exports withhold raw leave payloads as hash stubs and retain the redacted decision view. HR-system synchronization remains RESOURCE-006.

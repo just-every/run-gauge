@@ -67,7 +67,7 @@ try{
  })
  await flow('CAPACITY-001 working calendar, leave and separate tentative staffing',async()=>{
   await cmd('save:calendars',{personId:p.id,from:'2026-10-01',to:'2026-11-30',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:'Australia/Brisbane'})
-  await cmd('save:leave',{personId:p.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:14400,note:'Leave'},staff.cookie)
+  await cmd('leave:decide',{...await cmd('save:leave',{personId:p.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:14400,note:'Personal time'},staff.cookie),outcome:'approved'})
   await cmd('save:staffing',{personId:p.id,engagementId:eng.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:21600,commitment:'committed'},leadUser.cookie)
   await cmd('save:staffing',{personId:p.id,engagementId:eng.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:7200,commitment:'tentative'},leadUser.cookie)
   const cap=(await state()).capacity.find(c=>c.personId===p.id);assert.equal(cap.tentativeSeconds,7200);assert.equal(cap.conflicts[0].seconds,7200);const leadCap=(await state(leadUser.cookie)).capacity.find(c=>c.personId===p.id);assert.equal(leadCap.availableSeconds,cap.availableSeconds)
@@ -75,7 +75,7 @@ try{
   await cmd('save:staffing',{personId:p.id,engagementId:eng.id,from:'2026-10-04',to:'2026-10-04',dailySeconds:3600,commitment:'tentative'},leadUser.cookie)
   const contractor=await cmd('save:people',{name:'Contractor',contractor:true,timezone:'Australia/Brisbane'})
   await cmd('save:calendars',{personId:contractor.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:7200,weekdays:'4',timezone:'Australia/Brisbane'})
-  await cmd('save:leave',{personId:contractor.id,from:'2026-10-01',to:'2026-10-02',dailySeconds:3600,note:'Declared leave'})
+  await cmd('leave:decide',{...await cmd('save:leave',{personId:contractor.id,from:'2026-10-01',to:'2026-10-02',dailySeconds:3600,note:'Personal time'}),outcome:'approved'})
   const unknown=await cmd('save:staffing',{personId:contractor.id,engagementId:eng.id,from:'2026-10-01',to:'2026-10-02',dailySeconds:7200,commitment:'committed'})
   const tentative=await cmd('save:staffing',{personId:contractor.id,engagementId:eng.id,from:'2026-10-02',to:'2026-10-02',dailySeconds:1800,commitment:'tentative'})
   const report=await state(),staffCap=report.capacity.find(c=>c.personId===p.id),weekend=staffCap.days.find(d=>d.date==='2026-10-04')
@@ -137,7 +137,7 @@ try{
   const contractorUser=await h.invite('rights-contractor'),alphaUser=await h.invite('rights-alpha'),betaUser=await h.invite('rights-beta')
   for(const [user,personId,role]of [[contractorUser,contractor.id,'staff'],[alphaUser,alpha.id,'lead'],[betaUser,beta.id,'lead']])await cmd('grant',{operatorId:user.id,personId,role,enabled:true})
   await cmd('save:rates',{personId:contractor.id,service:'*',effective:'2026-01-01',costMinor:9100,billMinor:17300})
-  await cmd('save:leave',{personId:colleague.id,from:'2026-10-14',to:'2026-10-14',dailySeconds:28800,note:'Private medical appointment'})
+  await cmd('save:leave',{personId:colleague.id,from:'2026-10-14',to:'2026-10-14',dailySeconds:28800,note:'Personal time'})
   const time=(person,e,task,day,h0,cookie=owner)=>cmd('time:save',{personId:person.id,engagementId:e.id,taskId:task.id,service:'Design',timezone:tz,notes:'Rights work',start:at(day,h0),end:at(day,h0+1)},cookie)
   const colleagueTime=await time(colleague,one,t1,13,9),hiddenTime=await time(colleague,three,t3,13,11)
   // The contractor records their own work on both assigned projects, and nothing else.

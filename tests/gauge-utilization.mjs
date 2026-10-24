@@ -37,7 +37,8 @@ try {
  await cmd('save:rates', { personId: person.id, service: '*', effective: '2026-01-01', costMinor: 8000, billMinor: 15000 })
  // This person's explicit six-day week is 48h gross, less 8h holiday and 8h leave.
  const calendar = await cmd('save:calendars', { personId: person.id, from, to, dailySeconds: 8 * hour, weekdays: '1,2,3,4,5,6', holidays: ['2026-10-05'], timezone: 'Australia/Brisbane' })
- const leave = await cmd('save:leave', { personId: person.id, from: '2026-10-06', to: '2026-10-06', dailySeconds: 8 * hour, note: 'Private appointment' })
+ const leave = await cmd('save:leave', { personId: person.id, from: '2026-10-06', to: '2026-10-06', dailySeconds: 8 * hour, note:'Personal time' })
+ await cmd('leave:decide',{...leave,outcome:'approved'})
  await cmd('save:calendars', { personId: zero.id, from, to, dailySeconds: 0, weekdays: '1,2,3,4,5', holidays: '2026-10-05, 2026-10-06', timezone: 'Australia/Brisbane' })
  await cmd('save:calendars', { personId: zero.id, from: '2026-10-12', to: '2026-10-12', dailySeconds: 0, weekdays: '1', holidays: ['2026-10-11'], timezone: 'Australia/Brisbane' }, owner, 400)
  const strategy = await cmd('save:staffing', { engagementId: engagement.id, personId: person.id, from: '2026-10-07', to: '2026-10-10', dailySeconds: 6 * hour, commitment: 'committed', service: 'Strategy' })
@@ -193,7 +194,7 @@ try {
    assert(await page.locator(`[id="${training.id}"]`).isVisible(), 'Drill opens the actual approved time record')
   }
  }
- await cmd('save:leave', { personId: person.id, from: '2026-10-07', to: '2026-10-07', dailySeconds: hour, note: 'Additional leave' })
+ await cmd('leave:decide',{...await cmd('save:leave', { personId: person.id, from: '2026-10-07', to: '2026-10-07', dailySeconds: hour, note:'Personal time' }),outcome:'approved'})
  assert.equal((await request(csvPath(data), owner)).status, 409, 'Changed utilization denominator refuses an old export snapshot')
  assert.equal(row((await report()).utilization.byPerson, person.id).availableSeconds, 31 * hour)
  // CONNECT-020 utilization key (ct 19 Oct 12:43Z): owner-created, shown once, SHA-256 at rest, read-only,

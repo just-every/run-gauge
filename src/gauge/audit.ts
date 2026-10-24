@@ -123,7 +123,10 @@ export async function auditExport(env: Bindings, a: Actor) {
  need(finance(a), 'Finance or the owner exports the business audit', 403)
  await seal(env, true)
  const names = await operatorNames(env), entries: Value[] = []
- for await (const r of rows(env)) entries.push(withheld(r.kind,a,r.data) ? { seq: r.seq, kind: r.kind, withheld: r.kind==='timeFavorites'?'Private to their person (TIME-003)':'Owner-only provider metadata (GOVERN-008)', hash: r.hash } : { ...fields(r), hash: r.hash, view: await present(env, a, r, names) })
+ for await (const r of rows(env)) {
+  if(r.kind==='leave'&&JSON.parse(r.data).personId!==a.personId){entries.push({seq:r.seq,kind:r.kind,withheld:'Private leave category',hash:r.hash,view:await present(env,a,r,names)});continue}
+  entries.push(withheld(r.kind,a,r.data) ? { seq: r.seq, kind: r.kind, withheld: r.kind==='timeFavorites'?'Private to their person (TIME-003)':'Owner-only provider metadata (GOVERN-008)', hash: r.hash } : { ...fields(r), hash: r.hash, view: await present(env, a, r, names) })
+ }
  const verification = await verifyAudit(env)
  await fence(env, a)
  return { format: GENESIS, chain: 'hash = SHA-256(canonical JSON {previous, entry}); entry = seq, at, actor, role, personId, requestKey, action, kind, recordId, previousRevision, revision, data, reference', exportedAt: new Date().toISOString(), timezone: a.timezone, head: verification.head, verification, entries }

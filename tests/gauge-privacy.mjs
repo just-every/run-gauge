@@ -27,7 +27,7 @@ export async function privacyJourney(){
   const file=new FormData();for(const [key,value]of Object.entries({action:'expense:file',key:randomUUID(),...expense}))file.set(key,String(value));file.set('file',new File(['synthetic-gauge-4102 private receipt'], 'receipt.txt',{type:'text/plain'}))
   let upload=await request('/api/gauge/command',owner,{method:'POST',headers:{origin:h.origin},body:file});assert.equal(upload.status,200,await upload.clone().text());expense=await upload.json();await cmd('expense:approve',await cmd('expense:submit',expense))
   const receiptId=(await h.state()).data.expenses.find(r=>r.id===expense.id).value.attachmentIds[0]
-  await cmd('save:leave',{personId:person.id,from:'2020-10-06',to:'2020-10-06',dailySeconds:3600,note:'synthetic-gauge-4103 private leave',timezone:'America/New_York'})
+  await cmd('leave:decide',{...await cmd('save:leave',{personId:person.id,from:'2020-10-06',to:'2020-10-06',dailySeconds:3600,note:'Personal time',timezone:'America/New_York'}),outcome:'approved'})
   const staff=await h.invite('retention-staff'),finance=await h.invite('retention-finance')
   await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd('grant',{operatorId:finance.id,personId:lead.id,role:'finance',enabled:true})
   for(const cookie of [staff.cookie,finance.cookie]){await cmd('privacy:policy',{personalDays:0,fileDays:0,evidenceDays:0,reason:'Denied'},cookie,403);await cmd('privacy:preview',{personId:person.id},cookie,403);assert.equal((await request('/api/gauge/privacy/journal',cookie)).status,403)}
@@ -64,7 +64,7 @@ export async function privacyJourney(){
   const anonymized=after.data.people.find(p=>p.id===person.id).value.name
   assert(previewText.includes(anonymized),'The preview named the anonymized form the held records keep');assert.equal(after.data.privacyErasures[0].value.retained.anonymizedAs,anonymized,'The completion record names the same anonymized form')
   assert.equal((await request('/api/gauge/files/'+receiptId,owner)).status,404)
-  assert(!JSON.stringify(after.data.leave).includes('synthetic-gauge-4103'))
+  assert(after.data.leave.every(r=>r.value.personId!==person.id||r.value.privacyErased&&r.value.note==='Private leave'),'Erasure removes the worker leave category')
   assert.deepEqual(after.data.time,before.data.time,'Frozen approved time and economics are retained byte for byte')
   assert.deepEqual(after.data.expenses,before.data.expenses,'Financial expense record is retained byte for byte; missing attachment is disclosed')
   assert.equal(await(await request('/api/gauge/packets/'+packet.id,owner)).text(),oldPacket,'Immutable billed money and artifact are retained')

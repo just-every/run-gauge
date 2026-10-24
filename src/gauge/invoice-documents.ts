@@ -1,17 +1,18 @@
 import type { Bindings } from '../auth.server'
-import { type Actor, Transaction, get, access } from './store'
+import { type Actor, Transaction, get, access, all, fence } from './store'
 import { type Value, need, text } from './model'
 import { invoiceLines } from './invoices'
 import { assertDocumentReader, presentationDocument, invoiceDetailCsv, timeModes, expenseModes } from './invoice-presentation'
 import { invoicePdf } from './invoice-pdf'
-import { escape as e, choices } from './ui-forms'
+import { escape as e, choices, form, input, decision } from './ui-forms'
 import { shell } from './ui'
 import { Buffer } from 'node:buffer'
 
-const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" }
+const documentHeaders = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" }
 /** Internal finance previews and exact issued originals. Client access is a separate delivery capability. */
 export async function invoiceDocumentResponse(env: Bindings, a: Actor, url: URL, id: string, issued: boolean) {
- await assertDocumentReader(env, a)
+ const headers = {...documentHeaders, 'referrer-policy':a.clientInvoice?'no-referrer':'same-origin'}
+ if(a.clientInvoice){need(issued,'Client access requires an issued document',403);await fence(env,a)}else await assertDocumentReader(env, a)
  const tx = new Transaction(env, a)
  let document: Value, header: Value, record
  if (issued) {
@@ -31,6 +32,12 @@ export async function invoiceDocumentResponse(env: Bindings, a: Actor, url: URL,
  const format = url.searchParams.get('format') ?? 'html'
  need(['html', 'json', 'pdf', 'detail-pdf', 'csv'].includes(format), 'Unknown invoice document format')
  need(!issued || !['detail-pdf', 'csv'].includes(format) || document.settings.attachDetail, 'This invoice was issued without a detail attachment', 409)
+ if(a.clientInvoice){
+  const release=await get(env,'invoiceAccess',a.clientInvoice.id);tx.observe('invoiceAccess',release)
+  need(release.value.invoiceId===record.id&&release.value.invoiceRevision===record.revision&&release.value.pdfSha256===record.value.pdf.sha256,'Invoice access does not match this exact original',403)
+  need(format!=='json','Client access is limited to the issued documents',403)
+  await tx.record('invoiceViews',{accessId:release.id,invoiceId:record.id,invoiceRevision:record.revision,pdfSha256:record.value.pdf.sha256,operatorId:a.session.operator.id,format,at:Date.now()},undefined,undefined,'invoice:client-view')
+ }
  tx.audit(issued ? 'invoice:download' : 'invoice:preview', issued ? 'invoices' : 'packets', record.id, { revision: record.revision, format, timeMode: document.settings.timeMode, expenseMode: document.settings.expenseMode })
  await tx.commit()
  if (format === 'json') return Response.json({ document, number: header.number ?? null, pdfSha256: issued ? record.value.pdf.sha256 : null }, { headers })
@@ -45,6 +52,11 @@ export async function invoiceDocumentResponse(env: Bindings, a: Actor, url: URL,
  const previewForm = issued ? '' : `<form class="g-form" method="get"><input type="hidden" name="revision" value="${e(record.revision)}">${choices('timeMode', 'Time presentation', [...timeModes], document.settings.timeMode)}${choices('expenseMode', 'Expense presentation', [...expenseModes], document.settings.expenseMode)}<button class="g-btn g-btn--primary">Preview presentation</button></form>`
  const logo = document.settings.logo ? `<img alt="Agency logo" width="160" height="60" src="data:${e(document.settings.logo.mediaType)};base64,${e(document.settings.logo.base64)}">` : ''
  const rich = document.settings.additionalDetails.split(/(<\/?(?:b|strong|i|em|p|br)\s*\/?\s*>)/i).map((part: string) => /^<\/?(?:b|strong|i|em|p|br)\s*\/?\s*>$/i.test(part) ? part : e(part)).join('')
- const body = `<a class="g-link" href="/app/billing">Back to Billing</a><section class="g-card" id="invoice-document"><h1>${e(header.number ?? 'Draft invoice')}</h1><p>${issued ? 'Retained issued original' : 'Preview only; no number assigned'}</p>${previewForm}${logo}<h2>${e(document.agencyName)}</h2>${document.address ? `<p>${e(Object.values(document.address).filter(Boolean).join(', '))}</p>` : ''}<p>Bill to: ${e(header.billTo)}</p><p>${e(document.project)}</p><ul>${document.lines.map((l: Value) => `<li>${e(l.label)} · ${e(money(l.amountMinor))}${l.remainingMinor!=null?' · Remaining to bill '+e(money(l.remainingMinor)):''}${l.billedSeconds ? ` · ${e(Number((l.billedSeconds / 3600).toFixed(4)))} billed hours · ${l.rateMinor == null ? 'multiple rates' : e(money(l.rateMinor)) + ' per hour'}` : ''}</li>`).join('')}</ul><p><strong>Total (pre-tax): ${e(money(document.totalMinor))}</strong></p><div>${rich}</div><p>${e(document.settings.footer)}</p><p>${e(header.remitTo ?? '')}</p><p>${link('pdf', 'Download invoice PDF')}${document.settings.attachDetail || !issued ? ' · ' + link('detail-pdf', 'Download source detail PDF') + ' · ' + link('csv', 'Download source detail CSV') : ''}</p><p>Native pre-tax document. No provider delivery or settlement is verified.</p></section>`
+ let accessPanel=''
+ if(issued&&a.role==='owner'){
+  const releases=(await all(env,'invoiceAccess')).filter(r=>r.value.invoiceId===record.id),views=await all(env,'invoiceViews')
+  accessPanel='<section id="invoice-client-access">'+form('invoice:release','Client document access',input('contact','Invited recipient email','','email')+input('days','Access days (1 to 30)',7,'number')+input('reason','Authorization reason'),record,'Authorize exact invoice')+'<p>Only this email-confirmed recipient can open this invoice. Authorization sends no message.</p>'+releases.map(r=>`<section class="g-card"><p>${e(r.value.contact)} · ${e(r.value.status)} · expires ${e(new Date(r.value.expiresAt).toISOString())} · ${views.filter(v=>v.value.accessId===r.id).length} document views</p><p><a class="g-link" href="/app/client-invoices/${e(r.id)}">Recipient invoice page</a></p>${r.value.status==='released'?decision('invoice:revoke-access','Revoke client access',r,true):''}</section>`).join('')+'</section>'
+ }
+ const body = `${a.clientInvoice?'':'<a class="g-link" href="/app/billing">Back to Billing</a>'}<section class="g-card" id="invoice-document"><h1>${e(header.number ?? 'Draft invoice')}</h1><p>${issued ? 'Retained issued original' : 'Preview only; no number assigned'}</p>${previewForm}${logo}<h2>${e(document.agencyName)}</h2>${document.address ? `<p>${e(Object.values(document.address).filter(Boolean).join(', '))}</p>` : ''}<p>Bill to: ${e(header.billTo)}</p><p>${e(document.project)}</p><ul>${document.lines.map((l: Value) => `<li>${e(l.label)} · ${e(money(l.amountMinor))}${l.remainingMinor!=null?' · Remaining to bill '+e(money(l.remainingMinor)):''}${l.billedSeconds ? ` · ${e(Number((l.billedSeconds / 3600).toFixed(4)))} billed hours · ${l.rateMinor == null ? 'multiple rates' : e(money(l.rateMinor)) + ' per hour'}` : ''}</li>`).join('')}</ul><p><strong>Total (pre-tax): ${e(money(document.totalMinor))}</strong></p><div>${rich}</div><p>${e(document.settings.footer)}</p><p>${e(header.remitTo ?? '')}</p><p>${link('pdf', 'Download invoice PDF')}${document.settings.attachDetail || !issued ? ' · ' + link('detail-pdf', 'Download source detail PDF') + ' · ' + link('csv', 'Download source detail CSV') : ''}</p><p>Native pre-tax document. No provider delivery or settlement is verified.</p></section>${accessPanel}`
  return new Response(shell(a, 'billing', header.number ?? 'Invoice preview', body, { today: new Date().toISOString().slice(0, 10), zone: a.timezone }), { headers: { ...headers, 'content-type': 'text/html; charset=utf-8' } })
 }

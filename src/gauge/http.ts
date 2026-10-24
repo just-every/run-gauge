@@ -1,3 +1,4 @@
+import { invoiceClientResponse } from './invoice-access'
 import { invoiceDocumentResponse } from './invoice-documents'
 import { kantataCommand } from './kantata'
 import { privacyJournal } from './privacy'
@@ -30,6 +31,7 @@ const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-c
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
  // Resolve complete declared paths before admitting a command or reading its body.
+ if(path.startsWith('/app/client-invoices/'))return invoiceClientResponse(request,runtimeBindings(original))
  if(path.startsWith('/app/client-proposals/')||path.startsWith('/app/proposal-originals/'))return commercialClientResponse(request,runtimeBindings(original))
  const invoiceDocumentRoute=path.match(/^\/api\/gauge\/(invoice-drafts|invoice-documents)\/([^/%]+)$/)
  const mutation=path==='/api/gauge/command'||path==='/app/action'
@@ -75,6 +77,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    // A new key's value shows once, on the page that created it; the redirect pattern would lose it.
    if(action==='apikey:create')return new Response(await appPage(env,a,'access',{createdKey:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action.startsWith('provider:')||action.startsWith('providerJob:'))return new Response(null,{status:303,headers:{...headers,location:'/app/access#provider-connections'}})
+   if(action==='invoice:release'||action==='invoice:revoke-access'){const released=await get(env,'invoiceAccess',result.id);return new Response(null,{status:303,headers:{...headers,location:'/api/gauge/invoice-documents/'+encodeURIComponent(released.value.invoiceId)}})}
    if(action==='estimate:compare')return new Response(await appPage(env,a,'engagements',{estimate:input.afterId,estimateComparison:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action.startsWith('providerSync:'))return new Response(null,{status:303,headers:{...headers,location:'/app/access#provider-health'}})
    if(action.startsWith('commercial:')){const estimateId=input.estimateId??(await get(env,'commercialProposals',input.id)).value.estimateId;return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(estimateId)}#commercial-proposals`}})}

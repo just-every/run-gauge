@@ -896,3 +896,21 @@ Finance may send `packet:create` with `consolidate: true` and approved sources f
 `packet:partial` takes `engagementId`, the latest approved `budgetId` and `budgetRevision`, approved time `sourceId` and `sourceRevision`, integer `durationSeconds`, and `title`. It prepares a draft reserving the first available range of frozen billing seconds; ordinary packet approval and issue remain separate decisions. Portion prices are differences of cumulative half-up values, preserving the whole source amount through the final cent. Cancelled drafts release their ranges; the original cannot be edited or billed in full while any portion remains reserved. Capped engagements use `cap:draft`. Recurring principal billing keeps RETAINER-005’s existing schedule, consent and exception doors.
 
 Consolidated documents count once in agency totals. Project and phase reports use their source lines; receipt, promise and dispute shares use cumulative half-up cents weighted by line amounts net of issued credits as of the report day. These are native report allocations, never provider settlement.
+
+
+### Exact client invoice access
+
+The native owner uses `invoice:release` with the issued invoice `id` and `revision`,
+`contact` (an already email-confirmed native member without an internal Gauge grant),
+`days` (one to thirty, default seven), `reason` and a unique request `key`.
+The acknowledgement identifies an `invoiceAccess` record. Release sends no mail.
+`GET /app/client-invoices/<access-id>` requires that recipient's live native session;
+`format=pdf`, `format=detail-pdf` and `format=csv` serve only the retained original
+and attachments chosen at issue. It exposes no internal state or finance permissions.
+The native owner revokes with `invoice:revoke-access`, the access record's exact
+`id` and `revision`, a `reason` and a unique request `key`.
+Every document request rechecks live owner and recipient authority, expiry and the
+issued revision; views are audited and recorded as `invoiceViews` with the PDF digest.
+Finance sees the access and view history. Portable archives retain those business
+facts but omit `g_invoice_access_authority`; a restored recipient needs a fresh release.
+Verified sender, outbound invoice mail and bounce reconciliation are not implemented.

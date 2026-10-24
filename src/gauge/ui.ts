@@ -26,7 +26,7 @@ import { boardWindow } from './ui-board'
 import { reportEvidence } from './ui-report-evidence'
 import { acceptanceSummary } from './ui-estimate-attestation'
 
-export const tabsFor = (a: Actor) => a.role === 'agent' ? ['review'] : ['review', 'engagements', 'capacity', 'time', 'expenses', ...(finance(a) ? ['billing', 'rates', 'imports'] : []), ...(a.role === 'owner' ? ['access'] : [])]
+export const tabsFor = (a: Actor) => a.role === 'client' ? [] : a.role === 'agent' ? ['review'] : ['review', 'engagements', 'capacity', 'time', 'expenses', ...(finance(a) ? ['billing', 'rates', 'imports'] : []), ...(a.role === 'owner' ? ['access'] : [])]
 const fonts = '<link rel="preload" href="/fonts/mona-sans/mona-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="preload" href="/fonts/source-serif-4/source-serif-4-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="stylesheet" href="/fonts/fonts.css">'
 const styles = ['/rer-theme.css', '/gauge.css', '/gauge-shell.css', '/gauge-board.css'].map(href => `<link rel="stylesheet" href="${href}">`).join('')
 

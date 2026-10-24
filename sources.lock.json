@@ -359,7 +359,7 @@
       "executable": false
     },
     "docs/getting-started.md": {
-      "sha256": "f5f46020788c7021d2bcfa92e316d090b8d7a18baf38bc2b04b8e1dc845d71c5",
+      "sha256": "8fc3030de92daac693f38d43b4c024dc7f4a07a31980762830d1673080327eb3",
       "executable": false
     },
     "docs/move-in.md": {
@@ -3807,7 +3807,7 @@
       "executable": false
     },
     "src/site/landing/moving.ts": {
-      "sha256": "9215276a1a9328231189fb19a36c7cf0d3fa419611bb6e17e2f865ce8238f272",
+      "sha256": "6057d39f57b72945da7675d258eb617ffc98247b4ac63701d4e09e79697224bf",
       "executable": false
     },
     "src/site/landing/october.ts": {

@@ -2,19 +2,15 @@ Gauge runs on your own computer with `rer`, the Run Edit Run command. It runs on
 
 ## Get Gauge and start it
 
-Install `rer` once. It installs `rer` for you alone, with its own Node if you have no Node 22 or later, and changes no shell settings: if its last line puts `rer` on your PATH, run that line before the next step.
+Copy this line into a terminal and press Enter:
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
+curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-gauge
 ```
 
-Then start Gauge:
+Git is required; rer brings Node and pnpm. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-gauge` does the same.
 
-```sh
-rer dev just-every/run-gauge
-```
-
-`rer` clones Gauge into a `run-gauge` folder, installs everything, makes you the owner and starts it. A first start can take a few minutes. When it is ready it prints a `RER_OPEN` link: open it on this computer and Gauge opens signed in as you. Keep that link private, because it signs you in. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-gauge` does both steps in one line. To start it again later, run `cd run-gauge && rer dev`.
+The line installs `rer` for you alone, then clones Gauge into a `run-gauge` folder, installs everything, makes you the owner and starts it. A first start can take a few minutes. When it is ready it prints a `RER_OPEN` link: open it on this computer and Gauge opens signed in as you. Keep that link private, because it signs you in. If the installer prints a line that puts `rer` on your PATH, run that line too. To start it again later, run the same line from the same folder, or `cd run-gauge && rer dev`.
 
 To stop Gauge, run `rer dev --stop`. Run `rer dev` again whenever you want to use it; your records stay where they were.
 

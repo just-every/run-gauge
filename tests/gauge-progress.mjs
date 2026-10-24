@@ -85,6 +85,7 @@ export async function progressJourney(h,worker) {
   const approved=await cmd('packet:approve',packet)
   const preview=await request(`/api/gauge/invoice-drafts/${packet.id}?revision=${approved.revision}&format=json`,owner)
   assert.equal(preview.status,200);const document=(await preview.json()).document
+  assert.deepEqual(document.detail.map(l=>l.projectId),projects.map(p=>p.engagement.id),'Consolidated source detail retains stable project identity')
   assert.equal(document.totalMinor,900000);assert.deepEqual(document.detail.map(l=>[l.project,l.amountMinor,l.remainingMinor]),[['Maple brand launch',300000,500000],['Maple commerce build',600000,1000000]])
   combined=await cmd('invoice:issue',{...approved,issueDate:'2026-10-20',dueDate:'2026-11-19',billTo:'Maple Design AP',remitTo:'Agency account',reference:'MAPLE-COMBINED',attachDetail:true})
   for(const [index,p]of progress.entries()){p.packet=approved;p.invoice=combined}

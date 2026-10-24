@@ -1375,7 +1375,7 @@
       "executable": false
     },
     "src/gauge/invoice-presentation.ts": {
-      "sha256": "da968fa8293bffde733684cf414f7a8b6678a92de9050c7e6cb3c7c66ba0bab0",
+      "sha256": "1724eb0a6b8d12e19af20a1043a77134cca0b415dc74d0b0d4d760147b167f24",
       "executable": false
     },
     "src/gauge/invoice-standing.ts": {
@@ -4059,7 +4059,7 @@
       "executable": false
     },
     "tests/gauge-progress.mjs": {
-      "sha256": "ba7e522088a66700e44182e54481f9597522dbab37443a014aa4787ac09e0001",
+      "sha256": "0d054d647b4e1e049b352236a2508ddeb68d3ddb272d3a9c49c99384e37fbcd1",
       "executable": false
     },
     "tests/gauge-project-scenario-deadlines.mjs": {

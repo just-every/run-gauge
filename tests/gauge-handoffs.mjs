@@ -182,7 +182,7 @@ async function revenueScheduleJourney(h,page){
  await cmd('revenue:approve',{...correctionDraft,reason:'A non-finance role cannot review a correction'},nonFinance.cookie,403)
  const manualBefore=await state(),networkBefore=h.providerRequests.length
  assert.equal((await row(correctionDraft.id)).value.status,'draft')
- await h.scheduled('2027-01-02T12:00:00.000Z')
+ assert.equal((await h.scheduled(Date.parse('2027-01-02T12:00:00.000Z'))).status,200,'The scheduler executes without posting journals')
  const manualAfter=await state()
  for(const kind of ['revenueRecognitions','specialistHandoffs','providerJobs'])assert.deepEqual(manualAfter.data[kind],manualBefore.data[kind],'Scheduled work never approves, exports or posts operational journals')
  assert.equal(h.providerRequests.length,networkBefore,'No provider call is made by scheduled operational recognition')

@@ -426,7 +426,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "fa9a58854840260cf1c5ca9d70c6e3b1b87c23138d1925b9dbdc9ec7c105dcb7",
+      "sha256": "abdac190efa8169ac2500699c60cb3d40e4ad3774509e39e2d824814d31e3bac",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -4302,7 +4302,7 @@
       "executable": false
     },
     "tests/gauge-handoffs.mjs": {
-      "sha256": "3ce9511a5df32628dbcb50b87a3cac2b9d81d27e48a9218fd15a66b15aaa551e",
+      "sha256": "4a1c381b1a37f84fd62f0454ddc80ec31ade6fc3d2e08a768056e144c4731220",
       "executable": false
     },
     "tests/gauge-harness.mjs": {
@@ -4322,7 +4322,7 @@
       "executable": false
     },
     "tests/gauge-kantata.mjs": {
-      "sha256": "34eee4b6c5b329856a6cd584ca9193dccd1bc391f663ac027b2b0fd974ac26dd",
+      "sha256": "333cd3aa47c3f8a84a46f55c4af70d558c00a852d3fbeea2040b60b4b17e36de",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {

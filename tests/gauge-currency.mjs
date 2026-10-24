@@ -87,9 +87,10 @@ try {
   assert(!/AUD|A\$|GST|Australia\/Brisbane/.test(await page.locator('body').innerText()), `${section} uses agency currency and timezone`)
  }
  await page.goto(h.origin + '/app/billing')
- await page.locator('[name=engagementId]').selectOption(engagement.id); await page.getByLabel('Packet title').fill('Cascade Cider · September delivery')
- await page.locator(`input[name=sources][value="time:${entry.id}"]`).check()
- await page.getByRole('button', { name: 'Save', exact: true }).click()
+ const preparation=page.locator('select[name=engagementId]').locator('xpath=ancestor::form')
+ await preparation.locator('select[name=engagementId]').selectOption(engagement.id); await preparation.getByLabel('Packet title',{exact:true}).fill('Cascade Cider · September delivery')
+ await preparation.locator(`input[name=sources][value="time:${entry.id}"]`).check()
+ await preparation.getByRole('button', { name: 'Save', exact: true }).click()
  await page.getByRole('button', { name: 'Approve exact packet', exact: true }).click()
  await capture('billing')
  const download = page.waitForEvent('download'); await page.getByRole('link', { name: 'Download approved CSV' }).click()

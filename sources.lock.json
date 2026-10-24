@@ -3979,7 +3979,7 @@
       "executable": false
     },
     "tests/gauge-currency.mjs": {
-      "sha256": "b1602313a8577eb82f6ce29a28fda78c216930ce9ac3ac385364d1103c6c952b",
+      "sha256": "eb52abca50b7a21e4aefd315530cb22eaf4f03c1a333df5ba395e1252f21eb28",
       "executable": false
     },
     "tests/gauge-delivery-templates.mjs": {

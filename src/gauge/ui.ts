@@ -1,3 +1,4 @@
+import { accountantBody } from './accountant'
 import { floatSection } from './ui-float'
 import { rocketlaneSection } from './ui-rocketlane'
 import { productiveSection } from './ui-productive'
@@ -26,7 +27,7 @@ import { boardWindow } from './ui-board'
 import { reportEvidence } from './ui-report-evidence'
 import { acceptanceSummary } from './ui-estimate-attestation'
 
-export const tabsFor = (a: Actor) => a.role === 'client' ? [] : a.role === 'agent' ? ['review'] : ['review', 'engagements', 'capacity', 'time', 'expenses', ...(finance(a) ? ['billing', 'rates', 'imports'] : []), ...(a.role === 'owner' ? ['access'] : [])]
+export const tabsFor = (a: Actor) => a.role==='accountant'?['review']:a.role === 'client' ? [] : a.role === 'agent' ? ['review'] : ['review', 'engagements', 'capacity', 'time', 'expenses', ...(finance(a) ? ['billing', 'rates', 'imports'] : []), ...(a.role === 'owner' ? ['access'] : [])]
 const fonts = '<link rel="preload" href="/fonts/mona-sans/mona-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="preload" href="/fonts/source-serif-4/source-serif-4-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="stylesheet" href="/fonts/fonts.css">'
 const styles = ['/rer-theme.css', '/gauge.css', '/gauge-shell.css', '/gauge-board.css'].map(href => `<link rel="stylesheet" href="${href}">`).join('')
 
@@ -47,6 +48,7 @@ export function periods(zone:string,now=Date.now()) {
 
 export async function appPage(env:Bindings,a:Actor,section:string,options:Value={}) {
  const zone=workspaceZone(a),{today,week}=periods(zone)
+ if(a.role==='accountant'){need(section==='review','Page unavailable',404);return shell(a,'review','Accountant inputs',await accountantBody(env,a),{today,zone})}
  // Staffing reads its five-week board; every other page reads the week.
  const timeFrom=options.sheetFrom??options.from??week[0]
  const [from,to]=section==='time'?[timeFrom,shift(timeFrom,options.sheetView==='day'?0:6)]:section==='capacity'?boardWindow(options.from??today):[options.from??week[0],options.to??week[1]]

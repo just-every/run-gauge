@@ -4,7 +4,7 @@ import {execFileSync} from 'node:child_process'
 import {createServer} from 'node:http'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
-import {harness} from './gauge-harness.mjs'
+import {recordMilestoneAcceptance,harness} from './gauge-harness.mjs'
 
 // BOUNDARY-001: actual built-worker forms/downloads and a test-only network-edge
 // accounting receiver. The app never substitutes a simulated provider outcome.
@@ -88,5 +88,131 @@ try{
  assert.equal((await request(`/api/gauge/handoffs/${handoff.id}`,finance.cookie)).status,403)
  const after=await state();for(const kind of ['time','expenses','packets'])assert.deepEqual(after.data[kind],snapshots[kind],'Handoff outcomes do not perform accounting, payroll, tax or source mutations')
  const history=await(await request(`/api/gauge/history/specialistHandoffs/${handoff.id}`,owner)).json();assert(history.history.some(r=>r.value.status==='awaiting-result'&&!r.value.result))
+ await revenueScheduleJourney(h,page)
  console.log('PASS BOUNDARY-001: exact approved labor/expense/revenue input export, unknown and signed reconciliation, real test-receiver acceptance/rejection, honest labels, immutable results, replay and scoped privacy')
 }finally{await browser?.close();if(receiver)await new Promise(resolve=>receiver.close(resolve));await h.dispose()}
+
+
+// Reviewed operational recognition through native commands and the existing handoff page.
+async function revenueScheduleJourney(h,page){
+ const {cmd,owner,request,state}=h
+ const worker=await cmd('save:people',{name:'Journal delivery lead',timezone:'America/New_York'})
+ const client=await cmd('save:clients',{name:'Journal prepaid client'})
+ const project=async(name,mode='fixed')=>{
+  const engagement=await cmd('save:engagements',{name,clientId:client.id,leadId:worker.id,members:[worker.id],scope:'Accountant-reviewed delivery',timezone:'America/New_York'})
+  const budget=await cmd('budget:approve',await cmd('save:budgets',{engagementId:engagement.id,mode,amountMinor:1200000,effortSeconds:360000,roundingSeconds:60,reason:'Signed delivery terms'}))
+  return {engagement,budget}
+ }
+ const accounts={receivable:'1100 Receivable',deferred:'2200 Deferred',unbilled:'1150 Unbilled',revenue:'4000 Service revenue'}
+ const schedule=async(p,mode)=>cmd('revenue:schedule',{engagementId:p.engagement.id,budgetId:p.budget.id,budgetRevision:p.budget.revision,mode,accounts,accountant:'Appointed synthetic accountant',policy:'Monthly delivery approved by finance; operational inputs only',reason:'Owner records the accountant instruction'})
+ const p=await project('Prepaid monthly delivery'),s=await schedule(p,'service-delivery')
+ const charge=await cmd('fixed:approve',await cmd('fixed:prepare',{engagementId:p.engagement.id,budgetId:p.budget.id,budgetRevision:p.budget.revision,chargeType:'deposit',cumulativeBasisPoints:10000,name:'Prepaid fixed delivery',date:'2026-09-30',reason:'Prepaid SOW'}))
+ const packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:p.engagement.id,title:'Prepaid full project',sources:[`fixedCharges:${charge.id}`]}))
+ await cmd('invoice:issue',{...packet,issueDate:'2026-09-30',dueDate:'2026-10-30',billTo:'Prepaid client',remitTo:'Agency account',reference:'Prepaid monthly delivery'})
+ const prepare=(date,amountMinor)=>cmd('revenue:prepare',{scheduleId:s.id,scheduleRevision:s.revision,date,amountMinor,evidence:'Reviewed monthly delivery report'})
+ const octoberDraft=await prepare('2026-10-31',400000)
+ const october=await cmd('revenue:approve',{...octoberDraft,reason:'Finance reviewed October delivery and balanced accounts'})
+ const row=async(id)=>(await state()).data.revenueRecognitions.find(r=>r.id===id)
+ const first=(await row(october.id)).value
+ assert.deepEqual(first.balances,{billedMinor:1200000,recognizedMinor:400000,deferredMinor:800000,unbilledMinor:0})
+ assert.deepEqual(first.journal.map(l=>[l.account,l.debitMinor,l.creditMinor]),[[accounts.receivable,1200000,0],[accounts.deferred,0,800000],[accounts.revenue,0,400000]])
+ await prepare('2026-10-31',400000).then(()=>assert.fail('Monthly delivery cannot be recognized twice'),e=>assert.match(e.message,/already reserved or recognized/))
+ await cmd('revenue:approve',{...october,reason:'Cannot approve twice'},owner,409)
+ const november=await cmd('revenue:approve',{...await prepare('2026-11-30',500000),reason:'Reviewed November delivery'})
+ assert.deepEqual((await row(november.id)).value.balances,{billedMinor:1200000,recognizedMinor:900000,deferredMinor:300000,unbilledMinor:0})
+ await cmd('revenue:prepare',{scheduleId:s.id,scheduleRevision:s.revision,date:'2026-12-31',amountMinor:400000,evidence:'Over schedule value'},owner,409)
+ const december=await cmd('revenue:approve',{...await prepare('2026-12-31',300000),reason:'Reviewed final delivery'})
+ assert.equal((await row(december.id)).value.balances.deferredMinor,0)
+ // A journal draft freezes its invoice and prior-recognition basis. A competing approval makes it stale.
+ const timeProject=await project('Unbilled approved time','hourly'),ts=await schedule(timeProject,'time')
+ const task=await cmd('save:tasks',{engagementId:timeProject.engagement.id,name:'Approved delivery',remainingSeconds:0})
+ await cmd('save:rates',{personId:worker.id,service:'*',effective:'2026-01-01',billMinor:20000,costMinor:10000})
+ const entries=[]
+ for(const day of ['2026-10-01','2026-10-02']){
+  const t=await cmd('time:approve',await cmd('time:submit',await cmd('time:save',{personId:worker.id,engagementId:timeProject.engagement.id,taskId:task.id,service:'Delivery',notes:'Approved work',timezone:'America/New_York',billable:true,start:day+'T09:00:00-04:00',end:day+'T10:00:00-04:00'})))
+  entries.push(t)
+ }
+ const timeDrafts=[]
+ for(const t of entries)timeDrafts.push(await cmd('revenue:prepare',{scheduleId:ts.id,scheduleRevision:ts.revision,date:'2026-10-31',sourceId:t.id,sourceRevision:t.revision,evidence:'Reviewed approved time'}))
+ const timeRecognition=await cmd('revenue:approve',{...timeDrafts[0],reason:'Review approved time economics'})
+ assert.equal((await row(timeRecognition.id)).value.balances.unbilledMinor,20000)
+ await cmd('revenue:approve',{...timeDrafts[1],reason:'Stale prior journal'},owner,409)
+ await cmd('revenue:withdraw',{...timeDrafts[1],reason:'Reprepare against the new approved balance'})
+ const second=await cmd('revenue:prepare',{scheduleId:ts.id,scheduleRevision:ts.revision,date:'2026-10-31',sourceId:entries[1].id,sourceRevision:entries[1].revision,evidence:'Reviewed current prior balance'})
+ await cmd('revenue:approve',{...second,reason:'Reviewed refreshed journal'})
+ const mp=await project('Accepted milestone recognition'),ms=await schedule(mp,'milestone')
+ const milestone=await cmd('milestone:approve',await cmd('save:milestones',{engagementId:mp.engagement.id,name:'Delivered handover',due:'2026-10-31',amountMinor:100000}))
+ await cmd('revenue:prepare',{scheduleId:ms.id,scheduleRevision:ms.revision,date:'2026-12-02',sourceId:milestone.id,sourceRevision:milestone.revision,evidence:'Unaccepted milestone'},owner,409)
+ const accepted=await recordMilestoneAcceptance(h,milestone.id)
+ const md=await cmd('revenue:prepare',{scheduleId:ms.id,scheduleRevision:ms.revision,date:'2026-12-02',sourceId:accepted.id,sourceRevision:accepted.revision,evidence:'Recorded client acceptance and finance authorization'})
+ const mr=await cmd('revenue:approve',{...md,reason:'Reviewed accepted milestone value'})
+ assert.equal((await row(mr.id)).value.amountMinor,100000)
+ const handoff=await cmd('handoff:prepare',{recipient:'Appointed accountant',purpose:'accounting',reason:'Reviewed balanced monthly operational journals',sources:[october,november,december].map(r=>({kind:'revenueRecognitions',id:r.id,revision:r.revision}))})
+ const artifact=await request('/api/gauge/handoffs/'+handoff.id,owner),bytes=await artifact.text()
+ assert.equal(artifact.status,200)
+ const parsed=JSON.parse(execFileSync('python3',['-c','import csv,json,sys; print(json.dumps(list(csv.DictReader(sys.stdin))))'],{input:bytes,encoding:'utf8'}))
+ assert.deepEqual(parsed.map(l=>Number(l.amountMinor)),[400000,500000,300000])
+ for(const line of parsed){const details=JSON.parse(line.details);assert.equal(details.journal.reduce((n,l)=>n+l.debitMinor-l.creditMinor,0),0);assert.equal(line.category,'recognition');assert.match(details.basis,/not provider-verified/)}
+ const hr=(await state()).data.specialistHandoffs.find(r=>r.id===handoff.id)
+ const result={handoffId:hr.id,artifactHash:hr.value.artifactHash,lines:hr.value.lines.map((l,i)=>({id:l.id,status:i===1?'rejected':'accepted',...(i===1?{reason:'Accountant requests November delivery detail'}:{}),currency:l.currency,amountMinor:l.amountMinor,durationSeconds:null}))}
+ await cmd('handoff:record-result',{...handoff,result:{...result,lines:result.lines.map((l,i)=>i?l:{...l,amountMinor:1})}},owner,400)
+ await cmd('handoff:record-result',{...handoff,result})
+ const final=(await state()).data.specialistHandoffs.find(r=>r.id===handoff.id)
+ assert.equal(final.value.result.acceptedTotals[0].amountMinor,700000);assert.equal(final.value.result.rejectedTotals[0].amountMinor,500000)
+ assert.equal(final.value.result.verification,'user-recorded')
+ assert.equal(await(await request('/api/gauge/handoffs/'+handoff.id,owner)).text(),bytes)
+ const staff=await h.invite('journal-staff');await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true})
+ assert.deepEqual((await state(staff.cookie)).data.revenueRecognitions,[])
+ assert.equal((await request('/api/gauge/history/revenueRecognitions/'+october.id,staff.cookie)).status,403)
+ await cmd('revenue:schedule',{engagementId:p.engagement.id},staff.cookie,403)
+ await cmd('revenue:approve',{...octoberDraft,reason:'Unauthorized'},staff.cookie,403)
+ await page.context().clearCookies();await page.context().addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+ await page.goto(h.origin+'/app/billing')
+ const section=page.locator('#specialist-handoffs')
+ assert((await section.innerText()).includes('Operational revenue journals'))
+ assert((await section.innerText()).includes('Accountant requests November delivery detail'))
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready)
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Revenue handoff fits '+width)
+  // The existing billing screen uses text-labeled controls, including navigation and downloads.
+  for(const control of await section.locator('button,a').all())assert((await control.innerText()).trim(),'Handoff controls have visible labels')
+  if(process.env.GAUGE_HANDOFF_SHOTS){await mkdir(process.env.GAUGE_HANDOFF_SHOTS,{recursive:true});await section.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/FINANCE-005-'+width+'.png'})}
+ }
+ // A separate read-only accountant grant can inspect accounting exports but cannot edit time or fetch payroll.
+ await cmd('time:policy',{lockThrough:'2026-08-31',reason:'Finance reviewed completed August time'})
+ const closePreview=await cmd('period:preview',{month:'2026-08'})
+ const closeDraft=await cmd('period:prepare',{...closePreview.input,fingerprint:closePreview.fingerprint,acknowledgeWip:true,wipReconciliation:'No August invoices or work; later WIP retained',reason:'Reviewed August operational close'})
+ const closed=await cmd('period:approve',closeDraft)
+ const accountant=await h.invite('journal-accountant')
+ await cmd('grant',{operatorId:accountant.id,personId:worker.id,role:'accountant',enabled:true})
+ const ac=await request('/api/gauge/accountant',accountant.cookie);assert.equal(ac.status,200)
+ const inputs=await ac.json();assert(inputs.handoffs.some(r=>r.id===handoff.id));assert.equal(inputs.notice.includes('No authority'),true)
+ assert(inputs.closes.some(r=>r.id===closed.id))
+ const closeDownload=await request('/api/gauge/closes/'+closed.id,accountant.cookie);assert.equal(closeDownload.status,200);assert.equal((await closeDownload.json()).value.month,'2026-08')
+ assert.equal((await request('/api/gauge/accountant',accountant.cookie,{method:'POST'})).status,405)
+ assert.equal((await request('/api/gauge/handoffs/'+handoff.id,accountant.cookie)).status,200)
+ const payroll=(await state()).data.specialistHandoffs.find(r=>r.value.purpose==='payroll')
+ assert.equal((await request('/api/gauge/handoffs/'+payroll.id,accountant.cookie)).status,403)
+ for(const path of ['/api/gauge/state','/api/gauge/audit/export','/api/gauge/archives/unknown','/api/gauge/history/time/'+entries[0].id,'/api/gauge/invoice-documents/unknown','/api/gauge/report.csv?from=2026-10-01&to=2026-10-31'])assert.equal((await request(path,accountant.cookie)).status,403,'Closed accountant read list refuses '+path)
+ for(const action of ['time:save','invoice:issue','revenue:approve','grant','invite','apikey:create'])await cmd(action,{},accountant.cookie,403)
+ assert.equal((await request('/app/action',accountant.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action:'time:save',key:randomUUID()}).toString()})).status,403)
+ await page.context().clearCookies();await page.context().addCookies(accountant.cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/review');assert.equal(await page.getByRole('heading',{name:'Accountant inputs',exact:true}).count(),1)
+  assert.equal(await page.locator('form[method=post]').count(),0)
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Accountant inputs fit '+width)
+  if(process.env.GAUGE_HANDOFF_SHOTS)await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/GOVERN-003-accountant-'+width+'.png',fullPage:true})
+ }
+ await page.context().clearCookies();await page.context().addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/access')
+  assert.equal(await page.locator('select[name=role] option[value=accountant]').count(),1)
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Access fits '+width)
+  if(process.env.GAUGE_HANDOFF_SHOTS){await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/GOVERN-003-access-'+width+'.png',fullPage:true});await page.locator('select[name=role]').scrollIntoViewIfNeeded();await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/GOVERN-003-access-viewport-'+width+'.png'})}
+ }
+ await cmd('grant',{operatorId:accountant.id,personId:worker.id,role:'accountant',enabled:false})
+ assert.equal((await request('/api/gauge/handoffs/'+handoff.id,accountant.cookie)).status,403)
+ assert.equal((await request('/api/gauge/accountant',accountant.cookie)).status,403)
+ console.log('PASS accountant access: read-only exact accounting downloads, payroll and raw-data refusals, native form and command mutation refusals, immediate revocation and 1440/390')
+ console.log('PASS revenueScheduleJourney: prepaid monthly delivery, all three policies, deferred and unbilled, exact balanced journal reconciliation, stale reviews, duplicate refusals, role privacy and 1440/390')
+}

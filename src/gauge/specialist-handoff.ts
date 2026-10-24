@@ -4,12 +4,12 @@ import { type Kind, type Row, type Value, csv, integer, need, sum, text, uuid } 
 import { type Actor, Transaction, fence, finance, get } from './store'
 
 const handoffKind = 'specialistHandoffs' as Kind
-export const handoffNotice = 'Prepared PSA inputs only. Gauge has not sent these inputs, filed payroll or tax, or certified profit. Revenue inputs are billing preparation, not issued invoices or recognized revenue. Invoice rows are issued native pre-tax documents. Correction rows are issued credit notes and voids, negative against their invoice. Payment rows are user-recorded receipts, not provider-verified settlement. Neither category claims recognized revenue.'
+export const handoffNotice = 'Prepared PSA inputs only. Gauge has not sent these inputs, filed payroll or tax, or certified profit. Revenue inputs are billing preparation, not issued invoices or recognized revenue. Invoice rows are issued native pre-tax documents. Correction rows are issued credit notes and voids, negative against their invoice. Payment rows are user-recorded receipts, not provider-verified settlement. Neither category claims recognized revenue. Recognition rows are reviewed operational journal inputs under a user-recorded accountant policy, not posted books or certified recognition.'
 export const receiverNotice = 'User-recorded receiver result; provider acceptance not independently verified.'
 const signedMoney = (v: unknown) => {need(typeof v==='number' && Number.isSafeInteger(v),'Amount must be exact signed integer minor units');return v}
 const currency = (v: unknown) => {need(typeof v==='string'&&/^[A-Z]{3}$/.test(v),'Source currency must be explicit');return v}
 type HandoffLine = {
- id:string; category:'labor'|'expense'|'revenue-input'|'invoice'|'payment'; sourceKind:string; sourceId:string; sourceRevision:string;
+ id:string; category:'labor'|'expense'|'revenue-input'|'invoice'|'payment'|'recognition'; sourceKind:string; sourceId:string; sourceRevision:string;
  engagementId:string; personId:string|null; date:string|null; currency:string; amountMinor:number|null; durationSeconds:number|null;
  approvedBy:string|null; approvedAt:number|null; details:Value
 }
@@ -28,7 +28,7 @@ function reference(raw:unknown) {
  if(typeof selected==='string'&&selected.trim().startsWith('{')){try{selected=JSON.parse(selected)}catch{need(false,'Invalid selected source JSON')}}
  if(typeof selected==='string'){const parts=selected.split(':');need(parts.length===2,'Use kind:id source identities');selected={kind:parts[0],id:parts[1]}}
  need(selected&&typeof selected==='object'&&!Array.isArray(selected),'Choose an approved source')
- need(['time','expenses','packets','invoices','invoiceCorrections','payments'].includes(selected.kind),'Choose time, expenses, packets, invoices, invoice corrections or payments')
+ need(['time','expenses','packets','invoices','invoiceCorrections','payments','revenueRecognitions'].includes(selected.kind),'Choose approved work, issued documents, receipts or operational revenue journals')
  return {kind:selected.kind as Kind,id:text(selected.id,'Source ID',200),revision:text(selected.revision,'Exact approved source revision',200)}
 }
 
@@ -59,6 +59,8 @@ async function prepare(env:Bindings,a:Actor,tx:Transaction,input:Value) {
   }else if(source.kind==='expenses'){
    lines.push({...base,id:identity,category:'expense',date:v.date,currency:currency(v.currency),amountMinor:signedMoney(v.amountMinor),durationSeconds:null,
     details:{basis:'Approved actual expense; reimbursement and client recovery remain separate',reimbursable:v.reimbursable===true,taskId:v.taskId??null}})
+  }else if(source.kind==='revenueRecognitions'){
+   lines.push({...base,id:identity,category:'recognition',personId:null,date:v.date,currency:currency(v.currency),amountMinor:signedMoney(v.amountMinor),durationSeconds:null,details:{basis:v.notice,policy:v.policy,accountant:v.accountant,scheduleId:v.scheduleId,scheduleRevision:v.scheduleRevision,sequence:v.sequence,previous:v.previous,balances:v.balances,journal:v.journal,sources:v.sources,evidence:v.evidence}})
   }else if(source.kind==='invoices'){
    need(Array.isArray(v.lines)&&v.lines.length>0,'Issued invoice has no document lines')
    need(v.lines.every((line:Value)=>line.currency===v.currency),'Invoice source currencies differ; no implicit FX')
@@ -144,9 +146,10 @@ export async function specialistHandoffCommand(env:Bindings,a:Actor,tx:Transacti
 }
 
 export async function handoffDownload(env:Bindings,a:Actor,id:string):Promise<Response> {
- need(finance(a),'Finance access required',403)
+ need(finance(a)||a.role==='accountant','Finance access required',403)
  await fence(env,a)
  const row=await get(env,handoffKind,text(id,'Handoff ID'))
+ need(a.role!=='accountant'||row.value.purpose==='accounting','Accountants cannot download payroll inputs',403)
  need(sha256(row.value.artifact)===row.value.artifactHash,'Stored handoff artifact failed integrity verification',409)
  await fence(env,a)
  return new Response(row.value.artifact,{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="gauge-handoff-${row.id}.csv"`,

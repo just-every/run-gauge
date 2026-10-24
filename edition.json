@@ -71,7 +71,9 @@
           "migrations/core/0062_gauge_rocketlane.sql",
           "migrations/core/0063_gauge_float.sql",
           "migrations/core/0064_gauge_invoice_presentation.sql",
-          "migrations/core/0065_gauge_invoice_access.sql"
+          "migrations/core/0065_gauge_invoice_access.sql",
+          "migrations/core/0066_gauge_revenue_schedules.sql",
+          "migrations/core/0067_gauge_accountant_grant.sql"
         ]
       }
     },

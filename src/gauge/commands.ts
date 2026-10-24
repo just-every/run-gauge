@@ -1,3 +1,4 @@
+import { revenueCommand } from './revenue-schedules'
 import { invoiceAccessCommand } from './invoice-access'
 import { invoiceSettingsCommand } from './invoice-presentation'
 import { nativeAdoptionPreview,nativeAdoptionCommand } from './kantata-native'
@@ -58,6 +59,7 @@ import { agencyProfileCommand } from './agency-profile'
 import { fxCommand, consolidate } from './fx-rates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
+ need(a.role!=='accountant','Accountants have read-only access',403)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
  // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
@@ -102,6 +104,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await resourceCommand(env,a,tx,action,input)
  if(!result)result=await opportunityCommand(env,a,tx,action,input)
  if(!result)result=await conversionCommand(env,a,tx,action,input)
+ if(!result)result=await revenueCommand(env,a,tx,action,input)
  if(!result)result=await specialistHandoffCommand(env,a,tx,action,input)
  if(!result)result=await delegationCommand(env,a,tx,action,input)
  if(!result)result=await timePolicyCommand(env,a,tx,action,input)

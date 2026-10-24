@@ -16,7 +16,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   need(a.role === 'owner', 'Only the owner assigns access', 403)
   const operatorId = text(input.operatorId, 'Operator')
   need(await env.DB.prepare('SELECT id FROM oa_operators WHERE id=? AND status=\'active\'').bind(operatorId).first(), 'Invite this operator and have them accept first')
-  need(['staff','lead','finance','agent'].includes(input.role), 'Choose staff, lead, finance or agent')
+  need(['staff','lead','finance','agent','accountant'].includes(input.role), 'Choose staff, lead, finance, agent or accountant')
   // An agent grant is no person: it may only prepare proposals for people to decide.
   let personId: string | null = null
   if (input.role !== 'agent') { const person = await get(env, 'people', text(input.personId, 'Person')); tx.observe('people', person); personId = person.id }

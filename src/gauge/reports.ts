@@ -38,6 +38,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups'].includes(k)&&a.role!=='owner')return {}
  if(['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions'].includes(k)&&a.role!=='owner')return {}
  if(k==='kantataRecords'&&!finance(a))return {}
+ if(['revenueSchedules','revenueRecognitions'].includes(k)&&!finance(a))return {}
  if(['fxRates','invoiceSettings','invoiceAccess','invoiceViews'].includes(k)&&!finance(a))return {}
  if(k==='agencyProfiles'){if(a.role==='owner')return value;if(!finance(a))return {};const {einReference,...profile}=value;return profile}
  if(k==='commercialEvents'&&a.role!=='owner'&&String(value.type).startsWith('signature-'))return {}
@@ -67,6 +68,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  for(const k of ['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.kantataRecords=finance(a)?data.kantataRecords:[]
  data.leave=data.leave.map(r=>({...r,value:redact(a,'leave',r.value)}))
+ data.revenueSchedules=finance(a)?data.revenueSchedules:[];data.revenueRecognitions=finance(a)?data.revenueRecognitions:[];
  data.invoiceAccess=finance(a)?data.invoiceAccess:[];data.invoiceViews=finance(a)?data.invoiceViews:[];
  data.invoiceSettings=finance(a)?data.invoiceSettings:[];data.fxRates=finance(a)?data.fxRates:[];data.agencyProfiles=finance(a)?data.agencyProfiles.map(r=>({...r,value:redact(a,'agencyProfiles',r.value)})):[]
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))

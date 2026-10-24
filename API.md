@@ -914,3 +914,22 @@ issued revision; views are audited and recorded as `invoiceViews` with the PDF d
 Finance sees the access and view history. Portable archives retain those business
 facts but omit `g_invoice_access_authority`; a restored recipient needs a fresh release.
 Verified sender, outbound invoice mail and bounce reconciliation are not implemented.
+
+
+## Operational revenue journals (FINANCE-005, partial)
+
+These are operational accountant inputs under a user-recorded policy. They do not certify ASC 606 recognition or post accounting. All writes use the ordinary native command door and request keys. Schedule configuration is currently available through the command API; approved journal rows join the existing Billing handoff selector.
+
+The owner calls `revenue:schedule` with `engagementId`, exact approved `budgetId` and `budgetRevision`, `mode` (`service-delivery`, `milestone`, or `time`), `accountant`, `policy`, `reason`, and `accounts: {receivable, deferred, unbilled, revenue}` containing four distinct account references. One immutable schedule binds each engagement and its approved unphased fixed or hourly terms. There is no provider credential or automatic authority in the policy reference.
+
+Finance calls `revenue:prepare` with `scheduleId`, `scheduleRevision`, `date`, and `evidence`. Service delivery also takes `amountMinor`, reserving one delivery month. Other modes take `sourceId` and `sourceRevision`: an approved accepted milestone with finance authorization, or approved billable hourly time with frozen economics. A source cannot be recognized twice. `revenue:approve` requires the draft `id`, `revision` and a review `reason`. Changed source revisions, prior approved recognition or invoice basis refuse approval; `revenue:withdraw` with a reason releases a draft for fresh preparation. Approved journals never change and closed agency periods refuse dated writes.
+
+Finance state includes `data.revenueSchedules` and `data.revenueRecognitions`. Every journal retains its policy, exact sources, cumulative billed and recognized amounts, deferred and unbilled balances, prior balances and balanced mapped debit and credit movements. These are approval-time snapshots, not continuously refreshed balances. Net issued invoices contribute only engagement-attributed lines; a correction to a consolidated invoice is held for accountant reconciliation. Later invoice changes require a later delivery journal to refresh the snapshot. Policy replacement, corrections and phase schedules remain unimplemented.
+
+`handoff:prepare` accepts approved `revenueRecognitions` source references. Their separate `recognition` category carries the mapped balanced journal and balance reconciliation in the immutable CSV details. The ordinary exact-artifact `handoff:record-result` reconciles accepted and rejected recognition amounts and never claims independently verified provider acceptance or posted accounting.
+
+## Read-only accountant grant (GOVERN-003, partial)
+
+The owner assigns `grant` with `role: "accountant"`, an active `operatorId`, `personId`, and `enabled`. An accountant's `GET /api/gauge/accountant` lists reviewed accounting handoffs, their separate control totals and user-recorded results, and completed operational close identities. `GET /api/gauge/handoffs/{id}` allows accounting inputs only; payroll inputs are refused. `GET /api/gauge/closes/{id}` downloads operational close evidence. The Review page provides these read-only links.
+
+Every Gauge mutation is denied to this role, including time, invoices, journal approval, grants, invitations and keys. All other Gauge read doors are denied, including raw state, audit exports, histories, archives and invoice documents. Every read rechecks the live native session and grant version; revocation immediately refuses further downloads. This bounded scope is a conservative default awaiting ct approval. Resource-manager and client roles and configurable grants remain absent.

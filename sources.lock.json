@@ -426,7 +426,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "81073b27156cae2a00bb4f7d1fcb1ec4bf64011ad9373e5d60c2e6efee3244cc",
+      "sha256": "52cf85415e12dba96257100eb8b84d35af7609ab7b68f75051e7e1ea4211b6f5",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -450,7 +450,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f644a772936ce7e04ac1e6e238782b6c57416c2034222e22988035251cd29a20",
+      "sha256": "3174ecd24865f1aac8bb5342a9b7c636461ca810dd45165f242f490b12af8163",
       "executable": false
     },
     "DEMO.md": {
@@ -1978,7 +1978,7 @@
       "executable": false
     },
     "src/gauge/revenue-schedules.ts": {
-      "sha256": "93e1a4d736abf04e4153b4c9a21d2cf34e3a84182c0a1a3f8f03673db46ecdd0",
+      "sha256": "4771d31c16376ca040d63effaa7033c9dd13cc355d5b0e910b7cb64bbbbc48cf",
       "executable": false
     },
     "src/gauge/rocketlane-cutover.ts": {
@@ -4298,7 +4298,7 @@
       "executable": false
     },
     "tests/gauge-handoffs.mjs": {
-      "sha256": "7f4b6bfc7f60c8337107c276b924a9875fd1ef58571809993eac63deca3260cc",
+      "sha256": "0604e055daab58f1a5de0eca0cbb4d87199d26556c6c9b1d17459583d6197e4d",
       "executable": false
     },
     "tests/gauge-harness.mjs": {

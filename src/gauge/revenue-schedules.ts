@@ -109,6 +109,9 @@ export async function revenueCommand(env:Bindings,a:Actor,tx:Transaction,action:
  if(action==='revenue:withdraw')return tx.record('revenueRecognitions',{...row.value,status:'withdrawn',withdrawnBy:a.session.operator.id,withdrawnAt:Date.now(),reason:text(input.reason,'Withdrawal reason')},row,undefined,action)
  const schedule=await get(env,'revenueSchedules',row.value.scheduleId),value=await snapshot(env,tx,schedule,row.value,row.id)
  need(sha256(canonicalJson(value))===row.value.fingerprint,'Revenue inputs changed; withdraw and prepare a fresh journal',409)
- if(value.journalType==='correction')await assertIndependentReview(env,a,tx,{amountMinor:value.amountMinor,currency:value.currency,createdBy:row.value.createdBy})
+ if(value.journalType==='correction'){
+  need(row.value.createdBy!==a.session.operator.id,'Revenue corrections require another active owner or finance reviewer',403)
+  await assertIndependentReview(env,a,tx,{amountMinor:value.amountMinor,currency:value.currency,createdBy:row.value.createdBy})
+ }
  return tx.record('revenueRecognitions',{...row.value,status:'approved',approvedBy:a.session.operator.id,approvedAt:Date.now(),approvalReason:text(input.reason,'Journal review reason')},row,undefined,action)
 }

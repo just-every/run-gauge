@@ -49,7 +49,7 @@ export async function presentationDocument(env: Bindings, tx: Transaction, packe
   const person = source.personId ? await get(env, 'people', source.personId) : null, task = source.taskId ? await get(env, 'tasks', source.taskId) : null
   if (person) tx.observe('people', person); if (task) tx.observe('tasks', task)
   detail.push({ kind: line.kind, sourceId: line.sourceId, sourceRevision: line.sourceRevision, originalSourceId:line.kind==='timeSlices'?frozen.sourceId:line.sourceId, originalSourceRevision:line.kind==='timeSlices'?frozen.sourceRevision:line.sourceRevision, offsetSeconds:line.offsetSeconds??0, date: line.sourceDate,
-   personId:person?.id??null,taskId:task?.id??null,person: person?.value.name ?? '', task: task?.value.name ?? '', service: source.service ?? '', phase: source.phaseKey ?? line.phaseKey ?? '', project: engagement.value.name,
+   personId:person?.id??null,taskId:task?.id??null,person: person?.value.name ?? '', task: task?.value.name ?? '', service: source.service ?? '', phase: source.phaseKey ?? line.phaseKey ?? '', project: line.projectName??engagement.value.name,remainingMinor:line.remainingMinor??null,
    notes: source.notes ?? source.description ?? line.description ?? '', actualSeconds: time ? source.durationSeconds ?? line.durationSeconds ?? null : null,
    billedSeconds: time ? line.roundedBillingSeconds ?? source.economics?.roundedBillingSeconds ?? line.durationSeconds ?? null : null,
    rateMinor: line.billRateMinor ?? null, amountMinor: line.amountMinor, category: source.category ?? 'Uncategorized', vendor: source.vendor ?? '', receipts: source.attachmentIds ?? [],
@@ -59,9 +59,9 @@ export async function presentationDocument(env: Bindings, tx: Transaction, packe
  for (const row of detail) {
   const time = row.kind === 'time' || row.kind === 'timeSlices', expense = row.kind === 'expenses'
   const group = time ? settings.timeMode === 'entry' ? row.sourceId : String(row[settings.timeMode==='person'?'personId':settings.timeMode==='task'?'taskId':settings.timeMode] || 'Unassigned') : expense ? settings.expenseMode === 'category' ? row.category : row.sourceId : row.sourceId
-  const key = JSON.stringify([time ? 'time' : row.kind, group])
+  const key = JSON.stringify([row.project,row.phase,time ? 'time' : row.kind, group])
   const label = time ? settings.timeMode === 'entry' ? `${row.date} · ${row.person} · ${row.task} · ${row.notes}` : `${settings.timeMode}: ${row[settings.timeMode] || 'Unassigned'}` : expense ? settings.expenseMode === 'category' ? `Expenses: ${row.category}` : `${row.date} · ${row.category} · ${row.vendor} · ${row.notes} · Receipts: ${row.receipts.join(', ') || 'none'}` : row.notes
-  const current = groups.get(key) ?? { label, amountMinor: 0, sourceIds: [], actualSeconds: 0, billedSeconds: 0, rateMinor: row.rateMinor }
+  const current = groups.get(key) ?? { label: packet.value.engagementIds?.length>1||row.phase?`${row.project}${row.phase?' · '+row.phase:''} · ${label}`:label, amountMinor: 0, remainingMinor:row.remainingMinor,sourceIds: [], actualSeconds: 0, billedSeconds: 0, rateMinor: row.rateMinor }
   current.amountMinor = sum([current.amountMinor, row.amountMinor]); current.sourceIds.push(row.sourceId)
   current.actualSeconds += row.actualSeconds ?? 0; current.billedSeconds += row.billedSeconds ?? 0
   if (current.rateMinor !== row.rateMinor) current.rateMinor = null
@@ -70,11 +70,11 @@ export async function presentationDocument(env: Bindings, tx: Transaction, packe
  const presentedLines = [...groups.values()]
  need(sum(presentedLines.map(r => r.amountMinor)) === packet.value.totalMinor && sum(detail.map(r => r.amountMinor)) === packet.value.totalMinor, 'Presentation does not reconcile to the approved packet', 409)
  return { format: 'gauge-invoice-document-v1', settings, agencyName: profile?.value.legalBusiness ?? 'Agency', address: profile?.value.billingAddress ?? null,
-  clientName: client.value.legalName ?? client.value.name, project: engagement.value.name, currency: packet.value.currency, totalMinor: packet.value.totalMinor,
+  clientName: client.value.legalName ?? client.value.name, project: [...new Set(detail.map(r=>r.project))].join(' · '), currency: packet.value.currency, totalMinor: packet.value.totalMinor,
   lines: presentedLines, detail, packetId: packet.id, packetRevision: packet.revision }
 }
 export function invoiceDetailCsv(document: Value) {
- return csv([['kind', 'source id', 'source revision', 'date', 'person', 'task', 'service', 'phase', 'project', 'notes', 'actual seconds', 'billed seconds', 'rate minor', 'amount minor', 'currency', 'category', 'vendor', 'receipt references', 'original source id', 'original source revision', 'offset seconds'],
-  ...document.detail.map((r: Value) => [r.kind, r.sourceId, r.sourceRevision, r.date, r.person, r.task, r.service, r.phase, r.project, r.notes, r.actualSeconds, r.billedSeconds, r.rateMinor, r.amountMinor, document.currency, r.category, r.vendor, r.receipts.join(', '), r.originalSourceId, r.originalSourceRevision, r.offsetSeconds])])
+ return csv([['kind', 'source id', 'source revision', 'date', 'person', 'task', 'service', 'phase', 'project', 'notes', 'actual seconds', 'billed seconds', 'rate minor', 'amount minor', 'currency', 'category', 'vendor', 'receipt references', 'original source id', 'original source revision', 'offset seconds', 'remaining to bill minor'],
+  ...document.detail.map((r: Value) => [r.kind, r.sourceId, r.sourceRevision, r.date, r.person, r.task, r.service, r.phase, r.project, r.notes, r.actualSeconds, r.billedSeconds, r.rateMinor, r.amountMinor, document.currency, r.category, r.vendor, r.receipts.join(', '), r.originalSourceId, r.originalSourceRevision, r.offsetSeconds, r.remainingMinor])])
 }
 export async function assertDocumentReader(env: Bindings, a: Actor) { need(finance(a), 'Finance access required', 403); await fence(env, a) }

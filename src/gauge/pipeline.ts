@@ -1,3 +1,4 @@
+import { projectBillingData } from './consolidated-billing'
 import type { Bindings } from '../auth.server'
 import { liveInvoices } from './invoice-standing'
 import { type Row, type Value, need, text, date, integer, money, sum } from './model'
@@ -62,8 +63,8 @@ export function pipeline(data: Record<string, Row[]>, billedAsOf: string | null 
   for (const r of won.filter(r => r.value.currency === currency && !r.value.engagementId)) booked.push({ source: `opportunities:${r.id}`, engagementId: null, amountMinor: r.value.amountMinor })
   const bookedMinor = sum(booked.map(r => r.amountMinor))
   const engagementIds = new Set(booked.flatMap(r => r.engagementId ? [r.engagementId] : []))
-  const standings = billedAsOf === null ? [] : liveInvoices(data, billedAsOf).filter(s => s.invoice.value.currency === currency && engagementIds.has(s.invoice.value.engagementId)), billedMinor = sum(standings.map(s => s.netMinor))
+  const standings = billedAsOf === null ? [] : [...engagementIds].flatMap(id=>liveInvoices(projectBillingData(data,id,billedAsOf),billedAsOf)).filter(s=>s.invoice.value.currency===currency), billedMinor = sum(standings.map(s => s.netMinor))
   const billing = billedAsOf === null ? { billedMinor: null, backlogMinor: null } : { billedMinor, backlogMinor: bookedMinor - billedMinor }
-  return { currency, ...billing, billedInvoices: standings.map(s => s.invoice.id), billedCredits: standings.flatMap(s => s.credits.map(c => c.id)), weightedMinor: sum(weighted.map(r => r.amountMinor)), tentativeDemandSeconds: sum(weighted.map(r => r.demandSeconds)), bookedMinor, weighted, booked }
+  return { currency, ...billing, billedInvoices: [...new Set(standings.map(s => s.invoice.id))], billedCredits: [...new Set(standings.flatMap(s => s.credits.map(c => c.id)))], weightedMinor: sum(weighted.map(r => r.amountMinor)), tentativeDemandSeconds: sum(weighted.map(r => r.demandSeconds)), bookedMinor, weighted, booked }
  })
 }

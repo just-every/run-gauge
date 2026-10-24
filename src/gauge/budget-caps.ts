@@ -11,13 +11,14 @@ const portion=(time:Row,offset:number,seconds:number)=>{
  return cumulative(offset+seconds)-cumulative(offset)
 }
 const quantity=(time:Row)=>time.value.economics.roundedBillingSeconds??time.value.durationSeconds
-export function capBalances(data:Record<string,Row[]>){
+export function capBalances(data:Record<string,Row[]>,includeUncapped=false){
  const active=new Set((data.packets??[]).filter(p=>p.value.status!=='cancelled').flatMap(p=>p.value.lines.filter((l:Value)=>l.kind==='timeSlices').map((l:Value)=>l.sourceId)))
  return (data.engagements??[]).flatMap(e=>{
-  const budget=latestBudget(data.budgets??[],e.id);if(!budget?.value.notToExceed)return []
+  const budget=latestBudget(data.budgets??[],e.id);if(!budget||(!budget.value.notToExceed&&!includeUncapped))return []
   const reserved=(data.timeSlices??[]).filter(s=>s.value.engagementId===e.id&&active.has(s.id)),downs=(data.capWriteDowns??[]).filter(d=>d.value.engagementId===e.id&&d.value.status==='approved')
-  let room=Math.max(0,budget.value.amountMinor-sum(reserved.map(s=>s.value.amountMinor)))
-  const entries=(data.time??[]).filter(t=>t.value.engagementId===e.id&&t.value.status==='approved'&&t.value.billable&&t.value.economics?.mode==='hourly'&&!t.value.source?.billed).sort((a,b)=>a.value.workDate.localeCompare(b.value.workDate)||(a.value.start??0)-(b.value.start??0)||a.id.localeCompare(b.id))
+  let room=budget.value.notToExceed?Math.max(0,budget.value.amountMinor-sum(reserved.map(s=>s.value.amountMinor))):Number.MAX_SAFE_INTEGER
+  const full=new Set((data.packets??[]).filter(p=>p.value.status!=='cancelled').flatMap(p=>p.value.lines.filter((l:Value)=>l.kind==='time').map((l:Value)=>l.sourceId)))
+  const entries=(data.time??[]).filter(t=>t.value.engagementId===e.id&&!full.has(t.id)&&t.value.status==='approved'&&t.value.billable&&t.value.economics?.mode==='hourly'&&!t.value.source?.billed).sort((a,b)=>a.value.workDate.localeCompare(b.value.workDate)||(a.value.start??0)-(b.value.start??0)||a.id.localeCompare(b.id))
   const rows=entries.flatMap(t=>{
    const allocated=reserved.filter(s=>s.value.sourceId===t.id),written=downs.filter(d=>d.value.sourceId===t.id)
    const ranges=[...allocated,...written].map(s=>({from:s.value.offsetSeconds,to:s.value.offsetSeconds+s.value.durationSeconds})).sort((a,b)=>a.from-b.from)
@@ -32,7 +33,7 @@ export function capBalances(data:Record<string,Row[]>){
    return {sourceId:t.id,revision:t.revision,workDate:t.value.workDate,offsetSeconds:offset,availableSeconds:available,eligibleSeconds:low,eligibleMinor:amount,heldSeconds:available-low,heldMinor:portion(t,offset+low,available-low),reason:low<available?'Held as over-cap':null}
    })
   })
-  return [{engagementId:e.id,budgetId:budget.id,budgetRevision:budget.revision,currency:e.value.currency,capMinor:budget.value.amountMinor,reservedMinor:sum(reserved.map(s=>s.value.amountMinor)),writtenDownMinor:sum(downs.map(d=>d.value.amountMinor)),remainingMinor:room,rows}]
+  return [{engagementId:e.id,budgetId:budget.id,budgetRevision:budget.revision,currency:e.value.currency,notToExceed:!!budget.value.notToExceed,capMinor:budget.value.amountMinor,reservedMinor:sum(reserved.map(s=>s.value.amountMinor)),writtenDownMinor:sum(downs.map(d=>d.value.amountMinor)),remainingMinor:room,rows}]
  })
 }
 async function observedCaps(env:Bindings,tx:Transaction){
@@ -42,12 +43,14 @@ async function observedCaps(env:Bindings,tx:Transaction){
  return data
 }
 export async function assertUncappedTime(env:Bindings,tx:Transaction,time:Row){
+ const slices="SELECT 1 FROM g_timeSlices s JOIN g_billing_sources b ON b.kind='timeSlices' AND b.source_id=s.id WHERE json_extract(s.data,'$.sourceId')=?"
+ need(!await env.DB.prepare(slices).bind(time.id).first(),'This time has reserved portions; bill only its remaining seconds',409);tx.guard(`NOT EXISTS(${slices})`,time.id)
  const budgets=await all(env,'budgets'),budget=latestBudget(budgets,time.value.engagementId)
  tx.guard('(SELECT COUNT(*) FROM g_budgets)=?',budgets.length);if(budget)tx.observe('budgets',budget)
  need(!budget?.value.notToExceed,'This engagement has a not-to-exceed cap; use the capped billing draft to preserve held excess',409)
 }
 export async function capCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null>{
- if(!['cap:draft','cap:write-down','cap:write-down-approve'].includes(action))return null
+ if(!['cap:draft','cap:write-down','cap:write-down-approve','packet:partial'].includes(action))return null
  need(finance(a),'Finance access required',403)
  const data=await observedCaps(env,tx)
  if(action==='cap:write-down-approve'){
@@ -58,8 +61,9 @@ export async function capCommand(env:Bindings,a:Actor,tx:Transaction,action:stri
   await assertIndependentReview(env,a,tx,{createdBy:row.value.createdBy,amountMinor:row.value.amountMinor,currency:row.value.currency})
   return tx.record('capWriteDowns',{...row.value,status:'approved',approvedBy:a.session.operator.id,approvedAt:Date.now()},row)
  }
- const e=await access(env,a,text(input.engagementId,'Engagement')),balance=capBalances(data).find(c=>c.engagementId===e.id)
- need(balance,'Approve hourly not-to-exceed terms first',409)
+ const e=await access(env,a,text(input.engagementId,'Engagement')),balance=capBalances(data,action==='packet:partial').find(c=>c.engagementId===e.id)
+ need(balance,'Approve billing terms first',409)
+ if(action==='packet:partial'){need(!balance.notToExceed,'Use the capped billing draft for not-to-exceed work',409);need(input.sourceRevision===data.time.find(t=>t.id===input.sourceId)?.revision,'Review the exact approved time revision',409)}
  if(action==='cap:write-down'){
   const row=balance.rows.find(r=>r.sourceId===input.sourceId&&(input.offsetSeconds===undefined||r.offsetSeconds===Number(input.offsetSeconds))),time=data.time.find(t=>t.id===input.sourceId)
   need(row&&time&&time.revision===input.sourceRevision,'Choose the exact approved time revision',409)
@@ -69,15 +73,17 @@ export async function capCommand(env:Bindings,a:Actor,tx:Transaction,action:stri
  }
  need(balance.budgetId===input.budgetId&&balance.budgetRevision===input.budgetRevision,'Budget changed; review the cap again',409)
  const lines:Value[]=[]
- for(const row of balance.rows.filter(r=>r.eligibleSeconds>0)){
+ for(const row of balance.rows.filter(r=>r.eligibleSeconds>0&&(action!=='packet:partial'||r.sourceId===input.sourceId)).slice(0,action==='packet:partial'?1:undefined)){
+  if(action==='packet:partial'){need(lines.length===0,'Select the first unreserved time range',409);row.eligibleSeconds=integer(input.durationSeconds,'Seconds to bill',1,row.availableSeconds)}
   const time=data.time.find(t=>t.id===row.sourceId)!
   await assertAdHocTime(env,tx,time.value)
+  if(action==='packet:partial')row.eligibleMinor=portion(time,row.offsetSeconds,row.eligibleSeconds)
   need(lines.length<100,'Draft at most 100 eligible entries at a time',409)
   const slice=await tx.record('timeSlices',{engagementId:e.id,sourceId:time.id,sourceRevision:time.revision,sourceSnapshot:time,budgetId:balance.budgetId,budgetRevision:balance.budgetRevision,currency:balance.currency,offsetSeconds:row.offsetSeconds,durationSeconds:row.eligibleSeconds,amountMinor:row.eligibleMinor,billRateMinor:time.value.economics.billRateMinor,date:time.value.workDate,name:time.value.notes,status:'approved',phaseKey:time.value.phaseKey??null})
-  lines.push({kind:'timeSlices',sourceId:slice.id,sourceRevision:slice.revision,description:time.value.notes,amountMinor:row.eligibleMinor,currency:balance.currency,durationSeconds:row.eligibleSeconds,billRateMinor:slice.value.billRateMinor,roundedBillingSeconds:row.eligibleSeconds,roundingSeconds:1,roundingPolicy:'Work-date ordered cap; difference of cumulative half-up second values',rateId:time.value.economics.rateId,budgetId:balance.budgetId,originalTimeId:time.id,originalTimeRevision:time.revision,offsetSeconds:row.offsetSeconds,phaseKey:time.value.phaseKey??null})
+  lines.push({kind:'timeSlices',sourceId:slice.id,sourceRevision:slice.revision,description:time.value.notes,amountMinor:row.eligibleMinor,currency:balance.currency,durationSeconds:row.eligibleSeconds,billRateMinor:slice.value.billRateMinor,roundedBillingSeconds:row.eligibleSeconds,roundingSeconds:1,roundingPolicy:'Difference of cumulative half-up second values',rateId:time.value.economics.rateId,budgetId:balance.budgetId,originalTimeId:time.id,originalTimeRevision:time.revision,offsetSeconds:row.offsetSeconds,phaseKey:time.value.phaseKey??null})
  }
- need(lines.length>0,'No in-cap work is eligible; excess remains held',409)
- const packet=await tx.record('packets',{engagementId:e.id,title:text(input.title,'Packet title'),status:'draft',currency:balance.currency,lines,totalMinor:sum(lines.map(l=>l.amountMinor)),createdAt:Date.now(),createdBy:a.session.operator.id,notToExceed:balance.capMinor})
+ need(lines.length>0,'No selected unreserved work is eligible; capped excess remains held',409)
+ const packet=await tx.record('packets',{engagementId:e.id,title:text(input.title,'Packet title'),status:'draft',currency:balance.currency,lines,totalMinor:sum(lines.map(l=>l.amountMinor)),createdAt:Date.now(),createdBy:a.session.operator.id,...(balance.notToExceed?{notToExceed:balance.capMinor}:{partialTime:true})})
  for(const line of lines)tx.sql('INSERT INTO g_billing_sources(kind,source_id,packet_id,source_revision) VALUES(?,?,?,?)',line.kind,line.sourceId,packet.id,line.sourceRevision)
  return packet
 }

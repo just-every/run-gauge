@@ -1,3 +1,4 @@
+import { projectBillingData } from './consolidated-billing'
 import { capBalances } from './budget-caps'
 import { retainerConsumption } from './retainer-consumption'
 import { retainerIssueDate } from './retainer-schedule'
@@ -28,15 +29,14 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
  const caps=capBalances(data)
  const balances=retainerConsumption({retainers:data.retainers??[],retainerPeriods:data.retainerPeriods??[],time:data.time??[],retainerCloses:data.retainerCloses??[],retainerAdjustments:data.retainerAdjustments??[]})
  const asOf = forecast.asOf, clients = new Map((data.clients ?? []).map(c => [c.id, c]))
- const issued = (data.invoices ?? []).filter(i => i.value.issueDate <= asOf)
- const receipts = (data.payments ?? []).filter(p => p.value.date <= asOf), live = new Map(liveInvoices(data, asOf).map(s => [s.invoice.id, s]))
+
  const place = (day: string) => (day < asOf ? asOf : day).slice(0, 7)
  const engagements = forecast.engagements.map(f => {
   // The client's finance-set Net N is used when set; "Net 30 assumed" appears only while it is unset (SETUP-002).
   const e = data.engagements.find(r => r.id === f.engagementId)!, client = clients.get(e.value.clientId), set = client?.value.paymentTermsDays ?? null, terms: number = set ?? 30
   const daysLate = client?.value.daysLate ?? null, percent = client?.value.collectionPercent ?? 100
   const incomplete = [...f.incomplete], sources = { ...f.sources, clients: client ? [client.id] : [], milestones: [...(f.sources.milestones ?? [])], invoices: [] as string[], payments: [] as string[], invoiceCorrections: [] as string[], fixedCharges: [] as string[],timeSlices:(data.timeSlices??[]).filter(s=>s.value.engagementId===e.id).map(s=>s.id),capWriteDowns:(data.capWriteDowns??[]).filter(s=>s.value.engagementId===e.id).map(s=>s.id),retainerSchedules:[] as string[],retainerCharges:[] as string[] }
-  const actualInvoices = issued.filter(i => i.value.engagementId === e.id)
+  const billing=projectBillingData(data,e.id,asOf),actualInvoices=billing.invoices.filter(i=>i.value.issueDate<=asOf),receipts=billing.payments.filter(p=>p.value.date<=asOf),live=new Map(liveInvoices(billing,asOf).map(s=>[s.invoice.id,s]))
   const issuedMilestones = new Set<string>(), billedByMonth = new Map<string, number>()
   for (const invoice of actualInvoices.filter(i => !i.value.reissueOf)) for (const line of invoice.value.lines) {
    if(line.kind==='timeSlices'){const slice=(data.timeSlices??[]).find(s=>s.id===line.sourceId);const sourceDate=line.sourceDate??slice?.value.date;if(sourceDate){const month=sourceDate.slice(0,7);billedByMonth.set(month,sum([billedByMonth.get(month)??0,line.amountMinor]))}continue}
@@ -88,9 +88,9 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    sources.invoices.push(invoice.id); sources.payments.push(...payments.map(p => p.id)); sources.invoiceCorrections.push(...standing.credits.map(c => c.id))
    const paidMinor = sum(payments.map(p => p.value.amountMinor))
    const openMinor=invoice.value.totalMinor-paidMinor-standing.creditedMinor
-   const promise=(data.paymentPromises??[]).filter(p=>p.value.invoiceId===invoice.id).at(-1)
+   const promise=(billing.paymentPromises??[]).filter(p=>p.value.invoiceId===invoice.id).at(-1)
    // INVOICE-006/FINANCE-007: a standing dispute is listed apart and never expected as cash until it is resolved.
-   const dispute=(data.invoiceDisputes??[]).filter(x=>x.value.invoiceId===invoice.id&&x.value.openedDate<=asOf&&(x.value.status==='open'||x.value.resolvedDate>asOf)).at(-1)
+   const dispute=(billing.invoiceDisputes??[]).filter(x=>x.value.invoiceId===invoice.id&&x.value.openedDate<=asOf&&(x.value.status==='open'||x.value.resolvedDate>asOf)).at(-1)
    const disputed=dispute?Math.min(openMinor,dispute.value.amountMinor):0
    const promised=promise?Math.min(openMinor-disputed,promise.value.amountMinor):0
    if(promised)invoices.push({source:`invoices:${invoice.id}:promise`,revenueMonth:null,invoiceDate:invoice.value.issueDate,amountMinor:0,openMinor:promised,issued:true,invoiceSnapshot:invoice,promiseSnapshot:promise,promised:true,paymentSnapshots:[]})

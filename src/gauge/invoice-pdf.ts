@@ -32,12 +32,13 @@ export async function invoicePdf(document: Value, invoice: Value, detail = false
  if (invoice.issueDate) paragraph('Issued ' + invoice.issueDate + ' · Due ' + invoice.dueDate)
  if (invoice.reference) paragraph('Reference: ' + invoice.reference)
  if (detail) for (const r of document.detail) {
-  paragraph(`${r.date} · ${r.kind} · ${r.person} · ${r.task} · ${r.notes}`)
+  paragraph(`${r.project}${r.phase?' · '+r.phase:''} · ${r.date} · ${r.kind} · ${r.person} · ${r.task} · ${r.notes}`)
   paragraph(`Source ${r.sourceId} · revision ${r.sourceRevision}`)
   if(r.originalSourceId!==r.sourceId)paragraph(`Original time ${r.originalSourceId} · revision ${r.originalSourceRevision} · offset seconds ${r.offsetSeconds}`)
   paragraph(`Actual seconds ${r.actualSeconds ?? 'not applicable'} · Billed seconds ${r.billedSeconds ?? 'not applicable'} · Rate ${r.rateMinor == null ? 'not applicable' : money(r.rateMinor) + ' per hour'} · Amount ${money(r.amountMinor)}`)
+  if(r.remainingMinor!=null)paragraph('Remaining to bill: '+money(r.remainingMinor))
   if (r.kind === 'expenses') paragraph(`Category ${r.category} · Vendor ${r.vendor} · Receipts ${r.receipts.join(', ') || 'none'}`)
- } else for (const r of document.lines) { paragraph(r.label); paragraph((r.billedSeconds ? `${Number((r.billedSeconds / 3600).toFixed(4))} billed hours · ${r.rateMinor == null ? 'multiple rates' : money(r.rateMinor) + ' per hour'} · ` : '') + money(r.amountMinor)) }
+ } else for (const r of document.lines) { paragraph(r.label); paragraph((r.billedSeconds ? `${Number((r.billedSeconds / 3600).toFixed(4))} billed hours · ${r.rateMinor == null ? 'multiple rates' : money(r.rateMinor) + ' per hour'} · ` : '') + money(r.amountMinor));if(r.remainingMinor!=null)paragraph('Remaining to bill: '+money(r.remainingMinor)) }
  paragraph('Total (pre-tax): ' + money(document.totalMinor), 13)
  // Preserve paragraph boundaries and visible emphasis without accepting arbitrary HTML.
  const details = document.settings.additionalDetails.replace(/<br\s*\/?\s*>/gi, '\n').replace(/<\/?p\s*>/gi, '\n').split(/(<\/?(?:b|strong|i|em)\s*>)/i)

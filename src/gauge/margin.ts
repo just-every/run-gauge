@@ -1,3 +1,4 @@
+import { projectBillingData } from './consolidated-billing'
 import { type Row, type Value, charge, sum } from './model'
 import { explain, activeRates } from './rate-cards'
 import type { financeForecast } from './finance-forecast'
@@ -38,8 +39,9 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
   }
   for (const x of mine('expenses').filter(r => r.value.status === 'submitted')) { provisionalSources.push(`expenses:${x.id}`); provisionalExpenseMinor += x.value.amountMinor }
   // Live invoices only: a void removes its original, and issued credit notes (INVOICE-004) are netted out of billed.
-  const standings = liveInvoices(data, forecast.asOf).filter(s => s.invoice.value.engagementId === e.id), invoices = standings.map(s => s.invoice), invoiceCredits = standings.flatMap(s => s.credits), payments=mine('payments').filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))
-  const packets = mine('packets').filter(p => p.value.status === 'approved'), credits = packets.filter(p => p.value.correctsPacketId && p.value.totalMinor < 0)
+  const billing=projectBillingData(data,e.id,forecast.asOf)
+  const standings = liveInvoices(billing, forecast.asOf).filter(s => s.invoice.value.engagementId === e.id), invoices = standings.map(s => s.invoice), invoiceCredits = standings.flatMap(s => s.credits), payments=billing.payments.filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))
+  const packets = billing.packets.filter(p => p.value.status === 'approved'), credits = packets.filter(p => p.value.correctsPacketId && p.value.totalMinor < 0)
   const approvedExpenseMinor = sum(approvedExpenses.map(x => x.value.amountMinor)), knownApprovedCostMinor = f.actualCostMinor
   const actualUnknown = [...costUnknown, ...feesUnknown], knownActualMarginMinor = f.actualFeesMinor - knownApprovedCostMinor
   // Remaining effort: open task estimates, and committed allocation seconds after the as-of day.

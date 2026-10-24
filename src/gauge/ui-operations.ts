@@ -1,3 +1,4 @@
+import { capBalances } from './budget-caps'
 import { providerJobsSection } from './ui-provider-jobs'
 import { capSection } from './ui-budget-caps'
 import { providerCustodySection } from './ui-provider-custody'
@@ -8,7 +9,7 @@ import { harvestControls } from './ui-harvest-history'
 import type { Bindings } from '../auth.server'
 import { type Actor, finance } from './store'
 import type { Row, Value } from './model'
-import { escape as e, input as i, amount, area, select as s, choices as c, check, checks, form, decision, table, open } from './ui-forms'
+import { escape as e, input as i, duration, amount, area, select as s, choices as c, check, checks, form, decision, table, open } from './ui-forms'
 import { hours, money, day, chip, nameOf } from './ui-format'
 import { type Report, describeSource } from './ui-describe'
 import { specialistHandoffSection } from './ui-specialist-handoff'
@@ -29,7 +30,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    {label:'Date',size:'date',line:2,cell:r=>open('expenses',r,day(r.value.date))},
    {label:'Description',wrap: true,line:3,cell:r=>e(r.value.description)+(r.value.taskId?`<span class="g-sub">${e(nameOf(d.tasks,r.value.taskId))}</span>`:'')},
    {label:'Person',size:'name',line:1,cell:r=>e(nameOf(d.people,r.value.personId))},
-   {label:'Engagement',line:1,cell:r=>e(nameOf(d.engagements,r.value.engagementId))},
+   {label:'Engagement',line:1,cell:r=>e((r.value.engagementIds??[r.value.engagementId]).map((id:string)=>nameOf(d.engagements,id)).join(' · '))},
    {label:'Amount',num:true,size:'num',line:2,cell:r=>`${money(r.value.amountMinor,r.value.currency)}${r.value.reimbursable?' <span class="g-tag">reimbursable</span>':''}`},
    {label:'Status',wrap: true,size:'status',line:2,cell:r=>`${chip(r.value.status)}${r.value.reviewNote?`<span class="g-sub">${e(r.value.reviewNote)}</span>`:''}`},
   ],r=>{
@@ -46,11 +47,11 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
   // Eligible lines sit under their engagement, so a packet's lines visibly come from the engagement it names.
   const eligible=report.exceptions.filter(x=>x.type==='unbilled approved work'),groups=new Map<string,any[]>()
   for(const x of eligible){const [k,id]=x.source.split(':'),engagementId=(d as any)[k].find((r:Row)=>r.id===id)?.value.engagementId??'';groups.set(engagementId,[...(groups.get(engagementId)??[]),x])}
-  body='<div class="g-titlebar"><h1>Billing preparation packets</h1></div><p class="g-lede">Select approved unbilled sources from one engagement. Draft packets reserve sources. Approval fixes the exact downloadable artifact; cancelled drafts release their reservations.</p>'+form('packet:create','Prepare packet',eng+i('title','Packet title')+`<fieldset class="g-checklist"><legend>Eligible source lines</legend>${[...groups].map(([id,lines])=>`<div class="g-check-group" id="unbilled-${e(id)}"><p class="g-check-head">${e(nameOf(d.engagements,id,'Engagement'))}</p>${lines.map(x=>check('sources',describeSource(d,x.source).text,false,x.source)).join('')}</div>`).join('')||'<p class="g-empty">No eligible work yet.</p>'}</fieldset>`,undefined,'Save','g-card--form')
+  body='<div class="g-titlebar"><h1>Billing preparation packets</h1></div><p class="g-lede">Select approved unbilled sources. Combine projects only for the same client and currency. Draft packets reserve sources. Approval fixes the exact downloadable artifact; cancelled drafts release their reservations.</p>'+form('packet:create','Prepare packet',eng+check('consolidate','Combine projects for this client')+i('title','Packet title')+`<fieldset class="g-checklist"><legend>Eligible source lines</legend>${[...groups].map(([id,lines])=>`<div class="g-check-group" id="unbilled-${e(id)}"><p class="g-check-head">${e(nameOf(d.engagements,id,'Engagement'))}</p>${lines.map(x=>check('sources',describeSource(d,x.source).text,false,x.source)).join('')}</div>`).join('')||'<p class="g-empty">No eligible work yet.</p>'}</fieldset>`,undefined,'Save','g-card--form')
   const titleOf=(id:string)=>d.packets.find(p=>p.id===id)?.value.title??'Earlier packet'
   body+=table('Packets',d.packets,[
    {label:'Packet',wrap: true,line:1,cell:r=>`${e(r.value.title)}${r.value.correctsPacketId?`<span class="g-sub">Adjusts ${e(titleOf(r.value.correctsPacketId))}${r.value.reason?`: ${e(r.value.reason)}`:''}</span>`:''}`},
-   {label:'Engagement',line:1,cell:r=>e(nameOf(d.engagements,r.value.engagementId))},
+   {label:'Engagement',line:1,cell:r=>e((r.value.engagementIds??[r.value.engagementId]).map((id:string)=>nameOf(d.engagements,id)).join(' · '))},
    {label:'Total',num:true,size:'num',line:2,cell:r=>money(r.value.totalMinor,r.value.currency)},
    {label:'Lines',num:true,size:'num',line:2,cell:r=>{const n=(r.value.lines??[]).length;return `${n}<span class="g-brief">&nbsp;${n===1?'line':'lines'}</span>`}},
    {label:'Status',wrap: true,size:'status',line:2,cell:r=>chip(r.value.status)+(r.value.exceptions??[]).map((x:any)=>`<span class="g-sub">${e(x.reason)}</span>`).join('')},
@@ -62,6 +63,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    return `<a class="g-btn g-btn--secondary" href="/api/gauge/packets/${e(r.id)}">Download approved CSV</a>${adjust}`
   })
  }
+ if(section==='billing')body+=`<section class="g-card" id="partial-time"><h2>Partial time billing</h2><p>Bill selected hours from approved time. Unreserved time remains available; cancelled drafts release their portions.</p>${capBalances(d,true).filter(b=>!b.notToExceed).flatMap(b=>b.rows.filter(r=>r.eligibleSeconds>0).map(r=>form('packet:partial',nameOf(d.engagements,b.engagementId)+' · '+r.workDate,`<input type="hidden" name="engagementId" value="${e(b.engagementId)}"><input type="hidden" name="budgetId" value="${e(b.budgetId)}"><input type="hidden" name="budgetRevision" value="${e(b.budgetRevision)}"><input type="hidden" name="sourceId" value="${e(r.sourceId)}"><input type="hidden" name="sourceRevision" value="${e(r.revision)}"><p>${hours(r.availableSeconds)} remaining to bill.</p>`+duration('durationHours','Hours to bill',r.availableSeconds,3600,'any')+i('title','Packet title','Partial approved time'),undefined,'Draft partial time','g-bare'))).join('')||'<p>No unreserved hourly time.</p>'}</section>`
  if(section==='billing')body+=fixedChargesSection(report,today)
  if(section==='billing')body+=capSection(report)+invoicesSection(report,today)
  if(section==='billing')body+=specialistHandoffSection(a,report)

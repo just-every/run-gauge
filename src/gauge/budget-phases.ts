@@ -1,3 +1,4 @@
+import { projectBillingData } from './consolidated-billing'
 import type { Bindings } from '../auth.server'
 import { quoteBill } from './quote-pricing'
 import { type Row,type Value,type Kind,integer,money,need,text,sum } from './model'
@@ -32,16 +33,8 @@ export function phaseViews(data:Record<string,Row[]>){
    const view={...data}
    view.budgets=(data.budgets??[]).filter(b=>b.value.engagementId!==e.id).concat([{...budget!,value:{...budget!.value,phases:[],mode:phase.mode,amountMinor:phase.feeBudgetMinor,effortSeconds:phase.hourBudgetSeconds,expenseBudgetMinor:phase.expenseBudgetMinor}}])
    for(const kind of ['time','expenses','tasks','milestones','staffing','fixedCharges'])view[kind]=(data[kind]??[]).filter(r=>r.value.engagementId!==e.id||r.value.phaseKey===phase.key)
-   for(const kind of ['packets','invoices'])view[kind]=(data[kind]??[]).flatMap(r=>{if(r.value.engagementId!==e.id)return [r];const lines=r.value.lines.filter((l:Value)=>linePhase(l)===phase.key);return lines.length?[{...r,value:{...r.value,lines,totalMinor:sum(lines.map((l:Value)=>l.amountMinor))}}]:[]})
-   const invoiceIds=new Set(view.invoices.filter(i=>i.value.engagementId===e.id).map(i=>i.id))
-   view.invoiceCorrections=(data.invoiceCorrections??[]).flatMap(c=>{if(c.value.engagementId!==e.id)return [c];if(!invoiceIds.has(c.value.invoiceId))return [];if(c.value.type==='void')return [c];const invoice=data.invoices.find(i=>i.id===c.value.invoiceId)!,lines=c.value.lines.filter((l:Value)=>linePhase(invoice.value.lines[l.index])===phase.key);return lines.length?[{...c,value:{...c.value,lines,amountMinor:sum(lines.map((l:Value)=>l.amountMinor))}}]:[]})
-   view.payments=(data.payments??[]).flatMap(payment=>{
-    if(payment.value.engagementId!==e.id)return [payment]
-    const invoice=data.invoices.find(i=>i.id===payment.value.invoiceId);if(!invoice)return []
-    const weights=phases.map(p=>sum(invoice.value.lines.filter((l:Value)=>linePhase(l)===p.key).map((l:Value)=>l.amountMinor))),i=phases.indexOf(phase),before=sum(weights.slice(0,i)),through=before+weights[i]
-    const share=(n:number)=>Number((BigInt(payment.value.amountMinor)*BigInt(n)*2n+BigInt(invoice.value.totalMinor))/(2n*BigInt(invoice.value.totalMinor)))
-    const minor=share(through)-share(before);return minor?[{...payment,value:{...payment.value,amountMinor:minor,allocationBasis:'Proportion of immutable invoice phase amounts; cumulative half-up cents'}}]:[]
-   })
+   const billing=projectBillingData(data,e.id,'9999-12-31',phase.key)
+   for(const kind of ['packets','invoices','invoiceCorrections','payments','paymentPromises','invoiceDisputes'])view[kind]=billing[kind]
    return {engagementId:e.id,phase,budget:budget!,data:view}
   })
  })

@@ -17,7 +17,9 @@ export function revenueDashboard(data: Record<string, Row[]>, asOf: string) {
   const expenses = data.expenses.filter(r => engagementIds.has(r.value.engagementId) && r.value.status === 'approved' && r.value.date <= asOf && r.value.reimbursable && !r.value.source?.billed && !issuedSources.has(`expenses:${r.id}`))
   const unknownSources = time.filter(r => r.value.economics?.billMinor == null || r.value.economics.currency !== currency).map(r => `time:${r.id}`)
   for (const r of expenses) if(r.value.currency !== currency) unknownSources.push(`expenses:${r.id}`)
-  const knownMinor = sum([...time.filter(r => r.value.economics?.billMinor != null && r.value.economics.currency === currency).map(r => r.value.economics.billMinor), ...expenses.filter(r => r.value.currency === currency).map(r => r.value.amountMinor)])
+  const sliced=new Map<string,number>()
+  for(const invoice of invoices.filter(i=>!i.value.reissueOf))for(const l of invoice.value.lines.filter((l:any)=>l.kind==='timeSlices')){const slice=data.timeSlices.find(s=>s.id===l.sourceId);if(slice)sliced.set(slice.value.sourceId,(sliced.get(slice.value.sourceId)??0)+l.amountMinor)}
+  const knownMinor = sum([...time.filter(r => r.value.economics?.billMinor != null && r.value.economics.currency === currency).map(r => r.value.economics.billMinor-(sliced.get(r.id)??0)), ...expenses.filter(r => r.value.currency === currency).map(r => r.value.amountMinor)])
   const issued = live.filter(s => s.invoice.value.currency === currency), receipts = payments.filter(r => r.value.currency === currency)
   const invoicedMinor = sum(issued.map(s => s.invoice.value.totalMinor)), creditedMinor = sum(issued.map(s => s.creditedMinor)), paidMinor = sum(receipts.map(r => r.value.amountMinor))
   const voids = standings.filter(s => s.voided && s.invoice.value.currency === currency)

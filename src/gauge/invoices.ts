@@ -39,7 +39,9 @@ export async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, 
   const sourceId = text(line.sourceId, 'Source ID'), identity = `${kind}:${sourceId}`
   need(!seen.has(identity), 'Packet repeats a source line', 409); seen.add(identity)
   const source = await get(env, kind, sourceId), v = source.value
-  need(source.revision === line.sourceRevision && (kind==='retainerPeriods'||v.status === 'approved') && v.engagementId === engagement.id, 'Approved packet source changed; issuance requires its exact approved revision', 409)
+  const project=await get(env,'engagements',line.engagementId??engagement.id)
+  need(project.value.clientId===engagement.value.clientId&&project.value.currency===packet.value.currency&&project.value.type!=='internal','Consolidated project client or currency changed',409);tx.observe('engagements',project)
+  need(source.revision === line.sourceRevision && (kind==='retainerPeriods'||v.status === 'approved') && v.engagementId === project.id, 'Approved packet source changed; issuance requires its exact approved revision', 409)
   tx.observe(kind, source)
   tx.guard('EXISTS(SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=? AND packet_id=?)', kind, source.id, source.revision, packet.id)
   need(await env.DB.prepare('SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=? AND packet_id=?').bind(kind, source.id, source.revision, packet.id).first(), 'Packet no longer reserves this exact source', 409)
@@ -50,7 +52,7 @@ export async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, 
    need(packet.value.scheduleId&&line.creditConsent?.scheduleId===packet.value.scheduleId&&line.creditConsent?.confirmation==='apply-unexecuted-adjustments-as-invoice-credits','Explicit schedule consent is required for an adjustment credit',409)
    amountMinor=integer(-v.cashDeltaMinor,'Approved adjustment credit',1,Number.MAX_SAFE_INTEGER)*-1;sourceDate=date(line.sourceDate);need(issueDate>=sourceDate,'Invoice date precedes the reviewed adjustment credit')
   } else if(kind==='timeSlices'){
-   const original=await get(env,'time',v.sourceId);need(original.revision===v.sourceRevision&&original.value.status==='approved','Original capped time changed',409);tx.observe('time',original);await assertAdHocTime(env,tx,original.value);amountMinor=integer(v.amountMinor,'In-cap amount');sourceDate=date(v.date);need(issueDate>=sourceDate,'Invoice date precedes approved work')
+   const original=await get(env,'time',v.sourceId);need(original.revision===v.sourceRevision&&original.value.status==='approved','Original capped time changed',409);tx.observe('time',original);await assertAdHocTime(env,tx,original.value);amountMinor=integer(v.amountMinor,'Approved time portion');sourceDate=date(v.date);need(issueDate>=sourceDate,'Invoice date precedes approved work')
   } else if(kind==='retainerPeriods'){
    const current=await retainerOverage(env,tx,source)
    need(current.retainerFingerprint===line.retainerFingerprint&&current.amountMinor===line.amountMinor,'Retainer consumption changed; review a fresh packet',409)
@@ -74,7 +76,7 @@ export async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, 
   } else {
    need(authorizedDelivery(v), 'Invoice milestone requires current recorded acceptance and finance authorization', 409)
    const budget = await get(env, 'budgets', text(v.budgetId, 'Approved fixed budget'))
-   need(budget.value.status === 'approved' && (budget.value.phases?.length?budget.value.phases.some((p:Value)=>p.key===v.phaseKey&&p.mode==='fixed'):budget.value.mode === 'fixed') && budget.value.engagementId === engagement.id && budget.value.currency === currency, 'Invoice milestone requires its approved fixed-fee budget', 409)
+   need(budget.value.status === 'approved' && (budget.value.phases?.length?budget.value.phases.some((p:Value)=>p.key===v.phaseKey&&p.mode==='fixed'):budget.value.mode === 'fixed') && budget.value.engagementId === project.id && budget.value.currency === currency, 'Invoice milestone requires its approved fixed-fee budget', 409)
    tx.observe('budgets', budget)
    amountMinor = integer(v.amountMinor, 'Approved milestone amount', 0, Number.MAX_SAFE_INTEGER)
    sourceDate = date(v.due)
@@ -82,7 +84,10 @@ export async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, 
    need(issueDate >= date(delivery.date) && issueDate >= date(decision.date), 'Invoice issue date precedes recorded milestone delivery or acceptance')
   }
   need(Number.isSafeInteger(line.amountMinor) && line.amountMinor === amountMinor, 'Packet amount differs from its approved source', 409)
-  lines.push({ ...structuredClone(line), sourceDate, sourceSnapshot: snapshot(source) })
+  let remainingMinor=0
+  if(kind==='timeSlices'){const original=await get(env,'time',v.sourceId);remainingMinor=original.value.economics.billMinor-v.amountMinor;const reserved=await env.DB.prepare("SELECT COALESCE(SUM(json_extract(s.data,'$.amountMinor')),0) AS total FROM g_timeSlices s JOIN g_billing_sources b ON b.kind='timeSlices' AND b.source_id=s.id WHERE json_extract(s.data,'$.sourceId')=?").bind(v.sourceId).first<{total:number}>();remainingMinor=original.value.economics.billMinor-(reserved?.total??0)}
+  if(kind==='fixedCharges'){const budget=await get(env,'budgets',v.budgetId);tx.observe('budgets',budget);const fee=v.phaseKey?budget.value.phases?.find((p:Value)=>p.key===v.phaseKey)?.feeBudgetMinor:budget.value.amountMinor;need(Number.isSafeInteger(fee),'Fixed budget unavailable',409);remainingMinor=fee-v.grossMinor}
+  lines.push({ ...structuredClone(line), engagementId:project.id,projectName:project.value.name,remainingMinor,sourceDate, sourceSnapshot: snapshot(source),engagementSnapshot:snapshot(project) })
  }
  need(sum(lines.map(line => line.amountMinor)) === packet.value.totalMinor, 'Packet total differs from its approved source lines', 409)
  return lines
@@ -120,7 +125,7 @@ export async function invoiceCommand(env: Bindings, a: Actor, tx: Transaction, a
   const pdf=await invoicePdf(document,header), detailPdf=document.settings.attachDetail?await invoicePdf(document,header,true):null
   return tx.record('invoices', {
    document,pdf,detailPdf,detailCsv:document.settings.attachDetail?invoiceDetailCsv(document):null,
-   packetId: packet.id, packetRevision: packet.revision, engagementId: engagement.id, clientId: client.id,
+   packetId: packet.id, packetRevision: packet.revision, engagementId: engagement.id, engagementIds:packet.value.engagementIds??[engagement.id],clientId: client.id,
    number, issueDate, dueDate, billTo, remitTo, reference,
    currency: packet.value.currency, totalMinor, lines, issuedBy: a.session.operator.id, issuedAt: Date.now(),
    paymentTermsDays, termsLabel: client.value.paymentTermsDays == null ? 'Net 30 assumed' : `Net ${paymentTermsDays}`,

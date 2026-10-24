@@ -50,7 +50,7 @@ async function issueVoid(env: Bindings, a: Actor, tx: Transaction, invoice: Row,
  const pdf=await invoicePdf(document,header),detailPdf=document.settings.attachDetail?await invoicePdf(document,header,true):null
  await tx.record('invoices', {
   document,pdf,detailPdf,detailCsv:document.settings.attachDetail?invoiceDetailCsv(document):null,
-  packetId: v.packetId, packetRevision: v.packetRevision, engagementId: v.engagementId, clientId: v.clientId,
+  packetId: v.packetId, packetRevision: v.packetRevision, engagementId: v.engagementId,engagementIds:v.engagementIds, clientId: v.clientId,
   number, issueDate: value.date, dueDate: plusDays(value.date, terms),
   billTo: v.billTo, remitTo: v.remitTo, reference: v.reference, currency: v.currency, totalMinor: value.reissueTotalMinor, lines,
   issuedBy: a.session.operator.id, issuedAt: Date.now(), paymentTermsDays: terms, termsLabel: client.value.paymentTermsDays == null ? 'Net 30 assumed' : `Net ${terms}`,
@@ -94,7 +94,7 @@ export async function invoiceCorrectionCommand(env: Bindings, a: Actor, tx: Tran
  // Corrections of one invoice serialize: a competing correction commits first and this one is retried.
  tx.guard("(SELECT COUNT(*) FROM g_invoiceCorrections WHERE invoice_id=? AND status<>'withdrawn')=?", invoice.id, existing.length)
  const policy = await observedApprovalPolicy(env, tx)
- const base = { invoiceId: invoice.id, invoiceRevision: invoice.revision, invoiceNumber: v.number, engagementId: v.engagementId, clientId: v.clientId, currency: v.currency, date: on, reason, preparedBy: a.session.operator.id, preparedAt: Date.now(), taxBasis: 'pre-tax', taxEffect: correctionTaxEffect }
+ const base = { invoiceId: invoice.id, invoiceRevision: invoice.revision, invoiceNumber: v.number, engagementId: v.engagementId,engagementIds:v.engagementIds, clientId: v.clientId, currency: v.currency, date: on, reason, preparedBy: a.session.operator.id, preparedAt: Date.now(), taxBasis: 'pre-tax', taxEffect: correctionTaxEffect }
  if (action === 'invoice:void') {
   need(now.receipts === 0 && existing.length === 0, 'Only an invoice with no receipts or credits can be voided; credit it instead', 409)
   const reissue = lineAmounts(input, 'reissue', 'reissueLine'), seen = new Set<number>()

@@ -937,3 +937,42 @@ The owner assigns `grant` with `role: "accountant"`, an active `operatorId`, `pe
 Every Gauge mutation is denied to this role, including time, invoices, journal approval, grants, invitations and keys. All other Gauge read doors are denied, including raw state, audit exports, histories, archives and invoice documents. Every read rechecks the live native session and grant version; revocation immediately refuses further downloads. This bounded scope is a conservative default awaiting ct approval. Client roles and configurable grants remain absent.
 
 The owner can assign `role: "resource-manager"` with `personId`, nonempty `engagementIds` and `planningPeople` arrays (up to 100 each), and an audited `reason`. This explicit scope authorizes only `save:staffing`, `save:resourceRequests`, `resource:fill`, `staffing:preview` and `staffing:apply`. The Staffing page reuses these ordinary command doors. State exposes only selected project identities, selected skill profiles, calendars, approved private-labeled leave, staffing and resource requests; global availability deducts competing bookings without disclosing their sources. Private costs and custom fields are excluded. Raw histories, downloads, invoices, time changes, identity operations and all other mutations are refused. The granting owner must remain active, and live grant versions enforce immediate narrowing and revocation. Native Access provides the explicit project and roster selection. These planning semantics are a conservative default pending ct approval.
+
+
+## Reviewed Float native adoption
+
+These commands require the native owner session and a unique request key. Every
+mutation repeats authority and exact revision checks in its committing batch.
+Imports exposes the same commands with visible text controls.
+
+- `floatAdopt:preview` takes the imported `namespace` and a reviewed `config` with
+  `projectLeads` (source project ID to captured person ID) and `projectMembers`
+  (source project ID to captured person IDs). It returns the exact `fingerprint`,
+  effect counts and findings. A completed, reconciled source import is required.
+- `floatAdopt:create` takes that same input, `fingerprint`, a review `reason` and
+  `confirm: "adopt-reviewed-float"`. It creates one resumable journal per source
+  account. Exact replays return that journal; changed mappings are refused.
+- `floatAdopt:advance` takes journal `id`, `revision` and `reason`. Each batch
+  creates at most five native effects: source-linked clients, people and projects,
+  exact effective weekday calendars, tentative daily staffing and explicitly
+  owner-reviewed approved daily leave. The bounded adapter admits at most 1000
+  native effects. Actual time and historical finance stay source evidence.
+- `floatAdopt:deletion-preview` takes adoption `id` and a complete original Float
+  `package` containing the continued deletion capture and independently reconciled
+  source controls. Previously captured events cannot change. All retained source
+  object values must match; changes beyond deletions need a separate migration.
+  Missing or gapped coverage refuses. A missed interval needs a newer complete
+  original comparison. The preview binds exact linked native revisions.
+- `floatAdopt:deletion-start` takes the same package and ID, returned `fingerprint`,
+  `reason` and `confirm: "delete-linked-untouched-float"`. It records reviewed
+  original custody and creates a bounded continuation journal.
+- `floatAdopt:deletion-advance` takes adoption `id`, current `revision` and `reason`.
+  It removes at most five linked untouched native daily effects per batch.
+  Committed staffing, later edits, native approvals or delivery-plan dependencies
+  hold removal. Original evidence, exact revision history and audited receipts
+  remain, including after installation restore. Replayed captures apply once.
+
+Source reversal is held while a native adoption journal exists. These commands
+create no operator grants, native source-time approval, provider deletion or
+financial cutover authority. MIGRATE-010 retains cutover; CONNECT-013 retains live
+provider access. `data.floatAdoptions` is visible only to the native owner.

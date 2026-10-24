@@ -88,6 +88,8 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    if(action.startsWith('commercial:')){const estimateId=input.estimateId??(await get(env,'commercialProposals',input.id)).value.estimateId;return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(estimateId)}#commercial-proposals`}})}
    if(action==='estimate:convert')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(result.id)}`}})
    if(action==='estimate:save'||action==='estimate:approve'||action==='estimate:withdraw')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(input.id??result.id)}#estimates`}})
+   if(action==='floatAdopt:deletion-preview')return new Response(await appPage(env,a,'imports',{floatDeletionPreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
+   if(action==='floatAdopt:preview')return new Response(await appPage(env,a,'imports',{floatAdoptionPreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='kantataAdopt:preview')return new Response(await appPage(env,a,'imports',{nativeAdoptionPreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='kantata:preview'||action==='kantata:report')return new Response(await appPage(env,a,'imports',{[action==='kantata:preview'?'kantataPreview':'kantataReport']:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='case:preview-close')return new Response(await appPage(env,a,'review',{caseClosePreview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})

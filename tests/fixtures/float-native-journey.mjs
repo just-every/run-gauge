@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict'
+import { floatDeletionJourney } from './float-deletion-journey.mjs'
+import { harness } from '../gauge-harness.mjs'
+export async function floatNativeJourney({h,preview,job,staff,page,capture}) {
+ const config={projectLeads:{p1:'u1'},projectMembers:{p1:['u1']}},input={namespace:preview.namespace,config}
+ await h.cmd('floatAdopt:preview',input,staff.cookie,403)
+ const p=await h.cmd('floatAdopt:preview',input)
+ assert(p.canApply,JSON.stringify(p.findings))
+ assert.deepEqual(p.counts,{clients:1,people:1,engagements:1,calendars:2,staffing:4,leave:1})
+ await h.cmd('floatAdopt:create',{...input,fingerprint:'stale',confirm:'adopt-reviewed-float',reason:'Reviewed source windows'},h.owner,409)
+ await h.cmd('floatAdopt:create',{...input,fingerprint:p.fingerprint,reason:'Reviewed source windows'},h.owner,400)
+ await page.goto(h.origin+'/app/imports')
+ const form=page.locator('form').filter({has:page.locator('[name=action][value="floatAdopt:preview"]')})
+ await form.getByLabel('Float source account').fill(preview.namespace)
+ await form.getByLabel('Reviewed project leads and members JSON').fill(JSON.stringify(config))
+ await form.getByRole('button',{name:'Preview Float native adoption'}).click()
+ assert.match(await page.locator('#float-native-preview').innerText(),/tentative daily allocations/)
+ await page.locator('#float-native-preview').getByText('Exact native effects',{exact:true}).click()
+ await capture('native-preview','#float-native')
+ const create=page.locator('form').filter({has:page.locator('[name=action][value="floatAdopt:create"]')})
+ await create.getByLabel('Adopt these calendars, tentative allocations and owner-reviewed leave.').check()
+ await create.getByLabel('Float native review reason').fill('Reviewed exact source windows and leave')
+ await create.getByRole('button',{name:'Create Float adoption journal'}).click()
+ let adoption=(await h.state()).data.floatAdoptions[0]
+ assert.equal(adoption.value.status,'adopting')
+ await h.cmd('import:float:undo',{id:job.id},h.owner,409)
+ await h.cmd('floatAdopt:advance',{id:adoption.id,revision:adoption.revision,reason:'Reviewed first native batch'})
+ const first=(await h.state()).data.floatAdoptions.find(r=>r.id===adoption.id)
+ assert.equal(first.value.status,'adopting','Native adoption advances at most ten effects')
+ await h.cmd('floatAdopt:advance',{id:adoption.id,revision:adoption.revision,reason:'Stale batch'},h.owner,409)
+ const cleanup=h.dispose
+ await h.close()
+ const restarted=await harness({currency:'USD',timezone:'America/New_York',persistenceDirectory:h.directory})
+ Object.assign(h,restarted,{dispose:async()=>{await restarted.close();await cleanup()}})
+ adoption=(await h.state()).data.floatAdoptions.find(r=>r.id===first.id)
+ assert.deepEqual(adoption,first,'An actual Worker restart preserves the pending native journal and exact effects')
+ while(adoption.value.status==='adopting'){await h.cmd('floatAdopt:advance',{id:adoption.id,revision:adoption.revision,reason:'Reviewed remaining source dates'});adoption=(await h.state()).data.floatAdoptions.find(r=>r.id===adoption.id)}
+ const data=(await h.state()).data,sourceRows=k=>data[k].filter(r=>r.value.source?.namespace===preview.namespace)
+ assert.equal(sourceRows('time').length,0,'Source actuals confer no native approval or billing authority')
+ assert.deepEqual(sourceRows('calendars').sort((a,b)=>a.value.from.localeCompare(b.value.from)).map(r=>r.value.weekdaySeconds),[[0,28800,28800,28800,28800,28800,0],[0,21600,21600,21600,21600,21600,0]])
+ assert.deepEqual(sourceRows('staffing').sort((a,b)=>a.value.from.localeCompare(b.value.from)).map(r=>[r.value.from,r.value.dailySeconds,r.value.commitment]),[['2025-03-03',5400,'tentative'],['2025-03-04',1800,'tentative'],['2026-03-02',3600,'tentative'],['2026-03-03',7200,'tentative']])
+ const leave=sourceRows('leave')[0];assert.equal(leave.value.status,'approved');assert.equal(leave.value.dailySeconds,3600)
+ const cap=await(await h.request('/api/gauge/state?from=2026-03-02&to=2026-03-03',h.owner)).json(),person=sourceRows('people')[0]
+ const c=cap.capacity.find(r=>r.personId===person.id)
+ assert.equal(c.availableSeconds,39600);assert.equal(c.tentativeSeconds,10800);assert.equal(c.committedSeconds,0)
+ assert.deepEqual(c.days.map(d=>[d.baseSeconds,d.leaveSeconds,d.tentativeSeconds]),[[21600,0,3600],[21600,3600,7200]])
+ await h.cmd('floatAdopt:preview',{...input,config:{...config,projectMembers:{p1:[]}}},h.owner,409)
+ const replay=await h.cmd('floatAdopt:preview',input)
+ assert.equal((await h.cmd('floatAdopt:create',{...input,fingerprint:replay.fingerprint,confirm:'adopt-reviewed-float',reason:'Replay exact adoption'})).id,adoption.id)
+ assert.equal((await h.state()).data.staffing.length,data.staffing.length)
+ const nextStaff=await h.invite('float-native-staff');await h.cmd('grant',{operatorId:nextStaff.id,personId:person.id,role:'staff',enabled:true})
+ assert.equal((await h.state(nextStaff.cookie)).data.floatAdoptions.length,0)
+ await page.context().clearCookies();await page.context().addCookies(h.owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
+ await page.goto(h.origin+'/app/imports');await capture('native-completed','#float-native')
+ await floatDeletionJourney({h,adoption,page,capture,person})
+}

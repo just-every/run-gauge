@@ -36,6 +36,7 @@ export async function moveInCommand(env:Bindings,a:Actor,provider:string,action:
  }
  if(action==='cutover')need(false,'Cutover remains unavailable until native financial adoption and full source coverage are proven',409)
  const id=text(input.id,'Source import job'),meta=await env.DB.prepare('SELECT namespace FROM ik_jobs WHERE id=? AND principal_id=? AND destination=?').bind(id,a.session.operator.id,'gauge-'+provider).first<{namespace:string}>();need(meta,'Source import job unavailable',404);const ctx=context(env,a,provider,meta.namespace)
+ if(provider==='float'&&['undo','rollback'].includes(action))need(!await env.DB.prepare("SELECT 1 FROM g_floatAdoptions WHERE json_extract(data,'$.namespace')=?").bind(meta.namespace).first(),'Native Float adoption holds source reversal; linked provenance must remain',409)
  if(action==='read')return readD1ImportJob(id,ctx)
  if(action==='originals')return readD1ImportOriginals(id,ctx)
  if(action==='resume')return resumeD1Import(id,ctx)

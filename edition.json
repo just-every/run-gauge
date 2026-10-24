@@ -74,7 +74,8 @@
           "migrations/core/0065_gauge_invoice_access.sql",
           "migrations/core/0066_gauge_revenue_schedules.sql",
           "migrations/core/0067_gauge_accountant_grant.sql",
-          "migrations/core/0068_gauge_resource_manager.sql"
+          "migrations/core/0068_gauge_resource_manager.sql",
+          "migrations/core/0070_gauge_float_adoption.sql"
         ]
       }
     },

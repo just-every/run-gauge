@@ -11,7 +11,7 @@ export async function sourceRestore(h,provider){
  try{
   while((await portability.exports.advance(exportId,{maxParts:16})).phase==='building'){}
   const archive=[];for await(const line of readArchive(await portability.exports.download(exportId)))archive.push(line)
-  const tables=[`g_${provider}Records`,'g_clients','g_people','g_engagements','g_tasks','g_rates','g_time','ik_jobs',...(provider==='rocketlane'?['g_rocketlaneCutovers']:[])],snapshot=async db=>Object.fromEntries(await Promise.all(tables.map(async table=>[table,(await db.prepare(`SELECT * FROM ${table} ORDER BY id`).all()).results])))
+  const tables=[`g_${provider}Records`,'g_clients','g_people','g_engagements','g_tasks','g_rates','g_time','ik_jobs',...(provider==='rocketlane'?['g_rocketlaneCutovers']:[]),...(provider==='float'?['g_calendars','g_staffing','g_leave','g_floatAdoptions','g_history']:[])],snapshot=async db=>Object.fromEntries(await Promise.all(tables.map(async table=>[table,(await db.prepare(`SELECT * FROM ${table} ORDER BY id`).all()).results])))
   const expected=await snapshot(h.db);directory=await mkdtemp(join(tmpdir(),'gauge-source-restore-'))
   execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',maxBuffer:8*1024*1024,env:{...process.env,CI:'true',WRANGLER_SEND_METRICS:'false'}})
   proxy=await getPlatformProxy({configPath:resolve('wrangler.jsonc'),persist:{path:join(directory,'v3')},remoteBindings:false})

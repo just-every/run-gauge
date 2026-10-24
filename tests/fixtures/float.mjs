@@ -50,3 +50,13 @@ export function floatFixture() {
  pkg.manifest.objects.deletions.push({...structuredClone(pkg.manifest.objects.deletions[0]),artifact:'deletions-repeat.csv'})
  return pkg
 }
+
+export function floatDeletionFixture() {
+ const p=floatFixture()
+ const events=[{id:'delete1',entity:'allocations',recordId:'a3',sequence:1,auditTimestamp:'2026-03-05T12:00:00Z'},{id:'delete2',entity:'allocations',recordId:'a2',sequence:2,auditTimestamp:'2026-03-06T12:00:00Z'},{id:'delete3',entity:'leave',recordId:'leave1',sequence:3,auditTimestamp:'2026-03-06T12:01:00Z'}]
+ p.files['deletions.csv']=csv(events);p.files['deletions-repeat.csv']=csv(events)
+ p.manifest.deletionCoverage.toSequence=3;p.manifest.controls.counts.deletions=3
+ p.manifest.controls.financial[['p1', '2026-03', 'USD'].join('/')].scheduledSeconds=0
+ delete p.manifest.controls.financial[['Unassigned', '2026-03', 'USD'].join('/')]
+ return p
+}

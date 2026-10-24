@@ -5,7 +5,7 @@ import { form,area,input,choices,escape as e,decision,check } from './ui-forms'
 import { moveInSpecs } from './scoro-import'
 export async function moveInSection(env:Bindings,a:Actor,options:Value,provider:string){
  if(!finance(a))return ''
- const nativeMeaning=provider==='float'?'Native capacity, allocations, leave and deletion continuation are not yet adopted.':'Native core and time drafts require explicit owner confirmation and fresh approval.'
+ const nativeMeaning=provider==='float'?'The owner can separately review native calendars, tentative allocations and daily leave. Deletion continuation requires a separate exact owner review.':'Native core and time drafts require explicit owner confirmation and fresh approval.'
  const name=moveInSpecs[provider].name,action=(verb:string)=>`import:${provider}:${verb}`,p=options.moveInPreview?.provider===provider?options.moveInPreview:null,r=options.moveInReport?.provider===provider?options.moveInReport:null
  let html=`<section id="${provider}-import"><h2>${e(name)} move-in</h2><p class="g-note">Review original exports, exact units, complete coverage, source relationships and independent controls. Source finance stays historical evidence. ${nativeMeaning} No access or cutover authority is imported.</p>`
  html+=form(action('preview'),`Review ${name} exports`,area('package',`${name} package JSON`),undefined,`Preview ${name} import`)

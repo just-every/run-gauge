@@ -185,20 +185,29 @@ receipt holds source reversal until an audited owner withdrawal. This is honest
 partial progress, not a completed operational move from Rocketlane.
 
 
-## Float move-in (partial)
+## Float move-in
 
-The Float Imports section accepts bounded complete-year schedule/report CSVs,
+The Float Imports section accepts bounded complete-year schedule and report CSVs,
 value-only workbooks and paginated uploaded v3 JSON captures. The synthetic
 `tests/fixtures/float.mjs` and API.md document explicit maps for allocations,
 actuals, effective workweeks, leave, phases and historical project rates.
-Independent project/month controls reconcile schedule and actuals; task rows
-reference one stable phase-budget identity so repeated budgets count once.
-Captured deletion events retain the original row and exclude it once from
-historical controls. A missing event interval requires a newer complete original
-comparison; the adapter never treats an old report as fresh deletion coverage.
+Independent project and month controls reconcile schedule and actuals. Repeated
+phase budgets retain one stable identity. Originals remain available after replay.
 
-This slice retains historical evidence and exact originals. It does not yet
-adopt native calendars, allocations or leave, erase native work on a source
-deletion, maintain a live event feed or authorize operational cutover. Those
-unproved points keep MIGRATE-009 partial. The Imports controls have visible
-text labels; no icon-only control is introduced.
+The native owner separately reviews project leads and memberships, then explicitly
+confirms exact weekday calendars, tentative daily allocations and daily leave.
+That confirmation is the native owner's leave decision; source approval is never
+inherited. Each batch creates at most five native effects with stable source links.
+Changed source evidence, native revisions or reviewed mappings hold continuation.
+Source actuals and financial records stay historical evidence.
+
+Captured deletion continuation requires another exact preview, confirmation and
+audited reason. A complete capture must continue the known event sequence; a
+missed interval needs a newer full comparison covering every original object.
+Only linked untouched daily staffing and leave effects can be removed. Later
+native edits, approval or committed staffing hold deletion. Original captures,
+source evidence, exact native revision history and deletion receipts remain.
+Replay and real Worker restart do not duplicate effects, and the whole flow
+survives complete installation archive restore. Imports has visible text controls
+and is proved at 1440 and 390 pixels. No provider action, live feed or financial
+cutover is authorized; CONNECT-013 and MIGRATE-010 retain those obligations.

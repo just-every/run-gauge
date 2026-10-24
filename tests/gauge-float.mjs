@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { floatFixture } from './fixtures/float.mjs'
+import { floatNativeJourney } from './fixtures/float-native-journey.mjs'
 import { sourceJourney } from './fixtures/scoro-journey.mjs'
 export const floatJourney = () => sourceJourney({
  provider:'float',name:'Float',pkg:floatFixture(),version:'v3',
+ after:floatNativeJourney,
  invalid:[
   ['missed deletion coverage',p=>p.manifest.deletionCoverage={...p.manifest.deletionCoverage,missed:true,missedAt:'2026-03-05T12:00:00Z'}],
   ['incomplete deletion coverage',p=>p.manifest.deletionCoverage.complete=false],

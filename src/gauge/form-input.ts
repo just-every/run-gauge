@@ -41,7 +41,7 @@ function readCustomForm(form:FormData,input:Value,prefix:string,destination:stri
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
- if(String(input.action).startsWith('kantataAdopt:')&&typeof input.config==='string')input.config=JSON.parse(input.config||'{}')
+ if(['kantataAdopt:','floatAdopt:'].some(prefix=>String(input.action).startsWith(prefix))&&typeof input.config==='string')input.config=JSON.parse(input.config||'{}')
  if(form.has('closeInput'))Object.assign(input,JSON.parse(String(form.get('closeInput'))))
  if(input.action==='period:preview')input.retainerExceptions=Object.fromEntries(String(input.retainerExceptionLines??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(line=>{const at=line.indexOf('|');need(at>0,'Use family ID | exception reason');return [line.slice(0,at).trim(),line.slice(at+1).trim()]}))
  if(input.action==='period:preview'){const entries=[...form.entries()].filter(([key,value])=>key.startsWith('retainerException:')&&String(value).trim());if(entries.length)input.retainerExceptions=Object.fromEntries(entries.map(([key,value])=>[key.slice('retainerException:'.length),String(value).trim()]))}

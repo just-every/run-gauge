@@ -1,3 +1,4 @@
+import { planningPerson } from './resource-manager'
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Kind, type Row, type Value, need, text, date, sum } from './model'
@@ -8,15 +9,16 @@ import { resourceDemand } from './resource-demand'
 const dayBefore = (day:string) => new Date(Date.parse(day)-86400000).toISOString().slice(0,10)
 /** Preview is a real global availability read, without exposing competing projects. */
 export async function schedulePreview(env:Bindings,a:Actor,input:Value,tx?:Transaction) {
- need(finance(a)||a.role==='lead','Lead or finance access required',403)
+ need(finance(a)||['lead','resource-manager'].includes(a.role),'Lead or finance access required',403)
  const booking=await get(env,'staffing',text(input.id,'Booking'))
  need(booking.revision===input.revision,'Booking changed; reload before deciding',409)
  const engagement=await access(env,a,booking.value.engagementId,true)
  const observed=await Promise.all((['people','calendars','leave','staffing','resourceRequests'] as Kind[]).map(async kind=>({kind,rows:await all(env,kind)})))
  const rows=(kind:Kind)=>observed.find(o=>o.kind===kind)!.rows
+ planningPerson(a,booking.value.personId)
  const v=booking.value,operation=input.operation,normalized:Value={id:booking.id,revision:booking.revision,operation},parts:Value[]=[]
  need(['move','split'].includes(operation),'Choose move or split')
- const person=(id:unknown)=>{const value=text(id,'Person');need(rows('people').some(p=>p.id===value),'Person not found');return value}
+ const person=(id:unknown)=>{const value=text(id,'Person');planningPerson(a,value);need(rows('people').some(p=>p.id===value),'Person not found');return value}
  if(operation==='move'){
   const from=date(input.from),to=date(input.to)
   need(to>=from&&Date.parse(to)-Date.parse(from)===Date.parse(v.to)-Date.parse(v.from),'A move must preserve the number of inclusive booking dates')

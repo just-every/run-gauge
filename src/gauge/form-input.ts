@@ -5,7 +5,7 @@
 // becomes amountMinor, effortHours becomes effortSeconds, startLocal becomes start.
 import { type Value, need, zone } from './model'
 
-const lists = ['members', 'sources', 'completedItems', 'entries', 'handoffSources', 'engagementIds', 'creditAdjustmentIds']
+const lists = ['members', 'sources', 'completedItems', 'entries', 'handoffSources', 'engagementIds', 'planningPeople', 'creditAdjustmentIds']
 const decimal = (raw: string, label: string) => { need(/^\d+(\.\d+)?$/.test(raw.trim()), `${label}: enter a number such as 7.5`); return Number(raw.trim()) }
 const cents = (raw: string) => {
  need(/^\d+(\.\d+)?$/.test(raw.trim()), 'Amount: enter a number such as 7.5')

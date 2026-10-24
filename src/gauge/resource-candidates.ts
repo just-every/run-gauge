@@ -9,15 +9,16 @@ import { explain, costCurrencyOf } from './rate-cards'
 
 const same=(a:string,b:string)=>a.trim().toLowerCase()===b.trim().toLowerCase()
 export async function resourceCandidates(env:Bindings,a:Actor,request:Row,tx?:Transaction) {
- need(finance(a)||a.role==='lead','Lead or finance access required',403)
+ need(finance(a)||['lead','resource-manager'].includes(a.role),'Lead or finance access required',403)
  const engagement=await access(env,a,request.value.engagementId,true)
+ if(a.role==='resource-manager')need(!Object.keys(request.value.customFilters??{}).length,'This request needs finance review',403)
  const observed=await Promise.all((['people','calendars','leave','staffing',...(finance(a)?['rates']:[])] as Kind[]).map(async k=>({kind:k,rows:await all(env,k)})))
  if(tx){
   tx.observe('engagements',engagement)
   for(const {kind,rows} of observed){for(const row of rows)tx.observe(kind,row);tx.guard(`(SELECT COUNT(*) FROM g_${kind})=?`,rows.length)}
  }
  const rows=(kind:Kind)=>observed.find(o=>o.kind===kind)!.rows
- const people=rows('people'),calendars=rows('calendars'),leave=rows('leave'),staffing=rows('staffing')
+ const people=rows('people').filter(p=>a.role!=='resource-manager'||a.resourceScope?.personIds.includes(p.id)),calendars=rows('calendars'),leave=rows('leave'),staffing=rows('staffing')
  const customFilters=filters(a,request.value.customFilters),customData=Object.keys(customFilters).length?await visible(env,a):null
  const {from,to,dailySeconds}=request.value
  const cap=capacity({people,calendars,leave,staffing},from,to),candidates:Value[]=[],unavailable:Value[]=[]

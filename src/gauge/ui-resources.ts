@@ -8,10 +8,10 @@ import { escape as e, form, input as i, select as s, duration, check, decision, 
 import { hours, nameOf, money, chip, period } from './ui-format'
 
 export async function resourcesSection(env:Bindings,a:Actor,report:Report,options:Value){
- if(!finance(a)&&a.role!=='lead')return ''
+ if(!finance(a)&&!['lead','resource-manager'].includes(a.role))return ''
  const selected=report.data.resourceRequests.find(r=>r.id===options.resourceRequest),open=selected?.value.status==='open'?selected:undefined,v=open?.value??{}
- const roster=await all(env,'people'),skills=[...new Set(roster.flatMap(p=>(p.value.skills??[]).map((s:Value)=>s.name as string)))].sort()
- const fields=s('engagementId','Engagement',report.data.engagements.filter(r=>finance(a)||r.value.leadId===a.personId),v.engagementId)
+ const roster=a.role==='resource-manager'?report.data.people:await all(env,'people'),skills=[...new Set(roster.flatMap(p=>(p.value.skills??[]).map((s:Value)=>s.name as string)))].sort()
+ const fields=s('engagementId','Engagement',report.data.engagements.filter(r=>finance(a)||a.role==='resource-manager'||r.value.leadId===a.personId),v.engagementId)
   +i('role','Role needed',v.role)+i('skill','Required skill',v.skill)+i('minProficiency','Minimum proficiency',v.minProficiency??3,'number')
   +i('from','From',v.from??report.from,'date')+i('to','Through',v.to??report.to,'date')+duration('dailyHours','Requested hours per date',v.dailySeconds??14400)
   +i('service','Service',v.service??'Delivery')+i('team','Team filter',v.team??'','text',false)+i('location','Location filter',v.location??'','text',false)

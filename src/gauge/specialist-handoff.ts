@@ -60,7 +60,7 @@ async function prepare(env:Bindings,a:Actor,tx:Transaction,input:Value) {
    lines.push({...base,id:identity,category:'expense',date:v.date,currency:currency(v.currency),amountMinor:signedMoney(v.amountMinor),durationSeconds:null,
     details:{basis:'Approved actual expense; reimbursement and client recovery remain separate',reimbursable:v.reimbursable===true,taskId:v.taskId??null}})
   }else if(source.kind==='revenueRecognitions'){
-   lines.push({...base,id:identity,category:'recognition',personId:null,date:v.date,currency:currency(v.currency),amountMinor:signedMoney(v.amountMinor),durationSeconds:null,details:{basis:v.notice,policy:v.policy,accountant:v.accountant,scheduleId:v.scheduleId,scheduleRevision:v.scheduleRevision,sequence:v.sequence,previous:v.previous,balances:v.balances,journal:v.journal,sources:v.sources,evidence:v.evidence}})
+   lines.push({...base,id:identity,category:'recognition',personId:null,date:v.date,currency:currency(v.currency),amountMinor:signedMoney(v.amountMinor),durationSeconds:null,details:{basis:v.notice,journalType:v.journalType??'delivery',sourceId:v.sourceId,sourceRevision:v.sourceRevision,correctedAmountMinor:v.correctedAmountMinor??null,policy:v.policy,accountant:v.accountant,scheduleId:v.scheduleId,scheduleRevision:v.scheduleRevision,sequence:v.sequence,previous:v.previous,balances:v.balances,journal:v.journal,sources:v.sources,evidence:v.evidence}})
   }else if(source.kind==='invoices'){
    need(Array.isArray(v.lines)&&v.lines.length>0,'Issued invoice has no document lines')
    need(v.lines.every((line:Value)=>line.currency===v.currency),'Invoice source currencies differ; no implicit FX')

@@ -7,8 +7,9 @@ import { resourceCandidates } from './resource-candidates'
 
 export async function resourceCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null>{
  if(!['save:resourceRequests','resource:fill'].includes(action))return null
- need(finance(a)||a.role==='lead','Lead or finance access required',403)
+ need(finance(a)||['lead','resource-manager'].includes(a.role),'Lead or finance access required',403)
  const previous=input.id?await get(env,'resourceRequests',text(input.id,'Resource request')):undefined
+ if(previous&&a.role==='resource-manager')need(!Object.keys(previous.value.customFilters??{}).length,'This request needs finance review',403)
  if(previous){need(previous.revision===input.revision,'Request changed; reload before deciding',409);need(previous.value.status==='open','Request is already filled',409)}
  if(action==='save:resourceRequests'){
   const engagement=await access(env,a,text(input.engagementId,'Engagement'),true);tx.observe('engagements',engagement)

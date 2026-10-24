@@ -2,6 +2,7 @@ import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Row, type Value, date, integer, need, sum, text } from './model'
 import { type Actor, type Transaction, access, all, finance, get } from './store'
+import { assertIndependentReview } from './approval-policy'
 import { authorizedDelivery } from './milestone-delivery'
 
 export const recognitionNotice = 'Operational revenue inputs under a user-recorded accountant policy. Manual export only; not provider-verified recognition, ASC 606 certification or posted accounting.'
@@ -18,9 +19,25 @@ async function snapshot(env:Bindings,tx:Transaction,schedule:Row,input:Value,exc
  need(engagement.value.currency===s.currency,'Schedule currency changed; no implicit conversion',409)
  const budget=await get(env,'budgets',s.budgetId);tx.observe('budgets',budget)
  need(budget.revision===s.budgetRevision&&budget.value.status==='approved','Schedule terms changed; review the accountant policy again',409)
- let amountMinor:number,source:Row|undefined,sourceKind:'milestones'|'time'|null=null,sourceKey:string
+ const journalType=input.journalType??'delivery'
+ need(['delivery','reconciliation','correction'].includes(journalType),'Choose delivery, reconciliation or correction')
+ let amountMinor:number,source:Row|undefined,sourceKind:'milestones'|'time'|'revenueRecognitions'|null=null,sourceKey:string
  const evidence=text(input.evidence,'Approved delivery evidence or source review')
- if(s.mode==='service-delivery'){
+ if(journalType==='reconciliation'){
+  amountMinor=0
+  sourceKey=`reconciliation:${schedule.id}:${day}`
+ }else if(journalType==='correction'){
+  sourceKind='revenueRecognitions'
+  source=await get(env,sourceKind,text(input.sourceId,'Approved delivery journal'))
+  need(source.revision===input.sourceRevision&&source.value.status==='approved'&&source.value.scheduleId===schedule.id&&(source.value.journalType??'delivery')==='delivery','Review an exact approved delivery journal from this schedule',409)
+  need(s.mode==='service-delivery','Source-based delivery corrections need a new approved source; only service-delivery corrections are supported')
+  need(day>=source.value.date,'Correction date precedes the approved delivery')
+  tx.observe(sourceKind,source)
+  const correctedAmountMinor=integer(input.correctedAmountMinor,'Corrected delivery amount',0)
+  amountMinor=correctedAmountMinor-source.value.amountMinor
+  need(amountMinor!==0,'The correction must change the delivery amount')
+  sourceKey=`correction:${source.id}`
+ }else if(s.mode==='service-delivery'){
   amountMinor=integer(input.amountMinor,'Approved monthly delivery amount',1)
   sourceKey=`delivery:${schedule.id}:${day.slice(0,7)}`
  }else{
@@ -46,6 +63,7 @@ async function snapshot(env:Bindings,tx:Transaction,schedule:Row,input:Value,exc
  need(prior.every(r=>r.value.date<=day),'Recognition cannot precede an already approved journal',409)
  const previous=prior.at(-1)?.value.balances??{billedMinor:0,recognizedMinor:0,deferredMinor:0,unbilledMinor:0}
  const recognizedMinor=sum([previous.recognizedMinor,amountMinor])
+ need(recognizedMinor>=0,'Operational recognition cannot be negative',409)
  need(recognizedMinor<=s.amountMinor,'Operational recognition exceeds approved schedule value',409)
  const invoices=await observed(env,tx,'invoices'),corrections=await observed(env,tx,'invoiceCorrections')
  const projectInvoices=invoices.filter(i=>(i.value.engagementIds??[i.value.engagementId]).includes(s.engagementId)&&i.value.issueDate<=day)
@@ -57,12 +75,13 @@ async function snapshot(env:Bindings,tx:Transaction,schedule:Row,input:Value,exc
  need(relevant.every(c=>!projectInvoices.find(i=>i.id===c.value.invoiceId)?.value.engagementIds?.some((id:string)=>id!==s.engagementId)),'Consolidated invoice correction needs accountant reconciliation before recognition',409)
  const billedMinor=sum([issued,-sum(relevant.map(c=>integer(c.value.amountMinor,'Issued correction amount')))])
  need(billedMinor>=0,'Net issued value cannot be negative',409)
+ if(journalType==='reconciliation')need(prior.length>0&&billedMinor!==previous.billedMinor,'Reconciliation needs an approved journal and changed net issued invoices',409)
  const balances={billedMinor,recognizedMinor,deferredMinor:Math.max(0,billedMinor-recognizedMinor),unbilledMinor:Math.max(0,recognizedMinor-billedMinor)}
  const movements=[['receivable',billedMinor-previous.billedMinor],['unbilled',balances.unbilledMinor-previous.unbilledMinor],['deferred',previous.deferredMinor-balances.deferredMinor],['revenue',-amountMinor]] as const
  const journal=movements.filter(([,n])=>n!==0).map(([account,n])=>({account:s.accounts[account],debitMinor:Math.max(n,0),creditMinor:Math.max(-n,0),currency:s.currency}))
  need(sum(journal.map(l=>l.debitMinor))===sum(journal.map(l=>l.creditMinor)),'Journal does not balance',409)
  const sources=[...(source?[{kind:sourceKind,id:source.id,revision:source.revision}]:[]),...projectInvoices.map(i=>({kind:'invoices',id:i.id,revision:i.revision})),...relevant.map(c=>({kind:'invoiceCorrections',id:c.id,revision:c.revision}))]
- return {scheduleId:schedule.id,engagementId:s.engagementId,scheduleRevision:schedule.revision,currency:s.currency,mode:s.mode,policy:s.policy,accountant:s.accountant,accounts:s.accounts,date:day,amountMinor,evidence,sourceKey,sourceId:source?.id??null,sourceRevision:source?.revision??null,sources,sequence:prior.length+1,previous,balances,journal,notice:recognitionNotice}
+ return {...(input.journalType!==undefined?{journalType}:{}),...(journalType==='correction'?{correctedAmountMinor:input.correctedAmountMinor}:{}),scheduleId:schedule.id,engagementId:s.engagementId,scheduleRevision:schedule.revision,currency:s.currency,mode:s.mode,policy:s.policy,accountant:s.accountant,accounts:s.accounts,date:day,amountMinor,evidence,sourceKey,sourceId:source?.id??null,sourceRevision:source?.revision??null,sources,sequence:prior.length+1,previous,balances,journal,notice:recognitionNotice}
 }
 export async function revenueCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null>{
  if(!['revenue:schedule','revenue:prepare','revenue:approve','revenue:withdraw'].includes(action))return null
@@ -90,5 +109,6 @@ export async function revenueCommand(env:Bindings,a:Actor,tx:Transaction,action:
  if(action==='revenue:withdraw')return tx.record('revenueRecognitions',{...row.value,status:'withdrawn',withdrawnBy:a.session.operator.id,withdrawnAt:Date.now(),reason:text(input.reason,'Withdrawal reason')},row,undefined,action)
  const schedule=await get(env,'revenueSchedules',row.value.scheduleId),value=await snapshot(env,tx,schedule,row.value,row.id)
  need(sha256(canonicalJson(value))===row.value.fingerprint,'Revenue inputs changed; withdraw and prepare a fresh journal',409)
+ if(value.journalType==='correction')await assertIndependentReview(env,a,tx,{amountMinor:value.amountMinor,currency:value.currency,createdBy:row.value.createdBy})
  return tx.record('revenueRecognitions',{...row.value,status:'approved',approvedBy:a.session.operator.id,approvedAt:Date.now(),approvalReason:text(input.reason,'Journal review reason')},row,undefined,action)
 }

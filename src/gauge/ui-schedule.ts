@@ -60,7 +60,7 @@ function schedulePreview(report: Report, preview: Value) {
 }
 
 export function scheduleSection(a: Actor, report: Report, options: Value, people: Set<string>) {
- if (!finance(a) && a.role !== 'lead') return ''
+ if (!finance(a) && !['lead','resource-manager'].includes(a.role)) return ''
  const d = report.data, preview: Value | undefined = options.schedulePreview
  const selected = d.staffing.find(r => r.id === (preview?.id ?? options.edit))
  let body = '<details class="g-records" id="schedule-changes" open><summary>Move or split a booking</summary><p class="g-lede">Select a booking, preview its new dates or people, review daily capacity and apply the exact change. Hours per date, service, billability and commitment stay the same.</p>'

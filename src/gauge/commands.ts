@@ -1,3 +1,4 @@
+import { resourceActions } from './resource-manager'
 import { revenueCommand } from './revenue-schedules'
 import { invoiceAccessCommand } from './invoice-access'
 import { invoiceSettingsCommand } from './invoice-presentation'
@@ -59,6 +60,7 @@ import { agencyProfileCommand } from './agency-profile'
 import { fxCommand, consolidate } from './fx-rates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
+ need(a.role!=='resource-manager'||resourceActions.includes(action),'Resource managers plan permitted staffing only',403)
  need(a.role!=='accountant','Accountants have read-only access',403)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)

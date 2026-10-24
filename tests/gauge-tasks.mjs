@@ -79,7 +79,7 @@ try {
  await expenseForm.locator('[name=engagementId]').selectOption(project.id)
  await expenseForm.locator('[name=taskId]').selectOption(root.id)
  await expenseForm.getByLabel('Expense date',{exact:true}).fill('2026-10-06');await expenseForm.getByLabel('Description',{exact:true}).fill('Campaign stock photography')
- await expenseForm.getByLabel('Amount (USD)',{exact:true}).fill('25')
+ await expenseForm.getByLabel('Receipt subtotal (incurred currency)',{exact:true}).fill('25')
  await capture('task-expense-link',expenseForm);await expenseForm.getByRole('button',{name:'Save',exact:true}).click()
  assert((await state()).data.expenses.some(r=>r.value.taskId===root.id&&r.value.amountMinor===2500))
  await cmd('expense:save',{personId:worker.id,engagementId:second.id,taskId:root.id,date:'2026-10-06',description:'Wrong project',amountMinor:100,currency:'USD'},staff.cookie,400)

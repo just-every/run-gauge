@@ -4459,7 +4459,7 @@
       "executable": false
     },
     "tests/gauge-tasks.mjs": {
-      "sha256": "cb45d3ff23e86b9265c39b2312fa0c80ce701c87941b912c4cd6c5c5f31c27e4",
+      "sha256": "2054d1f3a666721e60811e0d067c950beb3c67b434c3b9091bc22d688a9111f5",
       "executable": false
     },
     "tests/gauge-teamwork.mjs": {

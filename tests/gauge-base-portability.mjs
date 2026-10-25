@@ -305,7 +305,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const stable=report=>({agency:report.agency,data:Object.fromEntries(Object.entries(report.data).map(([kind,rows])=>[kind,[...rows].sort((a,b)=>a.id.localeCompare(b.id))])),...Object.fromEntries(['capacity','economics','pipeline','resourceDemand','utilization','correctionReviews','retainerBalances'].map(key=>[key,unordered(report[key])]))})
  return async persistenceDirectory=>{
   const restored=await harness({persistenceDirectory,beforeLogin:async({request,post})=>{
-   for(const cookie of [owner,agent.cookie,favoriteUser.cookie,portableLead.cookie,portableDelegate.cookie,proposalRecipient.cookie]){
+   for(const cookie of [owner,agent.cookie,favoriteUser.cookie,portableLead.cookie,portableDelegate.cookie,proposalRecipient.cookie,portableRecipient.cookie]){
     assert.equal((await request('/api/gauge/state',cookie)).status,401,'old session cannot read restored business data')
     assert.equal((await post('/api/gauge/command',{key:'restored-stale-session',action:'save:clients',name:'Unapproved restored write'},cookie)).status,401,'old session cannot write restored business data')
    }
@@ -314,8 +314,11 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
    assert.notEqual(restored.vars.SESSION_SECRET,h.vars.SESSION_SECRET,'restore uses fresh private settings')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_milestone_review_authority').first()).n,0,'Client delivery review authority never travels')
-   const restoredRecipient=await restored.invite('synthetic-gauge-7305')
-   assert.equal((await restored.request(portableReviewPath,restoredRecipient.cookie)).status,403,'Fresh matching email cannot revive restored review authority')
+   assert.equal((await restored.post('/auth/magic-link',{email:'synthetic-gauge-7305@example.test'})).status,202)
+   const reviewConfirmation=new URL(restored.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0])
+   const reviewConfirmed=await restored.post('/auth/confirm',{token:reviewConfirmation.searchParams.get('token')});assert.equal(reviewConfirmed.status,303)
+   const restoredRecipientCookie=reviewConfirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+   assert.equal((await restored.request(portableReviewPath,restoredRecipientCookie)).status,403,'Fresh matching email cannot revive restored review authority')
    const restoredReview=(await restored.state()).data.milestones.find(r=>r.id===reviewMilestone.id)
    assert.equal(restoredReview.value.delivery.decisions[0].confirmedByClient,true,'Direct decision history remains direct evidence after restore')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_retainer_schedule_authority').first()).n,0,'Restored schedules carry no execution consent')

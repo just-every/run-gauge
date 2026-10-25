@@ -4,6 +4,8 @@ import { type Row } from './model'
 import { providerRegister } from './provider-custody'
 import { escape as e,form,select,input,decision } from './ui-forms'
 
+const identifier=(value:unknown)=>e(String(value??'')).replace(/(.{8})(?=.)/g,'$1<wbr>')
+
 /** Delivery evidence belongs beside the retained invoice, including failed mail. */
 export async function invoiceDeliveryControls(env:Bindings,a:Actor,release:Row){
  const deliveries=(await all(env,'commercialEvents')).filter(r=>r.value.type==='invoice-delivery'&&r.value.accessId===release.id)
@@ -14,7 +16,7 @@ export async function invoiceDeliveryControls(env:Bindings,a:Actor,release:Row){
  }
  for(const row of deliveries){
   const v=row.value,job=(await all(env,'providerJobs')).find(r=>r.id===v.jobId)
-  body+=`<div class="g-card"><p>${e(v.provider)} · ${e(v.status)} · ${e(v.mailboxState)}</p>${job?`<p>Job ${e(job.value.status)}${job.value.exceptionClass?' · '+e(job.value.exceptionClass):''}</p>`:''}<p>${e(v.meaning??'Queued for explicit owner dispatch')}</p><p>From ${e(v.from)} · to ${e(v.contact)}</p><p>Invoice revision ${e(v.invoiceRevision)} · PDF SHA-256 ${e(v.pdfSha256)}</p>${v.providerMessageId?`<p>Provider message ${e(v.providerMessageId)}</p>`:''}${v.senderEvidence?.verified?'<p>Agency sender verified by the provider.</p>':''}${v.actionRequired?`<p role="alert">${e(v.actionRequired)}</p>`:''}${v.readbackException?`<p>Readback exception: ${e(v.readbackException)}</p>`:''}`
+  body+=`<div class="g-card"><p>${e(v.provider)} · ${e(v.status)} · ${e(v.mailboxState)}</p>${job?`<p>Job ${e(job.value.status)}${job.value.exceptionClass?' · '+e(job.value.exceptionClass):''}</p>`:''}<p>${e(v.meaning??'Queued for explicit owner dispatch')}</p><p>From ${e(v.from)} · to ${e(v.contact)}</p><details><summary>Delivery evidence</summary><p>Invoice revision ${identifier(v.invoiceRevision)} · PDF SHA-256 ${identifier(v.pdfSha256)}</p>${v.providerMessageId?`<p>Provider message ${identifier(v.providerMessageId)}</p>`:''}</details>${v.senderEvidence?.verified?'<p>Agency sender verified by the provider.</p>':''}${v.actionRequired?`<p role="alert">${e(v.actionRequired)}</p>`:''}${v.readbackException?`<p>Readback exception: ${e(v.readbackException)}</p>`:''}`
   if(a.role==='owner'&&job?.value.ownerId===a.session.operator.id){
    if(['queued','retry-wait'].includes(job.value.status))body+=decision('providerJob:dispatch','Dispatch invoice email',job)+decision('providerJob:cancel','Cancel invoice email',job,true,'quiet')
    if(job.value.providerMessageId)body+=decision('invoice:delivery-readback','Reconcile invoice delivery',row)

@@ -2257,7 +2257,7 @@
       "executable": false
     },
     "src/gauge/ui-invoice-delivery.ts": {
-      "sha256": "f8b7d932aae33128caedf1b14688102c1519dc271b9ed378dc055196826f15d6",
+      "sha256": "55f7d2f146a1fa46627adbc88548744486333a705cf9d92f94c60c1692fd6cf1",
       "executable": false
     },
     "src/gauge/ui-invoice-presentation.ts": {

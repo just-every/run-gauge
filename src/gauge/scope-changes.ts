@@ -30,7 +30,7 @@ export async function scopeChangeCommand(env:Bindings,a:Actor,tx:Transaction,act
  if(action==='change:prepare') {
   const preview=await scopeChangePreview(env,a,input,tx)
   need(input.fingerprint===preview.fingerprint,'Change inputs changed; review the comparison again',409)
-  const versions=(await all(env,'projectScenarios')).filter(r=>r.value.changeOrder&&r.value.engagementId===preview.engagementId)
+  const versions=(await all(env,'projectScenarios')).filter(r=>r.value.changeOrder&&r.value.engagementId===preview.engagementId).sort((x,y)=>x.value.number-y.value.number)
   const previous=versions.at(-1)
   need((input.previousId??null)===(previous?.id??null),'Revise the latest change request',409)
   tx.guard("(SELECT COUNT(*) FROM g_projectScenarios WHERE json_extract(data,'$.changeOrder')=1 AND json_extract(data,'$.engagementId')=?)=?",preview.engagementId,versions.length)
@@ -40,7 +40,7 @@ export async function scopeChangeCommand(env:Bindings,a:Actor,tx:Transaction,act
  }
  const row=await get(env,'projectScenarios',text(input.id,'Change request'))
  need(row.value.changeOrder&&row.revision===input.revision&&row.value.status==='prepared','Change request changed or was withdrawn',409)
- const versions=(await all(env,'projectScenarios')).filter(r=>r.value.changeOrder&&r.value.engagementId===row.value.engagementId)
+ const versions=(await all(env,'projectScenarios')).filter(r=>r.value.changeOrder&&r.value.engagementId===row.value.engagementId).sort((x,y)=>x.value.number-y.value.number)
  need(versions.at(-1)?.id===row.id,'A newer change request requires fresh review',409)
  tx.guard("(SELECT COUNT(*) FROM g_projectScenarios WHERE json_extract(data,'$.changeOrder')=1 AND json_extract(data,'$.engagementId')=?)=?",row.value.engagementId,versions.length)
  const reason=text(input.reason,action==='change:review'?'Internal review reason':'Withdrawal reason')

@@ -2052,7 +2052,7 @@
       "executable": false
     },
     "src/gauge/scope-changes.ts": {
-      "sha256": "ecdf9c3bc8004c9787bd72a1ec5994753a73595bf1159c93b8dfa35bd81fa080",
+      "sha256": "474f409d8afa25e1074c56eb18be1f05d1702f96df2b952a22ec460f7876450f",
       "executable": false
     },
     "src/gauge/scoro-common.ts": {
@@ -4324,7 +4324,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "2c3d34091ad31817bff3c81e4d449799d722143e947f165cc8b920962daf0da1",
+      "sha256": "a150deabcb5516f8f2546ef8b39ac2444a553d86b66f331e425da1a37193ae90",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {

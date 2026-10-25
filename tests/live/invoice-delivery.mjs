@@ -36,7 +36,7 @@ try{
  time=await cmd('time:approve',await cmd('time:submit',time))
  const packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Controlled workshop invoice',sources:['time:'+time.id]}))
  await cmd('invoice:settings',{clientId:null,timeMode:'service',expenseMode:'itemized',attachDetail:true,footer:'Controlled test invoice. No payment is requested.',additionalDetails:'<p>Invoice delivery proof.</p>',reason:'Controlled test document'})
- const issued=await cmd('invoice:issue',{...packet,issueDate:'2026-10-20',dueDate:'2026-11-19',remitTo:'Controlled proof only; no payment requested',reference:'sx-gauge-c-i816'})
+ const issued=await cmd('invoice:issue',{...packet,issueDate:'2026-10-20',dueDate:'2026-11-19',billTo:'Controlled invoice proof client',remitTo:'Controlled proof only; no payment requested',reference:'sx-gauge-c-i816'})
  const invoice=(await state()).data.invoices.find(r=>r.id===issued.id)
  const recipient=await h.invite('Controlled recipient','member',controlled)
  const release=await cmd('invoice:release',{...issued,contact:controlled,days:1,reason:'Owner explicitly authorizes this controlled test recipient and exact invoice'})

@@ -63,7 +63,7 @@ try {
  await page.getByRole('heading', { name: 'Reconciled preview' }).waitFor(); await capture('harvest-preview')
  assert.deepEqual((await cmd('import:preview',{package:{manifest,files}})).financialControls,manifest.finance.controls.financial)
  await page.getByRole('button', { name: 'Apply first bounded batch' }).click()
- let data = await state(), job = await cmd('import:read', { id: await page.locator('input[name=id]').first().inputValue() })
+ let data = await state(), job = await cmd('import:read', { id: await page.locator('form').filter({has:page.locator('input[value="import:resume"]')}).first().locator('input[name=id]').inputValue() })
  while (job.state !== 'completed') job = await cmd('import:resume', { id: job.id })
  data = await state()
  assert.equal(data.data.archives.filter(r=>r.value.harvestFinance).length,9)

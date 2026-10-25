@@ -247,7 +247,7 @@ async function revenueScheduleJourney(h,page){
   if(process.env.GAUGE_HANDOFF_SHOTS){await mkdir(process.env.GAUGE_HANDOFF_SHOTS,{recursive:true});await section.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/FINANCE-005-'+width+'.png'})}
  }
  // A separate read-only accountant grant can inspect accounting exports but cannot edit time or fetch payroll.
- await cmd('time:policy',{lockThrough:'2026-08-31',reason:'Finance reviewed completed August time'})
+ await cmd('time:policy',{...((await state()).data.timePolicies[0]??{}),lockThrough:'2026-08-31',reason:'Finance reviewed completed August time'})
  const closePreview=await cmd('period:preview',{month:'2026-08'})
  const closeDraft=await cmd('period:prepare',{...closePreview.input,fingerprint:closePreview.fingerprint,acknowledgeWip:true,wipReconciliation:'No August invoices or work; later WIP retained',reason:'Reviewed August operational close'})
  const closed=await cmd('period:approve',closeDraft)
@@ -363,7 +363,7 @@ async function expensePolicyJourney(h,page){
  const outboundStart=h.providerRequests.length
  await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd('grant',{operatorId:lead.id,personId:person.id,role:'lead',enabled:true})
  const row=async(k,id)=>(await state()).data[k].find(r=>r.id===id)
- const base={engagementId:project.id,personId:person.id,date:'2026-10-06',category:'Travel',vendor:'Rail vendor',description:'Travel receipt',incurredCurrency:'CAD',amountMinor:10000,taxMinor:1000,markupBasisPoints:2000,reimbursable:true,clientBillable:true,policyException:'Late booking required by delivery'}
+ const base={engagementId:project.id,personId:person.id,date:'2026-09-06',category:'Travel',vendor:'Rail vendor',description:'Travel receipt',incurredCurrency:'CAD',amountMinor:10000,taxMinor:1000,markupBasisPoints:2000,reimbursable:true,clientBillable:true,policyException:'Late booking required by delivery'}
  let receipt=await cmd('expense:save',base,staff.cookie)
  const upload=new FormData();for(const[k,v]of Object.entries({...receipt,key:randomUUID(),action:'expense:file'}))upload.set(k,String(v));upload.set('file',new File(['synthetic-gauge-7104 receipt'],'travel.txt',{type:'text/plain'}))
  const uploaded=await request('/api/gauge/command',staff.cookie,{method:'POST',headers:{origin:h.origin},body:upload});assert.equal(uploaded.status,200);receipt=await uploaded.json()
@@ -373,7 +373,7 @@ async function expensePolicyJourney(h,page){
  await cmd('expense:approve',{...receipt,revision:'stale',reason:'Stale review'},owner,409)
  await cmd('expense:approve',{...receipt,reason:'No exchange rate yet'},owner,409)
  const beforeFx=(await state()).margin.find(x=>x.engagementId===project.id);assert.equal(beforeFx.provisionalCostMinor,null,'Missing FX is unknown, never zero')
- await cmd('fx:approve',{currency:'CAD',rate:'0.7500',effective:'2026-10-01',source:'Published synthetic rate',reason:'Owner approves incurred travel conversion'})
+ await cmd('fx:approve',{currency:'CAD',rate:'0.7500',effective:'2026-09-01',source:'Published synthetic rate',reason:'Owner approves incurred travel conversion'})
  const reviewedRevision=receipt
  await cmd('expense:return',{...receipt,reason:'Correct the submitted travel description'})
  receipt=await cmd('expense:save',{...base,...await row('expenses',receipt.id),description:'Corrected travel receipt'},staff.cookie)
@@ -386,7 +386,7 @@ async function expensePolicyJourney(h,page){
  const frozen=await row('expenses',receipt.id);assert.equal(frozen.value.amountMinor,8250);assert.equal(frozen.value.reimbursementMinor,8250);assert.equal(frozen.value.clientRecoveryMinor,9900);assert.equal(frozen.value.fx.rate,'0.7500')
  for(const cookie of [owner,staff.cookie])await cmd('expense:save',{...base,...receipt,amountMinor:1},cookie,400)
  await cmd('expense:return',{...receipt,reason:'Cannot reopen approved reimbursement inputs'},owner,400)
- await cmd('fx:approve',{currency:'CAD',rate:'0.8000',effective:'2026-10-07',source:'Published synthetic rate',reason:'Forward rate change'})
+ await cmd('fx:approve',{currency:'CAD',rate:'0.8000',effective:'2026-09-07',source:'Published synthetic rate',reason:'Forward rate change'})
  let pendingMileage=await cmd('expense:save',{...base,incurredCurrency:'USD',description:'mileage',category:'mileage',unit:'mileage',quantity:120,amountMinor:0,taxMinor:0,markupBasisPoints:0,clientBillable:false,policyException:''},staff.cookie)
  pendingMileage=await cmd('expense:submit',pendingMileage,staff.cookie)
  const pendingCost=(await state()).margin.find(x=>x.engagementId===project.id)
@@ -394,18 +394,18 @@ async function expensePolicyJourney(h,page){
  assert(pendingCost.provisionalUnknown.some(x=>x.includes(pendingMileage.id)),'Unknown provisional cost identifies its exact mileage source')
  await cmd('expense:approve',{...pendingMileage,reason:'No mileage rate yet'},owner,409)
  assert.equal((await row('expenses',pendingMileage.id)).value.status,'submitted','Missing unit pricing cannot approve a claim')
- await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-01',unitMinor:70,reason:'Finance approves mileage'})
- await cmd('expense:rate',{unit:'per-diem',currency:'USD',effective:'2026-10-01',unitMinor:6000,reason:'Finance approves daily allowance'})
+ await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-09-01',unitMinor:70,reason:'Finance approves mileage'})
+ await cmd('expense:rate',{unit:'per-diem',currency:'USD',effective:'2026-09-01',unitMinor:6000,reason:'Finance approves daily allowance'})
  const claims=[]
  for(const [unit,quantity,expected]of [['mileage',120,8400],['per-diem',2,12000],['per-diem',1.5,9000]]){
   let claim=unit==='mileage'?pendingMileage:await cmd('expense:submit',await cmd('expense:save',{...base,incurredCurrency:'USD',description:unit,category:unit,unit,quantity,amountMinor:0,taxMinor:0,markupBasisPoints:0,clientBillable:false,policyException:''},staff.cookie),staff.cookie)
   claim=await cmd('expense:approve',{...claim,reason:'Finance approves exact unit claim'})
   assert.equal((await row('expenses',claim.id)).value.amountMinor,expected);claims.push(await row('expenses',claim.id))
  }
- await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-07',unitMinor:80,reason:'Tomorrow mileage rate'})
- await cmd('expense:rate',{unit:'per-diem',currency:'USD',effective:'2026-10-07',unitMinor:6500,reason:'Tomorrow daily rate'})
+ await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-09-07',unitMinor:80,reason:'Tomorrow mileage rate'})
+ await cmd('expense:rate',{unit:'per-diem',currency:'USD',effective:'2026-09-07',unitMinor:6500,reason:'Tomorrow daily rate'})
  assert.deepEqual(await row('expenses',receipt.id),frozen);assert.equal((await row('expenses',claims[0].id)).value.amountMinor,8400);assert.equal((await row('expenses',claims[1].id)).value.amountMinor,12000)
- await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-08',unitMinor:80,reason:'Unauthorized'},staff.cookie,403)
+ await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-09-08',unitMinor:80,reason:'Unauthorized'},staff.cookie,403)
  // The same reviewed accounting sources remain useful without private pricing or review metadata.
  const accountingSources=[frozen,claims[0]],accounting=await cmd('handoff:prepare',{purpose:'accounting',recipient:'Reviewed expense accountant',reason:'Finance releases approved costs only',sources:accountingSources.map(r=>({kind:'expenses',id:r.id,revision:r.revision}))})
  const accountingRow=await row('specialistHandoffs',accounting.id)
@@ -463,7 +463,7 @@ async function expensePolicyJourney(h,page){
  await cmd('handoff:record-result',{...handoff,result:outcome},owner,409)
  const reimbursementBeforeRecovery=await row('specialistHandoffs',handoff.id)
  let packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Allowed travel recovery',sources:['expenses:'+receipt.id]}))
- const invoice=await cmd('invoice:issue',{...packet,issueDate:'2026-10-07',dueDate:'2026-11-06',billTo:'Expense client',remitTo:'Agency',reference:'Travel recovery'})
+ const invoice=await cmd('invoice:issue',{...packet,issueDate:'2026-09-07',dueDate:'2026-10-07',billTo:'Expense client',remitTo:'Agency',reference:'Travel recovery'})
  assert.equal((await row('invoices',invoice.id)).value.totalMinor,9900)
  assert.deepEqual(await row('specialistHandoffs',handoff.id),reimbursementBeforeRecovery,'Client recovery does not change recorded reimbursement')
  const invoiceBeforeCorrection=await row('invoices',invoice.id)
@@ -502,7 +502,7 @@ async function expensePolicyJourney(h,page){
  const clientOnlyRow=await row('expenses',clientOnly.id);assert.equal(clientOnlyRow.value.reimbursementMinor,0);assert.equal(clientOnlyRow.value.clientRecoveryMinor,2500)
  await cmd('handoff:prepare',{...handoffInput,sources:[{kind:'expenses',id:clientOnly.id,revision:clientOnly.revision}]},owner,400)
  const clientPacket=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Agency-paid travel recovery',sources:['expenses:'+clientOnly.id]}))
- const issueRequest={action:'invoice:issue',key:randomUUID(),...clientPacket,issueDate:'2026-10-07',dueDate:'2026-11-06',billTo:'Expense client',remitTo:'Agency',reference:'Agency-paid recovery'}
+ const issueRequest={action:'invoice:issue',key:randomUUID(),...clientPacket,issueDate:'2026-09-07',dueDate:'2026-10-07',billTo:'Expense client',remitTo:'Agency',reference:'Agency-paid recovery'}
  const issued=await h.post('/api/gauge/command',issueRequest,owner);assert.equal(issued.status,200);const clientInvoice=await issued.json()
  const issueReplay=await h.post('/api/gauge/command',issueRequest,owner);assert.equal(issueReplay.status,200);assert.deepEqual(await issueReplay.json(),clientInvoice)
  assert.equal((await row('invoices',clientInvoice.id)).value.totalMinor,2500)
@@ -556,5 +556,40 @@ async function expensePolicyJourney(h,page){
   if(process.env.GAUGE_HANDOFF_SHOTS){await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-'+screen+'-'+width+'.png',fullPage:true});const focus=screen==='billing'?page.locator('#specialist-handoffs'):screen==='access'?page.locator('section').filter({has:page.getByRole('heading',{name:'Expense unit rates',exact:true})}).last():page.locator('section').filter({has:page.getByRole('heading',{name:'Expense',exact:true})}).last();await focus.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-'+screen+'-detail-'+width+'.png'})}
  }
  assert.equal(h.providerRequests.length,outboundStart+1,'Native forms send no expense notification and call no payment provider at either width')
+ // Completed operational closes carry the same populated expense sources, including invoice snapshots.
+ const privateCloseKeys=new Set(['financeReviewNote','markupBasisPoints','clientRecoveryMinor','fx','unitRate'])
+ const projected=value=>Array.isArray(value)?value.map(projected):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!privateCloseKeys.has(key)).map(([key,v])=>{const result=projected(v);if(key==='details'&&value.sourceKind==='expenses'){const {reviewNote,...details}=result;return [key,details]}return [key,result]})):value
+ const invoiceSource=await row('invoices',clientInvoice.id)
+ const invoiceHandoff=await cmd('handoff:prepare',{purpose:'accounting',recipient:'Invoice accountant',reason:'Reviewed invoice source evidence',sources:[{kind:'invoices',id:invoiceSource.id,revision:invoiceSource.revision}]})
+ const invoiceFinance=await(await request('/api/gauge/handoffs/'+invoiceHandoff.id,finance.cookie)).text(),invoiceAccountant=await(await request('/api/gauge/handoffs/'+invoiceHandoff.id,accountant.cookie)).text()
+ const invoiceFinanceLines=parseCsv(invoiceFinance),invoiceAccountantLines=parseCsv(invoiceAccountant)
+ assert(JSON.stringify(JSON.parse(invoiceFinanceLines[0].details)).includes(clientOnlyRow.value.financeReviewNote),'Finance invoice export retains nested expense review')
+ assert.deepEqual(JSON.parse(invoiceAccountantLines[0].details),projected(JSON.parse(invoiceFinanceLines[0].details)),'Invoice accounting exports project nested expense originals')
+ assert.equal(await(await request('/api/gauge/handoffs/'+invoiceHandoff.id,finance.cookie)).text(),invoiceFinance)
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:500000,effortSeconds:7200,roundingSeconds:1,reason:'Reviewed close labor control'}))
+ await cmd('save:rates',{personId:person.id,service:'Close evidence',effective:'2026-01-01',costMinor:5000,billMinor:15000})
+ const closeTask=await cmd('save:tasks',{engagementId:project.id,name:'Reviewed close labor',remainingSeconds:0})
+ let reviewedTime=await cmd('time:submit',await cmd('time:save',{personId:person.id,engagementId:project.id,taskId:closeTask.id,service:'Close evidence',timezone:'America/New_York',notes:'Reviewed source labor',billable:true,start:'2026-09-06T09:00:00-04:00',end:'2026-09-06T10:00:00-04:00'}))
+ reviewedTime=await cmd('time:return',{...reviewedTime,reason:'Legitimate time correction evidence'});reviewedTime=await cmd('time:approve',await cmd('time:submit',reviewedTime))
+ const lock=(await state()).data.timePolicies[0];await cmd('time:policy',{...(lock??{}),lockThrough:'2026-09-30',reason:'Review populated September expense close'})
+ let closePreview=await cmd('period:preview',{month:'2026-09'})
+ for(const mismatch of closePreview.snapshot.checklist.blocking.filter(b=>b.kind==='invoices')){const original=await row('invoices',mismatch.id);await cmd('period:match',{month:'2026-09',invoiceId:original.id,invoiceRevision:original.revision,system:'synthetic-gauge-accounting',externalId:original.id,amountMinor:mismatch.amountMinor,currency:mismatch.currency,reference:'Exact expense invoice control',reason:'Finance reconciles original expense invoices'})}
+ closePreview=await cmd('period:preview',{month:'2026-09'});assert.deepEqual(closePreview.snapshot.checklist.blocking,[])
+ const closeDraft=await cmd('period:prepare',{...closePreview.input,fingerprint:closePreview.fingerprint,acknowledgeWip:true,wipReconciliation:'Reviewed expense reimbursement and separate client recovery',reason:'Close populated expense sources'})
+ const closed=await cmd('period:approve',closeDraft),stored=await row('periodCloses',closed.id)
+ const financeCloseResponse=await request('/api/gauge/closes/'+closed.id,finance.cookie);assert.equal(financeCloseResponse.status,200);const financeClose=await financeCloseResponse.text(),financeObject=JSON.parse(financeClose)
+ assert.deepEqual(financeObject,stored)
+ for(const source of accountingSources){const original=financeObject.value.snapshot.sources.expenses.find(r=>r.id===source.id);assert.deepEqual(original,source);assert(original.value.financeReviewNote)}
+ assert.equal(financeObject.value.snapshot.sources.expenses.find(r=>r.id===claims[0].id).value.unitRate.unitMinor,70)
+ const accountantCloseResponse=await request('/api/gauge/closes/'+closed.id,accountant.cookie);assert.equal(accountantCloseResponse.status,200);const accountantClose=await accountantCloseResponse.text(),accountantObject=JSON.parse(accountantClose)
+ assert.equal(accountantObject.value.snapshot.sources.time.find(r=>r.id===reviewedTime.id).value.reviewNote,'Legitimate time correction evidence','Accountant retains noncommercial time review notes')
+ assert.deepEqual(accountantObject,projected(financeObject),'Accountant preserves every permitted close amount, source identity, revision and other evidence, excluding commercial copies')
+ for(const source of [frozen,...claims,clientOnlyRow])assert.equal(accountantClose.includes(source.value.financeReviewNote),false)
+ assert.equal(await(await request('/api/gauge/closes/'+closed.id,accountant.cookie)).text(),accountantClose)
+ assert.equal(await(await request('/api/gauge/closes/'+closed.id,finance.cookie)).text(),financeClose);assert.deepEqual(await row('periodCloses',closed.id),stored)
+ await page.context().clearCookies();await page.context().addCookies(accountant.cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+ for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/review');assert.equal(await page.locator('a[href="/api/gauge/closes/'+closed.id+'"]').count(),1);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(process.env.GAUGE_HANDOFF_SHOTS)await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-completed-close-'+width+'.png',fullPage:true})}
+ await cmd('period:reopen',await cmd('period:reopen-prepare',{...closed,reason:'Retain completed evidence and resume later independent journeys'}))
+ await page.context().clearCookies();await page.context().addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
  console.log('PASS expensePolicyJourney: receipt exception, exact finance review, frozen FX, tax and markup, 120 miles, per diem, separate once-only reimbursement, quantity-bound results, once-only invoice and scoped reads at 1440 and 390')
 }

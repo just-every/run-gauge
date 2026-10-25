@@ -41,12 +41,43 @@ export async function customCommand(env:Bindings,a:Actor,tx:Transaction,action:s
  }
  if(action==='field:import'){
   const preview=await customPreview(env,a,input),existing=(await all(env,'customImports')).find(r=>r.value.digest===preview.digest)
-  if(existing)return existing
+  if(existing){need(existing.value.status!=='undone','This source import was undone; review a new source revision',409);return existing}
   need(preview.canApply,'Resolve every preview finding; no custom values are dropped');need(preview.fingerprint===input.fingerprint,'Import inputs or native records changed; review a fresh preview',409);await observeDefinitions(env,tx)
-  const native=await all(env,'customFields');tx.customOverlay=[...native.filter(f=>!preview.fields.some(p=>p.id===f.id)),...preview.fields]
-  for(const f of preview.fields){const old=native.find(r=>r.id===f.id);if(old?.revision===f.revision)continue;const row=await tx.record('customFields',f.value,old,f.id,action);tx.customOverlay=tx.customOverlay.map(r=>r.id===row.id?row:r)}
-  const id=uuid();for(const rec of preview.records){tx.customWrite={scope:rec.scope,id:rec.target.id,values:rec.importedValues};tx.customImport={namespace:preview.namespace,sourceId:rec.sourceId,importId:id,digest:preview.digest};const saved=await tx.record(rec.scope,rec.target.value,rec.target,undefined,action);if(rec.scope==='people'){tx.customPendingPeople??=new Map();tx.customPendingPeople.set(saved.id,saved.revision)}}
-  return tx.record('customImports',{digest:preview.digest,namespace:preview.namespace,package:input.package,mapping:input.mapping,policies:input.policies??{},sourceControls:preview.sourceControls,records:preview.records.map(r=>({scope:r.scope,sourceId:r.sourceId,targetId:r.target.id,previousRevision:r.target.revision})),reason:text(input.reason,'Import review reason'),importedBy:a.session.operator.id,importedAt:Date.now()},undefined,id,action)
+  const definitionEffects:Value[]=[];const native=await all(env,'customFields');tx.customOverlay=[...native.filter(f=>!preview.fields.some(p=>p.id===f.id)),...preview.fields]
+  for(const f of preview.fields){const old=native.find(r=>r.id===f.id);if(old?.revision===f.revision)continue;const row=await tx.record('customFields',f.value,old,f.id,action);definitionEffects.push({id:row.id,revision:row.revision,previous:old??null});tx.customOverlay=tx.customOverlay.map(r=>r.id===row.id?row:r)}
+  const effects:Value[]=[];const id=uuid();for(const rec of preview.records){tx.customWrite={scope:rec.scope,id:rec.target.id,values:rec.importedValues};tx.customImport={namespace:preview.namespace,sourceId:rec.sourceId,importId:id,digest:preview.digest};const saved=await tx.record(rec.scope,rec.target.value,rec.target,undefined,action);const fieldIds=Object.keys(rec.importedValues),snapshot=(value:Value)=>Object.fromEntries(['customFields','customFieldVersions','customFieldSources'].map(key=>[key,Object.fromEntries(fieldIds.filter(id=>Object.hasOwn(value[key]??{},id)).map(id=>[id,value[key][id]]))]));effects.push({scope:rec.scope,id:saved.id,before:snapshot(rec.target.value),after:snapshot(saved.value),fieldIds});if(rec.scope==='people'){tx.customPendingPeople??=new Map();tx.customPendingPeople.set(saved.id,saved.revision)}}
+  return tx.record('customImports',{status:'applied',effects,definitionEffects,digest:preview.digest,namespace:preview.namespace,package:input.package,mapping:input.mapping,policies:input.policies??{},sourceControls:preview.sourceControls,records:preview.records.map(r=>({scope:r.scope,sourceId:r.sourceId,targetId:r.target.id,previousRevision:r.target.revision})),reason:text(input.reason,'Import review reason'),importedBy:a.session.operator.id,importedAt:Date.now()},undefined,id,action)
+ }
+ if(action==='field:import-undo'){
+  need(a.role==='owner','Only the owner reverses custom-field imports',403)
+  const receipt=await get(env,'customImports',text(input.id,'Custom-field import'));need(receipt.revision===input.revision,'Import changed; review its current revision',409);tx.observe('customImports',receipt)
+  if(receipt.value.status==='undone')return receipt
+  need(Array.isArray(receipt.value.effects),'This historical import has no reversible effect journal',409)
+  const reason=text(input.reason,'Import reversal reason');await observeDefinitions(env,tx)
+  const referenceData=new Map<string,Row[]>()
+  for(const scope of customScopes){const records=await all(env,scope as Kind);referenceData.set(scope,records);tx.guard(`(SELECT COUNT(*) FROM g_${scope})=?`,records.length);for(const row of records)tx.observe(scope as Kind,row)}
+  const held:Value[]=[],restored:Value[]=[],updated=new Map<string,Value>()
+  for(const effect of receipt.value.effects){
+   const current=await get(env,effect.scope,effect.id),value:Value={...current.value,customFields:{...current.value.customFields},customFieldVersions:{...current.value.customFieldVersions},customFieldSources:{...current.value.customFieldSources}}
+   let changed=false
+   for(const id of effect.fieldIds){
+    if(value.customFieldSources[id]?.importId!==receipt.id||canonicalJson(value.customFields[id]??null)!==canonicalJson(effect.after.customFields[id]??null)||value.customFieldVersions[id]!==effect.after.customFieldVersions[id]){held.push({scope:effect.scope,id:effect.id,fieldId:id,reason:'Later native or source edit retained'});continue}
+    for(const key of ['customFields','customFieldVersions','customFieldSources']){if(Object.hasOwn(effect.before[key]??{},id))value[key][id]=effect.before[key][id];else delete value[key][id]}
+    restored.push({scope:effect.scope,id:effect.id,fieldId:id});changed=true
+   }
+   if(changed){await tx.record(effect.scope,value,current,undefined,action,value);updated.set(effect.scope+':'+current.id,value)}
+  }
+  // Keep source schemas in custody while retiring unused definitions created by this adoption.
+  for(const effect of receipt.value.definitionEffects??[]){
+   const current=await get(env,'customFields',effect.id)
+   if(current.revision!==effect.revision){held.push({scope:'customFields',id:effect.id,reason:'Later native definition retained'});continue}
+   let referenced=false
+   for(const scope of customScopes)for(const record of referenceData.get(scope)??[]){const value=updated.get(scope+':'+record.id)??record.value;if(Object.hasOwn(value.customFields??{},effect.id))referenced=true}
+   if(referenced){held.push({scope:'customFields',id:effect.id,reason:'Retained native value still references this schema'});continue}
+   const value=effect.previous?.value??{...current.value,retired:true,required:false}
+   await tx.record('customFields',value,current,undefined,action)
+  }
+  return tx.record('customImports',{...receipt.value,status:'undone',reversal:{restored,held,reason,reversedBy:a.session.operator.id,reversedAt:Date.now()}},receipt,undefined,action)
  }
  if(action==='saved:save'){
   await observeDefinitions(env,tx)

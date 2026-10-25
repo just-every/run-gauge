@@ -49,6 +49,23 @@ export async function sourceFieldJourney(h,{client,project,person,task,providers
   await h.cmd('field:import',{...changed,fingerprint:next.fingerprint,reason:'Owner reviews a later private source value'})
   const updated=await h.state();assert.equal(updated.data.customFields.find(f=>f.id===field('money').id).value.visibility,'finance-only');assert.equal(updated.data.engagements.find(r=>r.id===project.id).value.customFields[field('money').id],-2345)
   }
+  if(provider===providers[0]){
+   const reversalInput=structuredClone(input);reversalInput.package.account='synthetic-gauge-fields-reversal';reversalInput.package.namespace=provider+':synthetic-gauge-fields-reversal'
+   const review=await h.cmd('field:import-preview',reversalInput),applied=await h.cmd('field:import',{...reversalInput,fingerprint:review.fingerprint,reason:'Review reversible source values'})
+   let current=await h.state();const original=current.data.customImports.find(r=>r.id===applied.id),retained=review.fields.find(f=>f.value.sourceId==='money'),untouched=review.fields.find(f=>f.value.sourceId==='number'),target=current.data.engagements.find(r=>r.id===project.id)
+   await h.cmd('field:values',{scope:'engagements',...target,customFields:{[retained.id]:777}})
+   await h.cmd('field:import-undo',{...applied,revision:'stale',reason:'Stale reversal refused'},h.owner,409)
+   let reversed
+   if(page){
+    await page.goto(h.origin+'/app/imports');const form=page.locator('#custom-import form').filter({has:page.locator('input[value="field:import-undo"]')});await form.getByLabel('Custom-field import ID',{exact:true}).fill(applied.id);await form.getByLabel('Current import revision',{exact:true}).fill(applied.revision);await form.getByLabel('Import reversal reason',{exact:true}).fill('Reverse untouched effects and retain native edits');if(capture)await capture('source-field-reversal');await form.getByRole('button',{name:'Save',exact:true}).click();reversed=(await h.state()).data.customImports.find(r=>r.id===applied.id)
+   }else reversed=await h.cmd('field:import-undo',{...applied,reason:'Reverse untouched effects and retain native edits'})
+   current=await h.state();const after=current.data.engagements.find(r=>r.id===project.id),receipt=current.data.customImports.find(r=>r.id===applied.id)
+   assert.equal(after.value.customFields[retained.id],777,'Later native custom value is retained');assert.equal(Object.hasOwn(after.value.customFields,untouched.id),false,'Untouched imported value is reversed')
+   assert.equal(receipt.value.status,'undone');assert(receipt.value.reversal.held.some(r=>r.fieldId===retained.id));assert.equal(receipt.value.reversal.restored.length,6);assert.equal(current.data.customFields.find(f=>f.id===untouched.id).value.retired,true,'Unused imported schema is retired with history');assert.equal(current.data.customFields.find(f=>f.id===retained.id).value.retired,false,'Native edited value keeps its schema')
+   assert.deepEqual(receipt.value.package,original.value.package,'Reversal retains exact originals');assert.deepEqual(receipt.value.effects,original.value.effects,'Reversal retains its original effect journal')
+   assert.deepEqual(await h.cmd('field:import-undo',{id:reversed.id,revision:reversed.revision,reason:'Repeated reversal'}),{id:reversed.id,revision:reversed.revision,saved:true},'Reversal replay acknowledges the same exact revision');assert.deepEqual((await h.state()).data.customImports.find(r=>r.id===applied.id),receipt,'Reversal replay makes no new effects')
+   const again=await h.cmd('field:import-preview',reversalInput);await h.cmd('field:import',{...reversalInput,fingerprint:again.fingerprint,reason:'Undone source cannot silently replay'},h.owner,409)
+  }
   sourceIds.push(...fields.map(f=>f.id))
  }
  const reader=await h.invite('synthetic-gauge-source-fields-reader');await h.cmd('grant',{operatorId:reader.id,personId:person.id,role:'lead',enabled:true})

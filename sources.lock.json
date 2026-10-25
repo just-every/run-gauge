@@ -2329,7 +2329,7 @@
       "executable": false
     },
     "src/gauge/ui-provider-custody.ts": {
-      "sha256": "7983e86dd1b33a25cee2a47b69c61f626a7049d5d20fa1a034cc62292ce72703",
+      "sha256": "ad9c6b9d5d29c4460e31e72f39e0ea8cb659199b1930133a1d08f2c71da7e548",
       "executable": false
     },
     "src/gauge/ui-provider-health.ts": {

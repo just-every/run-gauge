@@ -4,6 +4,7 @@ CREATE TABLE g_milestone_review_authority (
  milestone_id TEXT NOT NULL,
  delivery_id TEXT NOT NULL,
  recipient_id TEXT NOT NULL,
+ contact TEXT NOT NULL,
  owner_id TEXT NOT NULL,
  expires_at INTEGER NOT NULL
 );

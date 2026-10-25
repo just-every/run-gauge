@@ -438,6 +438,12 @@
       "name": "0072_gauge_reimbursement_adjustments.sql",
       "sha256": "8eb9bab826f916a873b7cce621fb6056918658bdbc4bd960da54f93d23cee6d0",
       "sql": "-- Append-only identities for signed reimbursement corrections.\nCREATE TABLE g_reimbursement_adjustments(parent_id TEXT NOT NULL,source_id TEXT NOT NULL,handoff_id TEXT NOT NULL UNIQUE,PRIMARY KEY(parent_id,source_id));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0073_gauge_milestone_review.sql",
+      "sha256": "6a2f0d164dd4e027e1bc742175b800651f8e8cd779b6b915d10b0a9965325f90",
+      "sql": "-- Recipient review is installation authority; delivery and decision history remain portable.\nCREATE TABLE g_milestone_review_authority (\n review_id TEXT PRIMARY KEY,\n milestone_id TEXT NOT NULL,\n delivery_id TEXT NOT NULL,\n recipient_id TEXT NOT NULL,\n contact TEXT NOT NULL,\n owner_id TEXT NOT NULL,\n expires_at INTEGER NOT NULL\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

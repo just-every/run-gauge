@@ -171,5 +171,5 @@ async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outside
  await h.db.prepare('UPDATE g_milestone_review_authority SET expires_at=0 WHERE review_id=?').bind(pendingReview.id).run()
  assert.equal((await request(pendingPath(),recipient.cookie)).status,403,'An expired grant cannot read or decide')
  assert.equal((await post(pendingPath(),{key:randomUUID(),revision:pendingRow.revision,outcome:'accepted',reason:'Expired authority'},recipient.cookie)).status,403)
- console.log('PASS DELIVERY-005 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale/revoked/expired authority, replay and separate finance gates')
+ console.log('PASS DELIVERY-005 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale, revoked and expired authority, replay and separate finance gates')
 }

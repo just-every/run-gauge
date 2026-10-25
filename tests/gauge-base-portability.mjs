@@ -253,6 +253,14 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableCaseCurrent=(await state()).data.operationalCases.find(r=>r.id===portableCase.id)
  await cmd('case:snooze',{...portableCaseCurrent,until:new Date(Date.now()+86400000).toISOString(),reason:'Wait for reviewed input'})
  await sourceFieldJourney(h,{client:expenseClient,project:expenseProject,person:expensePerson,task:await cmd('save:tasks',{engagementId:expenseProject.id,name:'Source custom field carrier',remainingSeconds:0})})
+ // SALES-005: immutable reviewed change comparisons are portable, without live effects.
+ const scopeSource=(await state()).data.engagements.find(r=>r.id===engagement.id)
+ const scopeInput={asOf:'2026-10-01',changes:[{type:'scope',id:scopeSource.id,revision:scopeSource.revision,scope:'Portable proposed alternative'}]}
+ const scopePreview=await cmd('change:preview',scopeInput)
+ const portableChange=await cmd('change:prepare',{...scopeInput,fingerprint:scopePreview.fingerprint,name:'Portable scope request',reason:'Retain the reviewed comparison'})
+ const scopeReviewer=await h.invite('synthetic-gauge-7306')
+ await cmd('grant',{operatorId:scopeReviewer.id,personId:person.id,role:'finance',enabled:true})
+ await cmd('change:review',{...portableChange,outcome:'approved',reason:'Independent internal review, no client acceptance'},scopeReviewer.cookie)
  const before=await state()
  assert.equal(before.data.customImports.find(r=>r.id===fieldImport.id).value.package.records[0].values.office,'Austin')
  assert.equal(before.data.people.find(r=>r.id===person.id).value.customFields[officeField.id],'Austin')
@@ -312,6 +320,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
    assert.equal(restoredReview.value.delivery.decisions[0].confirmedByClient,true,'Direct decision history remains direct evidence after restore')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_retainer_schedule_authority').first()).n,0,'Restored schedules carry no execution consent')
    await restored.cmd('handoff:prepare',{purpose:'reimbursement',recipient:'Portable payroll desk',reason:'Restored replay must not reimburse twice',sources:[{kind:'expenses',id:portableClaim.id,revision:portableClaim.revision}]},restored.owner,409)
+   const restoredChange=(await restored.state()).data.projectScenarios.find(r=>r.id===portableChange.id)
+   assert.equal(restoredChange.value.reviewStatus,'approved');assert.equal(restoredChange.value.status,'prepared')
+   assert.deepEqual(restoredChange.value.baseline,scopePreview.baseline);assert.deepEqual(restoredChange.value.scenario,scopePreview.scenario)
+   await restored.cmd('projectScenario:adopt',{id:restoredChange.id,revision:restoredChange.revision,asOf:'2026-10-01',selectedIds:[engagement.id],fingerprint:scopePreview.fingerprint,reason:'Restored internal review grants no client acceptance'},restored.owner,409)
    const restoredBefore=await restored.state(),restoredRuns=restoredBefore.data.retainerRuns
    await restored.cmd('retainer:run',{...portableSchedule,asOf:'2026-10-16'},restored.owner,403)
    assert.equal((await restored.state()).data.invoices.length,restoredBefore.data.invoices.length,'Restored schedule cannot issue without fresh consent')

@@ -28,7 +28,7 @@ export async function milestoneReviewCommand(env:Bindings,a:Actor,tx:Transaction
   const id=uuid(),expiresAt=Date.now()+integer(input.days??7,'Review duration',1,30)*86400000
   const review={id,deliveryId:delivery.id,contact,recipientId:recipient.id,ownerId:a.session.operator.id,releasedAt:Date.now(),expiresAt,reason,description:text(input.description,'Client delivery description'),name:delivery.snapshot.name,date:delivery.date}
   d.clientReviews=[...(d.clientReviews??[]),review]
-  tx.sql('INSERT INTO g_milestone_review_authority(review_id,milestone_id,delivery_id,recipient_id,owner_id,expires_at) VALUES(?,?,?,?,?,?)',id,row.id,delivery.id,recipient.id,a.session.operator.id,expiresAt)
+  tx.sql('INSERT INTO g_milestone_review_authority(review_id,milestone_id,delivery_id,recipient_id,contact,owner_id,expires_at) VALUES(?,?,?,?,?,?,?)',id,row.id,delivery.id,recipient.id,contact,a.session.operator.id,expiresAt)
  }
  return tx.record('milestones',{...row.value,delivery:d},row,undefined,action)
 }

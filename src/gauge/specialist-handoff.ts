@@ -105,7 +105,7 @@ function sealHandoff(a:Actor,tx:Transaction,handoffId:string,recipient:string,pu
  const artifact=csv([['handoffId','id','category','sourceKind','sourceId','sourceRevision','engagementId','personId','date','currency','amountMinor','amountKnown','durationSeconds','approvedBy','approvedAt','details','notice'],
   ...lines.map(l=>[id,l.id,l.category,l.sourceKind,l.sourceId,l.sourceRevision,l.engagementId,l.personId,l.date,l.currency,l.amountMinor,l.amountMinor!==null,l.durationSeconds,l.approvedBy,l.approvedAt,canonicalJson(l.details),handoffNotice])])
  return tx.record(handoffKind,{recipient,purpose,reason,sources:snapshots,lines,controlTotals,artifact,artifactHash:sha256(artifact),
-  status:'awaiting-result',delivery:'manual-export',financialEffect:'none',approvedBy:a.session.operator.id,approvedAt,notice:handoffNotice,result:null,...extra},undefined,id,'handoff:prepare')
+  status:'awaiting-result',delivery:'manual-export',financialEffect:'none',approvedBy:a.session.operator.id,approvedAt,notice:handoffNotice,result:null,...extra},undefined,id,extra.adjustmentOf?'handoff:adjust-reimbursement':'handoff:prepare')
 }
 
 async function readResult(input:Value):Promise<{result:Value;original:string}> {

@@ -18,4 +18,4 @@ Record the receiver JSON with the exact artifact hash and every line's unchanged
 
 Only the expense owner and finance can download receipt bytes. Commercial markup and recovery figures stay with finance. The installation archive retains receipts, approved economics, rates, reimbursement reservations, artifacts and receiver history without payment authority.
 
-The new finance review and manual reimbursement policy remains adopted pending contract approval. Gauge performs no payroll, tax filing or live accounting posting.
+The native finance review and manual reimbursement policy is contract-approved. An edit before approval needs fresh exact-revision review. Approved reimbursement inputs are immutable; changes to entitlement require the signed bounded adjustment and remain in history with their signer and reason. Commercial economics stay private to finance and the owner through state, history, exports and notifications; clients receive only their authorized recovery document. Gauge performs no payroll, tax filing or live accounting posting.

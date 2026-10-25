@@ -357,7 +357,9 @@ async function revenueScheduleJourney(h,page){
 // Native employee reimbursement and client recovery remain independent public doors.
 async function expensePolicyJourney(h,page){
  const {cmd,state,request,owner}=h,person=await cmd('save:people',{name:'synthetic-gauge-7101',timezone:'America/New_York'}),client=await cmd('save:clients',{name:'Expense client'}),project=await cmd('save:engagements',{name:'Travel policy',clientId:client.id,leadId:person.id,members:[person.id],scope:'Travel receipts and unit claims',timezone:'America/New_York'})
- const staff=await h.invite('synthetic-gauge-7102'),lead=await h.invite('synthetic-gauge-7103')
+ const staff=await h.invite('synthetic-gauge-7102'),lead=await h.invite('synthetic-gauge-7103'),finance=await h.invite('synthetic-gauge-7107'),recipient=await h.invite('synthetic-gauge-7108')
+ await cmd('grant',{operatorId:finance.id,personId:person.id,role:'finance',enabled:true})
+ const outboundStart=h.providerRequests.length
  await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd('grant',{operatorId:lead.id,personId:person.id,role:'lead',enabled:true})
  const row=async(k,id)=>(await state()).data[k].find(r=>r.id===id)
  const base={engagementId:project.id,personId:person.id,date:'2026-10-06',category:'Travel',vendor:'Rail vendor',description:'Travel receipt',incurredCurrency:'CAD',amountMinor:10000,taxMinor:1000,markupBasisPoints:2000,reimbursable:true,clientBillable:true,policyException:'Late booking required by delivery'}
@@ -371,8 +373,18 @@ async function expensePolicyJourney(h,page){
  await cmd('expense:approve',{...receipt,reason:'No exchange rate yet'},owner,409)
  const beforeFx=(await state()).margin.find(x=>x.engagementId===project.id);assert.equal(beforeFx.provisionalCostMinor,null,'Missing FX is unknown, never zero')
  await cmd('fx:approve',{currency:'CAD',rate:'0.7500',effective:'2026-10-01',source:'Published synthetic rate',reason:'Owner approves incurred travel conversion'})
- receipt=await cmd('expense:approve',{...receipt,reason:'Finance reviews receipt and exception, authorizes 20 percent recovery'})
+ const reviewedRevision=receipt
+ await cmd('expense:return',{...receipt,reason:'Correct the submitted travel description'})
+ receipt=await cmd('expense:save',{...base,...await row('expenses',receipt.id),description:'Corrected travel receipt'},staff.cookie)
+ assert.notEqual(receipt.revision,reviewedRevision.revision,'Editing revision N creates a new exact revision')
+ receipt=await cmd('expense:submit',receipt,staff.cookie)
+ await cmd('expense:approve',{...reviewedRevision,reason:'Old review cannot approve the edited cost'},owner,409)
+ assert.equal((await row('expenses',receipt.id)).value.status,'submitted','Changed inputs still need a fresh finance review')
+ await cmd('expense:approve',{...receipt,reason:''},finance.cookie,400)
+ receipt=await cmd('expense:approve',{...receipt,reason:'Finance reviews receipt and exception, authorizes 20 percent recovery'},finance.cookie)
  const frozen=await row('expenses',receipt.id);assert.equal(frozen.value.amountMinor,8250);assert.equal(frozen.value.reimbursementMinor,8250);assert.equal(frozen.value.clientRecoveryMinor,9900);assert.equal(frozen.value.fx.rate,'0.7500')
+ for(const cookie of [owner,staff.cookie])await cmd('expense:save',{...base,...receipt,amountMinor:1},cookie,400)
+ await cmd('expense:return',{...receipt,reason:'Cannot reopen approved reimbursement inputs'},owner,400)
  await cmd('fx:approve',{currency:'CAD',rate:'0.8000',effective:'2026-10-07',source:'Published synthetic rate',reason:'Forward rate change'})
  let pendingMileage=await cmd('expense:save',{...base,incurredCurrency:'USD',description:'mileage',category:'mileage',unit:'mileage',quantity:120,amountMinor:0,taxMinor:0,markupBasisPoints:0,clientBillable:false,policyException:''},staff.cookie)
  pendingMileage=await cmd('expense:submit',pendingMileage,staff.cookie)
@@ -408,18 +420,38 @@ async function expensePolicyJourney(h,page){
  const wrong=structuredClone(outcome);wrong.lines[1].quantity=121;await cmd('handoff:record-result',{...handoff,result:wrong},owner,400)
  handoff=await cmd('handoff:record-result',{...handoff,result:outcome});const reconciled=await row('specialistHandoffs',handoff.id);assert.equal(reconciled.value.result.verification,'user-recorded');assert.equal(reconciled.value.result.rejectedCount,1)
  await cmd('handoff:record-result',{...handoff,result:outcome},owner,409)
+ const reimbursementBeforeRecovery=await row('specialistHandoffs',handoff.id)
  let packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Allowed travel recovery',sources:['expenses:'+receipt.id]}))
  const invoice=await cmd('invoice:issue',{...packet,issueDate:'2026-10-07',dueDate:'2026-11-06',billTo:'Expense client',remitTo:'Agency',reference:'Travel recovery'})
  assert.equal((await row('invoices',invoice.id)).value.totalMinor,9900)
+ assert.deepEqual(await row('specialistHandoffs',handoff.id),reimbursementBeforeRecovery,'Client recovery does not change recorded reimbursement')
+ const invoiceBeforeCorrection=await row('invoices',invoice.id)
  await cmd('packet:create',{engagementId:project.id,title:'Duplicate recovery',sources:['expenses:'+receipt.id]},owner,409)
  await cmd('packet:create',{engagementId:project.id,title:'Employee-only mileage',sources:['expenses:'+claims[0].id]},owner,400)
  await cmd('handoff:adjust-reimbursement',{...handoff,sourceId:outcome.lines[0].id,correctedMinor:8251,reason:'Cannot reimburse above approved cost'},owner,400)
- const correction=await cmd('handoff:adjust-reimbursement',{...handoff,sourceId:outcome.lines[0].id,correctedMinor:8000,reason:'Payroll records a reviewed employee adjustment'})
+ const correctionInput={...handoff,sourceId:outcome.lines[0].id,correctedMinor:8000,reason:'Payroll records a reviewed employee adjustment'}
+ await cmd('handoff:adjust-reimbursement',{...correctionInput,correctedMinor:-1},owner,400)
+ await cmd('handoff:adjust-reimbursement',{...correctionInput,reason:''},owner,400)
+ await cmd('handoff:adjust-reimbursement',{...correctionInput,revision:'stale'},owner,409)
+ await cmd('handoff:adjust-reimbursement',correctionInput,staff.cookie,403)
+ await page.context().clearCookies();await page.context().addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+ await page.goto(h.origin+'/app/billing')
+ const signedForm=page.locator('form').filter({has:page.locator('[name=action][value="handoff:adjust-reimbursement"]')}).filter({has:page.locator('[name=id][value="'+handoff.id+'"]')}).filter({has:page.locator('[name=sourceId][value="'+outcome.lines[0].id+'"]')})
+ for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await signedForm.scrollIntoViewIfNeeded();assert(await signedForm.isVisible(),'Bounded signed correction form is available at '+width);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Correction fits '+width)}
+ await signedForm.locator('[name=correctedMinor]').fill('8000');await signedForm.locator('[name=reason]').fill(correctionInput.reason);await signedForm.getByRole('button',{name:'Prepare signed adjustment',exact:true}).click()
+ const correction=(await state()).data.specialistHandoffs.find(r=>r.value.adjustmentOf===handoff.id)
+ assert(correction,'The signed bounded native form creates an adjustment artifact')
  const corrected=await row('specialistHandoffs',correction.id);assert.equal(corrected.value.lines[0].amountMinor,-250);assert.equal(corrected.value.adjustmentOf,handoff.id);assert.equal(await(await request('/api/gauge/handoffs/'+handoff.id,owner)).text(),bytes)
  await cmd('handoff:adjust-reimbursement',{...handoff,sourceId:outcome.lines[0].id,correctedMinor:7000,reason:'Duplicate adjustment branch'},owner,409)
  const correctionResult={handoffId:correction.id,artifactHash:corrected.value.artifactHash,lines:corrected.value.lines.map(l=>({id:l.id,currency:l.currency,amountMinor:l.amountMinor,durationSeconds:null,quantity:l.details.quantity,unit:l.details.unit,status:'accepted'}))}
  await cmd('handoff:record-result',{...correction,result:correctionResult})
- assert.equal((await row('invoices',invoice.id)).value.totalMinor,9900,'Employee correction does not change client recovery')
+ assert.deepEqual(await row('invoices',invoice.id),invoiceBeforeCorrection,'Employee correction does not change client recovery')
+ assert.deepEqual(await row('expenses',receipt.id),frozen,'Signed adjustments preserve the approved reimbursement inputs')
+ const correctionHistory=await(await request('/api/gauge/history/specialistHandoffs/'+correction.id,owner)).json()
+ assert(correctionHistory.history.some(r=>r.action==='handoff:record-result'&&r.value.approvedBy===corrected.value.approvedBy&&r.value.reason===correctionInput.reason&&r.value.lines[0].amountMinor===-250),'History retains the signer, reason and signed bounded delta')
+
+ const correctionAudit=await(await request('/api/gauge/audit?recordId='+correction.id,owner)).json()
+ assert(correctionAudit.entries.some(r=>r.action==='handoff:adjust-reimbursement'&&r.actor.id===corrected.value.approvedBy),'The audit identifies the exact signed adjustment action and signer')
 
  // Agency-paid costs can recover from the client without reimbursing an employee.
  let clientOnly=await cmd('expense:save',{...base,incurredCurrency:'USD',description:'Agency-paid client travel',amountMinor:2000,taxMinor:0,markupBasisPoints:2500,reimbursable:false,clientBillable:true,policyException:''},staff.cookie)
@@ -440,6 +472,38 @@ async function expensePolicyJourney(h,page){
  assert.equal((await request('/api/gauge/handoffs/'+handoff.id,staff.cookie)).status,403);assert.equal((await request('/api/gauge/files/'+file,lead.cookie)).status,200,'The lead is the receipt owner in this fixture')
  const outsider=await h.invite('synthetic-gauge-7105');await cmd('grant',{operatorId:outsider.id,personId:(await cmd('save:people',{name:'Other worker',timezone:'America/New_York'})).id,role:'staff',enabled:true})
  assert.equal((await request('/api/gauge/files/'+file,outsider.cookie)).status,403);assert.deepEqual((await state(staff.cookie)).data.specialistHandoffs,[]);assert.equal(Object.hasOwn((await state(staff.cookie)).data.expenses.find(r=>r.id===receipt.id).value,'clientRecoveryMinor'),false);assert.equal(Object.hasOwn((await state(staff.cookie)).data.expenses.find(r=>r.id===receipt.id).value,'financeReviewNote'),false)
+ // Probe every current expense read surface alongside positive finance reads.
+ const privateFields=['financeReviewNote','markupBasisPoints','clientRecoveryMinor','fx','unitRate']
+ for(const cookie of [owner,finance.cookie]){
+  const allowed=(await state(cookie)).data.expenses.find(r=>r.id===receipt.id)
+  assert.equal(allowed.value.clientRecoveryMinor,9900);assert.equal(allowed.value.fx.rate,'0.7500')
+  assert.equal((await request('/api/gauge/handoffs/'+handoff.id,cookie)).status,200)
+  const history=await(await request('/api/gauge/history/expenses/'+receipt.id,cookie)).json()
+  assert(history.history.some(r=>r.value.markupBasisPoints===2000),'Finance reads commercial inputs in prior revisions')
+ }
+ for(const user of [staff,lead]){
+  const restricted=await state(user.cookie)
+  for(const expense of restricted.data.expenses)for(const key of privateFields)assert.equal(Object.hasOwn(expense.value,key),false,'State withholds '+key)
+  const history=await(await request('/api/gauge/history/expenses/'+receipt.id,user.cookie)).json()
+  for(const revision of history.history)for(const key of privateFields)assert.equal(Object.hasOwn(revision.value,key),false,'History withholds '+key)
+  const report=await request('/api/gauge/report.csv?'+new URLSearchParams({from:'2026-10-01',to:'2026-10-31',fingerprint:restricted.fingerprint}),user.cookie)
+  assert.equal(report.status,200);const exportedReport=await report.text();for(const key of privateFields)assert.equal(exportedReport.includes(key),false,'Report export withholds '+key);assert.equal(exportedReport.includes(frozen.value.financeReviewNote),false,'Report export withholds commercial review')
+  for(const path of ['/api/gauge/handoffs/'+handoff.id,'/api/gauge/history/specialistHandoffs/'+handoff.id,'/api/gauge/packets/'+packet.id,'/api/gauge/audit','/api/gauge/audit/export','/api/gauge/invoice-documents/'+invoice.id])assert.equal((await request(path,user.cookie)).status,403,'Restricted economics door '+path)
+  for(const screen of ['expenses','billing','access','review']){const html=await(await request('/app/'+screen,user.cookie)).text();assert.equal(html.includes(frozen.value.financeReviewNote),false,'Page withholds private commercial review')}
+ }
+ const release=await cmd('invoice:release',{...invoice,contact:'synthetic-gauge-7108@example.test',days:7,reason:'Owner authorizes only the client recovery document'})
+ for(const path of ['/api/gauge/state','/api/gauge/history/expenses/'+receipt.id,'/api/gauge/history/specialistHandoffs/'+handoff.id,'/api/gauge/handoffs/'+handoff.id,'/api/gauge/files/'+file,'/api/gauge/report.csv','/api/gauge/audit/export','/api/gauge/packets/'+packet.id,'/app/expenses','/app/billing'])assert.equal((await request(path,recipient.cookie)).status,403,'Client cannot read private expense economics: '+path)
+ for(const format of ['html','csv']){
+  const document=await request('/app/client-invoices/'+release.id+'?format='+format,recipient.cookie);assert.equal(document.status,200)
+  const text=await document.text();for(const key of privateFields)assert.equal(text.includes(key),false,'Client document excludes '+key)
+  assert.equal(text.includes(frozen.value.financeReviewNote),false)
+ }
+ for(const [user,path]of [[staff,'/app/expenses'],[recipient,'/app/client-invoices/'+release.id]]){
+  await page.context().clearCookies();await page.context().addCookies(user.cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(h.origin+path);const body=await page.locator('body').innerText();assert.equal(body.includes(frozen.value.financeReviewNote),false,'Private review is absent at '+width);assert.equal(await page.locator('#specialist-handoffs').count(),0);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Scoped expense screen fits '+width);if(process.env.GAUGE_HANDOFF_SHOTS)await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-'+(user===staff?'member':'client')+'-'+width+'.png',fullPage:true})}
+ }
+ assert(h.providerRequests.slice(outboundStart).every(r=>r.url==='https://api.resend.com/emails'),'No payment provider call occurs during expense review, reimbursement, invoicing or correction')
+ assert.equal(h.providerRequests.length,outboundStart+1,'Only the unrelated outsider invitation sends authentication mail; expense actions send no notification or provider request')
  await page.context().clearCookies();await page.context().addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
  await page.goto(h.origin+'/app/expenses');await page.setViewportSize({width:390,height:1000})
  const nativeForm=page.locator('form').filter({has:page.locator('[name=action][value="expense:save"]')})
@@ -450,5 +514,6 @@ async function expensePolicyJourney(h,page){
   for(const control of await page.locator('button,a').all()){if(!await control.isVisible())continue;const label=(await control.innerText()).trim();if(!label){assert(await control.getAttribute('aria-label'),'Icon control has an accessible label: '+await control.evaluate(el=>el.outerHTML));assert(await control.getAttribute('data-tooltip'),'Icon control has a tooltip');await control.focus();assert.equal(await control.evaluate(el=>getComputedStyle(el,'::after').visibility),'visible');await control.blur();await control.hover();await page.waitForTimeout(350);assert.equal(await control.evaluate(el=>getComputedStyle(el,'::after').visibility),'visible')}}
   if(process.env.GAUGE_HANDOFF_SHOTS){await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-'+screen+'-'+width+'.png',fullPage:true});const focus=screen==='billing'?page.locator('#specialist-handoffs'):screen==='access'?page.locator('section').filter({has:page.getByRole('heading',{name:'Expense unit rates',exact:true})}).last():page.locator('section').filter({has:page.getByRole('heading',{name:'Expense',exact:true})}).last();await focus.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-'+screen+'-detail-'+width+'.png'})}
  }
+ assert.equal(h.providerRequests.length,outboundStart+1,'Native forms send no expense notification and call no payment provider at either width')
  console.log('PASS expensePolicyJourney: receipt exception, exact finance review, frozen FX, tax and markup, 120 miles, per diem, separate once-only reimbursement, quantity-bound results, once-only invoice and scoped reads at 1440 and 390')
 }

@@ -81,7 +81,7 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
   await page.goto(h.origin+'/app/access')
   const connect=page.locator('form').filter({has:page.locator('input[name="action"][value="provider:connect"]')})
   assert.equal(await connect.getByLabel('Provider credential',{exact:true}).inputValue(),'')
-  await connect.getByLabel('Provider',{exact:true}).selectOption('sendgrid')
+  await connect.locator('select[name=provider]').selectOption('sendgrid')
   await connect.getByLabel('Account label',{exact:true}).fill('Invoice delivery SendGrid')
   await capture('invoice-sendgrid-connect', 'section.g-card:has(form input[value="provider:connect"])')
   await page.setViewportSize({width:1440,height:1000})
@@ -101,7 +101,7 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
    await page.goto(h.origin+issuedPath);await page.setViewportSize({width,height:1000})
    const selector='#invoice-mail-'+currentRelease.id,mail=page.locator(selector),queue=form('invoice:queue-mail',currentRelease.id,mail)
    const before=sends.length
-   await queue.getByLabel('Mail connection',{exact:true}).selectOption(connection.id)
+   await queue.locator('select[name=connectionId]').selectOption(connection.id)
    await queue.getByLabel('Explicit mail release reason',{exact:true}).fill('Owner sends the reviewed immutable invoice to its authorized client')
    await submit(queue,'Queue invoice email')
    let delivery=(await h.state()).data.commercialEvents.find(row=>row.value.type==='invoice-delivery'&&row.value.accessId===currentRelease.id)

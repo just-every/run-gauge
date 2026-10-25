@@ -4421,7 +4421,7 @@
       "executable": false
     },
     "tests/gauge-invoice-delivery.mjs": {
-      "sha256": "6af8c54a8e8d43fc1f6058c64d87d2e5d42c03b5d971212e7da6e2572098c461",
+      "sha256": "4a6e70241880c2af476050ace47458c8132be0f72805f79c9fa41cec9575f672",
       "executable": false
     },
     "tests/gauge-invoices.mjs": {

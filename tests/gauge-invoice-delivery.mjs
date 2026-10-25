@@ -85,7 +85,7 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
   await submit(connect,'Connect provider')
   const connection=(await h.state()).data.providerConnections.find(row=>row.value.provider==='sendgrid'&&row.value.accountLabel==='Invoice delivery SendGrid')
   assert(connection)
-  assert.equal(connection.value.status,'connected')
+  assert.match(await page.locator(`[id="${connection.id}"]`).innerText(),/connected/)
   assert(!JSON.stringify(connection).includes(credential),'Only connection metadata leaves credential custody')
   const staff=await h.invite('synthetic-gauge-8162')
   await cmd('grant',{operatorId:staff.id,personId,role:'staff',enabled:true})

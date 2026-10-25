@@ -8,7 +8,7 @@ A lead may review ordinary expenses. Finance or the owner reviews receipt-backed
 
 ## Mileage and per diem
 
-Finance sets immutable dated rates under **Access**, then records a mileage or per-diem claim with a quantity (up to three decimal places). Approval selects the rate effective on the incurred date. A later rate never changes an approved claim.
+Finance sets immutable dated rates under **Access**, then records a mileage or per-diem claim with a quantity (up to three decimal places). Approval selects the rate effective on the incurred date. A later rate never changes an approved claim. Submitted unit claims keep provisional cost unknown until approval freezes their effective unit rate; a missing rate refuses approval and never becomes a zero-cost claim.
 
 ## Reimburse and recover
 

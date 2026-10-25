@@ -427,7 +427,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8c84e791af627a9618c93ba89ab7a167b49d56972c92c1107aaa06d9766b3b76",
+      "sha256": "baa62915df02fddf40802cc4c697f21ed9f3cfadf1e1bf0e2f37f52907dca5df",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -451,7 +451,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "df36e542bc77d6c66c35f680ede101fa67dc6a1e7e45577e9b969328e4df8daf",
+      "sha256": "2373ae9da2aa1f3589a317c80cc86b74987d70ea9d915a0a30dc19a4e9c67b0a",
       "executable": false
     },
     "DEMO.md": {
@@ -495,7 +495,7 @@
       "executable": false
     },
     "docs/expenses.md": {
-      "sha256": "8d72efee065c545aa19c9640f562eeec5573a77b26927dda41a25f49d687d720",
+      "sha256": "9241dab966bf2e73b2350071de5301c09c80c8aaa5565da5fcad89eee2844350",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -1591,7 +1591,7 @@
       "executable": false
     },
     "src/gauge/expenses.ts": {
-      "sha256": "72bea8123266ae19c5dbbdf46094ff2ecaf954de915409ff41cb5edece6c30f1",
+      "sha256": "b6e8dba519b5501152560749fa4f4b1321758bfabc2cb6be2541fcadf7cfbd41",
       "executable": false
     },
     "src/gauge/finance-forecast.ts": {
@@ -4331,7 +4331,7 @@
       "executable": false
     },
     "tests/gauge-handoffs.mjs": {
-      "sha256": "13446aceda988d73536f2a79626d25be9a77b436d6cd9e6f392bc3a2358a0f62",
+      "sha256": "3184448f6f0f395695fe01d139ef68bba4201a4971c5222641e309f5bd2c40f7",
       "executable": false
     },
     "tests/gauge-harness.mjs": {

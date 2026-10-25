@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "gauge-local/edition",
-  "manifest": "6d1070322bb9b3b6f445aabcfdda081c5fd200d86aa8615411713562a561b5a8",
+  "manifest": "48e6eced8d54957cc1c8126b0f6e5d27afb60a6888b864cf119878380ee631d1",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -76,7 +76,8 @@
           "migrations/core/0067_gauge_accountant_grant.sql",
           "migrations/core/0068_gauge_resource_manager.sql",
           "migrations/core/0070_gauge_float_adoption.sql",
-          "migrations/core/0073_gauge_milestone_review.sql"
+          "migrations/core/0073_gauge_milestone_review.sql",
+          "migrations/core/0074_gauge_milestone_review_tokens.sql"
         ]
       },
       "baseline": null
@@ -428,7 +429,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "afdaf220d61fa2d4fa8b1e50255ccdcbe9dcf5f1356745ad94702dd8fb1aa69a",
+      "sha256": "0568aa71c2ae8827e46a93d761bcd417065e1d8dde51d7abdc14f9eb205347c6",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -440,7 +441,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "f79427fa5321ed32b0927be320db3c04a0dcea80ac191dc7efb834f2b024dca2",
+      "sha256": "a9000c7e358449a779c5e9ca8efc9bc4f04c1c8e550be3bfe8ffd4fd75babeae",
       "executable": false
     },
     "base-copies.json": {
@@ -452,7 +453,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "586122e956180e17e8edec7c887dd828d4ea01a45a5efadeac1786957f4a156d",
+      "sha256": "6a8259be913aef2565c731f4059b5bc28433ea4141f2e5cb150c350e2120912f",
       "executable": false
     },
     "DEMO.md": {
@@ -528,7 +529,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "6d1070322bb9b3b6f445aabcfdda081c5fd200d86aa8615411713562a561b5a8",
+      "sha256": "48e6eced8d54957cc1c8126b0f6e5d27afb60a6888b864cf119878380ee631d1",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -540,7 +541,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "e608a9c680f3f548da4372459fae547d114be84e189bf56c2d84033d30d2f0f6",
+      "sha256": "f38bbe6ff1dd7109b0548f05063be4c79e2a1ab6b2e911290728eb3437f6c951",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -833,6 +834,10 @@
     },
     "migrations/core/0073_gauge_milestone_review.sql": {
       "sha256": "6a2f0d164dd4e027e1bc742175b800651f8e8cd779b6b915d10b0a9965325f90",
+      "executable": false
+    },
+    "migrations/core/0074_gauge_milestone_review_tokens.sql": {
+      "sha256": "c1b8c41f7111f730a838568782d0fcb24c4eefd856663fe5e7fa39462e68f0ef",
       "executable": false
     },
     "MOVE-IN.md": {
@@ -1480,7 +1485,7 @@
       "executable": false
     },
     "src/gauge/audit.ts": {
-      "sha256": "ae5619d075ae5a85e5bf664199a04030935185f115cf34fb0cc44c31163f55c0",
+      "sha256": "72d93097e6fe4fe8c0a92d113b89d7b06739b654b757c77d6db0240db27570f6",
       "executable": false
     },
     "src/gauge/billability.ts": {
@@ -1524,7 +1529,7 @@
       "executable": false
     },
     "src/gauge/commands.ts": {
-      "sha256": "c27a65f7909c8d8c42426e15a5c1fb1c8315a6e1e8281596d9e6f84a0fea5081",
+      "sha256": "303e2cc142c1089e2039233fc1736de2334cbcb8697bc797e45d7042fcf36cf5",
       "executable": false
     },
     "src/gauge/commercial-client.ts": {
@@ -1736,7 +1741,7 @@
       "executable": false
     },
     "src/gauge/milestone-review.ts": {
-      "sha256": "e708a0e6ff60b991a60ff023ea78604f55b8494218e158c38ffaa438953da411",
+      "sha256": "bb355862f3e952fbe5f445d816776616760f2abcd1b09a75b8aaab24d047ff6c",
       "executable": false
     },
     "src/gauge/model.ts": {
@@ -2052,7 +2057,7 @@
       "executable": false
     },
     "src/gauge/scope-changes.ts": {
-      "sha256": "474f409d8afa25e1074c56eb18be1f05d1702f96df2b952a22ec460f7876450f",
+      "sha256": "bee8f9053fc84d94d6aa7ed04ddf60fd68e6d1abf8bd5039fdde37e7a144fead",
       "executable": false
     },
     "src/gauge/scoro-common.ts": {
@@ -2088,7 +2093,7 @@
       "executable": false
     },
     "src/gauge/store.ts": {
-      "sha256": "1a13117fe49d2b0ee4f24707da4c08cc2eaecf6242b9e2f946a3f38fa966f44e",
+      "sha256": "159526f653ddb746aea973393b9b1616a96580d1bbc5e82f065c0ce5d564574d",
       "executable": false
     },
     "src/gauge/tasks.ts": {
@@ -2132,7 +2137,7 @@
       "executable": false
     },
     "src/gauge/ui-audit.ts": {
-      "sha256": "b1ba6cd468c5f5850ebd5231ecb7571382727e5b99c841211a0b0822c4c7fa6e",
+      "sha256": "eeefef7ee1fe104a5e10fafea3203703b282a476cd0c2f906d13381971e7cbfc",
       "executable": false
     },
     "src/gauge/ui-board.ts": {
@@ -2256,7 +2261,7 @@
       "executable": false
     },
     "src/gauge/ui-milestone-delivery.ts": {
-      "sha256": "920cdbdba6504bae53d1a05df56b382b1b73e873af5d51321b8a024271775370",
+      "sha256": "9ef31c5055ff4f8bf501413ac8944e0e2fe9818a6ca7bf99f95128b7e8204ad4",
       "executable": false
     },
     "src/gauge/ui-operational-cases.ts": {
@@ -4324,7 +4329,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "a150deabcb5516f8f2546ef8b39ac2444a553d86b66f331e425da1a37193ae90",
+      "sha256": "943c51c34524ecc4dd10289f7cfaf3f63cab2aca90bb233e731a098c8d3adbcd",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {
@@ -4400,7 +4405,7 @@
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
-      "sha256": "9e222e9df8c5cea9fc631303a255663e2bce3cb03fa5a7768ff8fe6a32509eaf",
+      "sha256": "0b4f52aaf7315974bb07939557065231067958ef78ae8cfb49a160c23bbf76b6",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {
@@ -4440,7 +4445,7 @@
       "executable": false
     },
     "tests/gauge-project-scenario-scope.mjs": {
-      "sha256": "6bf2cbb5a069db5f6b741c20ffe994e6646cc6582e4970e9378cf19b5efb56a1",
+      "sha256": "2376b25a45b702d97a339058272dda4ad281cf46d6ec544f1e3ba7f0da0b03af",
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {

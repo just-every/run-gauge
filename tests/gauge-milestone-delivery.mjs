@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 
 // DELIVERY-005: every acceptance point through native forms and HTTP, at both widths.
@@ -104,12 +104,39 @@ export async function milestoneDeliveryJourney(h,browser,{lead,worker,manager,st
    ownRow=(await state()).data.milestones.find(r=>r.id===separate.id);assert.equal(ownRow.value.delivery.authorization.notice,'One-person approval by owner')
   }finally{await context.close()}
  }
- await directMilestoneReviewJourney(h,{lead,worker,manager,staff,outsider,financePerson})
+ await directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff,outsider,financePerson})
  console.log('PASS DELIVERY-005: risks, mitigation/owner, dated client dependencies, immutable delivered work, attributed rejection/resolution/acceptance, separate billing gates, exact replay/stale refusal, access and 1440/390 public forms')
 }
 
-async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outsider,financePerson}) {
- const {cmd,state,request,post}=h
+async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff,outsider,financePerson}) {
+ const {cmd:rawCmd,state,request:rawRequest}=h,tokens=new Map(),attempts=[]
+ const cmd=async(action,input={},cookie=h.owner,expected=200)=>{
+  if(action==='milestone:release-review')input={key:randomUUID(),...input}
+  const outbound=h.providerRequests.length
+  const result=await rawCmd(action,input,cookie,expected)
+  if(['milestone:release-review','milestone:revoke-review'].includes(action))assert.equal(h.providerRequests.length,outbound,'Release and revocation send nothing')
+  if(action==='milestone:release-review'&&expected===200){
+   assert.match(result.token,/^[a-f0-9]{64}$/)
+   const row=(await state()).data.milestones.find(r=>r.id===result.id),review=row.value.delivery.clientReviews.at(-1)
+   const path=`/api/gauge/client-milestones/${row.id}/${review.id}`
+   tokens.set(path,result.token)
+   const stored=await h.db.prepare('SELECT token_hash FROM g_milestone_review_authority WHERE review_id=?').bind(review.id).first()
+   assert.equal(stored.token_hash,createHash('sha256').update(result.token).digest('hex'))
+   const replay=await rawCmd(action,input,cookie)
+   assert.equal(replay.token,undefined,'A release replay never shows the token again')
+   const surfaces=JSON.stringify(await state())+await(await rawRequest(`/api/gauge/history/milestones/${row.id}`,h.owner)).text()+await(await rawRequest('/api/gauge/audit/export',h.owner)).text()+JSON.stringify((await h.db.prepare('SELECT result FROM g_receipts').all()).results)
+   assert(!surfaces.includes(result.token),'Token never persists in business state, history, audit or receipts')
+  }
+  return result
+ }
+ const request=async(path,cookie='',options={})=>{
+  const outbound=h.providerRequests.length
+  const response=await rawRequest(path,cookie,{...options,headers:{'x-gauge-review-token':tokens.get(path)??'',...options.headers}})
+  attempts.push({path,status:response.status,method:options.method??'GET'})
+  assert.equal(h.providerRequests.length,outbound,'Recipient access and decisions send nothing')
+  return response
+ }
+ const post=(path,input,cookie)=>request(path,cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json'},body:JSON.stringify(input)})
  const recipient=await h.invite('synthetic-gauge-7301'),otherRecipient=await h.invite('synthetic-gauge-7302')
  const client=await cmd('save:clients',{name:'synthetic-gauge-7303'})
  const engagement=await cmd('save:engagements',{name:'synthetic-gauge-7304',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Internal scope withheld from recipients',timezone:'UTC'})
@@ -121,10 +148,15 @@ async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outside
  const releaseInput={...milestone,contact:'synthetic-gauge-7301@example.test',description:'Review the delivered design assets',reason:'Owner explicitly shares this delivery only',days:7}
  for(const cookie of [manager.cookie,financePerson.cookie,staff.cookie,recipient.cookie])await cmd('milestone:release-review',releaseInput,cookie,403)
  await cmd('milestone:release-review',{...releaseInput,contact:'delivery-worker@example.test'},h.owner,409)
- milestone=await cmd('milestone:release-review',releaseInput)
+ for(const days of [0,31])await cmd('milestone:release-review',{...releaseInput,days},h.owner,400)
+ const start=Date.now()
+ milestone=await cmd('milestone:release-review',{...releaseInput,days:1})
  let row=await current(),review=row.value.delivery.clientReviews.at(-1)
+ assert(review.expiresAt>=start+86400000&&review.expiresAt<=Date.now()+86400000)
  const path=review=>`/api/gauge/client-milestones/${row.id}/${review.id}`
  for(const [cookie,status]of [['',401],[otherRecipient.cookie,403],[h.owner,403],[staff.cookie,403],[outsider.cookie,403]])assert.equal((await request(path(review),cookie)).status,status)
+ assert.equal((await request(path(review),recipient.cookie,{headers:{'x-gauge-review-token':''}})).status,403,'Confirmed sign-in without the shown-once token cannot read')
+ assert.equal((await request(path(review),recipient.cookie,{headers:{'x-gauge-review-token':'synthetic-gauge-wrong'}})).status,403)
  let response=await request(path(review),recipient.cookie);assert.equal(response.status,200)
  const document=await response.json()
  assert.deepEqual(Object.keys(document).sort(),['date','decision','deliveryId','description','expiresAt','id','name','revision'].sort())
@@ -172,8 +204,9 @@ async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outside
  await cmd('milestone:revoke-review',{...pendingRow,reviewId:pendingReview.id,reason:'Withdraw recipient access'})
  assert.equal((await request(pendingPath(),recipient.cookie)).status,403)
  pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id)
- await cmd('milestone:release-review',{...pendingRow,contact:'synthetic-gauge-7301@example.test',description:'Fresh pending work release',reason:'Explicit renewed authority'})
+ await cmd('milestone:release-review',{...pendingRow,contact:'synthetic-gauge-7301@example.test',description:'Fresh pending work release',reason:'Explicit renewed authority',days:30})
  pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id);pendingReview=pendingRow.value.delivery.clientReviews.at(-1)
+ assert(pendingReview.expiresAt>Date.now()+29*86400000&&pendingReview.expiresAt<=Date.now()+30*86400000)
  await h.db.prepare('UPDATE g_milestone_review_authority SET expires_at=0 WHERE review_id=?').bind(pendingReview.id).run()
  assert.equal((await request(pendingPath(),recipient.cookie)).status,403,'An expired grant cannot read or decide')
  assert.equal((await post(pendingPath(),{key:randomUUID(),revision:pendingRow.revision,outcome:'accepted',reason:'Expired authority'},recipient.cookie)).status,403)
@@ -184,5 +217,36 @@ async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outside
  assert.equal((await request(livePath,otherRecipient.cookie)).status,200)
  assert.equal((await h.post('/auth/operator/status',{operatorId:authorizer.id,status:'inactive'},h.owner)).status,200)
  assert.equal((await request(livePath,otherRecipient.cookie)).status,403,'Losing the authorizing owner immediately fences client review')
+ pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id)
+ const staffRelease=await cmd('milestone:release-review',{...pendingRow,contact:'synthetic-gauge-7301@example.test',description:'Only the released customer description',reason:'Do not project later private staff decisions'})
+ pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id);const staffReview=pendingRow.value.delivery.clientReviews.at(-1),staffPath=`/api/gauge/client-milestones/${pending.id}/${staffReview.id}`
+ await cmd('milestone:decision',{...staffRelease,deliveryId:staffReview.deliveryId,outcome:'accepted',contact:'Internal staff contact',date:'2020-01-03',reason:'Private staff rationale must remain internal'},manager.cookie)
+ const staffDocument=await(await request(staffPath,recipient.cookie)).json()
+ assert.equal(staffDocument.description,'Only the released customer description');assert.equal(staffDocument.decision,null)
+ assert(!JSON.stringify(staffDocument).includes('Private staff'));assert(!JSON.stringify(staffDocument).includes('Internal staff contact'))
+ const staffCurrent=(await state()).data.milestones.find(r=>r.id===pending.id)
+ assert.equal((await post(staffPath,{key:randomUUID(),revision:staffCurrent.revision,outcome:'accepted',reason:'Cannot relabel staff evidence as client confirmation'},recipient.cookie)).status,409)
+ assert(!staffCurrent.value.delivery.decisions.at(-1).confirmedByClient)
+ const audit=await(await rawRequest(`/api/gauge/audit?recordId=${milestone.id}&action=milestone:review-access`,h.owner)).json()
+ const expected=attempts.filter(a=>a.path.startsWith(`/api/gauge/client-milestones/${milestone.id}/`))
+ assert.equal(audit.entries.length,expected.length,'Every successful or refused review access appears in the owner audit')
+ for(const status of [200,400,401,403,409])assert.equal(audit.entries.filter(e=>e.result.status===status).length,expected.filter(a=>a.status===status).length)
+ assert(audit.entries.some(e=>e.result.status===200&&e.result.method==='GET'))
+ assert(audit.entries.some(e=>e.result.status===403))
+ assert(audit.entries.some(e=>e.result.method==='POST'))
+ const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
+ try {
+  await context.addCookies(h.owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   await page.goto(`${h.origin}/app/engagements?edit=${engagement.id}`)
+   await page.getByRole('link',{name:'Client review access audit'}).first().click()
+   // Select this exact released milestone, rather than the first project milestone.
+   await page.goto(`${h.origin}/app/audit?recordId=${milestone.id}&action=milestone%3Areview-access`)
+   assert.match(await page.locator('main').innerText(),/milestone:review-access/)
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Access audit fits ${width}`)
+   if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-access-audit-${width}.png`,fullPage:true})
+  }
+ }finally{await context.close()}
  console.log('PASS DELIVERY-005 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale, revoked and expired authority, replay and separate finance gates')
 }

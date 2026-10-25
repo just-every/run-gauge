@@ -76,7 +76,8 @@
           "migrations/core/0067_gauge_accountant_grant.sql",
           "migrations/core/0068_gauge_resource_manager.sql",
           "migrations/core/0070_gauge_float_adoption.sql",
-          "migrations/core/0073_gauge_milestone_review.sql"
+          "migrations/core/0073_gauge_milestone_review.sql",
+          "migrations/core/0074_gauge_milestone_review_tokens.sql"
         ]
       }
     },

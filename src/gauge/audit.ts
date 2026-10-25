@@ -68,7 +68,7 @@ export async function verifyAudit(env: Bindings, checkpoint?: { seq: number; has
 
 export interface AuditQuery { kind?: string | null; recordId?: string | null; actor?: string | null; action?: string | null; text?: string | null; from?: string | null; to?: string | null }
 const decisions = /:(approve|return|decline|withdraw|correct|reopen|adjust|close|cancel|revoke|limit|assign|apply|convert|undo)\b|^grant$|^apikey:|^import:/
-const referenceKeys = ['source', 'sourceId', 'sourceIdentity', 'externalId', 'importJobId', 'provenance', 'results', 'result', 'receiver', 'proposalId', 'opportunityId', 'correctsPacketId']
+const referenceKeys = ['reviewId','method','status','notice','source', 'sourceId', 'sourceIdentity', 'externalId', 'importJobId', 'provenance', 'results', 'result', 'receiver', 'proposalId', 'opportunityId', 'correctsPacketId']
 const policyKeys = ['policyId', 'policyRevision', 'policy', 'reviewAboveMinor', 'approvalPolicyId', 'approvalPolicyRevision', 'rules', 'ruleVersion']
 const pick = (value: Value | null, keys: string[]) => value ? Object.fromEntries(keys.filter(k => value[k] !== undefined && value[k] !== null).map(k => [k, value[k]])) : {}
 const changed = (before: Value | null, after: Value) => [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter(k => canonicalJson(before?.[k] ?? null) !== canonicalJson(after[k] ?? null)).sort()
@@ -79,7 +79,8 @@ async function present(env: Bindings, a: Actor, r: AuditRow, names: Map<string, 
  const raw = JSON.parse(r.data) as Value, result = record ? redact(a, k, raw) : raw
  const prior = r.previous_revision && record ? await env.DB.prepare('SELECT data FROM g_history WHERE kind=? AND record_id=? AND revision=?').bind(r.kind, r.record_id, r.previous_revision).first<{ data: string }>() : null
  const previous = prior ? redact(a, k, JSON.parse(prior.data)) : null
- const approval = result.approvedBy && result.approvedBy !== previous?.approvedBy ? { by: result.approvedBy, byName: names.get(result.approvedBy) ?? null, at: result.approvedAt ?? null } : null
+ const internalApproval = result.changeOrder&&result.reviewStatus==='approved' ? {by:result.reviewedBy,byName:names.get(result.reviewedBy)??null,at:result.reviewedAt,label:'Internal approval'} : null
+ const approval = internalApproval ?? (result.approvedBy && result.approvedBy !== previous?.approvedBy ? { by: result.approvedBy, byName: names.get(result.approvedBy) ?? null, at: result.approvedAt ?? null } : null)
  return {
   seq: r.seq, at: new Date(r.at).toISOString(), atMs: r.at, actor: { id: r.actor, name: names.get(r.actor) ?? (r.actor.startsWith('key:') ? `API key ${r.actor.slice(4)}` : null), role: r.role ?? (r.action.startsWith('import:') ? 'import job' : null), personId: r.person_id },
   automated: r.role === 'agent' || r.actor.startsWith('key:') || r.action.startsWith('import:'),

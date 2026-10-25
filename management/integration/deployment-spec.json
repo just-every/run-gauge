@@ -444,6 +444,12 @@
       "name": "0073_gauge_milestone_review.sql",
       "sha256": "6a2f0d164dd4e027e1bc742175b800651f8e8cd779b6b915d10b0a9965325f90",
       "sql": "-- Recipient review is installation authority; delivery and decision history remain portable.\nCREATE TABLE g_milestone_review_authority (\n review_id TEXT PRIMARY KEY,\n milestone_id TEXT NOT NULL,\n delivery_id TEXT NOT NULL,\n recipient_id TEXT NOT NULL,\n contact TEXT NOT NULL,\n owner_id TEXT NOT NULL,\n expires_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0074_gauge_milestone_review_tokens.sql",
+      "sha256": "c1b8c41f7111f730a838568782d0fcb24c4eefd856663fe5e7fa39462e68f0ef",
+      "sql": "-- Existing releases require a fresh owner release before recipient access resumes.\nALTER TABLE g_milestone_review_authority ADD COLUMN token_hash TEXT;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

@@ -36,7 +36,7 @@ export async function scopeChangeCommand(env:Bindings,a:Actor,tx:Transaction,act
   tx.guard("(SELECT COUNT(*) FROM g_projectScenarios WHERE json_extract(data,'$.changeOrder')=1 AND json_extract(data,'$.engagementId')=?)=?",preview.engagementId,versions.length)
   if(previous)tx.observe('projectScenarios',previous)
   const id=uuid()
-  return tx.record('projectScenarios',{...preview,changeOrder:true,rootId:previous?.value.rootId??id,previousId:previous?.id??null,number:versions.length+1,name:text(input.name,'Change request name',200),reason:text(input.reason,'Change request reason'),status:'prepared',reviewStatus:'pending',preparedBy:a.session.operator.id,preparedAt:Date.now(),notice:'Internal change request only; client acceptance and signed evidence pending. No approved budget, date, forecast or billing authority.'},undefined,id,action)
+  return tx.record('projectScenarios',{...preview,changeOrder:true,rootId:previous?.value.rootId??id,previousId:previous?.id??null,number:versions.length+1,name:text(input.name,'Change request name',200),reason:text(input.reason,'Change request reason'),status:'prepared',reviewStatus:'pending',preparedBy:a.session.operator.id,preparedPersonId:a.personId,reviewLabel:'Internal review pending',preparedAt:Date.now(),notice:'Internal change request only; client acceptance and signed evidence pending. No approved budget, date, forecast or billing authority.'},undefined,id,action)
  }
  const row=await get(env,'projectScenarios',text(input.id,'Change request'))
  need(row.value.changeOrder&&row.revision===input.revision&&row.value.status==='prepared','Change request changed or was withdrawn',409)
@@ -46,10 +46,10 @@ export async function scopeChangeCommand(env:Bindings,a:Actor,tx:Transaction,act
  const reason=text(input.reason,action==='change:review'?'Internal review reason':'Withdrawal reason')
  if(action==='change:withdraw')return tx.record('projectScenarios',{...row.value,status:'withdrawn',withdrawnBy:a.session.operator.id,withdrawnAt:Date.now(),withdrawalReason:reason},row,undefined,action)
  need(row.value.reviewStatus==='pending','This version already has an internal review',409)
- need(row.value.preparedBy!==a.session.operator.id,'Another finance person or owner must review the change request',403)
+ need(row.value.preparedBy!==a.session.operator.id&&(!a.personId||row.value.preparedPersonId!==a.personId),'Another finance person or owner must review the change request',403)
  need(['approved','declined'].includes(input.outcome),'Choose internal approval or decline')
  // Recompute the entire dated financial basis. A stale review has no side effects.
  const preview=await scopeChangePreview(env,a,{asOf:row.value.asOf,changes:row.value.changes},tx)
  need(preview.fingerprint===row.value.fingerprint,'Change baseline changed; prepare a new version',409)
- return tx.record('projectScenarios',{...row.value,reviewStatus:input.outcome,reviewedBy:a.session.operator.id,reviewedAt:Date.now(),reviewReason:reason},row,undefined,action)
+ return tx.record('projectScenarios',{...row.value,reviewStatus:input.outcome,reviewLabel:input.outcome==='approved'?'Internal approval':'Internal decline',reviewedBy:a.session.operator.id,reviewedAt:Date.now(),reviewReason:reason},row,undefined,action)
 }

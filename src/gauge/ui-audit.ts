@@ -36,7 +36,7 @@ export async function auditPage(env: Bindings, a: Actor, q: AuditQuery & { check
   { label: 'Action', wrap: true, cell: r => `${e(r.value.action)}${r.value.decision ? ' · decision' : ''}` },
   { label: 'Record', wrap: true, cell: r => `${e(r.value.kind)}<br>${r.value.history ? `<a href="${e(r.value.history)}">${e(r.value.recordId)}</a>` : e(r.value.recordId)}` },
   { label: 'Changed', wrap: true, cell: r => r.value.previous ? e(r.value.changes.join(', ')) : 'Created' },
-  { label: 'Approval and policy', wrap: true, cell: r => [r.value.approval ? `Approved by ${e(r.value.approval.byName ?? r.value.approval.by)}` : '', listing(r.value.policy)].filter(Boolean).join('<br>') || '—' },
+  { label: 'Approval and policy', wrap: true, cell: r => [r.value.approval ? `${e(r.value.approval.label??'Approved')} by ${e(r.value.approval.byName ?? r.value.approval.by)}` : '', listing(r.value.policy)].filter(Boolean).join('<br>') || '—' },
   { label: 'Source and references', wrap: true, cell: r => [r.value.requestKey ? `Request ${e(r.value.requestKey)}` : '', listing(r.value.references)].filter(Boolean).join('<br>') || '—' },
  ], undefined, 'No audit entries match.')
  const body = `<nav class="g-crumbs" aria-label="Breadcrumb"><a href="/app/billing">Billing</a><span aria-hidden="true">/</span><span aria-current="page">Business audit</span></nav><div class="g-titlebar"><h1>Business audit</h1></div>`

@@ -160,6 +160,6 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  tx.sql('INSERT INTO g_receipts(key,actor,digest,result) VALUES(?,?,?,?)',key,a.session.operator.id,digest,JSON.stringify(acknowledgement))
  try {await tx.commit()}catch(error){const retry=await env.DB.prepare('SELECT actor,digest,result FROM g_receipts WHERE key=?').bind(key).first<{actor:string;digest:string;result:string}>();if(retry?.actor===a.session.operator.id&&retry.digest===digest){await fence(env,a);return JSON.parse(retry.result)}throw error}
  // Mutations acknowledge identifiers only: private rate snapshots never leak through staff receipts.
- return acknowledgement
+ return {...acknowledgement,...(result.shownOnceToken?{token:result.shownOnceToken}:{})}
 }
 export function publicResult(value:any):any {if(value?.value){const v={...value.value};delete v.economics;return {...value,value:v}}return value}

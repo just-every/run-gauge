@@ -1,7 +1,7 @@
 /* Gauge's app parts (/app/*), in the owner's pick (desk-gauge/app, option J): white cards on hairlines with a faint
    shadow, an 8 px radius, thin light inputs with a clear turquoise focus, turquoise for the one action, claret for
-   exceptions only. Tokens: rer-theme.css. Frame: gauge-shell.css. Staffing board: gauge-board.css. Every rule is
-   scoped to Gauge's own classes, so Base's development bar keeps its own look. */
+   exceptions only. Tokens: rer-theme.css and fonts/fonts.css. Frame: gauge-shell.css. Staffing board:
+   gauge-board.css. Every rule is scoped to Gauge's own classes, so Base's development bar keeps its own look. */
 .g-app { margin: 0; background: var(--rer-page); color: var(--rer-text); font: var(--g-weight-body) 15px/1.5 var(--rer-font-body); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: clip; }
 .g-app *, .g-app *::before, .g-app *::after { box-sizing: border-box; }
 .g-app :is(h1, h2, h3, p, ul, ol, dl, dd, figure) { margin: 0; }

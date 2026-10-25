@@ -443,7 +443,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "ef66250ffed9e45adf2b512960d9ca04834b93d45da7c64e10306389fcfce079",
+      "sha256": "89aad87d178233b465d06eeddd9b86b7a919eb1269dcad9c926cfbf6ae824501",
       "executable": false
     },
     "CLAUDE.md": {
@@ -903,7 +903,7 @@
       "executable": false
     },
     "public/fonts/fonts.css": {
-      "sha256": "d6a2b665d5fc2acb940835918cd5e1444e9a000c3c987e0cd3ec4fac2a14c51c",
+      "sha256": "634f608dafadab20637b75d24057bd0c70bf97fa6b7aa0819490f688a6045b08",
       "executable": false
     },
     "public/fonts/jetbrains-mono/jetbrains-mono-latin-wght-normal.woff2": {
@@ -927,7 +927,7 @@
       "executable": false
     },
     "public/fonts/README.md": {
-      "sha256": "76dbc28d4c9cd67e68cff7e4df67dc0326eaa030b63dabc66a526e38b921fb08",
+      "sha256": "f19241a3d7e772adc37fedf933b59e91edd3b71b9a92be572780f24b34d157c6",
       "executable": false
     },
     "public/fonts/source-serif-4/LICENSE.txt": {
@@ -951,11 +951,11 @@
       "executable": false
     },
     "public/gauge-shell.css": {
-      "sha256": "c879a6c7fd0be936a6298b62be6625938f782bd1096db6eb59e41354dde819f8",
+      "sha256": "2bac3c3bd6296f71d0a38797858b7daa969b5229d5ccf8bb3d7c16cfa06d501d",
       "executable": false
     },
     "public/gauge.css": {
-      "sha256": "6bf90d08d51910a02e5853a3d49f17aea0e336f158599b88c19e394bbe8286c4",
+      "sha256": "cb88879b67bdae7f0d8d0534b06970fa8814c6701ec5efca7e779087bf89c7a2",
       "executable": false
     },
     "public/move-in.html": {
@@ -963,7 +963,7 @@
       "executable": false
     },
     "public/rer-theme.css": {
-      "sha256": "85abc518a465d2e669509794fcaccf42161b5b1290d387788911850c175ef7b6",
+      "sha256": "06d546956fd4270701de37b8770893e58093a35ab24c89e20c865ababae4f12b",
       "executable": false
     },
     "public/site/band-1536.webp": {
@@ -4087,7 +4087,7 @@
       "executable": false
     },
     "src/server.dev.ts": {
-      "sha256": "4892545be3afaf55d1a45b99933f017baa43512d7152f56b21422010aa70b8a5",
+      "sha256": "79540e700d89d02af4df1297bd844c0e58f0a4758a647eda87d873a8b7109168",
       "executable": false
     },
     "src/server.ts": {
@@ -4183,7 +4183,7 @@
       "executable": false
     },
     "src/site/styles/site.css": {
-      "sha256": "4bb0c00f6f9ef02275fad2dd2007a43d4cb3c7312aa4ed06b9cc2b8e97679a9f",
+      "sha256": "0b3a018214e4c06e44f18a711a21a02a10827fc30f9d913d74e1ae463a1014f7",
       "executable": false
     },
     "tests/fixtures/float-deletion-journey.mjs": {

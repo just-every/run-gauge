@@ -1,6 +1,7 @@
 /* The app's frame from the owner's pick (desk-gauge/app, option J): an ink rail with the mark and the serif wordmark,
    a white work surface under a hairline top bar, the quiet agent strip and the heavy serif page title. Tokens are in
-   rer-theme.css; the shared parts (cards, forms, tables) in gauge.css; the board and its panel in gauge-board.css. */
+   rer-theme.css and fonts/fonts.css; the shared parts (cards, forms, tables) in gauge.css; the board and its panel in
+   gauge-board.css. */
 .g-app { display: grid; grid-template-columns: var(--g-rail) minmax(0, 1fr); min-height: 100vh; background: linear-gradient(90deg, var(--g-navy) var(--g-rail), var(--rer-page) var(--g-rail)); }
 
 /* Rail */

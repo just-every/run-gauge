@@ -15,8 +15,9 @@ Mona Sans is self-hosted under the SIL Open Font License 1.1 in
 `mona-sans/LICENSE.txt`. The two WOFF2 files are `MonaSansVF[opsz,wght].woff2`
 from the Mona Sans 2.0.27 webfonts release (https://github.com/github/mona-sans),
 subset with fonttools `pyftsubset` to the Latin and Latin Extended ranges in
-`fonts.css`, keeping every layout feature (Gauge sets tabular figures on hours,
-money and dates) and both variable axes (weight 200–900, optical size).
+the theme's `@font-face` rules (`/rer-theme.css`), keeping every layout
+feature (Gauge sets tabular figures on hours, money and dates) and both
+variable axes (weight 200–900, optical size).
 
 The root document links `/fonts/fonts.css` once, outside the temporary dev SSR
 stylesheet, and preloads only the primary Latin file. Do not import this CSS

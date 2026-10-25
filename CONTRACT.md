@@ -420,8 +420,8 @@ The named current public-door evidence below extends that prior audit; status to
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 49 | 36 | 39 | 124 |
-| All | 66 | 36 | 39 | 141 |
+| Target and push further | 50 | 35 | 39 | 124 |
+| All | 67 | 35 | 39 | 141 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |

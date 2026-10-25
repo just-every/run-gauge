@@ -451,7 +451,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7088f7d950fceffcb25f490d78d7b247b0529ab9619b8561fb68395a90200f51",
+      "sha256": "20088085e09790f15acf0467ac31707c1aac6d2a2db5b0a6bd61bcef036804bf",
       "executable": false
     },
     "DEMO.md": {
@@ -1428,6 +1428,10 @@
     },
     "src/family/professional-services/README.md": {
       "sha256": "84abac66e4a87409fe44223296a73279af8284cc6921e072ad751f1b8927e4c8",
+      "executable": false
+    },
+    "src/gauge/accountant-projection.ts": {
+      "sha256": "97514cae45ebc551b606f2d6a0ae8f564725c31a32233366fe93e9b64df53908",
       "executable": false
     },
     "src/gauge/accountant.ts": {

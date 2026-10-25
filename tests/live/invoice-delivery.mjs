@@ -24,7 +24,10 @@ try{
    assert.deepEqual(body.personalizations.map(p=>p.to.map(t=>t.email)),[[controlled]],'Only TEST_MAIL_TO may receive live proof mail')
    assert(body.personalizations.every(p=>!p.cc&&!p.bcc));assert.equal(body.from.email,fromEmail)
   }
-  return fetch(req.url,{method:req.method,headers:req.headers,...(body?{body:JSON.stringify(body)}:{}),redirect:'manual',signal:AbortSignal.timeout(20000)})
+  const response=await fetch(req.url,{method:req.method,headers:req.headers,...(body?{body:JSON.stringify(body)}:{}),redirect:'manual',signal:AbortSignal.timeout(20000)})
+  // Node fetch decodes compressed bodies before forwarding them into the Worker.
+  const headers=new Headers(response.headers);headers.delete('content-encoding');headers.delete('content-length')
+  return new Response(response.body,{status:response.status,headers})
  }
  const client=await cmd('save:clients',{name:'Controlled invoice proof client',paymentTermsDays:30})
  const person=await cmd('save:people',{name:'Morgan Hale',timezone:'America/New_York'})

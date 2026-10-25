@@ -83,7 +83,7 @@ export async function privacyJourney(){
    assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_people').first()).n,0,'An old archive publishes no rows behind the later erasure fence');await restore.imports.abort(id)
    const current=await read(newArchive),fresh=await restore.imports.create(current[0]);for(const p of current.filter(r=>r.kind==='part'))await restore.imports.uploadPart(fresh,p.index,p);await restore.imports.finalize(fresh,current.at(-1))
    assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_files WHERE id=?').bind(receiptId).first()).n,0);assert.equal(JSON.parse((await proxy.env.DB.prepare('SELECT data FROM g_people WHERE id=?').bind(person.id).first()).data).name,'Erased worker')
-  }finally{await proxy?.dispose();await rm(dir,{recursive:true,force:true})}
+  }finally{await proxy?.dispose();await rm(dir,{recursive:true,force:true});await rm('dist/server/.wrangler',{recursive:true,force:true})}
   await context.close();console.log('PASS GOVERN-006 bounded native retention/erasure, lawful money hold, exact preview, owner authority and trusted later restore fence (PARTIAL)')
  }finally{await browser?.close();await h.dispose()}
 }

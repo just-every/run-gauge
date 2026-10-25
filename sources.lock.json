@@ -4247,7 +4247,7 @@
       "executable": false
     },
     "tests/fixtures/scoro-restore.mjs": {
-      "sha256": "7d11751ec9c773d159aba4a11caa6e3db18721e2622fc380564bfbe38266f319",
+      "sha256": "55ec236a718da401db2b8191794fb5477c79e87b871ff9f904329e5d14063a39",
       "executable": false
     },
     "tests/fixtures/scoro.mjs": {
@@ -4335,7 +4335,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "bc8d4e4d50d35ff5dd3bad59f95bccb1c7d43657616ef6c79e76955688eba90e",
+      "sha256": "1598a59c83106a93d14c3f413769e588d4d40daf1c0918768fdf9ae6a935d493",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4351,7 +4351,7 @@
       "executable": false
     },
     "tests/gauge-kantata.mjs": {
-      "sha256": "333cd3aa47c3f8a84a46f55c4af70d558c00a852d3fbeea2040b60b4b17e36de",
+      "sha256": "cb536513e416cbc06c0b7b18b2c9c8cf0ad2dda4fc1665d298dd83b1867c00f6",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
@@ -4371,7 +4371,7 @@
       "executable": false
     },
     "tests/gauge-privacy.mjs": {
-      "sha256": "fa060521cdc802f720478633e84419d1788ded255e914bc9255b19485677b1c2",
+      "sha256": "f239b9d8ad9eec28b639962900426e0fbcb2ac7b438839b9836c8ae6b15ce01e",
       "executable": false
     },
     "tests/gauge-productive.mjs": {
@@ -4491,7 +4491,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "34b6fda3e0330b05d7ddaa1b6f43be565a8acd45e1560f90ea2a7fed2aa52f3d",
+      "sha256": "59737cc93a855277a7c8aabb754c1bcc2e56c0f9b12369e8e16ab999f018be36",
       "executable": false
     },
     "tsconfig.json": {

@@ -17,5 +17,5 @@ export async function sourceRestore(h,provider){
   proxy=await getPlatformProxy({configPath:resolve('wrangler.jsonc'),persist:{path:join(directory,'v3')},remoteBindings:false})
   const restored=await createPortability({db:proxy.env.DB,policy:portabilityPolicy}),id=await restored.imports.create(archive[0]);for(const part of archive.filter(r=>r.kind==='part'))await restored.imports.uploadPart(id,part.index,part);await restored.imports.finalize(id,archive.at(-1))
   assert.deepEqual(await snapshot(proxy.env.DB),expected,'Source records, custody journals and all adopted native drafts survive a complete archive restore');assert.equal((await proxy.env.DB.prepare('SELECT count(*) n FROM oa_sessions').first()).n,0,'A restored archive carries no authenticated session')
- }finally{await proxy?.dispose();if(directory)await rm(directory,{recursive:true,force:true});await portability.exports.abort(exportId)}
+ }finally{await proxy?.dispose();if(directory)await rm(directory,{recursive:true,force:true});await rm('dist/server/.wrangler',{recursive:true,force:true});await portability.exports.abort(exportId)}
 }

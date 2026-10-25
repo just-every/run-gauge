@@ -25,5 +25,87 @@
       "seconds": 43200,
       "amountMinor": 120000
     }
+  },
+  "sourceCoverage": {
+    "clients": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 1
+    },
+    "people": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 1
+    },
+    "projects": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 1
+    },
+    "time": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 12
+    }
   }
 }

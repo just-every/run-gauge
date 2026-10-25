@@ -37,6 +37,7 @@ export function kantataPackage(pkg:Value){
  const namespace=`kantata-${flavor}:`+text(m.account,'Source account or Salesforce org identity',150),timezone=zone(m.timezone),findings:Value[]=[],records:Record<string,Value[]>={},bundle:SourceBundle={records:[],artifacts:[],diagnostics:[]},effects=new Map<string,TargetEffect[]>(),artifacts=new Map<string,{sha256:string;name:string}>(),locations=new Map<string,Value>()
  need(Array.isArray(m.windows)&&m.windows.length>0&&m.windows.length<=7,'Declare complete year export windows')
  let previous=0;for(const w of m.windows){const year=n(w.year,'Export year',1970);need(year<=9998&&w.from===`${year}-01-01`&&w.to===`${year}-12-31`&&(!previous||year===previous+1),'Export windows must be complete consecutive calendar years');previous=year;if(w.complete!==true)findings.push({kind:'coverage',year,reason:'Incomplete export window blocks cutover'})}
+ if(!m.historyRange?.from||!m.historyRange?.to||date(m.historyRange.from)!==m.windows[0].from||date(m.historyRange.to)!==m.windows.at(-1).to)findings.push({kind:'coverage',reason:'Complete year windows must cover the independent source history range'})
  if(flavor==='ox'&&m.sourceKind==='ox-data-export'&&(!m.exportJob?.id||m.exportJob.status!=='complete'||m.exportJob.downloaded!==true))findings.push({kind:'coverage',reason:'Asynchronous OX export completion and downloaded artifacts are required'})
  if(flavor==='sx'&&m.sourceKind==='sx-salesforce-api'&&(m.capture?.complete!==true||m.capture?.nextPageToken!=null))findings.push({kind:'coverage',reason:'All Salesforce API pages must be captured'})
  if(m.administrator!==true)findings.push({kind:'permissions',reason:'Source administrator permission was not declared'})
@@ -53,6 +54,7 @@ export function kantataPackage(pkg:Value){
  for(const kind of kantataObjects){
   if(m.permissions?.[kind]!==true)findings.push({kind,reason:'Missing source object permission blocks cutover'})
   const cfg=m.mapping.objects?.[kind];need(cfg&&typeof cfg==='object'&&cfg.columns?.id,`Review the ${kind} object mapping, including stable source ID`)
+  if(cfg.complete!==true||cfg.filters!=='all-records')findings.push({kind,reason:'Filtered or truncated original object export cannot establish completeness'})
   const file=text(cfg.artifact,`${kind} source artifact`,200);let raw:Value[],artifact=file
   if(cfg.format==='xlsx'){need(kind==='time'&&flavor==='ox'&&workbookRows.has(file),'XLSX is supported for OX time only');const book=workbookRows.get(file)!;raw=book.records.map(r=>r.value);locations.set(kind,{artifact:file,pointer:book.worksheet})}
   else{

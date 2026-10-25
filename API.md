@@ -675,6 +675,8 @@ Finance/owner uses `kantata:preview` with `package: {manifest, files?, workbooks
 
 OX sourceKind is `ox-insights-and-time` or `ox-data-export` (the latter requires retained exportJob id/status complete/downloaded true). SX is `sx-salesforce-export` (original bounded flat object CSV ZIP) or `sx-salesforce-api` (complete capture with no next page token). Raw artifacts and the manifest remain in custody. `tests/fixtures/kantata.mjs` documents the synthetic adapter shape; it is not a claim that all provider exports have these columns. Each artifact is at most 2 MiB, the SX ZIP expands to at most 8 MiB/64 flat CSV members and the package has at most 1,000 records. No formulas execute.
 
+Kantata also requires independent `historyRange: {from,to}` reaching both ends of the declared year windows, and `complete: true` plus `filters: "all-records"` on every object descriptor. Missing source extent and filtered or truncated originals produce findings and refuse apply.
+
 The source controls are `{counts: {ROLE: count}, financial: {"clientSourceId/YYYY-MM/ISO": {timeSeconds,billableSeconds,timeCostMinor,timeValueMinor,expenseMinor,invoiceMinor,paidMinor,outstandingMinor,wipMinor}}}`. Quantities and minor units are safe integers; currencies remain separate. Missing permissions, incomplete windows, unresolved joins/custom options and mismatched independent controls are visible findings; none can apply. `kantata:create` requires the reviewed fingerprint and key; `kantata:resume|read|rollback|undo` take the job id. The owner of an import controls its journal. Ten source rows apply per batch; replays use stable source identities. The existing `/api/gauge/imports/ID` download returns retained originals.
 
 `kantata:report` takes namespace and optional source fieldId, returning finance-only historical groups and source IDs. Practice/Office grouping reconciles the retained source evidence. It is labelled historical controls, with no claim of current native utilization/profitability, native approval, invoice issuance, payment settlement or cutover. Native financial adoption, receipt adoption and approved cutover remain gaps. A separate owner-confirmed bounded native draft adoption is available below.
@@ -721,6 +723,24 @@ JSON descriptors declare captured `apiVersion: "v2"`, a top-level `array`,
 page number, total pages and next cursor (null on the last page). A missing,
 truncated or out-of-order capture cannot be applied. This is uploaded capture
 intake; it never contacts Scoro or represents a live connection.
+
+Shared source completeness additions for Scoro, Teamwork, Productive, Rocketlane
+and Float: `administrator: true` is required alongside owner authorization.
+`historyRange: {from,to}` supplies the independently reviewed source history
+extent; the contiguous windows must reach both ends. Every original descriptor
+requires `complete: true`. A filtered or truncated export cannot apply merely
+because its retained rows add up.
+
+`controls.clientFinancial` is a separately supplied source report, keyed by
+source client, month and currency, with the same explicit metrics as
+`controls.financial`. Both reports must reconcile. `outstandingMinor` is the
+source invoice amount less its captured paid amount, grouped by the original
+invoice month. `paidMinor` is grouped by payment date, so later-month cash does
+not reduce an unrelated month's invoices. Unknown or missing required metrics
+cannot be substituted with zero. The preview exposes `clientFinancial`, including
+retainer opening, closing and signed carry balances. All controls and coverage
+metadata are retained in the fingerprinted original manifest and installation
+archive. Historical finance never grants native approval or settlement authority.
 
 `controls.counts` holds independent source object counts. `controls.financial`
 holds independent `projectId/YYYY-MM/currency` controls for raw, billable, billed

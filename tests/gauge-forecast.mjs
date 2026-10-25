@@ -29,6 +29,7 @@ test('MIGRATE-003 Forecast move-in preserves source hours on reviewed working da
   return job
  }
  try{
+  for(const alter of [p=>delete p.manifest.sourceCoverage.forecast,p=>p.manifest.sourceCoverage.forecast.pagesComplete=false,p=>p.manifest.sourceCoverage.forecast.administrator=false,p=>p.manifest.sourceCoverage.forecast.historyRange.to='2027-12-31']){const invalid=structuredClone(pack);alter(invalid);const p=await h.cmd('import:preview',{package:invalid});assert.equal(p.canApply,false);await h.cmd('import:create',{package:invalid,fingerprint:p.fingerprint},h.owner,400);assert.equal((await report()).data.staffing.length,0)}
   for(const workingDates of [pack.manifest.schedulePeriods.Week.workingDates,['2026-11-02','2026-11-04','2026-11-05','2026-11-06'],['2026-11-03','2026-11-04','2026-11-05','2026-11-06','2026-11-07']]){
    pack.manifest.schedulePeriods.Week.workingDates=workingDates
    pack.manifest.schedulePeriods.Week.workingDays=workingDates.length

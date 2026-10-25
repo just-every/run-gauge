@@ -58,5 +58,7 @@ export function floatDeletionFixture() {
  p.manifest.deletionCoverage.toSequence=3;p.manifest.controls.counts.deletions=3
  p.manifest.controls.financial[['p1', '2026-03', 'USD'].join('/')].scheduledSeconds=0
  delete p.manifest.controls.financial[['Unassigned', '2026-03', 'USD'].join('/')]
+ p.manifest.controls.clientFinancial[['c1', '2026-03', 'USD'].join('/')].scheduledSeconds=0
+ delete p.manifest.controls.clientFinancial[['Unassigned', '2026-03', 'USD'].join('/')]
  return p
 }

@@ -101,6 +101,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const {capturedForecastPackage}=await import('./fixtures/forecast.mjs'),forecast=await capturedForecastPackage()
  Object.assign(manifest,{schedulePeople:forecast.manifest.schedulePeople,scheduleProjects:forecast.manifest.scheduleProjects,schedulePlaceholders:forecast.manifest.schedulePlaceholders,forecastApi:forecast.manifest.forecastApi})
  files['forecast.json']=forecast.files['forecast.json']
+ manifest.sourceCoverage.forecast=forecast.manifest.sourceCoverage.forecast
  const sourcePackage={manifest,files,archives:[{name:'historical-invoice.pdf',mediaType:'application/pdf',base64:historicalBytes.toString('base64')}]}
  const preview=await cmd('import:preview',{package:sourcePackage})
  let retainedImport=await cmd('import:create',{package:sourcePackage,fingerprint:preview.fingerprint})

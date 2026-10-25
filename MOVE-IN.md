@@ -23,6 +23,24 @@ XLSX time uses the same time-column mappings, source IDs, historical rates and i
 
 For `POST /api/gauge/command`, put the binary workbook in `package.workbook: {base64: "..."}`, omit `files["time.csv"]`, and provide `manifest.timeWorksheet`. Browser upload accepts `time.xlsx` directly; the retained artifact keeps that filename. Equivalent CSV and worksheet rows share source identities and do not duplicate imported work; source or later native changes still require reconciliation.
 
+Before apply, `sourceCoverage` must describe `clients`, `people`, `projects`
+and `time`, plus `forecast` when supplied. Each entry declares its `provider`
+(`harvest` or `forecast`), stable source `account`, `administrator: true`,
+`permission: true`, `complete: true`, `filters: "all-records"`, independent
+`historyRange: {from,to}` and ordered contiguous `windows: [{from,to,complete:true}]`.
+Harvest entries also supply independent original row `count`; CSV and workbook
+time share the same count. Forecast additionally declares `pagesComplete: true`.
+These are reviewed source attestations, not verification against a live account.
+They must come from the original exports and administrator, not the visible rows.
+Missing permission, filtered or truncated data, unequal counts, date gaps or an
+omitted history edge appear in an incomplete preview and refuse apply without a
+journal or native write. Correct the package and review its new fingerprint.
+The manifest, mappings and exact originals remain in custody through restore.
+
+This coverage gate does not establish complete Harvest finance or retainer
+history. Those records and independent financial controls remain an explicit
+MIGRATE-001 gap; PDF archives do not supply them.
+
 Supply a JSON manifest:
 
 - `namespace`: stable source account identity; `coverage`: `all-time`;

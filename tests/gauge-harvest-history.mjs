@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 import { workbook } from './fixtures/harvest-workbook.mjs'
@@ -22,6 +22,8 @@ try {
    'time.csv': 'Time Entry ID,Person ID,Project ID,Date,Hours,Rounded Hours,Task,Billable?,Invoiced?,Invoice ID,Approved?,Locked?,Notes\nbrand,ada,launch,2026-09-04,2.11,2.25,Brand design,Yes,Yes,INV-204,Yes,Yes,Approved identity concepts\nweb,ada,launch,2026-09-11,1,1,Web delivery,Yes,No,,No,No,Accessible launch page\n',
   },
  }
+ pack.manifest.sourceCoverage=JSON.parse(await readFile('tests/fixtures/harvest/manifest.json','utf8')).sourceCoverage
+ pack.manifest.sourceCoverage.time.count=2
  const rows = pack.files['time.csv'].trimEnd().split('\n').map(line => line.split(','))
  rows[1][3] = 46269 // 2026-09-04 in the Excel 1900 date system.
  rows[1][4] = 2.11; rows[1][5] = 2.25; rows[2][4] = 1; rows[2][5] = 1

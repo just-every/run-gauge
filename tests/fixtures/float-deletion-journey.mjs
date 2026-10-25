@@ -53,6 +53,7 @@ export async function floatDeletionJourney({h,adoption,page,capture,person}) {
  later.files['deletions.csv']+=event;later.files['deletions-repeat.csv']+=event
  later.manifest.deletionCoverage.toSequence=4;later.manifest.controls.counts.deletions=4
  later.manifest.controls.financial[['p1', '2025-03', 'USD'].join('/')].scheduledSeconds=0
+ later.manifest.controls.clientFinancial[['c1', '2025-03', 'USD'].join('/')].scheduledSeconds=0
  const next=await h.cmd('floatAdopt:deletion-preview',{id:job.id,package:later})
  assert.equal(next.effects.length,2)
  const edited=left[0]

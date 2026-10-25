@@ -19,7 +19,7 @@ export function sourceInstant(v:unknown,label:string){need(typeof v==='string'&&
 export function sourceSeconds(v:unknown,unit:unknown,label:string){need(['seconds','minutes','hours'].includes(String(unit)),label+' requires captured units');const raw=String(v);need(/^\d+(?:\.\d{1,6})?$/.test(raw),label+' requires an exact nonnegative decimal');const [whole,fraction='']=raw.split('.'),den=10n**BigInt(fraction.length),num=(BigInt(whole)*den+BigInt(fraction||'0'))*BigInt(unit==='seconds'?1:unit==='minutes'?60:3600);need(num%den===0n&&num/den<=BigInt(Number.MAX_SAFE_INTEGER),label+' must resolve to exact whole seconds');return Number(num/den)}
 export const commonObjects={clients:['name'],people:['name'],projects:['name','clientId'],tasks:['name','projectId'],rates:['personId','effective','billRateMinor','costRateMinor','currency'],expenses:['projectId','date','amountMinor','currency'],invoices:['projectId','date','amountMinor','paidMinor','currency'],payments:['invoiceId','date','amountMinor','currency']}
 const references:Record<string,Record<string,string>>={projects:{clientId:'clients'},tasks:{projectId:'projects',parentId:'tasks',phaseId:'phases'},phases:{projectId:'projects'},rates:{personId:'people',projectId:'projects',phaseId:'phases'},time:{projectId:'projects',personId:'people',taskId:'tasks',phaseId:'phases',rateId:'rates',invoiceId:'invoices'},expenses:{projectId:'projects',personId:'people'},invoices:{projectId:'projects'},payments:{invoiceId:'invoices'},invoiceLines:{invoiceId:'invoices'},bookings:{projectId:'projects',personId:'people'},allocations:{projectId:'projects',personId:'people',phaseId:'phases'},retainers:{projectId:'projects'},proofs:{projectId:'projects',taskId:'tasks'},approvals:{timeId:'time',personId:'people'},history:{recordId:'time'},workweeks:{personId:'people'},leave:{personId:'people'},quotes:{clientId:'clients'},budgets:{projectId:'projects',phaseId:'phases'}}
-const metrics=['rawSeconds','billableSeconds','billedSeconds','unbilledSeconds','billMinor','costMinor','expenseMinor','invoiceMinor','paidMinor','scheduledSeconds','leaveSeconds','budgetMinor','openingMinor','closingMinor','carryInMinor','carryOutMinor'] as const
+const metrics=['rawSeconds','billableSeconds','billedSeconds','unbilledSeconds','billMinor','costMinor','expenseMinor','invoiceMinor','paidMinor','outstandingMinor','scheduledSeconds','leaveSeconds','budgetMinor','openingMinor','closingMinor','carryInMinor','carryOutMinor'] as const
 export const emptyControl=()=>Object.fromEntries(metrics.map(k=>[k,0])) as Value
 export function sourceControls(records:Record<string,Value[]>,groupBy='project'){
  const groups:Record<string,Value>={},lookup=(kind:string,id:string)=>records[kind]?.find(r=>r.id===id)
@@ -33,7 +33,7 @@ export function sourceControls(records:Record<string,Value[]>,groupBy='project')
   const key=[dimension??'Unassigned',day.slice(0,7),v.currency??'non-monetary'].join('/'),g=groups[key]??=emptyControl()
   if(kind==='time'){add(g,'rawSeconds',v.rawSeconds);add(g,'billableSeconds',v.billableSeconds);add(g,v.billed?'billedSeconds':'unbilledSeconds',v.rawSeconds);add(g,'billMinor',v.billMinor);add(g,'costMinor',v.costMinor)}
   if(kind==='expenses')add(g,'expenseMinor',v.amountMinor)
-  if(kind==='invoices')add(g,'invoiceMinor',v.amountMinor)
+  if(kind==='invoices'){add(g,'invoiceMinor',v.amountMinor);add(g,'outstandingMinor',sum([v.amountMinor,-v.paidMinor]))}
   if(kind==='payments')add(g,'paidMinor',v.amountMinor)
   if(kind==='bookings'||kind==='allocations')add(g,'scheduledSeconds',v.seconds)
   if(kind==='leave')add(g,'leaveSeconds',v.seconds)
@@ -48,9 +48,13 @@ export function moveInPackage(spec:MoveInSpec,pkg:Value,agencyCurrency:string){
  need(m.currency===agencyCurrency,`${spec.name} package uses ${m.currency}; agency uses ${agencyCurrency}. No import conversion is available`)
  const namespace=spec.provider+':'+text(m.account,'Stable source account identity',150),timezone=zone(m.timezone),findings:Value[]=[],bundle:SourceBundle={records:[],artifacts:[],diagnostics:[]},records:Record<string,Value[]>={},sources=new Map<string,SourceRecord>(),claimed=new Set<string>(),effects=new Map<string,TargetEffect[]>()
  const finding=(kind:string,reason:string,sourceId?:string)=>findings.push({kind,reason,...(sourceId?{sourceId}:{})})
- if(m.authorized!==true)finding('permissions','Explicit source owner/manager authorization is missing')
+ if(m.authorized!==true)finding('permissions','Explicit source owner or manager authorization is missing')
+ if(m.administrator!==true)finding('permissions','Source administrator permission is missing')
  need(Array.isArray(m.windows)&&m.windows.length>0&&m.windows.length<=20,'Declare bounded original export windows')
  let previous='';for(const w of m.windows){w.from=date(w.from);w.to=date(w.to);need(w.from<=w.to&&(!previous||w.from>previous),'Source windows must be ordered and non-overlapping');if(previous&&new Date(Date.parse(previous+'T00:00:00Z')+86400000).toISOString().slice(0,10)!==w.from)finding('coverage','Export windows have a historical gap');previous=w.to;if(w.complete!==true)finding('coverage','An original export window is incomplete');if(spec.provider==='float')need(w.from.endsWith('-01-01')&&w.to===w.from.slice(0,4)+'-12-31','Float schedule/report captures require complete year windows')}
+ const extent=m.historyRange
+ if(!extent||!extent.from||!extent.to)finding('coverage','Independent source history range is missing')
+ else if(date(extent.from)!==m.windows[0].from||date(extent.to)!==m.windows.at(-1).to)finding('coverage','Export windows do not cover the independent source history range')
  const addArtifact=(name:string,bytes:Uint8Array)=>{need(bytes.length<=2*1024*1024,'Each source artifact is limited to 2 MiB');bundle.artifacts.push({name,sha256:sha256(bytes),size:bytes.length,original:{status:'available',base64:Buffer.from(bytes).toString('base64')}})}
  addArtifact('move-in-manifest.json',Buffer.from(canonicalJson(m)))
  const artifactNames=Object.keys(pkg.files??{});need(artifactNames.length<=80,'Too many source artifacts')
@@ -61,6 +65,7 @@ export function moveInPackage(spec:MoveInSpec,pkg:Value,agencyCurrency:string){
   const configs=m.objects?.[kind];need(Array.isArray(configs)&&configs.length>0&&configs.length<=20,`Map every ${kind} export, including explicitly empty objects`)
   const seen=new Map<string,string>(),coverage:Value[]=[]
   for(const cfg of configs){
+   if(cfg.complete!==true)finding(kind,'Original export completeness is missing; truncated reports cannot apply')
    need(cfg.columns&&typeof cfg.columns==='object'&&cfg.columns.id,`Map stable ${kind} source IDs; row numbers are not identities`)
    need(Array.isArray(cfg.grouping)&&cfg.grouping.every((g:unknown)=>typeof g==='string'),'Declare the source report grouping explicitly, including an empty array')
    if(cfg.filters==='all-records')coverage.push(...m.windows)
@@ -102,15 +107,16 @@ export function moveInPackage(spec:MoveInSpec,pkg:Value,agencyCurrency:string){
  for(const [kind,rows]of Object.entries(records))for(const v of rows){
   for(const [key,parent]of Object.entries(references[kind]??{}))if(v[key]&&!lookup(parent,v[key]))finding(kind,`Unresolved ${parent} relationship ${key}`,v.id)
   for(const key of ['taskId','phaseId','invoiceId'])if(v[key]&&v.projectId){const parent=lookup(({taskId:'tasks',phaseId:'phases',invoiceId:'invoices'} as Value)[key],v[key]);if(parent&&parent.projectId!==v.projectId)finding(kind,key+' belongs to another project',v.id)}
-  if(kind==='invoices'){const paid=sum((records.payments??[]).filter(p=>p.invoiceId===v.id).map(p=>p.amountMinor));if(paid!==v.paidMinor)finding(kind,'Invoice paid value differs from source payment allocations',v.id)}
+  if(kind==='invoices'){const paid=sum((records.payments??[]).filter(p=>p.invoiceId===v.id).map(p=>p.amountMinor));if((records.payments??[]).some(p=>p.invoiceId===v.id&&p.currency!==v.currency))finding(kind,'Invoice and payment currencies differ',v.id);if(paid!==v.paidMinor)finding(kind,'Invoice paid value differs from source payment allocations',v.id)}
   if(kind==='retainers'){if(sum([v.openingMinor,v.allowanceMinor,-v.usedMinor])!==v.closingMinor||v.carryOutMinor!==v.closingMinor)finding(kind,'Retainer opening, allowance, use and signed carry do not reconcile',v.id)}
  }
  spec.validate?.(records,m,findings)
- const counts=Object.fromEntries(Object.entries(records).map(([kind,rows])=>[kind,rows.length])),financial=sourceControls(records)
- need(m.controls&&typeof m.controls==='object','Supply independent manager/source counts and project/month totals')
- if(canonicalJson(m.controls.counts)!==canonicalJson(counts))finding('controls','Independent source counts do not reconcile')
- if(canonicalJson(m.controls.financial)!==canonicalJson(financial))finding('controls','Independent project/month financial and schedule totals do not reconcile')
+ const counts=Object.fromEntries(Object.entries(records).map(([kind,rows])=>[kind,rows.length])),financial=sourceControls(records),clientFinancial=sourceControls(records,'client')
+ const controls=m.controls&&typeof m.controls==='object'?m.controls:{}
+ if(canonicalJson(controls.counts??null)!==canonicalJson(counts))finding('controls','Independent source counts do not reconcile')
+ if(canonicalJson(controls.financial??null)!==canonicalJson(financial))finding('controls','Independent project and month financial and schedule totals do not reconcile')
+ if(canonicalJson(controls.clientFinancial??null)!==canonicalJson(clientFinancial))finding('controls','Independent client, month and currency financial totals are missing or do not reconcile')
  const id=(kind:string,sourceId:string)=>'mi_'+sha256(`${namespace}:${kind}:${sourceId}`).slice(0,32)
  for(const [key,source]of sources){source.payloadHash=sha256(canonicalJson(source.payload));bundle.records.push(source);effects.set(key,[{targetKind:spec.provider+'Records',targetId:id(source.kind,source.sourceId),value:{provider:spec.provider,namespace,sourceKind:source.kind,sourceId:source.sourceId,timezone,currency:m.currency,data:source.payload,meaning:'Historical source evidence; no native approval, access, issuance, settlement or cutover authority.'}}])}
- return {provider:spec.provider,namespace,timezone,currency:m.currency,records,counts,financial,findings,canApply:findings.length===0,bundle,effects,id,mapping:{version:m.mappingVersion,map:(r:SourceRecord)=>({effects:effects.get(r.kind+':'+r.sourceId)??[]})}}
+ return {provider:spec.provider,namespace,timezone,currency:m.currency,records,counts,financial,clientFinancial,findings,canApply:findings.length===0,bundle,effects,id,mapping:{version:m.mappingVersion,map:(r:SourceRecord)=>({effects:effects.get(r.kind+':'+r.sourceId)??[]})}}
 }

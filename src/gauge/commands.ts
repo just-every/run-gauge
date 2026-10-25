@@ -4,6 +4,8 @@ import { floatDeletionPreview, floatDeletionCommand } from './float-deletions'
 import { floatAdoptionPreview, floatAdoptionCommand } from './float-native'
 import { resourceActions } from './resource-manager'
 import { revenueCommand } from './revenue-schedules'
+import { invoiceMailCommand, dispatchInvoice } from './invoice-delivery'
+import { readInvoiceDelivery } from './invoice-delivery-readback'
 import { invoiceAccessCommand } from './invoice-access'
 import { invoiceSettingsCommand } from './invoice-presentation'
 import { nativeAdoptionPreview,nativeAdoptionCommand } from './kantata-native'
@@ -72,8 +74,9 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
  await seal(env,action.startsWith('import:'))
  if(action.startsWith('provider:'))return providerRequest(env,a,action,input)
- if(action==='providerJob:dispatch'){need(a.role==='owner','Only the owner dispatches provider jobs',403);const job=await get(env,'providerJobs',text(input.id,'Provider job'));return job.value.operation==='email:send'?dispatchCommercial(env,a,input):dispatchProviderJob(env,a,input)}
+ if(action==='providerJob:dispatch'){need(a.role==='owner','Only the owner dispatches provider jobs',403);const job=await get(env,'providerJobs',text(input.id,'Provider job'));return job.value.operation==='email:send'?(job.value.source.kind==='invoiceAccess'?dispatchInvoice(env,a,input):dispatchCommercial(env,a,input)):dispatchProviderJob(env,a,input)}
  if(action==='providerSync:advance')return advanceProviderSync(env,a,input)
+ if(action==='invoice:delivery-readback')return readInvoiceDelivery(env,a,input)
  if(action==='commercial:delivery-readback')return readCommercialDelivery(env,a,input)
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
@@ -133,6 +136,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await scopeChangeCommand(env,a,tx,action,input)
  if(!result)result=await projectScenarioCommand(env,a,tx,action,input)
  if(!result)result=await demandScenarioCommand(env,a,tx,action,input)
+ if(!result)result=await invoiceMailCommand(env,a,tx,action,input)
  if(!result)result=await invoiceAccessCommand(env,a,tx,action,input)
  if(!result)result=await invoiceSettingsCommand(env,a,tx,action,input)
  if(!result)result=await invoiceCommand(env,a,tx,action,input)

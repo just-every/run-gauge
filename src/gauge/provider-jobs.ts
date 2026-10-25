@@ -1,4 +1,5 @@
 import { webhookCredential, webhookEvent, signedWebhookHeaders, webhookResult } from './provider-job-webhook'
+import { assertInvoiceMailSource } from './invoice-mail-source'
 import { latestCommercial } from './commercial-proposals'
 import type { Bindings } from '../auth.server'
 import { type Row, type Value, Fault, need, text, uuid } from './model'
@@ -6,7 +7,7 @@ import { type Actor, Transaction, all, fence, get } from './store'
 import { dispatchCredential, ProviderDispatchError, recordProviderUse, type ProviderOperation, type ProviderOutcome } from './provider-custody'
 import { crankEndpoint, crankResult } from './provider-job-crank'
 
-export interface ProviderJobSource { kind: 'budgetAlerts' | 'commercialProposals' | 'engagements' | 'time' | 'invoices' | 'payments'; id: string; revision: string }
+export interface ProviderJobSource { kind: 'invoiceAccess' | 'budgetAlerts' | 'commercialProposals' | 'engagements' | 'time' | 'invoices' | 'payments'; id: string; revision: string }
 export interface ProviderJobSpec { connectionId: string; operation: ProviderOperation; source: ProviderJobSource; endpoint?: string; eventType?: 'gauge.project.created'|'gauge.project.changed' }
 export type ProviderJobException = 'credential-rotated' | 'credential-revoked' | 'credential-disconnected' | 'provider-rejected' | 'uncertain' | 'provider-rate-limit' | 'retry-exhausted' | 'source-changed'
 export interface ProviderJobResult { status: 'submitted' | 'held' | 'retry-wait' | 'exception' | 'revoked'; exceptionClass?: ProviderJobException; providerMessageId?: string; providerRunId?: string; providerHoldId?: string }
@@ -30,10 +31,11 @@ async function authority(env: Bindings, a: Actor, job: Row, tx?: Transaction) {
 }
 
 async function source(env: Bindings, tx: Transaction, value: ProviderJobSource): Promise<Row> {
- need(['budgetAlerts', 'commercialProposals','engagements','time','invoices','payments'].includes(value.kind), 'Unsupported provider job source')
+ need(['invoiceAccess','budgetAlerts', 'commercialProposals','engagements','time','invoices','payments'].includes(value.kind), 'Unsupported provider job source')
  const row = await get(env, value.kind, text(value.id, 'Source record'))
  need(row.revision === value.revision, 'Provider job source changed; prepare new work', 409)
  tx.observe(value.kind, row)
+ if(value.kind==='invoiceAccess')await assertInvoiceMailSource(env,tx,row)
  if(value.kind==='time')need(row.value.status==='approved','Only approved time is a permitted automation source',409)
  if(value.kind==='commercialProposals'){
   need(row.value.status==='released','Proposal access was revoked before dispatch',409)
@@ -46,7 +48,7 @@ async function source(env: Bindings, tx: Transaction, value: ProviderJobSource):
 async function connection(env: Bindings, tx: Transaction, connectionId: string, operation: ProviderOperation): Promise<Row> {
  const row = await get(env, 'providerConnections', text(connectionId, 'Provider connection'))
  need(!row.value.revokedAt, 'Provider credential revoked; this job cannot be sent', 409)
- need((operation === 'email:send' && row.value.provider === 'resend' || operation === 'trigger:submit' && ['crank','zapier','webhook'].includes(row.value.provider)) && row.value.scopes?.includes(operation), 'Provider connection does not permit this operation', 403)
+ need((operation === 'email:send' && ['resend','sendgrid'].includes(row.value.provider) || operation === 'trigger:submit' && ['crank','zapier','webhook'].includes(row.value.provider)) && row.value.scopes?.includes(operation), 'Provider connection does not permit this operation', 403)
  need(await env.DB.prepare('SELECT connection_id FROM g_provider_credentials WHERE connection_id=? AND version=?').bind(row.id, row.value.version).first(), 'Provider disconnected; enter fresh credentials before queueing', 409)
  tx.observe('providerConnections', row)
  tx.guard('EXISTS(SELECT 1 FROM g_provider_installation_key WHERE id=1) AND EXISTS(SELECT 1 FROM g_provider_credentials WHERE connection_id=? AND version=?)', row.id, row.value.version)
@@ -57,12 +59,13 @@ async function connection(env: Bindings, tx: Transaction, connectionId: string, 
 export async function queueProviderJob(tx: Transaction, spec: ProviderJobSpec, sourceRow?: Row): Promise<Row> {
  const {env, actor: a} = tx
  await owner(env, a, tx)
- need(spec.operation === 'trigger:submit' && ['budgetAlerts','engagements','time','invoices','payments'].includes(spec.source.kind) || spec.operation === 'email:send' && spec.source.kind === 'commercialProposals', 'Provider operation does not match its source')
+ need(spec.operation === 'trigger:submit' && ['budgetAlerts','engagements','time','invoices','payments'].includes(spec.source.kind) || spec.operation === 'email:send' && ['commercialProposals','invoiceAccess'].includes(spec.source.kind), 'Provider operation does not match its source')
  // A source updated earlier by this same transaction is not visible to a separate D1 read yet.
  // That caller supplies the tx.record result, whose previous revision is already observed.
  if (sourceRow) need(sourceRow.id === spec.source.id && sourceRow.revision === spec.source.revision, 'Provider job source does not match the transaction result', 409)
  else await source(env, tx, spec.source)
  const connected = await connection(env, tx, spec.connectionId, spec.operation), id = uuid()
+ need(spec.source.kind!=='commercialProposals'||connected.value.provider==='resend','Proposal mail requires its Resend connection',409)
  need(connected.value.provider!=='crank'||['budgetAlerts','engagements','time','invoices','payments'].includes(spec.source.kind),'Crank accepts only the declared native trigger sources')
  const endpoint = spec.operation === 'trigger:submit' && connected.value.provider==='crank' ? crankEndpoint(spec.endpoint) : null
  if(spec.operation==='trigger:submit'){
@@ -87,7 +90,7 @@ export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, actio
  if(action==='providerJob:queue-webhook'||action==='providerJob:queue-crank-source'){
   const [kind,id,revision]=String(input.sourceRef??'').split(':')
   const src=await source(env,tx,{kind:kind as ProviderJobSource['kind'],id,revision})
-  need(kind!=='commercialProposals','Choose a supported automation event source')
+  need(!['commercialProposals','invoiceAccess'].includes(kind),'Choose a supported automation event source')
   const connected=await connection(env,tx,input.connectionId,'trigger:submit')
   const crank=action==='providerJob:queue-crank-source'
   need(crank?connected.value.provider==='crank':['zapier','webhook'].includes(connected.value.provider),'Choose a matching automation connection')
@@ -103,8 +106,8 @@ export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, actio
   return job
  }
  if (action === 'providerJob:queue-crank') {
-  const alert = await source(env, tx, {kind: 'budgetAlerts', id: input.alertId, revision: input.alertRevision})
-  return queueProviderJob(tx, {connectionId: input.connectionId, operation: 'trigger:submit', endpoint: input.endpoint, source: {kind: 'budgetAlerts', id: alert.id, revision: alert.revision}})
+  const alert = await source(env, tx, {kind: 'invoiceAccess' | 'budgetAlerts', id: input.alertId, revision: input.alertRevision})
+  return queueProviderJob(tx, {connectionId: input.connectionId, operation: 'trigger:submit', endpoint: input.endpoint, source: {kind: 'invoiceAccess' | 'budgetAlerts', id: alert.id, revision: alert.revision}})
  }
  const job = await get(env, 'providerJobs', text(input.id, 'Provider job'))
  await authority(env, a, job, tx)

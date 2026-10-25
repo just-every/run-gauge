@@ -4,12 +4,12 @@ import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { Fault, type Row, type Value, integer, need, text, uuid } from './model'
 import { type Actor, type Transaction, all, fence, get } from './store'
 
-export type Provider = 'resend' | 'crank' | 'inkwell' | 'zapier' | 'webhook' | 'receipt'
+export type Provider = 'sendgrid' | 'resend' | 'crank' | 'inkwell' | 'zapier' | 'webhook' | 'receipt'
 export type ProviderOperation = 'email:send' | 'email:read' | 'trigger:submit' | 'signature:read' | 'followup:verify'
 export type ProviderOutcome = 'accepted' | 'rejected' | 'uncertain' | 'credential-rotated' | 'credential-revoked' | 'credential-disconnected' | 'rate-limited'
 export interface ProviderUse { connectionId: string; credentialVersion: number; jobId: string; operation: ProviderOperation; outcome: ProviderOutcome }
 export interface ProviderAcknowledgement { id: string | null; revision: string | null; saved: true }
-const scopes: Record<Provider, ProviderOperation[]> = { resend: ['email:send','email:read'], crank: ['trigger:submit'], inkwell: ['signature:read'], zapier:['trigger:submit'], webhook:['trigger:submit'], receipt:['followup:verify'] }
+const scopes: Record<Provider, ProviderOperation[]> = { sendgrid: ['email:send','email:read'], resend: ['email:send','email:read'], crank: ['trigger:submit'], inkwell: ['signature:read'], zapier:['trigger:submit'], webhook:['trigger:submit'], receipt:['followup:verify'] }
 const encode = new TextEncoder()
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
 const bytes = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0))
@@ -99,7 +99,7 @@ export async function providerCommand(env: Bindings, a: Actor, tx: Transaction, 
   return {id: saved.id, revision: saved.revision, saved: true}
  }
  const provider = row?.value.provider ?? input.provider
- need(provider === 'resend' || provider === 'crank' || provider === 'inkwell' || provider === 'zapier' || provider === 'webhook' || provider === 'receipt', 'Choose Resend, Crank, Inkwell, Zapier or a signed webhook')
+ need(provider === 'sendgrid' || provider === 'resend' || provider === 'crank' || provider === 'inkwell' || provider === 'zapier' || provider === 'webhook' || provider === 'receipt', 'Choose SendGrid, Resend, Crank, Inkwell, Zapier or a signed webhook')
  const accountLabel = row ? row.value.accountLabel : text(input.accountLabel, 'Provider account label', 120)
  const credential = input.credential
  need(typeof credential === 'string' && credential.length >= 8 && credential.length <= 4096 && !/\s/.test(credential), 'Enter a provider credential of 8 to 4096 characters without whitespace')

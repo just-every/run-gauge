@@ -4,6 +4,7 @@ import {randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
 import {invoiceCorrectionJourney} from './gauge-invoice-corrections.mjs'
+import {invoiceDeliveryJourney} from './gauge-invoice-delivery.mjs'
 
 // REPORT-003 / INVOICE-006: production commands, pages, report CSV and specialist reconciliation.
 export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,packet}) {
@@ -747,6 +748,7 @@ export async function invoicePresentationJourney(h) {
   await context.clearCookies();await context.addCookies(cookies(recipient.cookie));await page.goto(h.origin+clientPath);assert.match(await page.locator('#invoice-document').innerText(),/Retained issued original/);assert.equal(await page.locator('nav a[href="/app/billing"]').count(),0);assert.equal(await page.locator('#invoice-client-access').count(),0);await capture('client-invoice','#invoice-document')
   await context.clearCookies();await context.addCookies(cookies(owner));await page.goto(h.origin+issuedPath);assert.match(await page.locator('#invoice-client-access').innerText(),/[1-9][0-9]* document views/);await capture('client-authorization','#invoice-client-access')
   const beforeRevoke=(await state()).data.invoiceViews;assert(beforeRevoke.some(r=>r.value.accessId===release.id&&r.value.format==='html'&&r.value.pdfSha256===issued.value.pdf.sha256))
+  await invoiceDeliveryJourney(h,{issued,release,recipient,personId:person.id,page,capture})
   await page.setViewportSize({width:390,height:1000});await page.getByText('Revoke client access',{exact:true}).first().click();const revokeForm=page.locator('form').filter({has:page.locator('input[value="invoice:revoke-access"]')});await revokeForm.getByLabel('Reason',{exact:true}).fill('Client review window ended');await revokeForm.getByRole('button',{name:'Revoke client access',exact:true}).click();await page.waitForURL(h.origin+issuedPath)
   for(const format of ['html','pdf','detail-pdf','csv'])assert.equal((await request(clientPath+'?format='+format,recipient.cookie)).status,403)
   const secondRelease=await cmd('invoice:release',{...issued,contact:'synthetic-gauge-5301@example.test',days:1,reason:'Fresh consent after revocation'})

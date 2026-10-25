@@ -1,3 +1,4 @@
+import { readInvoiceDelivery } from './invoice-delivery-readback'
 import type { Bindings } from '../auth.server'
 import { type Actor, Transaction, all, get, fence } from './store'
 import { type Row, type Value, Fault, need, text, uuid, sum } from './model'
@@ -14,12 +15,20 @@ export async function syncCommand(env: Bindings, a: Actor, tx: Transaction, acti
  if (action !== 'providerSync:start') return null
  await owner(env, a)
  const connection = await get(env, 'providerConnections', text(input.connectionId, 'Provider connection')); tx.observe('providerConnections', connection)
- need(['resend','inkwell'].includes(connection.value.provider) && !connection.value.revokedAt, 'Choose an active Resend or Inkwell readback connection', 409)
+ need(['sendgrid','resend','inkwell'].includes(connection.value.provider) && !connection.value.revokedAt, 'Choose an active SendGrid, Resend or Inkwell readback connection', 409)
  const jobs = (await all(env, 'providerJobs')).filter(j => j.value.connectionId === connection.id && j.value.operation === 'email:send' && j.value.ownerId === a.session.operator.id)
  need(jobs.length <= 500, 'Reconcile at most 500 current source jobs per snapshot', 409)
  const proposals = await all(env, 'commercialProposals'), deliveries = await all(env, 'commercialEvents'), items: Value[] = []
  const signature=connection.value.provider==='inkwell'
  for (const job of signature?[]:jobs) {
+  if(job.value.source.kind==='invoiceAccess'){
+   const delivery=deliveries.find(d=>d.value.jobId===job.id&&d.value.type==='invoice-delivery')
+   need(delivery,'An invoice job is missing its delivery event',409)
+   const invoice=await get(env,'invoices',delivery.value.invoiceId)
+   tx.observe('providerJobs',job);tx.observe('invoices',invoice)
+   items.push({kind:'invoice',jobId:job.id,deliveryId:delivery.id,invoiceId:invoice.id,fingerprint:delivery.value.pdfSha256,currency:invoice.value.currency,amountMinor:invoice.value.totalMinor})
+   continue
+  }
   const delivery = deliveries.find(d => d.value.jobId === job.id && d.value.type === 'delivery'), proposal = proposals.find(p => p.id === job.value.source.id)
   need(delivery && proposal, 'A source job is missing its commercial document or delivery event', 409)
   tx.observe('providerJobs', job); tx.observe('commercialProposals', proposal)
@@ -41,7 +50,7 @@ export async function syncCommand(env: Bindings, a: Actor, tx: Transaction, acti
  tx.guard("(SELECT COUNT(*) FROM g_providerJobs WHERE json_extract(data,'$.connectionId')=? AND json_extract(data,'$.operation')='email:send' AND json_extract(data,'$.ownerId')=?)=?", connection.id, a.session.operator.id, jobs.length)
  const totals: Record<string, number> = {}
  for (const item of items) totals[item.currency] = sum([totals[item.currency] ?? 0,item.amountMinor])
- const row = await tx.record('providerSyncs', {connectionId: connection.id, provider:connection.value.provider, ownerId: a.session.operator.id, sourceOfTruth: signature?'Gauge immutable proposal amounts; Inkwell original, signed and certificate digests':'Gauge immutable proposal amounts; Resend message content and delivery state', mapping: signature?'binding → exact proposal, original digest, recipient signature and artifacts':'job → exact recipient, proposal version, price and delivery reference', scopes: [signature?'signature:read':'email:read'], items, cursor: 0, sourceCount: items.length, sourceTotals: totals, reconciledCount: 0, reconciledTotals: {}, outcomes: [], status: items.length ? 'ready' : 'completed', exceptionClass: null, createdAt: Date.now(), updatedAt: Date.now(), completedAt: items.length ? null : Date.now()}, undefined, undefined, action)
+ const row = await tx.record('providerSyncs', {connectionId: connection.id, provider:connection.value.provider, ownerId: a.session.operator.id, sourceOfTruth: signature?'Gauge immutable proposal amounts; Inkwell original, signed and certificate digests':'Gauge immutable document amounts; exact provider messages and delivery state', mapping: signature?'binding → exact proposal, original digest, recipient signature and artifacts':'job → exact recipient, document version, amount and delivery reference', scopes: [signature?'signature:read':'email:read'], items, cursor: 0, sourceCount: items.length, sourceTotals: totals, reconciledCount: 0, reconciledTotals: {}, outcomes: [], status: items.length ? 'ready' : 'completed', exceptionClass: null, createdAt: Date.now(), updatedAt: Date.now(), completedAt: items.length ? null : Date.now()}, undefined, undefined, action)
  tx.sql('INSERT INTO g_provider_sync_authority(sync_id,operator_id) VALUES(?,?)', row.id, a.session.operator.id)
  return row
 }
@@ -72,9 +81,9 @@ export async function advanceProviderSync(env: Bindings, a: Actor, input: Value)
   tx.guard("(SELECT COUNT(*) FROM g_commercialEvents WHERE json_extract(data,'$.type')='signature-binding' AND json_extract(data,'$.proposalId')=?)=?",proposal.id,bindings.length)
  }else{
   const delivery=await get(env,'commercialEvents',item.deliveryId)
-  if(delivery.value.providerMessageId)await readCommercialDelivery(env,a,{id:delivery.id,revision:delivery.revision,key:uuid()})
+  if(delivery.value.providerMessageId)await (item.kind==='invoice'?readInvoiceDelivery:readCommercialDelivery)(env,a,{id:delivery.id,revision:delivery.revision,key:uuid()})
   const reconciled=await get(env,'commercialEvents',item.deliveryId);tx.observe('commercialEvents',reconciled)
-  ok=!!delivery.value.providerMessageId&&!!reconciled.value.mailboxState&&reconciled.value.mailboxState!=='uncertain'
+  ok=!!delivery.value.providerMessageId&&!!reconciled.value.mailboxState&&!['unknown','unconfirmed','uncertain'].includes(reconciled.value.mailboxState)
   exceptionClass=reconciled.value.readbackException??exceptionClass
   outcome={jobId:item.jobId,messageId:reconciled.value.providerMessageId,state:reconciled.value.mailboxState}
  }

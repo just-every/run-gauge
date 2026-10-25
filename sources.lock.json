@@ -4569,7 +4569,7 @@
       "executable": false
     },
     "tests/live/invoice-delivery.mjs": {
-      "sha256": "dee4a2cbbee1b5cc34362b50fb88576d72e5afa4d52d8d7e993937e308b157c7",
+      "sha256": "11789292e94f1ae55fd3ef614dd9807a09899d869d1275283d5ffeed051dc448",
       "executable": false
     },
     "tests/runtime.mjs": {

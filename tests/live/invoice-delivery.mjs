@@ -58,8 +58,11 @@ try{
  assert(receipt,'Controlled invoice mailbox receipt missing after 90 seconds');assert.equal(receipt.to.toLowerCase(),controlled);assert.equal(receipt.auth.dmarc,'pass');assert(receipt.rawUrl)
  const rawRes=await fetch(inbox+receipt.rawUrl,{headers:receiptHeaders,signal:AbortSignal.timeout(20000)});assert.equal(rawRes.status,200)
  const raw=Buffer.from(await rawRes.arrayBuffer())
- const parsed=JSON.parse(execFileSync('python3',['-I','-c',"import sys,json,email,base64;from email.policy import default;m=email.message_from_bytes(sys.stdin.buffer.read(),policy=default);print(json.dumps({'subject':str(m['Subject']),'messageId':str(m['Message-ID']),'attachments':[{'filename':p.get_filename(),'base64':base64.b64encode(p.get_payload(decode=True)).decode()} for p in m.iter_attachments()]}))"],{input:raw,encoding:'utf8'}))
+ const parsed=JSON.parse(execFileSync('python3',['-I','-c',"import sys,json,email,base64;from email.policy import default;m=email.message_from_bytes(sys.stdin.buffer.read(),policy=default);print(json.dumps({'subject':str(m['Subject']),'messageId':str(m['Message-ID']),'text':m.get_body(preferencelist=('plain',)).get_content(),'attachments':[{'filename':p.get_filename(),'base64':base64.b64encode(p.get_payload(decode=True)).decode()} for p in m.iter_attachments()]}))"],{input:raw,encoding:'utf8'}))
  assert.equal(parsed.subject,event.value.subject)
+ assert(parsed.text.includes('Invoice revision: '+invoice.revision));assert(parsed.text.includes('PDF SHA-256: '+invoice.value.pdf.sha256))
+ const receivedClientLink=(parsed.text.match(/https:\/\/[^\s]+\/app\/client-invoices\/[A-Za-z0-9-]+/g)??[]).find(link=>link===h.origin+'/app/client-invoices/'+release.id)
+ assert(receivedClientLink,'The received message links the exact hosted original')
  for(const [name,bytes]of [[invoice.value.number+'.pdf',Buffer.from(invoice.value.pdf.base64,'base64')],[invoice.value.number+'-detail.pdf',Buffer.from(invoice.value.detailPdf.base64,'base64')],[invoice.value.number+'-detail.csv',Buffer.from(invoice.value.detailCsv)]]){
   const attachment=parsed.attachments.find(a=>a.filename===name);assert(attachment,'Received exact invoice attachment');assert.deepEqual(Buffer.from(attachment.base64,'base64'),bytes)
  }
@@ -74,8 +77,8 @@ try{
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage(),shots=process.env.GAUGE_INVOICE_SHOTS
  if(shots)await mkdir(shots,{recursive:true})
  const cookies=cookie=>cookie.split('; ').map(p=>{const i=p.indexOf('=');return{name:p.slice(0,i),value:p.slice(i+1),url:h.origin}})
- for(const [name,cookie,url,selector]of [['live-owner',owner,'/api/gauge/invoice-documents/'+invoice.id,'#invoice-client-access'],['live-client',recipient.cookie,path,'#invoice-document']]){
-  await context.clearCookies();await context.addCookies(cookies(cookie));await page.goto(h.origin+url)
+ for(const [name,cookie,url,selector]of [['live-owner',owner,'/api/gauge/invoice-documents/'+invoice.id,'#invoice-client-access'],['live-client',recipient.cookie,receivedClientLink,'#invoice-document']]){
+  await context.clearCookies();await context.addCookies(cookies(cookie));await page.goto(url.startsWith('https:')?url:h.origin+url)
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert(await page.locator(selector).isVisible());if(shots)await page.locator(selector).screenshot({path:`${shots}/${name}-${width}.png`})}
  }
  console.log(JSON.stringify({mailboxReceiptId:receipt.id,receivedAt:receipt.receivedAt,dmarc:receipt.auth.dmarc,receivedMessageId:parsed.messageId,attachmentsByteIdentical:true,providerMessageId:job.value.providerMessageId,providerState:event.value.mailboxState,readbackException:event.value.readbackException,providerEvidenceMessageId:event.value.providerEvidenceMessageId??null,hostedPageAndPdf:true}))

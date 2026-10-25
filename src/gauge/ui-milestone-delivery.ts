@@ -9,7 +9,7 @@ const c=(...args:Parameters<typeof choices>)=>choices(...args).replace('<select 
 const s=(...args:Parameters<typeof select>)=>select(...args).replace('<select ',`<select aria-label="${e(args[1])}" `)
 
 export function milestoneDeliverySection(a:Actor,rows:Row[],people:Row[],today:string) {
- return `<section id="milestone-delivery"><h2 class="g-subhead">Delivery health and client decisions</h2><p>Staff-recorded decisions are not confirmed by the client. An invited client can respond through the exact delivery review API. Delivery and acceptance never issue an invoice. Finance must separately approve billing.</p>${rows.map(row=>{
+ return `<section id="milestone-delivery"><h2 class="g-subhead">Delivery health and client decisions</h2><p>Staff-recorded decisions are not confirmed by the client. Direct client responses are labelled separately. Delivery and acceptance never issue an invoice. Finance must separately approve billing.</p>${rows.map(row=>{
   const d=row.value.delivery??{health:'unknown',issues:[],dependencies:[],deliveries:[],decisions:[]},latest=d.deliveries.at(-1)
   const itemField=(item?:Value)=>item?`<input type="hidden" name="itemId" value="${e(item.id)}">`:''
   const issueForm=(item?:Value)=>form('milestone:issue',item?`Update issue: ${item.name}`:'Add an issue or risk',itemField(item)+i('name','Issue',item?.name)+s('ownerId','Risk owner',people,item?.ownerId)+area('mitigation','Mitigation',item?.mitigation)+c('status','Issue status',['open','resolved'],item?.status)+area('reason','Issue update reason'),row,'Save issue')

@@ -108,7 +108,8 @@ function resendState(event) {
 }
 
 /** No submission, retry or inference of mailbox delivery occurs during readback.
- * deliveryId must match the provider's persisted Base custom arg / text reference.
+ * Callers supply only the admission ID durably saved by this job's send.
+ * A supplied custom argument must match the durable reference.
  * SendGrid's acceptance X-Message-ID and full activity msg_id remain separate.
  */
 export async function readInvoiceMail(credential, provider, id, to, deliveryId, expectedSubject) {
@@ -137,7 +138,8 @@ export async function readInvoiceMail(credential, provider, id, to, deliveryId, 
   if (detail.exception) return unknown(detail.exception)
   message = detail.data
   if (message?.msg_id !== exactId || !sameRecipient(message.to_email, recipient)) return unknown('message-mismatch')
-  if (uniqueArgs(message.unique_args)?.rer_delivery_id !== deliveryId) return unknown('correlation-unavailable')
+  const args = uniqueArgs(message.unique_args)
+  if (args?.rer_delivery_id !== undefined && args.rer_delivery_id !== deliveryId) return unknown('correlation-unavailable')
   providerMessageId = message.msg_id
   status = sendGridState(message)
  }

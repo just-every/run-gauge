@@ -52,7 +52,7 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
   ])
   assert.equal(response.status(),303,`Owner ${label} form commits`)
  }
- const sends=[],previousEdge=h.providerEdge.handler
+ const sends=[],deliveryJobs=[],evidenceById=new Map(),previousEdge=h.providerEdge.handler
  let evidence=null,override={}
  h.providerEdge.handler=async(req,body)=>{
   const url=new URL(req.url)
@@ -65,12 +65,16 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
   if(req.method==='GET'&&url.pathname==='/v3/verified_senders')return Response.json({results:[{verified:true,from_email:'auth@example.test'}]})
   if(req.method==='GET'&&url.pathname==='/v3/whitelabel/domains')return Response.json([])
   if(req.method==='GET'&&url.pathname==='/v3/messages'){
-   assert(evidence,'Readback follows a captured native submission')
-   assert(url.searchParams.get('query').includes(evidence.id))
-   assert(url.searchParams.get('query').includes(evidence.to_email))
-   return Response.json({messages:[{msg_id:evidence.msg_id,to_email:evidence.to_email}]})
+   const query=url.searchParams.get('query'),record=[...evidenceById.values()].find(row=>query.includes(row.id))
+   assert(record,'Readback follows a captured native submission')
+   assert(query.includes(record.to_email))
+   return Response.json({messages:[{msg_id:record.msg_id,to_email:record.to_email}]})
   }
-  if(req.method==='GET'&&url.pathname==='/v3/messages/'+evidence?.msg_id)return Response.json({...evidence,...override})
+  if(req.method==='GET'&&url.pathname.startsWith('/v3/messages/')){
+   const record=[...evidenceById.values()].find(row=>url.pathname==='/v3/messages/'+row.msg_id)
+   assert(record,'Exact activity lookup belongs to an admitted invoice message')
+   return Response.json({...record,...(record===evidence?override:{})})
+  }
   throw Error('Unexpected synthetic SendGrid operation')
  }
  try{
@@ -85,7 +89,8 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
   await submit(connect,'Connect provider')
   const connection=(await h.state()).data.providerConnections.find(row=>row.value.provider==='sendgrid'&&row.value.accountLabel==='Invoice delivery SendGrid')
   assert(connection)
-  assert.match(await page.locator(`[id="${connection.id}"]`).innerText(),/connected/)
+  const connections=page.locator('section.g-card').filter({has:page.getByRole('heading',{name:'Connections',exact:true})})
+  assert.match(await connections.locator(`[id="${connection.id}"]`).innerText(),/connected/)
   assert(!JSON.stringify(connection).includes(credential),'Only connection metadata leaves credential custody')
   const staff=await h.invite('synthetic-gauge-8162')
   await cmd('grant',{operatorId:staff.id,personId,role:'staff',enabled:true})
@@ -102,6 +107,7 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
    let delivery=(await h.state()).data.commercialEvents.find(row=>row.value.type==='invoice-delivery'&&row.value.accessId===currentRelease.id)
    assert(delivery)
    const queued=await read('providerJobs',delivery.value.jobId)
+   deliveryJobs.push(queued.id)
    assertDeliveryLink(delivery,issued,currentRelease,queued)
    assert.equal(queued.value.status,'queued');assert.equal(delivery.value.status,'queued')
    assert.equal(sends.length,before,'Queueing records an owner decision without sending')
@@ -129,6 +135,7 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
    await page.goto(h.origin+issuedPath);await capture('invoice-delivery-accepted-'+width,selector)
 
    evidence={id:sent.id,msg_id:sent.id+'.filter-1',to_email:currentRelease.value.contact,subject:sent.body.subject,unique_args:{rer_delivery_id:queued.value.eventId},status:'delivered',events:[{event_name:'delivered'}]}
+   evidenceById.set(sent.id,evidence)
    for(const mismatch of [{to_email:'wrong-client@example.test'},{subject:'Different invoice'},{unique_args:{rer_delivery_id:randomUUID()}}]){
     override=mismatch
     await cmd('invoice:delivery-readback',{id:delivery.id,revision:delivery.revision})
@@ -138,6 +145,13 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
     assert.equal(delivery.value.providerEvidenceMessageId,null)
     assertDeliveryLink(delivery,issued,currentRelease,await read('providerJobs',queued.id))
    }
+   override={unique_args:null}
+   await cmd('invoice:delivery-readback',{id:delivery.id,revision:delivery.revision})
+   delivery=await read('commercialEvents',delivery.id)
+   assert.equal(delivery.value.mailboxState,'delivered','An optional absent custom-argument field preserves the durable admission-id, recipient and subject match')
+   assert.equal(delivery.value.providerMessageId,sent.id)
+   assert.equal(delivery.value.providerEvidenceMessageId,evidence.msg_id)
+   assert.equal(delivery.value.readbackException,null)
    override={}
    await page.goto(h.origin+issuedPath);await page.setViewportSize({width,height:1000})
    await submit(form('invoice:delivery-readback',delivery.id,mail),'Reconcile invoice delivery')
@@ -169,7 +183,32 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
    assert.equal(await registered.locator('input[value="providerJob:dispatch"]').count(),0,'Submitted invoice jobs have no resend action')
    await capture('invoice-provider-job-'+width,`[id="${queued.id}"]`)
    if(currentRelease.id!==release.id)await cmd('invoice:revoke-access',{...currentRelease,reason:'End second viewport authorization'})
+   evidenceById.set(sent.id,{...evidence,...override});evidence=null;override={}
   }
+
+  const beforeSync=sends.length,sync=await cmd('providerSync:start',{connectionId:connection.id}),snapshot=await read('providerSyncs',sync.id)
+  const currency=issued.value.currency,expectedTotals={[currency]:issued.value.totalMinor*2}
+  assert.equal(snapshot.value.sourceCount,2,'The native snapshot includes both invoice delivery jobs')
+  assert.deepEqual(snapshot.value.sourceTotals,expectedTotals,'Source controls retain the exact issued value for each delivery source')
+  assert.deepEqual(snapshot.value.items.map(item=>item.jobId).sort(),[...deliveryJobs].sort())
+  assert(snapshot.value.items.every(item=>item.kind==='invoice'&&item.invoiceId===issued.id))
+  const first=await cmd('providerSync:advance',snapshot),checkpoint=await read('providerSyncs',sync.id)
+  assert.equal(checkpoint.value.cursor,1);assert.equal(checkpoint.value.reconciledCount,1)
+  assert.deepEqual(checkpoint.value.reconciledTotals,{[currency]:issued.value.totalMinor})
+  await cmd('providerSync:advance',first)
+  const completed=await read('providerSyncs',sync.id)
+  assert.equal(completed.value.status,'completed')
+  assert.equal(completed.value.cursor,2);assert.equal(completed.value.reconciledCount,2)
+  assert.deepEqual(completed.value.reconciledTotals,expectedTotals)
+  assert.deepEqual(completed.value.sourceTotals,expectedTotals)
+  assert.deepEqual(completed.value.outcomes.map(outcome=>outcome.jobId).sort(),[...deliveryJobs].sort(),'Each delivery is reconciled exactly once')
+  assert(completed.value.outcomes.every(outcome=>outcome.state==='bounced'),'Provider sync retains the observed actionable mailbox failures')
+  assert.equal(sends.length,beforeSync,'Snapshot and checkpoint advancement only read provider evidence')
+  await page.goto(h.origin+'/app/access')
+  const health='section.g-card:has(h2:text-is("Connector health"))',checkpoints='section.g-card:has(h2:text-is("Reconciliation checkpoints"))'
+  assert(await page.locator(checkpoints).locator(`[id="${sync.id}"]`).isVisible())
+  await capture('invoice-provider-health',health)
+  await capture('invoice-provider-reconciliation',checkpoints)
 
   // Revocation after queueing must stop the outbound send, even though its exact
   // source revision is still retained in the provider job for the owner's audit.

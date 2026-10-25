@@ -4,11 +4,13 @@ import {execFileSync} from 'node:child_process'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
 import {harness} from '../gauge-harness.mjs'
+import {parseAddress} from '../../src/modules/mail/src/core/validation.mjs'
 
 // Run only with the held-key injector. The paid mail edge is real; native data and
 // sessions are created through the same built Worker public doors as the suite.
 for(const name of ['SENDGRID_API_KEY','SENDGRID_FROM_EMAIL','TEST_MAIL_TO','QA_INBOX_RECEIPT_TOKEN'])assert(process.env[name],`Missing ${name}`)
 const controlled=process.env.TEST_MAIL_TO.toLowerCase(),from=process.env.SENDGRID_FROM_EMAIL
+const fromEmail=parseAddress(from).email
 const inbox='https://rer-qa-inbox.runeditrun.workers.dev',since=Date.now(),hash=b=>createHash('sha256').update(b).digest('hex')
 const receiptHeaders={Authorization:`Bearer ${process.env.QA_INBOX_RECEIPT_TOKEN}`}
 const preflight=await fetch(inbox+'/receipts?limit=1',{headers:receiptHeaders,signal:AbortSignal.timeout(20000)});assert.equal(preflight.status,200,'QA receipt inbox must be readable before sending')
@@ -20,7 +22,7 @@ try{
   if(req.method==='POST'){
    assert.equal(new URL(req.url).pathname,'/v3/mail/send')
    assert.deepEqual(body.personalizations.map(p=>p.to.map(t=>t.email)),[[controlled]],'Only TEST_MAIL_TO may receive live proof mail')
-   assert(body.personalizations.every(p=>!p.cc&&!p.bcc));assert.equal(body.from.email,from)
+   assert(body.personalizations.every(p=>!p.cc&&!p.bcc));assert.equal(body.from.email,fromEmail)
   }
   return fetch(req.url,{method:req.method,headers:req.headers,...(body?{body:JSON.stringify(body)}:{}),redirect:'manual',signal:AbortSignal.timeout(20000)})
  }

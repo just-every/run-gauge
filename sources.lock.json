@@ -427,7 +427,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b5113875151d2a4d0eb61bde2ffca415dc2c297699f2c8c6ed760fdf72f88f83",
+      "sha256": "8c84e791af627a9618c93ba89ab7a167b49d56972c92c1107aaa06d9766b3b76",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -451,7 +451,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b6ecab83f238151a4562cdfa21c8547042769d0bfc4bca61558708e6a57369c3",
+      "sha256": "df36e542bc77d6c66c35f680ede101fa67dc6a1e7e45577e9b969328e4df8daf",
       "executable": false
     },
     "DEMO.md": {
@@ -4331,7 +4331,7 @@
       "executable": false
     },
     "tests/gauge-handoffs.mjs": {
-      "sha256": "cc1f2badea4f0f9a94a651bf21ff249628a7e8f2feb15be231ac3bdb3def6b09",
+      "sha256": "13446aceda988d73536f2a79626d25be9a77b436d6cd9e6f392bc3a2358a0f62",
       "executable": false
     },
     "tests/gauge-harness.mjs": {

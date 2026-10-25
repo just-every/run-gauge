@@ -388,7 +388,11 @@ async function expensePolicyJourney(h,page){
  await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-08',unitMinor:80,reason:'Unauthorized'},staff.cookie,403)
  const sources=[frozen,...claims].map(r=>({kind:'expenses',id:r.id,revision:r.revision})),handoffInput={purpose:'reimbursement',recipient:'Payroll travel desk',reason:'Reviewed employee reimbursements only',sources}
  await cmd('handoff:prepare',{...handoffInput,sources:[{...sources[0],revision:'stale'}]},owner,409)
- let handoff=await cmd('handoff:prepare',handoffInput);const exported=await row('specialistHandoffs',handoff.id)
+ const reimbursementRequest={action:'handoff:prepare',key:randomUUID(),...handoffInput}
+ const prepared=await h.post('/api/gauge/command',reimbursementRequest,owner);assert.equal(prepared.status,200)
+ let handoff=await prepared.json();const exported=await row('specialistHandoffs',handoff.id)
+ const replayed=await h.post('/api/gauge/command',reimbursementRequest,owner);assert.equal(replayed.status,200);assert.deepEqual(await replayed.json(),handoff)
+ assert.equal((await state()).data.specialistHandoffs.filter(r=>r.id===handoff.id).length,1,'An exact reimbursement retry retains one artifact')
  assert.equal(exported.value.lines.reduce((n,l)=>n+l.amountMinor,0),37650);assert.equal(exported.value.controlTotals.length,3);assert(exported.value.lines.every(l=>l.category==='reimbursement'))
  const bytes=await(await request('/api/gauge/handoffs/'+handoff.id,owner)).text();assert.equal(createHash('sha256').update(bytes).digest('hex'),exported.value.artifactHash)
  await cmd('handoff:prepare',handoffInput,owner,409)
@@ -409,6 +413,23 @@ async function expensePolicyJourney(h,page){
  const correctionResult={handoffId:correction.id,artifactHash:corrected.value.artifactHash,lines:corrected.value.lines.map(l=>({id:l.id,currency:l.currency,amountMinor:l.amountMinor,durationSeconds:null,quantity:l.details.quantity,unit:l.details.unit,status:'accepted'}))}
  await cmd('handoff:record-result',{...correction,result:correctionResult})
  assert.equal((await row('invoices',invoice.id)).value.totalMinor,9900,'Employee correction does not change client recovery')
+
+ // Agency-paid costs can recover from the client without reimbursing an employee.
+ let clientOnly=await cmd('expense:save',{...base,incurredCurrency:'USD',description:'Agency-paid client travel',amountMinor:2000,taxMinor:0,markupBasisPoints:2500,reimbursable:false,clientBillable:true,policyException:''},staff.cookie)
+ const clientReceipt=new FormData();for(const[k,v]of Object.entries({...clientOnly,key:randomUUID(),action:'expense:file'}))clientReceipt.set(k,String(v));clientReceipt.set('file',new File(['synthetic-gauge-7106 agency-paid receipt'],'agency-travel.txt',{type:'text/plain'}))
+ const clientUploaded=await request('/api/gauge/command',staff.cookie,{method:'POST',headers:{origin:h.origin},body:clientReceipt});assert.equal(clientUploaded.status,200);clientOnly=await clientUploaded.json()
+ clientOnly=await cmd('expense:approve',{...await cmd('expense:submit',clientOnly,staff.cookie),reason:'Finance approves agency-paid recovery without employee reimbursement'})
+ const clientOnlyRow=await row('expenses',clientOnly.id);assert.equal(clientOnlyRow.value.reimbursementMinor,0);assert.equal(clientOnlyRow.value.clientRecoveryMinor,2500)
+ await cmd('handoff:prepare',{...handoffInput,sources:[{kind:'expenses',id:clientOnly.id,revision:clientOnly.revision}]},owner,400)
+ const clientPacket=await cmd('packet:approve',await cmd('packet:create',{engagementId:project.id,title:'Agency-paid travel recovery',sources:['expenses:'+clientOnly.id]}))
+ const issueRequest={action:'invoice:issue',key:randomUUID(),...clientPacket,issueDate:'2026-10-07',dueDate:'2026-11-06',billTo:'Expense client',remitTo:'Agency',reference:'Agency-paid recovery'}
+ const issued=await h.post('/api/gauge/command',issueRequest,owner);assert.equal(issued.status,200);const clientInvoice=await issued.json()
+ const issueReplay=await h.post('/api/gauge/command',issueRequest,owner);assert.equal(issueReplay.status,200);assert.deepEqual(await issueReplay.json(),clientInvoice)
+ assert.equal((await row('invoices',clientInvoice.id)).value.totalMinor,2500)
+ assert.equal((await state()).data.invoices.filter(r=>r.value.packetId===clientPacket.id).length,1,'Exact invoice retry issues one client recovery document')
+ await cmd('packet:create',{engagementId:project.id,title:'Duplicate agency-paid recovery',sources:['expenses:'+clientOnly.id]},owner,409)
+ assert.deepEqual(await row('expenses',clientOnly.id),clientOnlyRow,'Refused reimbursement and replay preserve approved expense economics')
+
  assert.equal((await request('/api/gauge/handoffs/'+handoff.id,staff.cookie)).status,403);assert.equal((await request('/api/gauge/files/'+file,lead.cookie)).status,200,'The lead is the receipt owner in this fixture')
  const outsider=await h.invite('synthetic-gauge-7105');await cmd('grant',{operatorId:outsider.id,personId:(await cmd('save:people',{name:'Other worker',timezone:'America/New_York'})).id,role:'staff',enabled:true})
  assert.equal((await request('/api/gauge/files/'+file,outsider.cookie)).status,403);assert.deepEqual((await state(staff.cookie)).data.specialistHandoffs,[]);assert.equal(Object.hasOwn((await state(staff.cookie)).data.expenses.find(r=>r.id===receipt.id).value,'clientRecoveryMinor'),false);assert.equal(Object.hasOwn((await state(staff.cookie)).data.expenses.find(r=>r.id===receipt.id).value,'financeReviewNote'),false)

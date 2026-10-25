@@ -2052,7 +2052,7 @@
       "executable": false
     },
     "src/gauge/scope-changes.ts": {
-      "sha256": "1f36b40115b232a16ef09244e08b3c2bbfa2aaecd5dea3b3af09e6d47d36fac7",
+      "sha256": "ecdf9c3bc8004c9787bd72a1ec5994753a73595bf1159c93b8dfa35bd81fa080",
       "executable": false
     },
     "src/gauge/scoro-common.ts": {
@@ -4440,7 +4440,7 @@
       "executable": false
     },
     "tests/gauge-project-scenario-scope.mjs": {
-      "sha256": "aef75747405ab5aaa5765a994b91844743954e8d4ad63614b4528cef754337b5",
+      "sha256": "6bf2cbb5a069db5f6b741c20ffe994e6646cc6582e4970e9378cf19b5efb56a1",
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {

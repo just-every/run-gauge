@@ -1,6 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, uuid } from './model'
 import { type Actor, type Transaction, all, get, finance } from './store'
+import { latestBudget } from './budget-caps'
 import { projectScenarioPreview } from './project-scenarios'
 
 /** Internal change review never approves terms, work, dates or billing. */
@@ -11,12 +12,17 @@ export async function scopeChangePreview(env:Bindings,a:Actor,input:Value,tx?:Tr
  const scope=preview.changes.filter(c=>c.type==='scope')
  need(scope.length===1&&preview.changes.every(c=>c.type==='scope'||c.type==='deadline'),'A change request needs one scope and optional delivery baseline changes')
  const engagement=await get(env,'engagements',scope[0].id)
+ need(engagement.revision===scope[0].revision,'Engagement changed; review the baseline again',409)
+ if(tx)tx.observe('engagements',engagement)
  need(engagement.value.type!=='internal','Client change requests require a client engagement')
  for(const change of preview.changes.filter(c=>c.type==='deadline')) {
   const plan=await get(env,'deliveryPlans',change.id)
   need(plan.value.engagementId===engagement.id,'Delivery changes must belong to the same client engagement')
  }
- return {...preview,engagementId:engagement.id}
+ const before=latestBudget(await all(env,'budgets'),engagement.id),proposed=scope[0].terms
+ if(tx&&before)tx.observe('budgets',before)
+ const after=proposed?Object.fromEntries(['mode','amountMinor','effortSeconds','roundingSeconds','expenseBudgetMinor','expenseDate','reason'].filter(k=>proposed[k]!==undefined).map(k=>[k,proposed[k]])):before?.value??null
+ return {...preview,engagementId:engagement.id,scopeDifference:{before:engagement.value.scope,after:text(scope[0].scope,'Proposed scope')},termsDifference:{before:before??null,after,changed:!!proposed}}
 }
 export async function scopeChangeCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null> {
  if(!['change:prepare','change:review','change:withdraw'].includes(action))return null

@@ -40,6 +40,8 @@ export async function scopeScenarioJourney(h,browser) {
  await cmd('grant',{operatorId:reviewer.id,personId:person.id,role:'finance',enabled:true})
  const extra={...changes[0],scope:'Full scope plus an extra prototype',allocations:[{...changes[0].allocations[0],dailySeconds:4*3600}],tasks:[{...changes[0].tasks[0],remainingSeconds:12*3600}],terms:{mode:'hourly',amountMinor:260000,effortSeconds:32*3600,roundingSeconds:60,reason:'Extra prototype requested'}}
  const changeInput={asOf,changes:[extra]},changePreview=await cmd('change:preview',changeInput)
+ assert.deepEqual(changePreview.scopeDifference,{before:'Full discovery and delivery',after:'Full scope plus an extra prototype'})
+ assert.equal(changePreview.termsDifference.before.id,budgets[0].id);assert.equal(changePreview.termsDifference.before.value.amountMinor,200000);assert.equal(changePreview.termsDifference.after.amountMinor,260000)
  assert.equal(changePreview.deltas[0].eacFeesMinor,72000);assert.equal(changePreview.deltas[0].eacCostMinor,36000);assert.equal(changePreview.deltas[0].marginMinor,36000)
  let change=await cmd('change:prepare',{...changeInput,fingerprint:changePreview.fingerprint,name:'Extra discovery review',reason:'Client requested an alternative'})
  const changeRecord=async id=>(await read()).data.projectScenarios.find(r=>r.id===id)

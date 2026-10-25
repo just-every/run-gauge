@@ -4367,7 +4367,7 @@
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
-      "sha256": "927a21dd418185188522a77194d7bbf534a9c35f7b7b1b642663b98cf44f7210",
+      "sha256": "06fa4b41503a177590c6dc2d7647ffcf0a7d6070a8b6ff9d52adfbc7279973ac",
       "executable": false
     },
     "tests/gauge-invoice-corrections.mjs": {

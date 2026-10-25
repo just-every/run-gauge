@@ -99,7 +99,7 @@ try {
   }
  }
  await page.getByRole('link', { name: 'Back to imports' }).click()
- await page.getByLabel('Harvest export files:', { exact: false }).setInputFiles(Object.entries(xlsx.files).map(([name, content]) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) })).concat({ name: 'time.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: bytes }))
+ await page.getByLabel('Harvest files: clients, people and projects CSV; time CSV or XLSX; finance.json (Forecast optional)', { exact: true }).setInputFiles(Object.entries(xlsx.files).map(([name, content]) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) })).concat({ name: 'time.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: bytes }))
  await page.getByLabel('Manifest, as described in the move-in guide').fill(JSON.stringify(xlsx.manifest))
  for (const width of [1440, 390]) {
   await page.setViewportSize({ width, height: 1100 })

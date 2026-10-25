@@ -106,8 +106,8 @@ export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, actio
   return job
  }
  if (action === 'providerJob:queue-crank') {
-  const alert = await source(env, tx, {kind: 'invoiceAccess' | 'budgetAlerts', id: input.alertId, revision: input.alertRevision})
-  return queueProviderJob(tx, {connectionId: input.connectionId, operation: 'trigger:submit', endpoint: input.endpoint, source: {kind: 'invoiceAccess' | 'budgetAlerts', id: alert.id, revision: alert.revision}})
+  const alert = await source(env, tx, {kind: 'budgetAlerts', id: input.alertId, revision: input.alertRevision})
+  return queueProviderJob(tx, {connectionId: input.connectionId, operation: 'trigger:submit', endpoint: input.endpoint, source: {kind: 'budgetAlerts', id: alert.id, revision: alert.revision}})
  }
  const job = await get(env, 'providerJobs', text(input.id, 'Provider job'))
  await authority(env, a, job, tx)
@@ -164,7 +164,7 @@ export async function finishProviderJob(env: Bindings, a: Actor, job: Row, reque
  need(job.value.status === 'dispatching', 'Provider job is not dispatched', 409)
  need(['submitted', 'held','retry-wait', 'exception', 'revoked'].includes(result.status), 'Unknown provider job outcome')
  need(!result.exceptionClass || ['credential-rotated', 'credential-revoked', 'credential-disconnected', 'provider-rejected', 'uncertain','provider-rate-limit','retry-exhausted','source-changed'].includes(result.exceptionClass), 'Unknown provider exception class')
- for (const reference of [result.providerMessageId, result.providerRunId, result.providerHoldId]) need(reference === undefined || /^[A-Za-z0-9_-]{1,200}$/.test(reference), 'Invalid provider outcome reference')
+ for (const reference of [result.providerMessageId, result.providerRunId, result.providerHoldId]) need(reference === undefined || /^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,199}$/.test(reference), 'Invalid provider outcome reference')
  const exhausted=result.status==='retry-wait'&&job.value.attempts>=(job.value.retryLimit??3)
  const saved = await tx.record('providerJobs', {
   ...job.value, status: exhausted?'exception':result.status, exceptionClass: exhausted?'retry-exhausted':result.exceptionClass ?? null, completedAt: result.status==='retry-wait'&&!exhausted?null:Date.now(), leaseUntil: null,nextAttemptAt:result.status==='retry-wait'&&!exhausted?Date.now()+Math.min(900000,60000*2**(job.value.attempts-1)):null,

@@ -159,6 +159,7 @@ async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outside
  await cmd('milestone:authorize',row,financePerson.cookie)
  const packet=await cmd('packet:create',{engagementId:engagement.id,title:'Separately authorized delivery',sources:[`milestones:${row.id}`]},financePerson.cookie)
  assert.equal((await state()).data.packets.find(r=>r.id===packet.id).value.status,'draft')
+ row=await current()
  const acceptedRevision=row.revision
  await cmd('milestone:revoke-review',{...row,reviewId:review.id,reason:'Close client access after finance reservation'})
  assert.equal((await current()).revision,acceptedRevision,'Revocation preserves the exact reserved financial source revision')

@@ -374,12 +374,19 @@ async function expensePolicyJourney(h,page){
  receipt=await cmd('expense:approve',{...receipt,reason:'Finance reviews receipt and exception, authorizes 20 percent recovery'})
  const frozen=await row('expenses',receipt.id);assert.equal(frozen.value.amountMinor,8250);assert.equal(frozen.value.reimbursementMinor,8250);assert.equal(frozen.value.clientRecoveryMinor,9900);assert.equal(frozen.value.fx.rate,'0.7500')
  await cmd('fx:approve',{currency:'CAD',rate:'0.8000',effective:'2026-10-07',source:'Published synthetic rate',reason:'Forward rate change'})
+ let pendingMileage=await cmd('expense:save',{...base,incurredCurrency:'USD',description:'mileage',category:'mileage',unit:'mileage',quantity:120,amountMinor:0,taxMinor:0,markupBasisPoints:0,clientBillable:false,policyException:''},staff.cookie)
+ pendingMileage=await cmd('expense:submit',pendingMileage,staff.cookie)
+ const pendingCost=(await state()).margin.find(x=>x.engagementId===project.id)
+ assert.equal(pendingCost.provisionalCostMinor,null,'Unpriced submitted mileage is unknown, never a zero-cost claim')
+ assert(pendingCost.provisionalUnknown.some(x=>x.includes(pendingMileage.id)),'Unknown provisional cost identifies its exact mileage source')
+ await cmd('expense:approve',{...pendingMileage,reason:'No mileage rate yet'},owner,409)
+ assert.equal((await row('expenses',pendingMileage.id)).value.status,'submitted','Missing unit pricing cannot approve a claim')
  await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-01',unitMinor:70,reason:'Finance approves mileage'})
  await cmd('expense:rate',{unit:'per-diem',currency:'USD',effective:'2026-10-01',unitMinor:6000,reason:'Finance approves daily allowance'})
  const claims=[]
  for(const [unit,quantity,expected]of [['mileage',120,8400],['per-diem',2,12000],['per-diem',1.5,9000]]){
-  let claim=await cmd('expense:save',{...base,incurredCurrency:'USD',description:unit,category:unit,unit,quantity,amountMinor:0,taxMinor:0,markupBasisPoints:0,clientBillable:false,policyException:''},staff.cookie)
-  claim=await cmd('expense:approve',{...await cmd('expense:submit',claim,staff.cookie),reason:'Finance approves exact unit claim'})
+  let claim=unit==='mileage'?pendingMileage:await cmd('expense:submit',await cmd('expense:save',{...base,incurredCurrency:'USD',description:unit,category:unit,unit,quantity,amountMinor:0,taxMinor:0,markupBasisPoints:0,clientBillable:false,policyException:''},staff.cookie),staff.cookie)
+  claim=await cmd('expense:approve',{...claim,reason:'Finance approves exact unit claim'})
   assert.equal((await row('expenses',claim.id)).value.amountMinor,expected);claims.push(await row('expenses',claim.id))
  }
  await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-07',unitMinor:80,reason:'Tomorrow mileage rate'})

@@ -427,7 +427,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8684aa954d257af41f8cb12b1dbaa5efeac3af1bbce567cc21de29605c178c17",
+      "sha256": "3c4f0fbdebcc87e401fa34bfdce05c519014f1bd5d3b06eceff10d166f6e5fd9",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -439,7 +439,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "0ce5037c8f91ac88e37958fefd8cf6b128597ab24b2f6058c1f3d15234212727",
+      "sha256": "a76fc40766b44bbe889877b3d10fe51928e619cdf22481269a36b298bc130ca3",
       "executable": false
     },
     "base-copies.json": {
@@ -451,7 +451,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f7787761cb85bc8bb4a33f642179002b220c57d3ad86efb1d69919c8d6a23195",
+      "sha256": "7569e96351e00b2e34600e67efd23069eca7f7cec45bba905e15edd83e5eb3d4",
       "executable": false
     },
     "DEMO.md": {
@@ -2055,7 +2055,7 @@
       "executable": false
     },
     "src/gauge/specialist-handoff.ts": {
-      "sha256": "24d8aa45517e2dd384ed8300e62acef08297d7aebc5f88710ffbf7abef42a04a",
+      "sha256": "5d0cf982bcd4e286784a82fffa9aa996a3448764ca05514c94331b2edf8db776",
       "executable": false
     },
     "src/gauge/store.ts": {
@@ -4335,7 +4335,7 @@
       "executable": false
     },
     "tests/gauge-handoffs.mjs": {
-      "sha256": "8250635c5833f1e3721101c97e29749621cefac6a1cf9fbd9f3349c150f3f116",
+      "sha256": "27fd175ca3e863c10fb60a720e470eec5a4c1afae0762b2a0b1eb0da304f1b17",
       "executable": false
     },
     "tests/gauge-harness.mjs": {

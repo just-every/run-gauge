@@ -100,10 +100,14 @@ async function prepare(env:Bindings,a:Actor,tx:Transaction,input:Value) {
  return sealHandoff(a,tx,handoffId,recipient,input.purpose,reason,snapshots,lines)
 }
 
+function handoffCsv(id:string,lines:HandoffLine[]) {
+ return csv([['handoffId','id','category','sourceKind','sourceId','sourceRevision','engagementId','personId','date','currency','amountMinor','amountKnown','durationSeconds','approvedBy','approvedAt','details','notice'],
+  ...lines.map(l=>[id,l.id,l.category,l.sourceKind,l.sourceId,l.sourceRevision,l.engagementId,l.personId,l.date,l.currency,l.amountMinor,l.amountMinor!==null,l.durationSeconds,l.approvedBy,l.approvedAt,canonicalJson(l.details),handoffNotice])])
+}
+
 function sealHandoff(a:Actor,tx:Transaction,handoffId:string,recipient:string,purpose:string,reason:string,snapshots:Value[],lines:HandoffLine[],extra:Value={}){
  const id=handoffId,approvedAt=Date.now(),controlTotals=totals(lines)
- const artifact=csv([['handoffId','id','category','sourceKind','sourceId','sourceRevision','engagementId','personId','date','currency','amountMinor','amountKnown','durationSeconds','approvedBy','approvedAt','details','notice'],
-  ...lines.map(l=>[id,l.id,l.category,l.sourceKind,l.sourceId,l.sourceRevision,l.engagementId,l.personId,l.date,l.currency,l.amountMinor,l.amountMinor!==null,l.durationSeconds,l.approvedBy,l.approvedAt,canonicalJson(l.details),handoffNotice])])
+ const artifact=handoffCsv(id,lines)
  return tx.record(handoffKind,{recipient,purpose,reason,sources:snapshots,lines,controlTotals,artifact,artifactHash:sha256(artifact),
   status:'awaiting-result',delivery:'manual-export',financialEffect:'none',approvedBy:a.session.operator.id,approvedAt,notice:handoffNotice,result:null,...extra},undefined,id,extra.adjustmentOf?'handoff:adjust-reimbursement':'handoff:prepare')
 }
@@ -174,7 +178,15 @@ export async function handoffDownload(env:Bindings,a:Actor,id:string):Promise<Re
  const row=await get(env,handoffKind,text(id,'Handoff ID'))
  need(a.role!=='accountant'||row.value.purpose==='accounting','Accountants cannot download payroll inputs',403)
  need(sha256(row.value.artifact)===row.value.artifactHash,'Stored handoff artifact failed integrity verification',409)
+ // Accountant views retain reviewed amounts and exact source identities while finance keeps the original bytes.
+ const accountantView=a.role==='accountant'&&row.value.lines.some((line:HandoffLine)=>line.sourceKind==='expenses')
+ const artifact=accountantView?handoffCsv(row.id,row.value.lines.map((line:HandoffLine)=>{
+  if(line.sourceKind!=='expenses')return line
+  const {unitRate,fx,reviewNote,...details}=line.details
+  return {...line,details}
+ })):row.value.artifact
  await fence(env,a)
- return new Response(row.value.artifact,{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="gauge-handoff-${row.id}.csv"`,
-  'cache-control':'no-store','x-content-type-options':'nosniff','x-gauge-artifact-sha256':row.value.artifactHash}})
+ return new Response(artifact,{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="gauge-handoff-${row.id}${accountantView?'-accountant':''}.csv"`,
+  'cache-control':'no-store','x-content-type-options':'nosniff','x-gauge-artifact-sha256':accountantView?sha256(artifact):row.value.artifactHash,
+  ...(accountantView?{'x-gauge-artifact-view':'accountant','x-gauge-source-artifact-sha256':row.value.artifactHash}:{})}})
 }

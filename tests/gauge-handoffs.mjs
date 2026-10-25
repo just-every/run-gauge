@@ -357,8 +357,9 @@ async function revenueScheduleJourney(h,page){
 // Native employee reimbursement and client recovery remain independent public doors.
 async function expensePolicyJourney(h,page){
  const {cmd,state,request,owner}=h,person=await cmd('save:people',{name:'synthetic-gauge-7101',timezone:'America/New_York'}),client=await cmd('save:clients',{name:'Expense client'}),project=await cmd('save:engagements',{name:'Travel policy',clientId:client.id,leadId:person.id,members:[person.id],scope:'Travel receipts and unit claims',timezone:'America/New_York'})
- const staff=await h.invite('synthetic-gauge-7102'),lead=await h.invite('synthetic-gauge-7103'),finance=await h.invite('synthetic-gauge-7107'),recipient=await h.invite('synthetic-gauge-7108')
+ const staff=await h.invite('synthetic-gauge-7102'),lead=await h.invite('synthetic-gauge-7103'),finance=await h.invite('synthetic-gauge-7107'),recipient=await h.invite('synthetic-gauge-7108'),accountant=await h.invite('synthetic-gauge-7109')
  await cmd('grant',{operatorId:finance.id,personId:person.id,role:'finance',enabled:true})
+ await cmd('grant',{operatorId:accountant.id,personId:person.id,role:'accountant',enabled:true})
  const outboundStart=h.providerRequests.length
  await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd('grant',{operatorId:lead.id,personId:person.id,role:'lead',enabled:true})
  const row=async(k,id)=>(await state()).data[k].find(r=>r.id===id)
@@ -405,6 +406,46 @@ async function expensePolicyJourney(h,page){
  await cmd('expense:rate',{unit:'per-diem',currency:'USD',effective:'2026-10-07',unitMinor:6500,reason:'Tomorrow daily rate'})
  assert.deepEqual(await row('expenses',receipt.id),frozen);assert.equal((await row('expenses',claims[0].id)).value.amountMinor,8400);assert.equal((await row('expenses',claims[1].id)).value.amountMinor,12000)
  await cmd('expense:rate',{unit:'mileage',currency:'USD',effective:'2026-10-08',unitMinor:80,reason:'Unauthorized'},staff.cookie,403)
+ // The same reviewed accounting sources remain useful without private pricing or review metadata.
+ const accountingSources=[frozen,claims[0]],accounting=await cmd('handoff:prepare',{purpose:'accounting',recipient:'Reviewed expense accountant',reason:'Finance releases approved costs only',sources:accountingSources.map(r=>({kind:'expenses',id:r.id,revision:r.revision}))})
+ const accountingRow=await row('specialistHandoffs',accounting.id)
+ const parseCsv=artifact=>JSON.parse(execFileSync('python3',['-c','import csv,json,sys; print(json.dumps(list(csv.DictReader(sys.stdin))))'],{input:artifact,encoding:'utf8'}))
+ const financeDownload=await request('/api/gauge/handoffs/'+accounting.id,finance.cookie);assert.equal(financeDownload.status,200)
+ const financeArtifact=await financeDownload.text(),financeLines=parseCsv(financeArtifact)
+ assert.equal(financeArtifact,accountingRow.value.artifact)
+ assert.equal(createHash('sha256').update(financeArtifact).digest('hex'),accountingRow.value.artifactHash)
+ const accountantDownload=await request('/api/gauge/handoffs/'+accounting.id,accountant.cookie);assert.equal(accountantDownload.status,200)
+ const accountantArtifact=await accountantDownload.text(),accountantLines=parseCsv(accountantArtifact)
+ assert.equal(accountantLines.length,accountingSources.length)
+ for(const source of accountingSources){
+  const allowed=financeLines.find(l=>l.sourceId===source.id),restricted=accountantLines.find(l=>l.sourceId===source.id)
+  const financeDetails=JSON.parse(allowed.details),accountantDetails=JSON.parse(restricted.details)
+  assert.equal(allowed.sourceRevision,source.revision);assert.equal(Number(allowed.amountMinor),source.value.amountMinor)
+  assert.equal(financeDetails.reviewNote,source.value.financeReviewNote)
+  assert.deepEqual(financeDetails.unitRate,source.value.unitRate??null);assert.deepEqual(financeDetails.fx,source.value.fx??null)
+  assert(source.value.financeReviewNote,'The paired fixture has an actual private review value')
+  for(const key of ['unitRate','fx','reviewNote'])assert.equal(Object.hasOwn(accountantDetails,key),false,'Accountant accounting export withholds '+key)
+  assert.equal(accountantArtifact.includes(source.value.financeReviewNote),false,'Accountant bytes withhold the actual finance review')
+  assert.deepEqual({...restricted,details:null},{...allowed,details:null},'Accountant retains exact reviewed source identity, amount and currency')
+  const {unitRate,fx,reviewNote,...reviewedDetails}=financeDetails
+  assert.deepEqual(accountantDetails,reviewedDetails,'Accountant retains the remaining reviewed accounting details')
+ }
+ assert.equal(JSON.parse(financeLines.find(l=>l.sourceId===claims[0].id).details).unitRate.unitMinor,70,'Finance retains the frozen rate after the later rate change')
+ assert.equal(accountantDownload.headers.get('x-gauge-artifact-sha256'),createHash('sha256').update(accountantArtifact).digest('hex'))
+ assert.equal(accountantDownload.headers.get('x-gauge-source-artifact-sha256'),accountingRow.value.artifactHash)
+ assert.equal(accountantDownload.headers.get('x-gauge-artifact-view'),'accountant')
+ assert.equal(await(await request('/api/gauge/handoffs/'+accounting.id,accountant.cookie)).text(),accountantArtifact,'Repeated accountant downloads are stable')
+ assert.equal(await(await request('/api/gauge/handoffs/'+accounting.id,owner)).text(),financeArtifact,'Accountant downloads never rewrite the finance artifact')
+ assert.deepEqual(await row('specialistHandoffs',accounting.id),accountingRow)
+ await page.context().clearCookies();await page.context().addCookies(accountant.cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/review')
+  assert.equal(await page.getByRole('heading',{name:'Accountant inputs',exact:true}).count(),1)
+  assert.equal(await page.locator('a[href="/api/gauge/handoffs/'+accounting.id+'"]').count(),1,'Accountant keeps the reviewed accounting download door')
+  for(const source of accountingSources)assert.equal((await page.locator('body').innerText()).includes(source.value.financeReviewNote),false)
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Accountant expenses fit '+width)
+  if(process.env.GAUGE_HANDOFF_SHOTS)await page.screenshot({path:process.env.GAUGE_HANDOFF_SHOTS+'/COST-002-accountant-'+width+'.png',fullPage:true})
+ }
  const sources=[frozen,...claims].map(r=>({kind:'expenses',id:r.id,revision:r.revision})),handoffInput={purpose:'reimbursement',recipient:'Payroll travel desk',reason:'Reviewed employee reimbursements only',sources}
  await cmd('handoff:prepare',{...handoffInput,sources:[{...sources[0],revision:'stale'}]},owner,409)
  const reimbursementRequest={action:'handoff:prepare',key:randomUUID(),...handoffInput}

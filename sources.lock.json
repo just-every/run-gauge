@@ -1736,7 +1736,7 @@
       "executable": false
     },
     "src/gauge/milestone-review.ts": {
-      "sha256": "117bdfcd8163ff86e0f3c0018d1eea2311fc6aa9a7b32424c4cd744aefcc7831",
+      "sha256": "e708a0e6ff60b991a60ff023ea78604f55b8494218e158c38ffaa438953da411",
       "executable": false
     },
     "src/gauge/model.ts": {
@@ -4400,7 +4400,7 @@
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
-      "sha256": "a99ffecc5eecba391d2ab847710625353e5f4ed5e4959918c67008a9bb970acc",
+      "sha256": "f443da18a7cde2acb5e42779c34120a4c211d06ebec02099d197014034527725",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {
@@ -4440,7 +4440,7 @@
       "executable": false
     },
     "tests/gauge-project-scenario-scope.mjs": {
-      "sha256": "9363ebe8c02f6eb8a7f5d6259465f5736a7bf265c5685e1efc9b119a7b9dda50",
+      "sha256": "aef75747405ab5aaa5765a994b91844743954e8d4ad63614b4528cef754337b5",
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {

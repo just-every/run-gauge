@@ -159,6 +159,11 @@ async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outside
  await cmd('milestone:authorize',row,financePerson.cookie)
  const packet=await cmd('packet:create',{engagementId:engagement.id,title:'Separately authorized delivery',sources:[`milestones:${row.id}`]},financePerson.cookie)
  assert.equal((await state()).data.packets.find(r=>r.id===packet.id).value.status,'draft')
+ const acceptedRevision=row.revision
+ await cmd('milestone:revoke-review',{...row,reviewId:review.id,reason:'Close client access after finance reservation'})
+ assert.equal((await current()).revision,acceptedRevision,'Revocation preserves the exact reserved financial source revision')
+ assert.equal((await request(path(review),recipient.cookie)).status,403)
+ for(const denied of ['/api/gauge/state',`/api/gauge/history/milestones/${row.id}`,'/app/engagements'])assert.equal((await request(denied,recipient.cookie)).status,403)
  const pending=await cmd('milestone:deliver',{...await cmd('save:milestones',{engagementId:engagement.id,name:'Pending client review',due:'2020-01-03',amountMinor:0}),date:'2020-01-02',reason:'Pending exact work'})
  await cmd('milestone:release-review',{...pending,contact:'synthetic-gauge-7301@example.test',description:'Explicitly shared pending work',reason:'Exercise revoke and expiry'})
  let pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id),pendingReview=pendingRow.value.delivery.clientReviews.at(-1)
@@ -171,5 +176,12 @@ async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outside
  await h.db.prepare('UPDATE g_milestone_review_authority SET expires_at=0 WHERE review_id=?').bind(pendingReview.id).run()
  assert.equal((await request(pendingPath(),recipient.cookie)).status,403,'An expired grant cannot read or decide')
  assert.equal((await post(pendingPath(),{key:randomUUID(),revision:pendingRow.revision,outcome:'accepted',reason:'Expired authority'},recipient.cookie)).status,403)
+ pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id)
+ const authorizer=await h.invite('synthetic-gauge-7307','owner')
+ await cmd('milestone:release-review',{...pendingRow,contact:'synthetic-gauge-7302@example.test',description:'Exact pending delivery for the other recipient',reason:'Owner authority must remain live'},authorizer.cookie)
+ pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id);const liveReview=pendingRow.value.delivery.clientReviews.at(-1),livePath=`/api/gauge/client-milestones/${pending.id}/${liveReview.id}`
+ assert.equal((await request(livePath,otherRecipient.cookie)).status,200)
+ assert.equal((await h.post('/auth/operator/status',{operatorId:authorizer.id,status:'inactive'},h.owner)).status,200)
+ assert.equal((await request(livePath,otherRecipient.cookie)).status,403,'Losing the authorizing owner immediately fences client review')
  console.log('PASS DELIVERY-005 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale, revoked and expired authority, replay and separate finance gates')
 }

@@ -12,9 +12,13 @@ export async function milestoneReviewCommand(env:Bindings,a:Actor,tx:Transaction
  const reason=text(input.reason,'Client review authorization reason'),d:Value=structuredClone(row.value.delivery??{})
  if(action==='milestone:revoke-review') {
   const review=d.clientReviews?.find((r:Value)=>r.id===input.reviewId)
-  need(review&&!review.revokedAt,'Choose an active client review',409)
+  need(review&&await env.DB.prepare('SELECT 1 FROM g_milestone_review_authority WHERE review_id=? AND milestone_id=?').bind(review.id,row.id).first(),'Choose an active client review',409)
+  tx.observe('milestones',row)
+  tx.guard('EXISTS(SELECT 1 FROM g_milestone_review_authority WHERE review_id=? AND milestone_id=?)',review.id,row.id)
   tx.sql('DELETE FROM g_milestone_review_authority WHERE review_id=?',review.id)
-  review.revokedAt=Date.now();review.revokedBy=a.session.operator.id;review.revocationReason=reason
+  // Access revocation must not rewrite a source already reserved by finance.
+  tx.audit(action,'milestones',row.id,{reviewId:review.id,deliveryId:review.deliveryId,reason})
+  return row
  } else {
   const delivery=d.deliveries?.at(-1)
   need(delivery&&d.currentDeliveryId===delivery.id,'Deliver the current work before inviting client review',409)

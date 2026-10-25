@@ -104,5 +104,72 @@ export async function milestoneDeliveryJourney(h,browser,{lead,worker,manager,st
    ownRow=(await state()).data.milestones.find(r=>r.id===separate.id);assert.equal(ownRow.value.delivery.authorization.notice,'One-person approval by owner')
   }finally{await context.close()}
  }
+ await directMilestoneReviewJourney(h,{lead,worker,manager,staff,outsider,financePerson})
  console.log('PASS DELIVERY-005: risks, mitigation/owner, dated client dependencies, immutable delivered work, attributed rejection/resolution/acceptance, separate billing gates, exact replay/stale refusal, access and 1440/390 public forms')
+}
+
+async function directMilestoneReviewJourney(h,{lead,worker,manager,staff,outsider,financePerson}) {
+ const {cmd,state,request,post}=h
+ const recipient=await h.invite('synthetic-gauge-7301'),otherRecipient=await h.invite('synthetic-gauge-7302')
+ const client=await cmd('save:clients',{name:'synthetic-gauge-7303'})
+ const engagement=await cmd('save:engagements',{name:'synthetic-gauge-7304',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Internal scope withheld from recipients',timezone:'UTC'})
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:engagement.id,mode:'fixed',amountMinor:10000,effortSeconds:3600,roundingSeconds:60,reason:'Agreed client delivery'}))
+ let milestone=await cmd('milestone:approve',await cmd('save:milestones',{engagementId:engagement.id,name:'Client design',due:'2020-01-02',amountMinor:10000}))
+ const current=async()=>(await state()).data.milestones.find(r=>r.id===milestone.id)
+ milestone=await cmd('milestone:health',{...milestone,health:'at-risk',reason:'Private internal risk assessment'},manager.cookie)
+ milestone=await cmd('milestone:deliver',{...milestone,date:'2020-01-01',reason:'Private internal delivery notes'},manager.cookie)
+ const releaseInput={...milestone,contact:'synthetic-gauge-7301@example.test',description:'Review the delivered design assets',reason:'Owner explicitly shares this delivery only',days:7}
+ for(const cookie of [manager.cookie,financePerson.cookie,staff.cookie,recipient.cookie])await cmd('milestone:release-review',releaseInput,cookie,403)
+ await cmd('milestone:release-review',{...releaseInput,contact:'delivery-worker@example.test'},h.owner,409)
+ milestone=await cmd('milestone:release-review',releaseInput)
+ let row=await current(),review=row.value.delivery.clientReviews.at(-1)
+ const path=review=>`/api/gauge/client-milestones/${row.id}/${review.id}`
+ for(const [cookie,status]of [['',401],[otherRecipient.cookie,403],[h.owner,403],[staff.cookie,403],[outsider.cookie,403]])assert.equal((await request(path(review),cookie)).status,status)
+ let response=await request(path(review),recipient.cookie);assert.equal(response.status,200)
+ const document=await response.json()
+ assert.deepEqual(Object.keys(document).sort(),['date','decision','deliveryId','description','expiresAt','id','name','revision'].sort())
+ assert.equal(document.description,releaseInput.description);assert.equal(document.decision,null)
+ assert(!JSON.stringify(document).includes('Private internal'));assert(!JSON.stringify(document).includes('10000'))
+ const input={key:randomUUID(),revision:row.revision,outcome:'rejected',reason:'Editable assets are missing',contact:'Forged person',date:'1900-01-01'}
+ assert.equal((await request(path(review),recipient.cookie,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)})).status,403)
+ assert.equal((await post(path(review),{...input,revision:'stale'},recipient.cookie)).status,409)
+ assert.equal((await post(path(review),{...input,reason:''},recipient.cookie)).status,400)
+ const rejected=await post(path(review),input,recipient.cookie);assert.equal(rejected.status,200,await rejected.clone().text())
+ assert.deepEqual(await(await post(path(review),input,recipient.cookie)).json(),await rejected.json(),'Exact client response replay stays once-only')
+ row=await current();const first=structuredClone(row.value.delivery.deliveries[0]),decision=row.value.delivery.decisions[0]
+ assert.equal(decision.confirmedByClient,true);assert.equal(decision.recordedBy,recipient.id);assert.equal(decision.contact,'synthetic-gauge-7301@example.test');assert(decision.notice.startsWith('Confirmed by client '));assert.notEqual(decision.date,'1900-01-01')
+ const issue=row.value.delivery.issues.find(i=>i.id===decision.issueId);assert.equal(issue.status,'open');assert.equal(issue.ownerId,lead.id)
+ await cmd('packet:create',{engagementId:engagement.id,title:'Rejected delivery cannot bill',sources:[`milestones:${row.id}`]},financePerson.cookie,409)
+ await cmd('milestone:issue',{...row,itemId:issue.id,name:issue.name,ownerId:lead.id,mitigation:'Editable assets delivered',status:'resolved',reason:'Missing work resolved'},manager.cookie)
+ assert.equal((await request(path(review),recipient.cookie)).status,403,'A changed delivery invalidates recipient authority immediately')
+ row=await current();await cmd('milestone:deliver',{...row,date:'2020-01-02',reason:'Private revised internal delivery'},manager.cookie)
+ row=await current();await cmd('milestone:release-review',{...row,contact:'synthetic-gauge-7301@example.test',description:'Revised design includes editable assets',reason:'Owner releases the exact revised work'})
+ row=await current();review=row.value.delivery.clientReviews.at(-1)
+ const accept={key:randomUUID(),revision:row.revision,outcome:'accepted',reason:'All required assets received'}
+ const results=await Promise.all([post(path(review),accept,recipient.cookie),post(path(review),accept,recipient.cookie)])
+ for(const result of results)assert.equal(result.status,200,await result.clone().text())
+ assert.deepEqual(await results[0].json(),await results[1].json())
+ row=await current();assert.equal(row.value.delivery.decisions.length,2);assert.deepEqual(row.value.delivery.deliveries[0],first)
+ assert.equal(row.value.delivery.issues.find(i=>i.id===issue.id).status,'resolved')
+ assert.equal((await state()).data.packets.filter(p=>p.value.engagementId===engagement.id).length,0,'Direct acceptance creates no packet')
+ assert.equal((await state()).data.invoices.filter(p=>p.value.engagementId===engagement.id).length,0,'Direct acceptance issues no invoice')
+ await cmd('packet:create',{engagementId:engagement.id,title:'Client cannot authorize finance',sources:[`milestones:${row.id}`]},recipient.cookie,403)
+ await cmd('packet:create',{engagementId:engagement.id,title:'Still needs finance authorization',sources:[`milestones:${row.id}`]},financePerson.cookie,409)
+ await cmd('milestone:authorize',row,recipient.cookie,403)
+ await cmd('milestone:authorize',row,financePerson.cookie)
+ const packet=await cmd('packet:create',{engagementId:engagement.id,title:'Separately authorized delivery',sources:[`milestones:${row.id}`]},financePerson.cookie)
+ assert.equal((await state()).data.packets.find(r=>r.id===packet.id).value.status,'draft')
+ const pending=await cmd('milestone:deliver',{...await cmd('save:milestones',{engagementId:engagement.id,name:'Pending client review',due:'2020-01-03',amountMinor:0}),date:'2020-01-02',reason:'Pending exact work'})
+ await cmd('milestone:release-review',{...pending,contact:'synthetic-gauge-7301@example.test',description:'Explicitly shared pending work',reason:'Exercise revoke and expiry'})
+ let pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id),pendingReview=pendingRow.value.delivery.clientReviews.at(-1)
+ const pendingPath=()=>`/api/gauge/client-milestones/${pending.id}/${pendingReview.id}`
+ await cmd('milestone:revoke-review',{...pendingRow,reviewId:pendingReview.id,reason:'Withdraw recipient access'})
+ assert.equal((await request(pendingPath(),recipient.cookie)).status,403)
+ pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id)
+ await cmd('milestone:release-review',{...pendingRow,contact:'synthetic-gauge-7301@example.test',description:'Fresh pending work release',reason:'Explicit renewed authority'})
+ pendingRow=(await state()).data.milestones.find(r=>r.id===pending.id);pendingReview=pendingRow.value.delivery.clientReviews.at(-1)
+ await h.db.prepare('UPDATE g_milestone_review_authority SET expires_at=0 WHERE review_id=?').bind(pendingReview.id).run()
+ assert.equal((await request(pendingPath(),recipient.cookie)).status,403,'An expired grant cannot read or decide')
+ assert.equal((await post(pendingPath(),{key:randomUUID(),revision:pendingRow.revision,outcome:'accepted',reason:'Expired authority'},recipient.cookie)).status,403)
+ console.log('PASS DELIVERY-005 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale/revoked/expired authority, replay and separate finance gates')
 }

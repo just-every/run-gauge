@@ -52,6 +52,14 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await recordMilestoneAcceptance(h,acceptedMilestone.id)
  const savedDelivery=(await state()).data.milestones.find(r=>r.id===acceptedMilestone.id).value.delivery
  assert.equal(savedDelivery.decisions[0].notice,'recorded by Test owner, not confirmed by the client','DELIVERY-005 archive includes the honest client-decision label')
+ // Exact client review is retained business history with disconnected recipient authority.
+ const portableRecipient=await h.invite('synthetic-gauge-7305')
+ const reviewMilestone=await cmd('milestone:deliver',{...await cmd('save:milestones',{engagementId:engagement.id,name:'Portable direct client review',due:'2020-01-02',amountMinor:0}),date:'2020-01-01',reason:'Internal retained delivery'})
+ await cmd('milestone:release-review',{...reviewMilestone,contact:'synthetic-gauge-7305@example.test',description:'Retained explicit client description',reason:'Portable exact recipient release'})
+ const portableReviewRow=(await state()).data.milestones.find(r=>r.id===reviewMilestone.id),portableReview=portableReviewRow.value.delivery.clientReviews.at(-1)
+ const portableReviewPath=`/api/gauge/client-milestones/${reviewMilestone.id}/${portableReview.id}`
+ const portableDecision=await h.post(portableReviewPath,{key:crypto.randomUUID(),revision:portableReviewRow.revision,outcome:'accepted',reason:'Client confirms the retained delivery'},portableRecipient.cookie)
+ assert.equal(portableDecision.status,200,await portableDecision.clone().text())
  // DELIVERY-003 / BASE-002: immutable template versions and the plan applied from one round-trip.
  const kickoff={key:'kickoff',kind:'task',name:'Portable kickoff',offsetDays:0,durationDays:1,predecessors:[],owner:'lead',effortSeconds:3600}
  const template=await cmd('template:save',{name:'Portable onboarding',purpose:'client-onboarding',items:[kickoff],reason:'Portable onboarding template'})
@@ -297,6 +305,11 @@ export async function prepareCurrentPortability(h,{importJob}) {
   try{
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
    assert.notEqual(restored.vars.SESSION_SECRET,h.vars.SESSION_SECRET,'restore uses fresh private settings')
+   assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_milestone_review_authority').first()).n,0,'Client delivery review authority never travels')
+   const restoredRecipient=await restored.invite('synthetic-gauge-7305')
+   assert.equal((await restored.request(portableReviewPath,restoredRecipient.cookie)).status,403,'Fresh matching email cannot revive restored review authority')
+   const restoredReview=(await restored.state()).data.milestones.find(r=>r.id===reviewMilestone.id)
+   assert.equal(restoredReview.value.delivery.decisions[0].confirmedByClient,true,'Direct decision history remains direct evidence after restore')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_retainer_schedule_authority').first()).n,0,'Restored schedules carry no execution consent')
    await restored.cmd('handoff:prepare',{purpose:'reimbursement',recipient:'Portable payroll desk',reason:'Restored replay must not reimburse twice',sources:[{kind:'expenses',id:portableClaim.id,revision:portableClaim.revision}]},restored.owner,409)
    const restoredBefore=await restored.state(),restoredRuns=restoredBefore.data.retainerRuns

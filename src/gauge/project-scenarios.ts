@@ -83,6 +83,7 @@ export async function projectScenarioPreview(env: Bindings, a: Actor, input: Val
  let changes: Value[], stored: Row | undefined
  if(input.id) {
   stored = await get(env,'projectScenarios',text(input.id,'Scenario'))
+  need(!stored.value.changeOrder, 'Client change requests cannot be adopted as internal financial scenarios', 409)
   need(stored.revision === input.revision && stored.value.status === 'prepared', 'Scenario changed or already adopted', 409)
   need(asOf === stored.value.asOf && hash(data) === stored.value.basisDigest, 'Scenario baseline changed; prepare a new scenario', 409)
   need(Array.isArray(input.selectedIds) && input.selectedIds.length > 0, 'Explicitly select the alternatives to adopt')

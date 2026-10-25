@@ -49,6 +49,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(k==='deliveryTemplates')value={...value,items:value.items.map((item:Value)=>visibleCustom(a,'tasks',item))}
  if(k==='savedReports'&&!savedVisible(a,value))return {}
  if (k === 'leave') value = {...value, note: value.personId === a.personId ? value.note : 'Private leave', conflicts: (value.conflicts ?? []).filter((c:Value) => finance(a) || c.leadId === a.personId)}
+ if(k==='milestones'&&value.delivery&&a.role!=='owner'){const {clientReviews,...delivery}=value.delivery;value={...value,delivery}}
  if (finance(a)) return value
  if(k==='budgetAlerts'){const {actual,budget,...alert}=value;return alert}
  if(k==='retainerCloses'||k==='retainerAdjustments')return correctionValue(a,k,value)

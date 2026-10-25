@@ -1,3 +1,5 @@
+import { milestoneReviewCommand } from './milestone-review'
+import { scopeChangePreview, scopeChangeCommand } from './scope-changes'
 import { floatDeletionPreview, floatDeletionCommand } from './float-deletions'
 import { floatAdoptionPreview, floatAdoptionCommand } from './float-native'
 import { resourceActions } from './resource-manager'
@@ -62,6 +64,7 @@ import { agencyProfileCommand } from './agency-profile'
 import { fxCommand, consolidate } from './fx-rates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
+ need(!a.clientMilestone||action==='milestone:respond','Client review authorizes only an exact delivery response',403)
  need(a.role!=='resource-manager'||resourceActions.includes(action),'Resource managers plan permitted staffing only',403)
  need(a.role!=='accountant','Accountants have read-only access',403)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
@@ -85,6 +88,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='privacy:preview'){const {snapshot,...preview}=await privacyPreview(env,a,input);return preview}
  if(action==='field:import-preview')return customPreview(env,a,input)
  if(action==='period:preview')return periodPreview(env,a,input)
+ if(action==='change:preview')return scopeChangePreview(env,a,input)
  if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)
  if(action==='retainer:preview')return retainerPreview(env,a,input)
  if(action==='delivery:preview')return deliveryPreview(env,a,input)
@@ -105,6 +109,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await nativeAdoptionCommand(env,a,tx,action,input)
  if(!result)result=await caseCommand(env,a,tx,action,input)
  if(!result)result=await retainerScheduleCommand(env,a,tx,action,input)
+ if(!result)result=await milestoneReviewCommand(env,a,tx,action,input)
  if(!result)result=await milestoneDeliveryCommand(env,a,tx,action,input)
  if(!result)result=await deliveryCommand(env,a,tx,action,input)
  if(!result)result=await templateCommand(env,a,tx,action,input)
@@ -125,6 +130,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await leaveCommand(env,a,tx,action,input)
  if(!result)result=await agencyProfileCommand(env,a,tx,action,input)
  if(!result)result=await fxCommand(env,a,tx,action,input)
+ if(!result)result=await scopeChangeCommand(env,a,tx,action,input)
  if(!result)result=await projectScenarioCommand(env,a,tx,action,input)
  if(!result)result=await demandScenarioCommand(env,a,tx,action,input)
  if(!result)result=await invoiceAccessCommand(env,a,tx,action,input)

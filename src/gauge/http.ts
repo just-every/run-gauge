@@ -1,3 +1,4 @@
+import { milestoneClientResponse } from './milestone-review'
 import { accountantProjection } from './accountant-projection'
 import { resourceActions } from './resource-manager'
 import { accountantInputs } from './accountant'
@@ -33,6 +34,7 @@ function customOptions(url:URL,a:Actor){const parse=(name:string,defaultValue:an
 const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-content-type-options':'nosniff','x-robots-tag':'noindex','content-security-policy':"default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
+ if(path.startsWith('/api/gauge/client-milestones/'))return milestoneClientResponse(request,runtimeBindings(original))
  // Resolve complete declared paths before admitting a command or reading its body.
  if(path.startsWith('/app/client-invoices/'))return invoiceClientResponse(request,runtimeBindings(original))
  if(path.startsWith('/app/client-proposals/')||path.startsWith('/app/proposal-originals/'))return commercialClientResponse(request,runtimeBindings(original))

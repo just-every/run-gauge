@@ -1,5 +1,5 @@
 import type { Bindings } from '../auth.server'
-import { type Value, type Row, need, text, date, uuid } from './model'
+import { type Value, type Row, need, text, date, uuid, workDate } from './model'
 import { type Actor, type Transaction, access, get, finance } from './store'
 
 export function acceptedDelivery(value:Value) {
@@ -10,10 +10,12 @@ export function authorizedDelivery(value:Value) {
  return acceptedDelivery(value) && value.delivery.authorization?.deliveryId===value.delivery.currentDeliveryId
 }
 export async function milestoneDeliveryCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null> {
- if(!['milestone:health','milestone:issue','milestone:dependency','milestone:deliver','milestone:decision','milestone:authorize'].includes(action))return null
+ if(!['milestone:health','milestone:issue','milestone:dependency','milestone:deliver','milestone:decision','milestone:authorize','milestone:respond'].includes(action))return null
  const row=await get(env,'milestones',text(input.id,'Milestone'))
  need(row.revision===input.revision,'Milestone changed; reload before saving',409)
- const engagement=await access(env,a,row.value.engagementId,true);tx.observe('engagements',engagement)
+ const direct=action==='milestone:respond'
+ need(!direct||(a.role==='client'&&a.clientMilestone?.id===row.id),'Use the invited client delivery review door',403)
+ const engagement=direct?await get(env,'engagements',row.value.engagementId):await access(env,a,row.value.engagementId,true);tx.observe('engagements',engagement)
  // A packet reserves an exact source revision; delivery edits cannot silently rewrite it.
  tx.guard("NOT EXISTS(SELECT 1 FROM g_billing_sources WHERE kind='milestones' AND source_id=?)",row.id)
  need(!await env.DB.prepare("SELECT 1 FROM g_billing_sources WHERE kind='milestones' AND source_id=?").bind(row.id).first(),'Milestone is reserved for billing; cancel the draft or use a linked billing correction',409)
@@ -55,19 +57,19 @@ export async function milestoneDeliveryCommand(env:Bindings,a:Actor,tx:Transacti
   need(d.authorization?.deliveryId!==d.currentDeliveryId,'Current delivery already authorized',409)
   d.authorization={deliveryId:d.currentDeliveryId,approvedBy:recordedBy,approvedByName:recordedByName,at,notice:self?'One-person approval by owner':'Independent finance approval'}
  }
- if(action==='milestone:decision') {
+ if(action==='milestone:decision'||direct) {
   const delivery=d.deliveries.at(-1)
   need(delivery&&d.currentDeliveryId===delivery.id,'Deliver the current work before recording a client decision',409)
   need(input.deliveryId===delivery.id,'Delivered work changed; reload the exact delivery',409)
   need(!d.decisions.some((decision:Value)=>decision.deliveryId===delivery.id),'This delivery already has a decision; record a new delivery',409)
   need(['accepted','rejected'].includes(input.outcome),'Choose accepted or rejected')
-  const on=date(input.date);need(on>=delivery.date,'Decision date precedes delivery')
+  const on=direct?workDate(at,a.timezone):date(input.date);need(on>=delivery.date,'Decision date precedes delivery')
   let issueId:string|undefined
   if(input.outcome==='rejected'){
    need(d.issues.length<100,'At most 100 issues per milestone')
    issueId=uuid();d.issues.push({id:issueId,name:'Client rejected delivered milestone',status:'open',ownerId:engagement.value.leadId,mitigation:'Resolve the recorded rejection before the next delivery',reason:text(input.reason,'Client decision reason'),deliveryId:delivery.id,updatedAt:at,recordedBy})
   }
-  d.decisions.push({...(issueId?{issueId}:{}),deliveryId:delivery.id,outcome:input.outcome,contact:text(input.contact,'Named client contact',200),date:on,reason:text(input.reason,'Client decision reason'),recordedBy,recordedByName,at,notice:`recorded by ${recordedByName}, not confirmed by the client`})
+  d.decisions.push({...(issueId?{issueId}:{}),deliveryId:delivery.id,outcome:input.outcome,contact:direct?a.session.operator.email:text(input.contact,'Named client contact',200),date:on,reason:text(input.reason,'Client decision reason'),recordedBy,recordedByName,at,...(direct?{confirmedByClient:true,reviewId:a.clientMilestone!.reviewId}:{}),notice:direct?`Confirmed by client ${recordedByName} (${a.session.operator.email})`:`recorded by ${recordedByName}, not confirmed by the client`})
  }
  return tx.record('milestones',{...row.value,delivery:d},row,undefined,action)
 }

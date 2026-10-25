@@ -4357,7 +4357,7 @@
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {
-      "sha256": "640199534ce090201750197c75f5a047651d2038077e4ce5d4a292e8708477b9",
+      "sha256": "ab9b398eeac1b4b0c31547398c024238aa7e76a95cde5d150b5a5b8618fc0edc",
       "executable": false
     },
     "tests/gauge-cli-journey.mjs": {
@@ -4409,7 +4409,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "7ad4fcad992b973fb2b7e4dec855c878365f1a96f5cc5512d18e81b69629dc20",
+      "sha256": "1e20dd2fd6293514e893b048534ea35b2ba6387eed8d4cfd0dfcdb3aec018f84",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4481,7 +4481,7 @@
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
-      "sha256": "f55711cef38de4fa7a7e944d2caeaa8afce05f02b277f12f1943757704ba5508",
+      "sha256": "379875faa2bb9d1983e0abf0155866ede4063142191ee5c773b5caee8954ebf7",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {
@@ -4569,7 +4569,7 @@
       "executable": false
     },
     "tests/live/invoice-delivery.mjs": {
-      "sha256": "e8e76801013f1ea5fd9bdedadb410bb17a48cae4d6fdccf6ce726f119e8d4de7",
+      "sha256": "984a7f427252d3220c4edd7132b783360e50415add8c2fa13f0d22f996a2d321",
       "executable": false
     },
     "tests/runtime.mjs": {

@@ -14,7 +14,7 @@ const fromEmail=parseAddress(from).email
 const inbox='https://rer-qa-inbox.runeditrun.workers.dev',since=Date.now(),hash=b=>createHash('sha256').update(b).digest('hex')
 const receiptHeaders={Authorization:`Bearer ${process.env.QA_INBOX_RECEIPT_TOKEN}`}
 const preflight=await fetch(inbox+'/receipts?limit=1',{headers:receiptHeaders,signal:AbortSignal.timeout(20000)});assert.equal(preflight.status,200,'QA receipt inbox must be readable before sending')
-const h=await harness({currency:'USD',timezone:'America/New_York',mailFrom:from});let browser
+const h=await harness({currency:'USD',timezone:'America/New_York',mailFrom:from,databaseBinding:false});let browser
 try{
  const {cmd,state,owner,request}=h
  h.providerEdge.handler=async(req,body)=>{

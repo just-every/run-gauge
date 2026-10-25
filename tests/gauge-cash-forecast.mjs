@@ -121,7 +121,7 @@ try {
  await agencyCloseJourney(h)
  await customFieldJourney(h)
  // This independent document journey has its own installation and native authentication limits.
- const invoiceApp=await harness({currency:'USD',timezone:'America/New_York'})
+ const invoiceApp=await harness({currency:'USD',timezone:'America/New_York',databaseBinding:false})
  try{await invoicePresentationJourney(invoiceApp)}finally{await invoiceApp.dispose()}
  console.log('PASS FINANCE-002 milestone delay moves expected cash as an independent FINANCE-007 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only')
 } finally { await browser?.close(); await h.dispose() }

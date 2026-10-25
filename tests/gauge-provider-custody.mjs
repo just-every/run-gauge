@@ -6,7 +6,7 @@ import {harness} from './gauge-harness.mjs'
 // One custody business flow through the production Worker, native owner forms,
 // persisted jobs and a Crank-compatible receiver at the harness's network edge.
 export async function providerCustodyJourney(browser){
- let h=await harness({currency:'USD',timezone:'America/New_York'}),owner=h.owner;const logHistory=[]
+ let h=await harness({databaseBinding:false,currency:'USD',timezone:'America/New_York'}),owner=h.owner;const logHistory=[]
  const directory=h.directory,cmd=(...args)=>h.cmd(...args),state=(...args)=>h.state(...args),request=(...args)=>h.request(...args),endpoint='https://crank.example.test/api/crank/flows/budget-exception/trigger'
  const credentials=['synthetic-gauge-1001','synthetic-gauge-1002','synthetic-gauge-1003'],accountLabel='Northline budget notifications'
  const scan=(label,value)=>{const serialized=typeof value==='string'?value:JSON.stringify(value);for(const credential of credentials)assert(!serialized.includes(credential),`Full provider credential is absent from ${label}`)}
@@ -81,7 +81,7 @@ export async function providerCustodyJourney(browser){
   assert(rotatedConnection.value.version>firstConnection.value.version)
   assert.equal(rotatedConnection.value.lastFour,credentials[1].slice(-4))
   // Restart the real Worker with its persisted database before dispatching the queued work.
-  logHistory.push(...h.logs);await h.close();h=await harness({currency:'USD',timezone:'America/New_York',persistenceDirectory:directory});owner=h.owner
+  logHistory.push(...h.logs);await h.close();h=await harness({databaseBinding:false,currency:'USD',timezone:'America/New_York',persistenceDirectory:directory});owner=h.owner
   await context.clearCookies();await context.addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
   await page.goto(h.origin+'/app/access')
   assert.equal((await read('providerJobs',queued.id)).revision,originalJob.revision,'Queued source and credential version survive a real process restart')
@@ -273,7 +273,7 @@ export async function providerCustodyJourney(browser){
 
 // Connector readback is a separate business journey, folded into the existing pipeline suite.
 export async function connectorHealthJourney(browser){
- let h=await harness({currency:'USD',timezone:'America/New_York'});const directory=h.directory
+ let h=await harness({databaseBinding:false,currency:'USD',timezone:'America/New_York'});const directory=h.directory
  const cmd=(...args)=>h.cmd(...args),state=()=>h.state(),read=async(kind,id)=>(await state()).data[kind].find(r=>r.id===id)
  const originals=new Map(),credentials=['synthetic-gauge-4001','synthetic-gauge-4002'];let expired=false
  const attach=()=>{h.providerEdge.handler=async request=>{
@@ -304,7 +304,7 @@ export async function connectorHealthJourney(browser){
   expired=true;await cmd('providerSync:advance',first)
   const interrupted=await read('providerSyncs',sync.id);assert.equal(interrupted.value.cursor,1);assert.equal(interrupted.value.status,'exception');assert.equal(interrupted.value.exceptionClass,'authorization-expired')
   const kept=structuredClone(interrupted.value.reconciledTotals)
-  await h.close();h=await harness({currency:'USD',timezone:zone,persistenceDirectory:directory});attach()
+  await h.close();h=await harness({databaseBinding:false,currency:'USD',timezone:zone,persistenceDirectory:directory});attach()
   const afterRestart=await read('providerSyncs',sync.id);assert.deepEqual(afterRestart.value,interrupted.value,'Real Worker restart preserves the exact mid-page checkpoint and controls')
   const oldConnection=await read('providerConnections',connection.id);await cmd('provider:rotate',{...oldConnection,credential:credentials[1]});expired=false
   const key=randomUUID(),resume={id:sync.id,revision:afterRestart.revision,key},result=await cmd('providerSync:advance',resume)
@@ -339,7 +339,7 @@ export async function connectorHealthJourney(browser){
 
 // Run outside push Verify on the committed candidate for the real elapsed-time proof.
 export async function providerRetryJourney(browser){
- let h=await harness({currency:'USD',timezone:'America/New_York'});const directory=h.directory
+ let h=await harness({databaseBinding:false,currency:'USD',timezone:'America/New_York'});const directory=h.directory
  const cmd=(...args)=>h.cmd(...args),state=()=>h.state(),read=async id=>(await state()).data.providerJobs.find(j=>j.id===id)
  let attempts=0
  const attach=()=>{h.providerEdge.handler=async request=>{if(request.url==='https://crank.example.test/api/crank/flows/budget-exception/trigger'){attempts++;return Response.json({error:'Rate limited'},{status:429})}}}
@@ -360,7 +360,7 @@ export async function providerRetryJourney(browser){
   const noRetry=attempts;await cmd('providerJob:dispatch',job);assert.equal(attempts,noRetry,'Dispatch before the persisted due time sends nothing')
   await cmd('providerJob:cancel',{...job,reason:'Owner cancels before a provider retry'});job=await read(cancelled.id);assert.equal(job.value.status,'cancelled');await cmd('providerJob:dispatch',job);assert.equal(attempts,noRetry)
   const queued=await cmd('providerJob:queue-crank',{...input,alertId:retryAlert.id,alertRevision:retryAlert.revision});await cmd('providerJob:dispatch',queued);job=await read(queued.id)
-  await h.close();h=await harness({currency:'USD',timezone:zone,persistenceDirectory:directory});attach()
+  await h.close();h=await harness({databaseBinding:false,currency:'USD',timezone:zone,persistenceDirectory:directory});attach()
   assert.deepEqual((await read(queued.id)).value,job.value,'Actual Worker restart retains attempt count and backoff')
   for(const expected of [2,3]){
    const delay=Math.max(0,job.value.nextAttemptAt-Date.now()+30)

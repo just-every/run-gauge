@@ -8,7 +8,7 @@ import {join,resolve} from 'node:path'
 import {createServer} from 'node:net'
 const {Miniflare,convertV4MiniflareOptions,Log,LogLevel}=createRequire(await realpath('node_modules/wrangler/package.json'))('miniflare')
 // The emitted Worker with production mail; outbound capture stands in for the mail provider and never reaches it.
-export async function harness({currency='AUD',timezone='Australia/Brisbane',finishSetup=true,persistenceDirectory,beforeLogin,mailFrom='Gauge <auth@example.test>'}={}){
+export async function harness({currency='AUD',timezone='Australia/Brisbane',finishSetup=true,persistenceDirectory,beforeLogin,databaseBinding=true,mailFrom='Gauge <auth@example.test>'}={}){
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
  const directory=persistenceDirectory??await mkdtemp(join(tmpdir(),'gauge-flow-')),origin=`https://127.0.0.1:${port}`,secret=()=>randomBytes(32).toString('hex'),mails=[],providerRequests=[],providerEdge={handler:null}
  const vars={AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret(),SETUP_TOKEN:secret(),MAIL_PROVIDER:'resend',MAIL_FROM:mailFrom,MAIL_API_KEY:'synthetic-gauge-900001'}
@@ -45,7 +45,7 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  const invite=async(name,role='member',email=`${name}@example.test`)=>{const response=await post('/auth/invite',{email,displayName:name,role},owner);assert.equal(response.status,202);const cookie=await confirmLatest(),session=await(await request('/auth/session',cookie)).json();return {cookie,id:session.operator.id}}
  const cmd=async(action,input={},cookie=owner,expected=200)=>{const response=await post('/api/gauge/command',{key:randomUUID(),action,...input},cookie),body=await response.json();assert.equal(response.status,expected,`${action}: ${JSON.stringify(body)}`);return body}
  const state=async(cookie=owner)=>{const r=await request('/api/gauge/state?from=2026-10-01&to=2026-10-31',cookie);assert.equal(r.status,200);return r.json()}
- return {logs,mails,providerRequests,providerEdge,scheduled:(time)=>request('/cdn-cgi/local/scheduled'+(time==null?'':'?time='+encodeURIComponent(time))),db:await mf.getD1Database('DB'),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
+ return {logs,mails,providerRequests,providerEdge,scheduled:(time)=>request('/cdn-cgi/local/scheduled'+(time==null?'':'?time='+encodeURIComponent(time))),...(databaseBinding?{db:await mf.getD1Database('DB')}:{}),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
  }catch(error){await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true});throw error}
 }
 

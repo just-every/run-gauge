@@ -408,6 +408,36 @@
       "name": "0067_gauge_accountant_grant.sql",
       "sha256": "b370202e98c5bc0a3c784f266ffb25cff4bbb7784115c4247b227fa4ee418b34",
       "sql": "-- A read-only accountant grant carries no finance write authority.\nCREATE TABLE g_grants_next(operator_id TEXT PRIMARY KEY REFERENCES oa_operators(id),person_id TEXT,role TEXT NOT NULL CHECK(role IN ('staff','lead','finance','agent','accountant')),enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),version INTEGER NOT NULL DEFAULT 1,purpose TEXT,engagement_ids TEXT NOT NULL DEFAULT '[]',granted_by TEXT,CHECK((role='agent')=(person_id IS NULL)));\nINSERT INTO g_grants_next SELECT operator_id,person_id,role,enabled,version,purpose,engagement_ids,granted_by FROM g_grants;\nDROP TABLE g_grants;\nALTER TABLE g_grants_next RENAME TO g_grants;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0068_gauge_resource_manager.sql",
+      "sha256": "06e69ac905bf97916f65318928fd60cecff92182f6d41743f756701223b333f5",
+      "sql": "-- Owner-scoped resource planning remains separate from finance authority.\nCREATE TABLE g_grants_next(operator_id TEXT PRIMARY KEY REFERENCES oa_operators(id),person_id TEXT,role TEXT NOT NULL CHECK(role IN ('staff','lead','finance','agent','accountant','resource-manager')),enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),version INTEGER NOT NULL DEFAULT 1,purpose TEXT,engagement_ids TEXT NOT NULL DEFAULT '[]',granted_by TEXT,planning_people TEXT NOT NULL DEFAULT '[]',CHECK((role='agent')=(person_id IS NULL)));\nINSERT INTO g_grants_next(operator_id,person_id,role,enabled,version,purpose,engagement_ids,granted_by) SELECT operator_id,person_id,role,enabled,version,purpose,engagement_ids,granted_by FROM g_grants;\nDROP TABLE g_grants;\nALTER TABLE g_grants_next RENAME TO g_grants;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0069_gauge_revenue_policy_revisions.sql",
+      "sha256": "54c449d71a01e66abed5190c72df222820fa3f21a59d2f32aa13781854dda553",
+      "sql": "-- Policy references can change; recognition terms and approved journal facts cannot.\nDROP TRIGGER g_revenue_schedule_immutable;\nCREATE TRIGGER g_revenue_schedule_terms_immutable BEFORE UPDATE ON g_revenueSchedules\nWHEN json_remove(NEW.data,'$.policy','$.accountant','$.reason','$.recordedBy','$.recordedAt')\n <> json_remove(OLD.data,'$.policy','$.accountant','$.reason','$.recordedBy','$.recordedAt')\nBEGIN SELECT RAISE(ABORT,'immutable_revenue_schedule_terms'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0070_gauge_float_adoption.sql",
+      "sha256": "62d859d8b9408da0bf93370a0e45ad21e417dff1549a11b2ae4979a42b2d4013",
+      "sql": "CREATE TABLE g_floatAdoptions(id TEXT PRIMARY KEY,revision TEXT NOT NULL,data TEXT NOT NULL CHECK(json_valid(data)));\nCREATE UNIQUE INDEX g_float_native_account ON g_floatAdoptions(json_extract(data,'$.namespace'));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0071_gauge_expense_policy.sql",
+      "sha256": "61af3f53c0033d32372602ce2c36ad69a42386022c94a08de50c9270267e87fc",
+      "sql": "-- Immutable unit prices and once-only employee reimbursement reservations.\nCREATE TABLE g_expenseRates(id TEXT PRIMARY KEY,revision TEXT NOT NULL,data TEXT NOT NULL CHECK(json_valid(data)));\nCREATE TABLE g_expense_reimbursements(expense_id TEXT PRIMARY KEY,source_revision TEXT NOT NULL,handoff_id TEXT NOT NULL);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0072_gauge_reimbursement_adjustments.sql",
+      "sha256": "8eb9bab826f916a873b7cce621fb6056918658bdbc4bd960da54f93d23cee6d0",
+      "sql": "-- Append-only identities for signed reimbursement corrections.\nCREATE TABLE g_reimbursement_adjustments(parent_id TEXT NOT NULL,source_id TEXT NOT NULL,handoff_id TEXT NOT NULL UNIQUE,PRIMARY KEY(parent_id,source_id));\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

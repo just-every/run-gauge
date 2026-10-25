@@ -40,7 +40,7 @@ export async function agencyJourney(h, page, capture) {
 
  // An old AUD record keeps its currency; consolidating it with USD needs an approved rate.
  const fixture = 'tests/fixtures/harvest/', files = {}
- for (const name of ['clients.csv', 'people.csv', 'projects.csv', 'time.csv']) files[name] = await readFile(fixture + name, 'utf8')
+ for (const name of ['clients.csv', 'people.csv', 'projects.csv', 'time.csv', 'finance.json']) files[name] = await readFile(fixture + name, 'utf8')
  files['clients.csv'] = files['clients.csv'].replace('Synthetic client', 'Harbour Bakery'); files['people.csv'] = files['people.csv'].replace('Synthetic person', 'Piper Lane'); files['projects.csv'] = files['projects.csv'].replace('Synthetic project', 'Winter rebrand')
  const old = { ...JSON.parse(await readFile(fixture + 'manifest.json', 'utf8')), namespace: 'old-aud-account' }
  assert.match((await cmd('import:preview', { package: { manifest: old, files } }, owner, 400)).error, /AUD.*USD.*keep-source-currency/)

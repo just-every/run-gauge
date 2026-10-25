@@ -996,3 +996,12 @@ Source reversal is held while a native adoption journal exists. These commands
 create no operator grants, native source-time approval, provider deletion or
 financial cutover authority. MIGRATE-010 retains cutover; CONNECT-013 retains live
 provider access. `data.floatAdoptions` is visible only to the native owner.
+
+
+## Complete historical source controls and original custom fields
+
+Harvest completeness now requires original `finance.json`, coverage and independent counts for expenses, estimates, invoices, payments and retainers, mandatory raw and billable time-cost controls, and independent client, month and currency financial totals. Preview returns `financialCounts` and `financialControls`. Signed retainer carry, refunds and invoice-cohort paid amounts remain distinct from dated cash. Original source finance uses finance-only archive downloads and grants no native issuance or settlement authority.
+
+Forecast captures use original page envelopes and a separate original `forecast-metadata.json` containing independent per-object counts and source history coverage. A flat array or administrator completeness attestation alone cannot establish coverage. CSV metadata binds the independent row count to the exact original SHA-256. See MOVE-IN.md for the bounded envelope and field mappings.
+
+`field:import-preview` and `field:import` additionally accept original `source-custom-fields-v1` exports from each documented source importer. The existing owner-only field door preserves both CSV originals, source field and value identities, explicit source type and scope maps, reviewed native relationships and all seven native types. Values remain private to finance; later source imports cannot inherit wider native visibility. The exact package, mappings and native value histories remain portable. This separate fields-only carrier currently lacks untouched reversal; broader native financial adoption and cutover remain outside its authority. See MOVE-IN.md and `tests/fixtures/source-custom-fields.mjs` for the format.

@@ -35,7 +35,7 @@ try{
  assert.equal((await request(`/api/gauge/packets/${packet.id}`,fin.cookie)).status,200)
  const credit=await cmd('packet:adjust',{id:packet.id,revision:packet.revision,sourceKind:'time',sourceId:t.id,correctedAmountMinor:15000,reason:'Courtesy credit'},fin.cookie); await cmd('packet:approve',credit,fin.cookie)
  // External references: a Harvest move-in, and an owner key whose create and keyed read are audited without the key.
- const root=new URL('./fixtures/harvest/',import.meta.url),files={};for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,root),'utf8')
+ const root=new URL('./fixtures/harvest/',import.meta.url),files={};for(const name of ['clients.csv','people.csv','projects.csv','time.csv','finance.json'])files[name]=await readFile(new URL(name,root),'utf8')
  const pack={manifest:{...JSON.parse(await readFile(new URL('manifest.json',root),'utf8')),currency:'USD'},files},preview=await cmd('import:preview',{package:pack},fin.cookie)
  let job=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint},fin.cookie);while(job.state==='applying')job=await cmd('import:resume',{id:job.id},fin.cookie)
  const key=await cmd('apikey:create',{label:'Audit reader'}); assert.match(key.token,/^gauge_util_/)

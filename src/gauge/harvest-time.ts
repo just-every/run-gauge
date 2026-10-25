@@ -26,10 +26,10 @@ export function harvestTimeEvidence(row: Record<string, string>, columns: Value,
   approved: yesNo('approved', 'Approved?'), locked: yesNo('locked', 'Locked?') }
 }
 
-export type HarvestTimeControl = { count: number; rawSeconds: number; billingSeconds: number | null; billedSeconds: number; unbilledSeconds: number; costMinor: number | null; billMinor: number }
+export type HarvestTimeControl = { count: number; rawSeconds: number; billableSeconds:number; billingSeconds: number | null; billedSeconds: number; unbilledSeconds: number; costMinor: number | null; billMinor: number }
 export function addHarvestTimeControl(controls: Record<string, HarvestTimeControl>, key: string, source: Value, billable: boolean) {
- const total = controls[key] ??= { count: 0, rawSeconds: 0, billingSeconds: 0, billedSeconds: 0, unbilledSeconds: 0, costMinor: 0, billMinor: 0 }
- total.count++; total.rawSeconds += source.rawSeconds
+ const total = controls[key] ??= { count: 0, rawSeconds: 0, billableSeconds:0, billingSeconds: 0, billedSeconds: 0, unbilledSeconds: 0, costMinor: 0, billMinor: 0 }
+ total.count++; total.rawSeconds += source.rawSeconds;total.billableSeconds+=billable?(source.billingSeconds??source.rawSeconds):0
  total.billingSeconds = total.billingSeconds === null || source.billingSeconds === null ? null : total.billingSeconds + source.billingSeconds
  total[source.billed ? 'billedSeconds' : 'unbilledSeconds'] += source.rawSeconds
  total.costMinor = total.costMinor === null || source.costMinor === null ? null : total.costMinor + source.costMinor

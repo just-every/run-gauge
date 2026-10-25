@@ -1,3 +1,5 @@
+import { sourceFieldJourney } from './fixtures/source-custom-fields.mjs'
+import { harvestFinancePackage } from './fixtures/harvest-finance.mjs'
 import assert from 'node:assert/strict'
 import { readFile, mkdir } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
@@ -36,11 +38,12 @@ try {
  assert.equal((await state()).agency.currency, 'USD')
 
  const fixture = 'tests/fixtures/harvest/', files = {}
- for (const name of ['clients.csv', 'people.csv', 'projects.csv', 'time.csv']) files[name] = await readFile(fixture + name, 'utf8')
+ for (const name of ['clients.csv', 'people.csv', 'projects.csv', 'time.csv', 'finance.json']) files[name] = await readFile(fixture + name, 'utf8')
  files['clients.csv'] = files['clients.csv'].replace('Synthetic client', 'Cascade Cider')
  files['people.csv'] = files['people.csv'].replace('Synthetic person', 'Owen Park')
  files['projects.csv'] = files['projects.csv'].replace('Synthetic project', 'Fall launch')
  const manifest = { ...JSON.parse(await readFile(fixture + 'manifest.json', 'utf8')), currency: 'USD', timezone: 'America/New_York' }
+ harvestFinancePackage({manifest,files})
  const mismatch = await cmd('import:preview', { package: { manifest: { ...manifest, currency: 'AUD' }, files } }, owner, 400)
  assert.match(mismatch.error, /AUD.*USD/)
  await page.goto(h.origin + '/app/imports')
@@ -58,11 +61,15 @@ try {
  await page.getByLabel('Manifest, as described in the move-in guide').fill(JSON.stringify(manifest))
  await page.getByRole('button', { name: 'Preview', exact: true }).click()
  await page.getByRole('heading', { name: 'Reconciled preview' }).waitFor(); await capture('harvest-preview')
+ assert.deepEqual((await cmd('import:preview',{package:{manifest,files}})).financialControls,manifest.finance.controls.financial)
  await page.getByRole('button', { name: 'Apply first bounded batch' }).click()
  let data = await state(), job = await cmd('import:read', { id: await page.locator('input[name=id]').first().inputValue() })
  while (job.state !== 'completed') job = await cmd('import:resume', { id: job.id })
  data = await state()
+ assert.equal(data.data.archives.filter(r=>r.value.harvestFinance).length,9)
+ await page.reload();assert.equal(await page.getByRole('link',{name:'Download retained Harvest finance',exact:true}).count(),9);await capture('harvest-finance')
  const engagement = data.data.engagements[0], person = data.data.people[0], task = data.data.tasks[0]
+ await sourceFieldJourney(h,{client:data.data.clients[0],project:engagement,person,task,providers:['harvest'],page,capture})
  assert.equal(engagement.value.currency, 'USD'); assert.equal(data.data.rates[0].value.currency, 'USD')
  assert(data.data.time.every(row => row.value.source.currency === 'USD'))
  const expense = await cmd('expense:save', { engagementId: engagement.id, personId: person.id, date: '2026-09-01', description: 'Launch workshop materials', amountMinor: 8650, reimbursable: true })

@@ -37,16 +37,17 @@ export async function kantataReport(env:Bindings,a:Actor,input:Value){
  const selected=input.fieldId?rows.find(r=>r.sourceKind==='customFields'&&r.sourceId===input.fieldId):null
  if(input.fieldId)need(selected,'Unknown historical custom field',404)
  const find=(kind:string,id:string)=>rows.find(r=>r.sourceKind===kind&&r.sourceId===id),groups:Record<string,Value>={}
- for(const kind of ['time','expenses','invoices','payments','wip'])for(const row of rows.filter(r=>r.sourceKind===kind)){
+ for(const kind of ['time','expenses','invoices','payments','wip','retainers'])for(const row of rows.filter(r=>r.sourceKind===kind)){
   const v=row.data,project=find('projects',kind==='payments'?find('invoices',v.invoiceId)?.data.projectId:v.projectId),person=kind==='time'?find('people',v.personId):null
   let dimension=project?.data.clientId??'Unresolved'
   if(selected){const scope=selected.data.scope,target=selected.data.mappedScope==='engagements'?project:selected.data.mappedScope==='people'?person:selected.data.mappedScope==='tasks'?find('tasks',v.taskId):selected.data.mappedScope==='clients'?find('clients',project?.data.clientId):null,cv=target&&rows.find(r=>r.sourceKind==='customValues'&&r.data.fieldId===selected.sourceId&&r.data.scope===scope&&r.data.recordId===target.sourceId);dimension=cv?typeof cv.data.value==='string'?cv.data.value:canonicalJson(cv.data.value):'Unassigned'}
-  const key=dimension+'/'+v.currency,total=groups[key]??={dimension,currency:v.currency,timeSeconds:0,billableSeconds:0,timeValueMinor:0,timeCostMinor:0,expenseMinor:0,invoiceMinor:0,paidMinor:0,outstandingMinor:0,wipMinor:0,sources:[]},add=(field:string,n:number)=>total[field]=sum([total[field],n]);total.sources.push({kind,sourceId:row.sourceId})
+  const key=dimension+'/'+v.currency,total=groups[key]??={dimension,currency:v.currency,timeSeconds:0,billableSeconds:0,timeValueMinor:0,timeCostMinor:0,expenseMinor:0,invoiceMinor:0,paidMinor:0,outstandingMinor:0,wipMinor:0,openingMinor:0,closingMinor:0,carryInMinor:0,carryOutMinor:0,sources:[]},add=(field:string,n:number)=>total[field]=sum([total[field],n]);total.sources.push({kind,sourceId:row.sourceId})
   if(kind==='time'){add('timeSeconds',v.seconds);if(v.billable){add('billableSeconds',v.seconds);add('timeValueMinor',v.billMinor)}add('timeCostMinor',v.costMinor)}
   if(kind==='expenses')add('expenseMinor',v.amountMinor)
   if(kind==='invoices'){add('invoiceMinor',v.amountMinor);add('outstandingMinor',v.outstandingMinor)}
   if(kind==='payments')add('paidMinor',v.amountMinor)
   if(kind==='wip')add('wipMinor',v.amountMinor)
+  if(kind==='retainers')for(const field of ['openingMinor','closingMinor','carryInMinor','carryOutMinor'])add(field,v[field])
  }
  await fence(env,a);return {namespace,field:selected?.data??null,groups:Object.values(groups),meaning:'Historical source controls, not current native utilization/profitability or an approved cutover.'}
 }

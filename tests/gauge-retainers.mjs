@@ -156,7 +156,7 @@ try{
  for(const user of [staff,agent]){await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms},user.cookie,403);const view=await state(user.cookie);if(user===staff){assert(view.data.retainers.some(t=>t.id===hourTerms.id));assert(view.data.retainers.every(t=>t.value.terms.unit==='hours'));assert(!view.data.retainers.some(t=>t.id===first.id));assert(view.data.retainerPeriods.every(p=>p.value.unit==='hours'))}else{assert.equal(view.data.retainers.length,0);assert.equal(view.data.retainerPeriods.length,0);assert.equal(view.retainerBalances.length,0)};assert.equal((await request(`/api/gauge/history/retainers/${first.id}`,user.cookie)).status,403)}
  // Moving out an import cannot erase an engagement with later native terms.
  const fixture=new URL('./fixtures/harvest/',import.meta.url),files={}
- for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,fixture),'utf8')
+ for(const name of ['clients.csv','people.csv','projects.csv','time.csv','finance.json'])files[name]=await readFile(new URL(name,fixture),'utf8')
  const manifest=JSON.parse(await readFile(new URL('manifest.json',fixture),'utf8'));manifest.currency='USD';manifest.namespace='retainer-undo'
  const sourcePackage={manifest,files},importPreview=await cmd('import:preview',{package:sourcePackage})
  let job=await cmd('import:create',{package:sourcePackage,fingerprint:importPreview.fingerprint})

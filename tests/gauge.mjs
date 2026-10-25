@@ -1,3 +1,4 @@
+import { harvestFinancePackage, harvestFinanceRestart } from './fixtures/harvest-finance.mjs'
 import { recordMilestoneAcceptance } from './gauge-harness.mjs'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
@@ -111,18 +112,44 @@ try{
  })
  await flow('REVIEW-001 grounded decisions, missing time and capacity exceptions',async()=>{const r=await state();assert(r.exceptions.some(x=>x.type==='missing time'));assert(r.exceptions.some(x=>x.type==='capacity conflict'&&x.sources.length));for(const section of ['review','engagements','time','expenses','capacity','rates','billing','imports','access']){const page=await request(`/app/${section}`,owner);assert.equal(page.status,200,section);assert(!(await page.text()).includes(h.vars.SESSION_SECRET))}})
  await flow('MOVE-001 Harvest preview, partial rollback, native reconciliation, idempotence and untouched undo',async()=>{
-  const root=new URL('./fixtures/harvest/',import.meta.url),files={};for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,root),'utf8');const pack={manifest:{...JSON.parse(await readFile(new URL('manifest.json',root),'utf8')),currency:'USD'},files}
+  const root=new URL('./fixtures/harvest/',import.meta.url),files={};for(const name of ['clients.csv','people.csv','projects.csv','time.csv','finance.json'])files[name]=await readFile(new URL(name,root),'utf8');const pack={manifest:{...JSON.parse(await readFile(new URL('manifest.json',root),'utf8')),currency:'USD'},files};harvestFinancePackage(pack)
+  await harvestFinanceRestart(pack)
   for(const [label,alter]of [['missing review',p=>delete p.manifest.sourceCoverage],['filtered',p=>p.manifest.sourceCoverage.time.filters='one-project'],['permission',p=>p.manifest.sourceCoverage.time.permission=false],['truncated',p=>p.manifest.sourceCoverage.time.complete=false],['missing count',p=>delete p.manifest.sourceCoverage.time.count],['wrong count',p=>p.manifest.sourceCoverage.time.count++],['missing history edge',p=>p.manifest.sourceCoverage.time.historyRange.from='2025-01-01'],['missing account',p=>delete p.manifest.sourceCoverage.time.account],['different account',p=>p.manifest.sourceCoverage.time.account='synthetic-gauge-2'],['window gap',p=>{p.manifest.sourceCoverage.time.windows=[{from:'2026-01-01',to:'2026-05-31',complete:true},{from:'2026-07-01',to:'2026-12-31',complete:true}]}]]){const bad=structuredClone(pack);alter(bad);const before=(await state()).data.time.length,p=await cmd('import:preview',{package:bad});assert.equal(p.canApply,false,label);assert(p.findings.length);await cmd('import:create',{package:bad,fingerprint:p.fingerprint},owner,400);assert.equal((await state()).data.time.length,before)}
-  const before=(await state()).data.time.length,preview=await cmd('import:preview',{package:pack});assert(preview.canApply);assert.equal((await state()).data.time.length,before);assert.equal(preview.totals['c-1/2026-09'].seconds,43200)
+  for(const [label,alter]of [
+   ['unknown time cost',p=>{p.manifest.rates['p-1'].costMinor=null;p.manifest.timeReconciliation['c-1/2026-09'].costMinor=null}],
+   ['missing finance',p=>delete p.files['finance.json']],
+   ['missing object coverage',p=>delete p.manifest.sourceCoverage.invoices],
+   ['missing finance controls',p=>delete p.manifest.finance.controls],
+   ['wrong currency control',p=>{const c=p.manifest.finance.controls.financial;c['c-1/2026-09/EUR']=c['c-1/2026-09/USD'];delete c['c-1/2026-09/USD']}],
+   ['wrong count',p=>p.manifest.finance.controls.counts.payments++],
+   ['wrong cash month',p=>{p.manifest.finance.controls.financial['c-1/2026-09/USD'].paidMinor=7000}],
+   ['wrong signed carry',p=>{p.manifest.finance.controls.financial['c-1/2026-09/USD'].closingMinor=50}],
+   ['missing paid control',p=>delete p.manifest.finance.controls.financial['c-1/2026-09/USD'].invoicePaidMinor]
+  ]){const bad=structuredClone(pack);alter(bad);const preview=await cmd('import:preview',{package:bad});assert.equal(preview.canApply,false,label);await cmd('import:create',{package:bad,fingerprint:preview.fingerprint},owner,400)}
+  for(const [label,alter]of [
+   ['unknown money',d=>d.invoices[0].amountMinor=null],['missing money',d=>delete d.invoices[0].paidMinor],
+   ['fractional cents',d=>d.payments[0].amountMinor='2000.01'],['unsafe integer',d=>d.payments[0].amountMinor='9007199254740993'],
+   ['duplicate payment',d=>d.payments.push(d.payments[0])]
+  ]){const bad=structuredClone(pack),doc=JSON.parse(bad.files['finance.json']);alter(doc);bad.files['finance.json']=JSON.stringify(doc);await cmd('import:preview',{package:bad},owner,400)}
+  for(const [label,alter]of [
+   ['unresolved invoice',d=>d.payments[0].invoiceId='synthetic-gauge-absent'],
+   ['mismatched currency',d=>d.payments[0].currency='EUR'],
+   ['mismatched invoice paid',d=>d.invoices[0].paidMinor=7001],
+   ['broken family carry',d=>d.retainers[1].carryInMinor=0],
+   ['outside history',d=>d.estimates[0].date='2025-01-01']
+  ]){const bad=structuredClone(pack),doc=JSON.parse(bad.files['finance.json']);alter(doc);bad.files['finance.json']=JSON.stringify(doc);const p=await cmd('import:preview',{package:bad});assert.equal(p.canApply,false,label);await cmd('import:create',{package:bad,fingerprint:p.fingerprint},owner,400)}
+  const before=(await state()).data.time.length,preview=await cmd('import:preview',{package:pack});assert(preview.canApply);assert.deepEqual(preview.financialControls,pack.manifest.finance.controls.financial);assert.deepEqual(preview.financialCounts,pack.manifest.finance.controls.counts);assert.equal((await state()).data.time.length,before);assert.equal(preview.totals['c-1/2026-09'].seconds,43200)
   let job=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});assert.equal(job.state,'applying');job=await cmd('import:rollback',{id:job.id});while(job.state==='rolling_back')job=await cmd('import:resume',{id:job.id});assert.equal((await state()).data.time.length,before)
   job=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});while(job.state==='applying'||job.state==='queued')job=await cmd('import:resume',{id:job.id});assert.equal(job.state,'completed');assert.equal((await state()).data.time.length,before+12)
+  const financeArchives=(await state()).data.archives.filter(r=>r.value.harvestFinance);assert.equal(financeArchives.length,9);assert.equal((await state()).data.invoices.length,0,'Source finance grants no native invoice authority');assert.equal((await state()).data.retainers.length,0,'Source retainers grant no billing authority');const retainedFinance=await request('/api/gauge/archives/'+financeArchives[0].id,owner);assert.equal(retainedFinance.status,200);assert.deepEqual((await retainedFinance.json()).record,financeArchives[0].value.harvestFinance.record)
   const original=await request(`/api/gauge/imports/${job.id}`,owner);assert.equal(original.status,200);assert((await original.text()).includes('retained'));assert.equal((await request(`/api/gauge/imports/${job.id}`,staff.cookie)).status,403)
   const imported=(await state()).data.time.find(r=>r.value.source?.externalId==='t-1');assert.equal(imported.value.start,null);assert.equal(imported.value.status,'draft')
+  const scoped=await h.invite('harvest-finance-reader');await cmd('grant',{operatorId:scoped.id,personId:p.id,role:'staff',enabled:true});assert.equal((await request('/api/gauge/archives/'+financeArchives[0].id,scoped.cookie)).status,403);assert.equal((await state(scoped.cookie)).data.archives.length,0)
   const importedPerson=imported.value.personId;await cmd('grant',{operatorId:staff.id,personId:importedPerson,role:'staff',enabled:true});const staffData=await state(staff.cookie);assert(staffData.data.time.length===12);assert(!JSON.stringify(staffData).includes('costMinor'));await cmd('grant',{operatorId:staff.id,personId:p.id,role:'staff',enabled:true})
-  let repeat=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});while(repeat.state==='applying'||repeat.state==='queued')repeat=await cmd('import:resume',{id:repeat.id});assert.equal((await state()).data.time.length,before+12)
+  let repeat=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});while(repeat.state==='applying'||repeat.state==='queued')repeat=await cmd('import:resume',{id:repeat.id});assert.equal((await state()).data.time.length,before+12);assert.equal((await state()).data.archives.filter(r=>r.value.harvestFinance).length,9,'Financial replay cannot duplicate history')
   // Undo the reimport first, then the source owner: reused claims never duplicate native rows.
   repeat=await cmd('import:undo',{id:repeat.id});while(repeat.state==='undoing')repeat=await cmd('import:resume',{id:repeat.id})
-  job=await cmd('import:undo',{id:job.id});while(job.state==='undoing')job=await cmd('import:resume',{id:job.id});assert.equal((await state()).data.time.length,before)
+  job=await cmd('import:undo',{id:job.id});while(job.state==='undoing')job=await cmd('import:resume',{id:job.id});assert.equal((await state()).data.time.length,before);assert.equal((await state()).data.archives.filter(r=>r.value.harvestFinance).length,0)
   const changedPack=structuredClone(pack);changedPack.manifest.namespace='synthetic-edited';const changedPreview=await cmd('import:preview',{package:changedPack});let editedJob=await cmd('import:create',{package:changedPack,fingerprint:changedPreview.fingerprint});while(editedJob.state==='applying')editedJob=await cmd('import:resume',{id:editedJob.id})
   const importedTask=(await state()).data.tasks.find(r=>r.value.source?.namespace==='harvest:synthetic-edited');await cmd('save:tasks',{...importedTask,...importedTask.value,remainingSeconds:300})
   importJob=editedJob.id

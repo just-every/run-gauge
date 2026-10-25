@@ -1,3 +1,5 @@
+import { sourceFieldJourney } from './fixtures/source-custom-fields.mjs'
+import { harvestFinancePackage } from './fixtures/harvest-finance.mjs'
 import assert from 'node:assert/strict'
 import {createHash,createHmac} from 'node:crypto'
 import { mkdir,readFile } from 'node:fs/promises'
@@ -95,14 +97,16 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const proposal=await cmd('proposal:prepare',{kind:'staffing',engagementId:engagement.id,assumptions:'Research capacity reviewed by the lead',evidence:[{source:'Agency planning meeting',summary:'A researcher is needed for the next delivery period'}],plan:{alternatives:[{personId:person.id,from:'2026-10-12',to:'2026-10-12',dailySeconds:3600,rationale:'Qualified researcher with declared availability'}]}},agent.cookie)
  await cmd('proposal:approve',proposal)
  const fixture=new URL('./fixtures/harvest/',import.meta.url),files={}
- for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,fixture),'utf8')
+ for(const name of ['clients.csv','people.csv','projects.csv','time.csv','finance.json'])files[name]=await readFile(new URL(name,fixture),'utf8')
  const manifest=JSON.parse(await readFile(new URL('manifest.json',fixture),'utf8'));manifest.namespace='portability-historical-document';manifest.currency=(await state()).agency.currency
  const historicalBytes=Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n')
  const {capturedForecastPackage}=await import('./fixtures/forecast.mjs'),forecast=await capturedForecastPackage()
  Object.assign(manifest,{schedulePeople:forecast.manifest.schedulePeople,scheduleProjects:forecast.manifest.scheduleProjects,schedulePlaceholders:forecast.manifest.schedulePlaceholders,forecastApi:forecast.manifest.forecastApi})
  files['forecast.json']=forecast.files['forecast.json']
+ files['forecast-metadata.json']=forecast.files['forecast-metadata.json']
  manifest.sourceCoverage.forecast=forecast.manifest.sourceCoverage.forecast
  const sourcePackage={manifest,files,archives:[{name:'historical-invoice.pdf',mediaType:'application/pdf',base64:historicalBytes.toString('base64')}]}
+ harvestFinancePackage(sourcePackage)
  const preview=await cmd('import:preview',{package:sourcePackage})
  let retainedImport=await cmd('import:create',{package:sourcePackage,fingerprint:preview.fingerprint})
  while(['applying','queued'].includes(retainedImport.state))retainedImport=await cmd('import:resume',{id:retainedImport.id})
@@ -240,6 +244,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('case:reply',{...portableCase,replyState:'ambiguous',externalReference:'synthetic-gauge-4201',quotedReply:'Maybe next week',reason:'Owner records an unverified reply'})
  const portableCaseCurrent=(await state()).data.operationalCases.find(r=>r.id===portableCase.id)
  await cmd('case:snooze',{...portableCaseCurrent,until:new Date(Date.now()+86400000).toISOString(),reason:'Wait for reviewed input'})
+ await sourceFieldJourney(h,{client:expenseClient,project:expenseProject,person:expensePerson,task:await cmd('save:tasks',{engagementId:expenseProject.id,name:'Source custom field carrier',remainingSeconds:0})})
  const before=await state()
  assert.equal(before.data.customImports.find(r=>r.id===fieldImport.id).value.package.records[0].values.office,'Austin')
  assert.equal(before.data.people.find(r=>r.id===person.id).value.customFields[officeField.id],'Austin')
@@ -254,6 +259,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  assert.equal(before.data.archives.filter(r=>r.value.forecast).length,4,'MIGRATE-003 source snapshots are available before BASE-002 export')
  assert(before.data.calendars.some(r=>r.value.source?.externalId==='api:availability:v1'),'MIGRATE-003 captured availability is native before export')
  assert(before.data.leave.some(r=>r.value.source?.externalId==='api:assignment:a2'),'MIGRATE-003 captured time off is native before export')
+ assert.equal(before.data.archives.filter(r=>r.value.harvestFinance&&r.value.source.namespace==='harvest:portability-historical-document').length,9,'All financial source records are retained for full custody restore')
  assert(before.data.archives.some(r=>r.value.base64===historicalBytes.toString('base64')),'native historical document is available before export')
  assert.equal(before.data.time.find(r=>r.id===time.id).value.economics.costMinor,6500)
  const completedTask=before.data.tasks.find(r=>r.id===task.id),nextTask=before.data.tasks.find(r=>r.id===completedTask.value.nextOccurrenceId)

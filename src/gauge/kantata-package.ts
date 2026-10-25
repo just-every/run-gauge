@@ -1,3 +1,5 @@
+import { parseApiJson } from '../modules/import-kit/src/readers/numeric-lexemes'
+import { ReaderError } from '../modules/import-kit/src/readers/errors'
 import { definition } from './custom-fields'
 import { Buffer } from 'node:buffer'
 import { Unzip,UnzipInflate } from 'fflate'
@@ -5,9 +7,9 @@ import { canonicalJson,sha256,type SourceBundle,type TargetEffect,type SourceRec
 import { type Value,need,text,integer,date,zone,sum } from './model'
 import { parseCsv } from './harvest'
 import { harvestWorkbook } from './harvest-workbook'
-export const kantataObjects=['clients','people','skills','projects','estimates','tasks','schedules','time','expenses','rates','invoices','payments','wip','customFields','customValues'] as const
-const links:Record<string,Record<string,string>>={people:{},skills:{personId:'people'},projects:{clientId:'clients',leadId:'people'},estimates:{projectId:'projects'},tasks:{projectId:'projects'},schedules:{projectId:'projects',personId:'people'},time:{projectId:'projects',personId:'people',taskId:'tasks'},expenses:{projectId:'projects',personId:'people'},rates:{personId:'people'},invoices:{projectId:'projects'},payments:{invoiceId:'invoices'},wip:{projectId:'projects'},customValues:{fieldId:'customFields'}}
-const required:Record<string,string[]>={clients:['name'],people:['name'],skills:['name'],projects:['name','scope'],estimates:['name','date','amountMinor','currency'],tasks:['name'],schedules:['from','to','seconds'],time:['date','seconds','billable','billMinor','costMinor','currency'],expenses:['date','amountMinor','currency'],rates:['effective','costRateMinor','billRateMinor','currency'],invoices:['date','amountMinor','paidMinor','outstandingMinor','currency'],payments:['date','amountMinor','currency'],wip:['date','amountMinor','currency'],customFields:['name','scope','type'],customValues:['scope','recordId','value']}
+export const kantataObjects=['clients','people','skills','projects','estimates','tasks','schedules','time','expenses','rates','invoices','payments','wip','retainers','customFields','customValues'] as const
+const links:Record<string,Record<string,string>>={people:{},skills:{personId:'people'},projects:{clientId:'clients',leadId:'people'},estimates:{projectId:'projects'},tasks:{projectId:'projects'},schedules:{projectId:'projects',personId:'people'},time:{projectId:'projects',personId:'people',taskId:'tasks'},expenses:{projectId:'projects',personId:'people'},rates:{personId:'people'},invoices:{projectId:'projects'},payments:{invoiceId:'invoices'},wip:{projectId:'projects'},retainers:{projectId:'projects'},customValues:{fieldId:'customFields'}}
+const required:Record<string,string[]>={clients:['name'],people:['name'],skills:['name'],projects:['name','scope'],estimates:['name','date','amountMinor','currency'],tasks:['name'],schedules:['from','to','seconds'],time:['date','seconds','billable','billMinor','costMinor','currency'],expenses:['date','amountMinor','currency'],rates:['effective','costRateMinor','billRateMinor','currency'],invoices:['date','amountMinor','paidMinor','outstandingMinor','currency'],payments:['date','amountMinor','currency'],wip:['date','amountMinor','currency'],retainers:['projectId','familyId','date','from','to','openingMinor','allowanceMinor','usedMinor','closingMinor','carryInMinor','carryOutMinor','currency'],customFields:['name','scope','type'],customValues:['scope','recordId','value']}
 const n=(v:unknown,name:string,min=-1e12)=>integer(typeof v==='string'&&/^-?\d+$/.test(v)?Number(v):v,name,min)
 const json=(v:any)=>typeof v==='string'?JSON.parse(v):v
 function unzip(base64:unknown){
@@ -62,7 +64,7 @@ export function kantataPackage(pkg:Value){
    if(zipped){need(cfg.format==='csv'&&zipped.files.has(file),'SX object ZIP mappings must name their actual CSV member');content=zipped.files.get(file)!;artifact='salesforce.zip';claimed.add(file)}else{need(Object.hasOwn(pkg.files??{},file),'Mapped source artifact is missing');content=pkg.files[file];claimed.add(file)}
    need(['csv','json'].includes(cfg.format),'Use a declared CSV, API JSON capture or OX time worksheet')
    if(cfg.format==='csv')raw=parseCsv(content)
-   else{need(typeof cfg.array==='string'&&/^[A-Za-z][A-Za-z0-9_]*$/.test(cfg.array),'Declare one top-level JSON object array');const doc=JSON.parse(content);raw=doc[cfg.array];need(Array.isArray(raw),`JSON capture has no ${cfg.array} array`)}
+   else{need(typeof cfg.array==='string'&&/^[A-Za-z][A-Za-z0-9_]*$/.test(cfg.array),'Declare one top-level JSON object array');let doc:Value;try{doc=parseApiJson(content,{artifact:file},[],{namespace,url:'https://source.invalid/',preserveNumberLexeme:()=>true,parsePage:()=>({records:[]})}).value as Value}catch(error){if(error instanceof ReaderError)need(false,'Invalid original Kantata JSON: '+error.code);throw error}raw=doc[cfg.array];need(Array.isArray(raw),`JSON capture has no ${cfg.array} array`)}
    locations.set(kind,{artifact,...(zipped?{pointer:file}:cfg.format==='json'?{pointer:cfg.array}:{})})
   }
   records[kind]=raw.map((source,index)=>{
@@ -70,9 +72,10 @@ export function kantataPackage(pkg:Value){
    const data:Value={};for(const [semantic,column]of Object.entries(cfg.columns)){need(typeof column==='string'&&Object.hasOwn(source,column),`${kind} mapped column ${column} is absent`);data[semantic]=source[column]}
    data.id=text(data.id,`${kind} stable source ID`,200)
    for(const field of required[kind]??[])need(data[field]!==undefined&&data[field]!==null&&data[field]!=='',`${kind}.${field} requires an explicit source value`)
-   for(const field of ['seconds','amountMinor','paidMinor','outstandingMinor','billMinor','costMinor','costRateMinor','billRateMinor'])if(data[field]!==undefined)data[field]=n(data[field],`${kind}.${field}`,field==='seconds'?0:-1e12)
+   for(const field of ['seconds','amountMinor','paidMinor','outstandingMinor','billMinor','costMinor','costRateMinor','billRateMinor','openingMinor','allowanceMinor','usedMinor','closingMinor','carryInMinor','carryOutMinor'])if(data[field]!==undefined)data[field]=n(data[field],`${kind}.${field}`,field==='seconds'?0:-1e12)
    for(const field of ['date','from','to','effective'])if(data[field])data[field]=date(data[field])
    if(data.from&&data.to)need(data.from<=data.to,'Source schedule ends before it starts')
+   if(kind==='retainers'&&(!m.windows.some((w:Value)=>w.from<=data.from&&data.from<=w.to)||!m.windows.some((w:Value)=>w.from<=data.to&&data.to<=w.to)))findings.push({kind,sourceId:data.id,reason:'Retainer period falls outside captured export windows'})
    if(data.date&&!m.windows.some((w:Value)=>w.from<=data.date&&data.date<=w.to))findings.push({kind,sourceId:data.id,reason:'Record falls outside captured export windows'})
    if(data.currency)need(/^[A-Z]{3}$/.test(data.currency)&&Intl.supportedValuesOf('currency').includes(data.currency),'Source money requires an explicit ISO currency')
    if(kind==='time'){need([true,false,'true','false','Yes','No'].includes(data.billable),'Resolve source billability');data.billable=[true,'true','Yes'].includes(data.billable);need(data.seconds>0,'Source time must have positive duration')}
@@ -99,9 +102,11 @@ export function kantataPackage(pkg:Value){
   }
  }
  for(const inv of records.invoices){const payments=records.payments.filter(p=>p.data.invoiceId===inv.sourceId);if(payments.some(p=>p.data.currency!==inv.data.currency)||sum(payments.map(p=>p.data.amountMinor))!==inv.data.paidMinor||inv.data.amountMinor-inv.data.paidMinor!==inv.data.outstandingMinor)findings.push({kind:'invoices',sourceId:inv.sourceId,reason:'Invoice, payment allocations and outstanding balance do not reconcile'})}
+ for(const row of records.retainers){const v=row.data;if(v.openingMinor!==v.carryInMinor||v.allowanceMinor<0||v.usedMinor<0||sum([v.openingMinor,v.allowanceMinor,-v.usedMinor])!==v.closingMinor||v.closingMinor!==v.carryOutMinor)findings.push({kind:'retainers',sourceId:row.sourceId,reason:'Signed retainer opening, allowance, use and closing carry do not reconcile'})}
+ for(const family of new Set(records.retainers.map(r=>r.data.familyId))){const rows=records.retainers.filter(r=>r.data.familyId===family).sort((a,b)=>a.data.from.localeCompare(b.data.from));for(let i=1;i<rows.length;i++){const v=rows[i].data,prior=rows[i-1].data;if(v.from<=prior.to||v.projectId!==prior.projectId||v.currency!==prior.currency||v.carryInMinor!==prior.carryOutMinor)findings.push({kind:'retainers',sourceId:rows[i].sourceId,reason:'Retainer family periods or signed carry continuity do not reconcile'})}}
  const counts=Object.fromEntries(kantataObjects.map(k=>[k,records[k].length])),financial:Record<string,Value>={}
- const blank=()=>({timeSeconds:0,billableSeconds:0,timeCostMinor:0,timeValueMinor:0,expenseMinor:0,invoiceMinor:0,paidMinor:0,outstandingMinor:0,wipMinor:0})
- for(const kind of ['time','expenses','invoices','payments','wip'])for(const r of records[kind]){
+ const blank=()=>({timeSeconds:0,billableSeconds:0,timeCostMinor:0,timeValueMinor:0,expenseMinor:0,invoiceMinor:0,paidMinor:0,outstandingMinor:0,wipMinor:0,openingMinor:0,closingMinor:0,carryInMinor:0,carryOutMinor:0})
+ for(const kind of ['time','expenses','invoices','payments','wip','retainers'])for(const r of records[kind]){
   const v=r.data,project=lookup('projects',kind==='payments'?lookup('invoices',v.invoiceId)?.data.projectId:v.projectId),client=project?.data.clientId
   if(!client)continue
   const key=`${client}/${v.date.slice(0,7)}/${v.currency}`,total=financial[key]??=blank(),add=(field:string,amount:number)=>total[field]=sum([total[field],amount])
@@ -110,6 +115,7 @@ export function kantataPackage(pkg:Value){
   if(kind==='invoices'){add('invoiceMinor',v.amountMinor);add('outstandingMinor',v.outstandingMinor)}
   if(kind==='payments')add('paidMinor',v.amountMinor)
   if(kind==='wip')add('wipMinor',v.amountMinor)
+  if(kind==='retainers')for(const field of ['openingMinor','closingMinor','carryInMinor','carryOutMinor'])add(field,v[field])
  }
  need(m.controls&&typeof m.controls==='object','Supply independent source control counts and client/month/currency totals')
  if(canonicalJson(m.controls.counts)!==canonicalJson(counts))findings.push({kind:'controls',reason:'Independent source object counts do not reconcile'})

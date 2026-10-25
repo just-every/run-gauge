@@ -39,6 +39,7 @@ export class Transaction {
  /** The command's request key and action, kept on each GOVERN-005 audit row. */
  key: string | null = null
  action: string | null = null
+ customPendingPeople?:Map<string,string>
  customWrite?:{scope:string;id?:string;values:any};customObserved=false;customOverlay?:Row[];customImport?:Value
  reopeningCloseId?:string
  constructor(public env: Bindings, public actor: Actor) {}

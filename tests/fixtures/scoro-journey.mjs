@@ -3,7 +3,8 @@ import {mkdir,rm} from 'node:fs/promises'
 import {join} from 'node:path'
 import {chromium} from '@playwright/test'
 import {harness} from '../gauge-harness.mjs'
-import {inFormat} from './scoro-formats.mjs'
+import {csv} from './scoro.mjs'
+import {inFormat,csvRows} from './scoro-formats.mjs'
 import {sourceRestore} from './scoro-restore.mjs'
 // Reconciliation is exercised through the same public import door for each provider.
 export async function reconciliationRefusals(h,provider,pkg) {
@@ -29,6 +30,27 @@ export async function reconciliationRefusals(h,provider,pkg) {
   await h.cmd(action('create'),{package:bad,fingerprint:preview.fingerprint,confirm:'adopt-reviewed-native-drafts'},h.owner,400)
  }
  assert.deepEqual(await h.db.prepare('SELECT count(*) n FROM ik_jobs').first(),before,'Rejected completeness creates no journal or effects')
+ if(pkg.files['retainers.csv']){
+  const retainerValue=(p,value)=>{const rows=csvRows(p.files['retainers.csv']),column=rows[0].indexOf(p.manifest.objects.retainers[0].columns.closingMinor);rows[1][column]=value===null?'':String(Number(rows[1][column])===0?1:-Number(rows[1][column]));p.files['retainers.csv']=csv(rows.slice(1).map(row=>Object.fromEntries(rows[0].map((header,index)=>[header,row[index]]))))}
+  for(const [label,alter]of [
+   ['missing retainer permission',p=>p.manifest.permissions.retainers=false],
+   ['wrong signed retainer balance',p=>retainerValue(p,'signed')],
+   ['unknown retainer balance',p=>retainerValue(p,null)],
+   ['missing independent retainer balance',p=>delete Object.values(p.manifest.controls.clientFinancial)[0].openingMinor]
+  ]){const bad=structuredClone(pkg);alter(bad);const response=await h.post('/api/gauge/command',{action:action('preview'),key:crypto.randomUUID(),package:bad},h.owner);assert([200,400].includes(response.status));const preview=await response.json();if(response.status===200){assert.equal(preview.canApply,false,label);await h.cmd(action('create'),{package:bad,fingerprint:preview.fingerprint},h.owner,400)}}
+ }
+ for(const [kind,metric]of [['time','costMinor'],['rates','costRateMinor'],['time','billMinor']]){
+  const cfg=pkg.manifest.objects[kind]?.[0]
+  if(!cfg||cfg.format!=='csv')continue
+  const header=cfg.columns[metric]
+  if(!header)continue
+  const {csvRows}=await import('./scoro-formats.mjs'),matrix=csvRows(pkg.files[cfg.artifact]),column=matrix[0].indexOf(header)
+  for(const invalid of ['', 'unknown', '0.10000000000000001', '9007199254740993']){
+   const bad=structuredClone(pkg),rows=structuredClone(matrix);rows[1][column]=invalid
+   bad.files[cfg.artifact]=rows.map(row=>row.map(v=>'"'+v.replaceAll('"','""')+'"').join(',')).join('\n')+'\n'
+   await h.cmd(action('preview'),{package:bad},h.owner,400)
+  }
+ }
  const corrected=await h.cmd(action('preview'),{package:pkg})
  assert(corrected.canApply);assert.deepEqual(corrected.clientFinancial,pkg.manifest.controls.clientFinancial)
  await interruptedSourceJourney(provider,pkg)

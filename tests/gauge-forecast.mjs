@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {harness} from './gauge-harness.mjs'
-import {forecastPackage} from './fixtures/forecast.mjs'
+import {forecastPackage,forecastMetadata} from './fixtures/forecast.mjs'
 
 test('MIGRATE-003 Forecast move-in preserves source hours on reviewed working dates, with replay and strict undo',async()=>{
  const h=await harness(),pack=await forecastPackage()
@@ -73,6 +73,7 @@ test('MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API avai
    pack.manifest.forecast={view,orientation,commitment:'committed'}
    const headers=view==='project'?'Person,Client,Project':'Person',values=view==='project'?'Synthetic person,Synthetic client,Synthetic project':'Synthetic person'
    pack.files['forecast.csv']=orientation==='rows'?`${headers},Period,Hours\n${values},Week,20\n`:`${headers},Week\n${values},20\n`
+   forecastMetadata(pack)
    const {preview,job}=await apply(pack),data=await state()
    assert.equal(preview.schedule[0].totalSeconds,72000)
    assert.deepEqual(preview.schedule[0].workingDates,period.workingDates)
@@ -95,12 +96,22 @@ test('MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API avai
   remapped.manifest.forecastApi.durationUnit='decimal-hours'
   remapped.manifest.forecastApi.arrays={assignments:'bookings'}
   remapped.manifest.forecastApi.fields={assignments:{totalSeconds:'hours',personId:'person_id'},availability:{dailySeconds:'hours_per_day'}}
-  raw.bookings=raw.assignments.map(({totalSeconds,personId,...r})=>({...r,hours:totalSeconds/3600,person_id:personId}));delete raw.assignments
-  raw.availability=raw.availability.map(({dailySeconds,...r})=>({...r,hours_per_day:dailySeconds/3600}))
+  raw.bookings={...raw.assignments,pages:raw.assignments.pages.map(page=>({...page,data:page.data.map(({totalSeconds,personId,...r})=>({...r,hours:totalSeconds/3600,person_id:personId}))}))};delete raw.assignments
+  raw.availability.pages[0].data=raw.availability.pages[0].data.map(({dailySeconds,...r})=>({...r,hours_per_day:dailySeconds/3600}))
   remapped.files['forecast.json']=JSON.stringify(raw)
   const mapped=await h.cmd('import:preview',{package:remapped})
   assert.equal(mapped.schedule.find(r=>r.view==='assignment'&&!r.placeholder).totalSeconds,72000,'mapped capture fields use declared hours units')
   assert.equal(mapped.schedule.find(r=>r.view==='availability').dailySeconds,28800)
+  for(const [label,alter]of [
+   ['missing metadata',p=>delete p.files['forecast-metadata.json']],
+   ['wrong independent count',p=>{const d=JSON.parse(p.files['forecast-metadata.json']);d.counts.people++;p.files['forecast-metadata.json']=JSON.stringify(d)}],
+   ['wrong captured window',p=>{const d=JSON.parse(p.files['forecast-metadata.json']);d.historyRange.from='2025-01-01';p.files['forecast-metadata.json']=JSON.stringify(d)}],
+   ['missing page',p=>{const d=JSON.parse(p.files['forecast.json']);d.people.pages[0].totalPages=2;d.people.pages[0].next='synthetic-gauge-page-2';p.files['forecast.json']=JSON.stringify(d)}],
+   ['empty object count',p=>{const d=JSON.parse(p.files['forecast.json']);d.availability.pages[0].data=[];p.files['forecast.json']=JSON.stringify(d)}]
+  ]){const bad=structuredClone(pack);alter(bad);const preview=await h.cmd('import:preview',{package:bad});assert.equal(preview.canApply,false,label);await h.cmd('import:create',{package:bad,fingerprint:preview.fingerprint},h.owner,400)}
+  const paged=JSON.parse(pack.files['forecast.json']),peopleRows=paged.people.pages[0].data
+  paged.people.pages=[{page:1,totalPages:2,totalCount:2,next:'synthetic-gauge-page-2',data:peopleRows.slice(0,1)},{page:2,cursor:'synthetic-gauge-page-2',totalPages:2,totalCount:2,next:null,data:peopleRows.slice(1)}]
+  pack.files['forecast.json']=JSON.stringify(paged)
   const captured=await apply(pack),data=await state(),cap=data.capacity[0]
   assert.equal(cap.availableSeconds,30*3600,'four workdays minus two hours of leave')
   assert.equal(cap.committedSeconds,20*3600)
@@ -118,7 +129,7 @@ test('MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API avai
   const restricted=await(await h.request('/api/gauge/state?from=2026-11-02&to=2026-11-08',staff.cookie)).json()
   assert.equal(restricted.data.archives.length,0,'source snapshots use existing finance-only archive rights')
   const denied=await h.request('/api/gauge/archives/'+data.data.archives[0].id,staff.cookie);assert.equal(denied.status,403)
-  for(const mutate of [p=>p.manifest.forecastApi.authorized=false,p=>p.manifest.forecastApi.durationUnit=undefined,p=>p.manifest.forecastApi.allocations.a1[0].seconds=1,p=>{const c=JSON.parse(p.files['forecast.json']);c.assignments[0].personId='absent';p.files['forecast.json']=JSON.stringify(c)}]){const invalid=structuredClone(pack);mutate(invalid);await h.cmd('import:preview',{package:invalid},h.owner,400)}
+  for(const mutate of [p=>p.manifest.forecastApi.authorized=false,p=>p.manifest.forecastApi.durationUnit=undefined,p=>p.manifest.forecastApi.allocations.a1[0].seconds=1,p=>{const c=JSON.parse(p.files['forecast.json']);c.assignments.pages[0].data[0].personId='absent';p.files['forecast.json']=JSON.stringify(c)}]){const invalid=structuredClone(pack);mutate(invalid);await h.cmd('import:preview',{package:invalid},h.owner,400)}
   if(process.env.GAUGE_FORECAST_BROWSER){
    const {inspectForecast}=await import('./journeys/forecast-browser.mjs');await inspectForecast(h,pack)
   }

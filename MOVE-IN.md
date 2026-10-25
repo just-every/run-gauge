@@ -3,7 +3,7 @@
 This adapter is **documented format, synthetic-only; realExport: not-supplied**.
 No customer export has been exercised. A consenting agency must reconcile an
 actual billing period before switching tools. The fixture package under
-`tests/fixtures/harvest` exists only for tests.
+`./tests/fixtures/harvest` exists only for tests.
 
 Harvest's [export guide](https://support.getharvest.com/hc/en-us/articles/31625325401229-Exporting-data), read 11 October 2026, describes an all-company-time CSV and separate client, project and people exports. Available report columns depend on the report and customization. Gauge therefore requires explicit column/identity mappings; the fixture headers are an adapter shape, not a claim that every Harvest export has those headers. Obtain stable source entry IDs where possible; if absent, supply a reviewed stable source-ID column and retain its derivation with your manifest. Never use a row number as a durable time-entry identity across changed exports.
 
@@ -24,7 +24,7 @@ XLSX time uses the same time-column mappings, source IDs, historical rates and i
 For `POST /api/gauge/command`, put the binary workbook in `package.workbook: {base64: "..."}`, omit `files["time.csv"]`, and provide `manifest.timeWorksheet`. Browser upload accepts `time.xlsx` directly; the retained artifact keeps that filename. Equivalent CSV and worksheet rows share source identities and do not duplicate imported work; source or later native changes still require reconciliation.
 
 Before apply, `sourceCoverage` must describe `clients`, `people`, `projects`
-and `time`, plus `forecast` when supplied. Each entry declares its `provider`
+and `time`, `expenses`, `estimates`, `invoices`, `payments` and `retainers`, plus `forecast` when supplied. Each entry declares its `provider`
 (`harvest` or `forecast`), stable source `account`, `administrator: true`,
 `permission: true`, `complete: true`, `filters: "all-records"`, independent
 `historyRange: {from,to}` and ordered contiguous `windows: [{from,to,complete:true}]`.
@@ -37,9 +37,11 @@ omitted history edge appear in an incomplete preview and refuse apply without a
 journal or native write. Correct the package and review its new fingerprint.
 The manifest, mappings and exact originals remain in custody through restore.
 
-This coverage gate does not establish complete Harvest finance or retainer
-history. Those records and independent financial controls remain an explicit
-MIGRATE-001 gap; PDF archives do not supply them.
+Complete packages also include original `finance.json`, even when its five arrays are empty. `manifest.finance` declares `mappingVersion: "harvest-finance-v1"`, `moneyUnit: "minor-units"`, optional source array aliases, and explicit semantic-to-original column maps for expenses, estimates, invoices, payments and retainers. Every row has a stable `id`, `date` and explicit ISO `currency`. Expenses carry client, project and amount; estimates carry client and amount; invoices carry client, amount, paid and outstanding; payments carry the exact invoice ID, payment date and signed amount. Billed time must resolve its retained source invoice and client. No unknown cost can establish financial completeness.
+
+Retainers carry client, project, stable family ID, period date and exact opening, allowance, use, closing, carry-in and carry-out amounts. Signed surplus and deficit are preserved. Opening plus allowance minus use equals closing; closing equals carry-out; a later family period starts with the prior signed carry. These source balances never create native retainer terms or billing authority.
+
+`manifest.finance.controls` contains independently supplied `counts` for all five objects and `financial` totals keyed by client, month and ISO currency. Each bucket explicitly includes `expenseMinor`, `estimateMinor`, `invoiceMinor`, `invoicePaidMinor`, `paidMinor`, `outstandingMinor`, `openingMinor`, `allowanceMinor`, `usedMinor`, `closingMinor`, `carryInMinor` and `carryOutMinor`, with zeroes where applicable. Invoice paid and outstanding amounts stay with the invoice cohort; cash follows each payment's own date, including signed refunds. Every required control must be known and match. The synthetic example in `tests/fixtures/harvest-finance.mjs` includes two months and signed retainer carry. Original finance bytes, mapped source identities, manifest and journal remain downloadable and portable; native invoices, payments and approvals are not created.
 
 Supply a JSON manifest:
 
@@ -71,11 +73,11 @@ Supply a JSON manifest:
   Gauge refuses disagreement before preview. Compare these independently with the
   source report, not by copying Gauge's calculated answer.
 - Optional `columns.time.roundedHours`, `invoiceId`, `approved` and `locked` map exported evidence (default headers `Rounded Hours`, `Invoice ID`, `Approved?`, `Locked?`). Raw `Hours` and rounded hours independently convert decimal text into whole seconds without approximation: 2.11 → 7596 raw seconds, 2.25 → 8100 billing seconds. Source approval and lock flags are `Yes`/`No` or absent, retained as evidence; they never become native approval or native locking. Invoice references remain source links, not issued Gauge invoices. Actual time stays raw through native review; native billing rounding follows newly approved terms rather than silently adopting source rounding.
-- `timeReconciliation` is required when rounded time or multiple historical rates are supplied; otherwise it is optional. It contains independent client/month controls keyed like `reconciliation`, with `{count,rawSeconds,billingSeconds,billedSeconds,unbilledSeconds,costMinor,billMinor}`. Billed/unbilled seconds partition raw time by the source invoiced flag. Rounded totals are `null` if any entry lacks them; cost totals are `null` if any declared cost is unknown. Billable value uses the effective historical bill rate and exported rounded seconds when present, otherwise raw seconds; costs use actual seconds. Each entry rounds money half up to cents. Preview refuses any mismatch. These controls do not establish outstanding receivables, source completeness or payment balances.
+- `timeReconciliation` is required for every complete Harvest package. It contains independent client and month controls keyed like `reconciliation`, with `{count,rawSeconds,billableSeconds,billingSeconds,billedSeconds,unbilledSeconds,costMinor,billMinor}`. Billed and unbilled seconds partition raw time by the source invoiced flag. Billable seconds use exported billing duration when supplied, otherwise billable raw duration; nonbillable rows contribute zero. All controls are in the single explicitly declared package currency. Rounded totals are `null` if any entry lacks them; cost totals are `null` if any declared cost is unknown. Billable value uses the effective historical bill rate and exported rounded seconds when present, otherwise raw seconds; costs use actual seconds. Each entry rounds money half up to cents. Preview refuses any mismatch. These controls do not establish outstanding receivables, source completeness or payment balances.
 - Optional `schedulePeople` maps CSV person labels or captured person IDs to source person IDs in `people.csv`; `scheduleProjects` maps CSV `Client/Project` labels or captured project IDs to source IDs in `projects.csv`. These reviewed links retain the captured people/projects and avoid creating duplicate identities. `schedulePlaceholders` maps a placeholder label/ID to its descriptive name; it never maps to a real person.
 - `schedulePeriods` maps CSV period labels to inclusive `{from,to,workingDays}`. Omit `workingDates` to retain a labeled aggregate without distributing it. Add the exact reviewed `workingDates` (unique dates inside that period, count equal to positive integer `workingDays`) to distribute a Project total equally into whole seconds on those dates. Those rows are labeled reviewed distributions, not original daily facts. Totals need to divide exactly. Team totals remain aggregate controls even with reviewed dates, because they do not identify a project. Periods span at most one year; totals can exceed 24 hours.
-- `forecast: {view: "project"|"team", orientation: "columns"|"rows", commitment: "tentative"|"committed", columns: {...}}` selects the CSV shape. Default is the original Project/columns door with tentative planning meaning. `columns` maps `person`, `client`, `project`, and for rows `period` and `hours`, to actual export headers; defaults are `Person`, `Client`, `Project`, `Period`, `Hours`. An optional `id` column supplies an explicit stable row identity; otherwise new shapes use person/project/task/period, with optional `task` mapping (default `Task`). Duplicate identities refuse instead of merging unrelated source rows. A mapped `commitment` column takes precedence over the package commitment. Never interpret an imported staffing commitment as commercial approval. For columns the period labels are the exported column headers. For rows the named period cell selects `schedulePeriods`. The original Project/columns source/target identities are preserved; changed source rows require explicit reconciliation, never a new namespace to bypass claims.
-- `forecast.json` contains arrays of `people`, `projects`, `assignments` and `availability`. `forecastApi: {authorized: true, durationUnit: "seconds"|"decimal-hours", arrays: {...}, fields: {...}, leaveProjectIds: [...], allocations: {...}}` declares permission to supply the capture and maps its actual schema. `arrays` maps those four roles to top-level array names. `fields` maps semantic keys per array to actual field names. Every array needs unique `id`; people may carry `name`. Assignment fields are `personId`, `projectId`, `from`, `to`, `totalSeconds`, `commitment`; availability fields are `personId`, `from`, `to`, `dailySeconds`, `weekdays` (comma-separated weekday numbers, Sunday=0), `holidays` (explicit date list, empty if none). Both duration-named fields use the explicitly declared `durationUnit`. Date bounds are inclusive. Map captured identities through `schedulePeople`/`scheduleProjects`; include every referenced person/project in the capture. Names and other captured fields remain in original custody, without granting access.
+- `forecast: {view: "project"|"team", orientation: "columns"|"rows", commitment: "tentative"|"committed", columns: {...}}` selects the CSV shape. Default is the original Project in columns door with tentative planning meaning. `columns` maps `person`, `client`, `project`, and for rows `period` and `hours`, to actual export headers; defaults are `Person`, `Client`, `Project`, `Period`, `Hours`. An optional `id` column supplies an explicit stable row identity; otherwise new shapes use person and project, task and period, with optional `task` mapping (default `Task`). Duplicate identities refuse instead of merging unrelated source rows. A mapped `commitment` column takes precedence over the package commitment. Never interpret an imported staffing commitment as commercial approval. For columns the period labels are the exported column headers. For rows the named period cell selects `schedulePeriods`. The original Project in columns source and target identities are preserved; changed source rows require explicit reconciliation, never a new namespace to bypass claims.
+- `forecast.json` contains original captured page envelopes for `people`, `projects`, `assignments` and `availability`. Each object is `{pages: [{page, cursor?, next, totalPages, totalCount, data: [...]}, ...]}`. Pages are ordered from one, cursor links must match the next captured page, and the final next value is null. A separate original `forecast-metadata.json` supplies `provider: "forecast"`, the reviewed source account, history range and windows, plus independent per-object `counts`. Counts must match every original envelope and its captured rows, including explicitly empty objects. CSV reports instead supply `csv: {count, sha256}` in that metadata, binding the independent row count to the exact report bytes. Missing metadata, omitted or reordered pages, mismatched counts and unknown numeric metadata refuse completeness. The flattened page rows then use the following reviewed mappings. `forecastApi: {authorized: true, durationUnit: "seconds"|"decimal-hours", arrays: {...}, fields: {...}, leaveProjectIds: [...], allocations: {...}}` declares permission to supply the capture and maps its actual schema. `arrays` maps those four roles to top-level array names. `fields` maps semantic keys per array to actual field names. Every array needs unique `id`; people may carry `name`. Assignment fields are `personId`, `projectId`, `from`, `to`, `totalSeconds`, `commitment`; availability fields are `personId`, `from`, `to`, `dailySeconds`, `weekdays` (comma-separated weekday numbers, Sunday=0), `holidays` (explicit date list, empty if none). Both duration-named fields use the explicitly declared `durationUnit`. Date bounds are inclusive. Map captured identities through `schedulePeople`/`scheduleProjects`; include every referenced person and project in the capture. Names and other captured fields remain in original custody, without granting access.
 - `forecastApi.allocations` maps assignment IDs to supplied exact date detail `[{date: "2026-11-02", seconds: 18000}, ...]` (always whole seconds). Dates must be unique, within the captured period and total exactly to its quantity; a one-date assignment already supplies its own exact detail. A multi-date capture without this detail remains an aggregate. No weekday or holiday algorithm invents daily assignment facts. `leaveProjectIds` identifies captured Time Off projects; their date allocations become leave, separately reducing available capacity. Availability preserves explicit workdays and holidays and refuses overlapping native calendars. Placeholders retain unfilled tentative totals only and cannot carry leave/availability. The source view preserves tentative and committed meaning; only named-person exact/reviewed allocations enter the daily staffing calculation. Compare Team and Project controls independently across the same holiday before cutover.
 
 Dates without exported clock instants retain null start/end and explicit work date,
@@ -86,7 +88,7 @@ Imported notes are inert text, escaped on documents and formula-safe in billing 
 Source billed flags block repeat billing; unbilled work still needs native terms,
 submission and approval.
 
-Preview performs SELECT-only Base planning and shows counts, client/month totals,
+Preview performs SELECT-only Base planning and shows counts, client and month totals,
 memberships and omissions. Apply checks the exact reviewed fingerprint and the
 current native session/grant inside every atomic D1 batch. A request publishes at
 most ten source records. Resume uses retained custody; it does not refetch source
@@ -117,29 +119,29 @@ new migrations remain forward-only after the first release.
 
 ## What this kit does not map
 
-- Harvest invoices, payments and estimates: archived invoice PDFs stay read-only historical documents; no invoice, payment or tax state is created.
-- Expenses and receipts, project budgets and budget history, task estimates, and full source approval decision history. Exported approval/lock flags remain source evidence; imported time arrives as drafts for native submission and approval.
+- Native invoice issuance, payment settlement, estimate acceptance or retainer billing from source finance. Structured historical finance and PDFs remain evidence.
+- Native expense and receipt adoption, project budgets and budget history, task estimates, and full source approval decision history. Exported approval and lock flags remain source evidence; imported time arrives as drafts for native submission and approval.
 - Rate history inferred from today's rates, and per-project or per-task billable rates (supply reviewed person-rate versions).
 - User accounts, roles, permissions and project managers beyond the reviewed `projectLeads` and `projectMembers` maps; no operator account or grant is created.
 - Timer start and stop clock instants when the export has only dates and hours; a live Forecast API connection or provider-verified authorization.
 - Packages whose declared currency differs from the saved agency currency,
   currency conversion, and any write back to Harvest or Forecast.
 
-## Kantata OX/SX historical source evidence (partial)
+## Kantata OX and SX historical source evidence (partial)
 
-Imports now has a separate **Kantata OX and SX source evidence** section. It requires a flavor-specific reviewed object map, complete year windows, source administrator/object permission attestations and independent client/month/currency controls. OX CSV, value-only time XLSX and completed asynchronous JSON artifacts, or SX Salesforce flat CSV ZIP/API captures retain their original bytes. See API.md and the synthetic documented adapter in `tests/fixtures/kantata.mjs`. The preview names unresolved relationships/options and incomplete source coverage before any apply. Batches are resumable and untouched historical effects can be undone.
+Imports now has a separate **Kantata OX and SX source evidence** section. It requires a flavor-specific reviewed object map, complete year windows, source administrator and object permission attestations and independent client, month and currency controls. OX CSV, value-only time XLSX and completed asynchronous JSON artifacts, or SX Salesforce flat CSV ZIP and API captures retain their original bytes. See API.md and the synthetic documented adapter in `tests/fixtures/kantata.mjs`. The preview names unresolved relationships and options and incomplete source coverage before any apply. Batches are resumable and untouched historical effects can be undone.
 
-This is historical source evidence, not an approved switch to native billing or staffing. It grants no user access and imports no approval, invoice issuance or payment settlement authority. Practice/Office historical source controls are labelled separately from native reports. The native owner can separately preview and confirm bounded native draft adoption: clients, people/skills, projects, tasks, rates, time and expenses; tentative exact-date staffing; and private native custom fields/values. Multi-date schedules need explicit reviewed allocations; no daily facts are invented. Ordinary native approval is still required and source-billed time cannot rebill. Undo holds later edits/approvals and dependencies. Source estimates/invoices/payments/WIP remain historical evidence; receipt adoption and approved cutover remain unimplemented.
+This is historical source evidence, not an approved switch to native billing or staffing. It grants no user access and imports no approval, invoice issuance or payment settlement authority. Practice and Office historical source controls are labelled separately from native reports. The native owner can separately preview and confirm bounded native draft adoption: clients, people and skills, projects, tasks, rates, time and expenses; tentative exact-date staffing; and private native custom fields and values. Multi-date schedules need explicit reviewed allocations; no daily facts are invented. Ordinary native approval is still required and source-billed time cannot rebill. Undo holds later edits or approvals and dependencies. Source estimates, invoices, payments and WIP remain historical evidence; receipt adoption and approved cutover remain unimplemented.
 
 ## Scoro move-in
 
 Imports has a Scoro source-package preview, exact-fingerprint apply, bounded
-resume, rollback/undo, original-artifact download and historical-control report.
+resume, rollback and undo, original-artifact download and historical-control report.
 The documented adapter is synthetic-only: `tests/fixtures/scoro.mjs` and
 `tests/gauge-scoro.mjs`. No consenting customer export or live connection is
-claimed. CSV, original value-only legacy BIFF XLS/XLSX and uploaded paginated v2
+claimed. CSV, original value-only legacy BIFF XLS and XLSX and uploaded paginated v2
 JSON use explicit reviewed mappings. API.md documents the package and complete
-filter/window checks. Records are bounded at 1000 physical rows (including
+filter and window checks. Records are bounded at 1000 physical rows (including
 repeated report rows), artifacts at 2 MiB, the HTTP request at 8 MiB, and each
 write at ten unique source records. Packages above these measured bounds refuse.
 
@@ -152,44 +154,44 @@ permissions, unreviewed filters, gaps, incomplete pages, unresolved joins and
 independent control mismatches prevent apply. Date-only filters must cover all
 historical windows and include archived work. No source notes execute.
 
-Native core/time draft adoption is an explicit owner decision using reviewed
-leads/memberships. Source approval is historical evidence; fresh native terms and
+Native core and time draft adoption is an explicit owner decision using reviewed
+leads and memberships. Source approval is historical evidence; fresh native terms and
 approval are required. Source-billed time cannot rebill. Historical invoices,
-payments and quote/history records remain source-owned evidence, not issued or
-settled Gauge records. Undo preserves later edits/approvals and dependencies.
-MIGRATE-010 owns the separate retirement/cutover comparison; CONNECT-013 and other
-connection clauses retain ongoing provider access/sync obligations.
+payments and quote and history records remain source-owned evidence, not issued or
+settled Gauge records. Undo preserves later edits or approvals and dependencies.
+MIGRATE-010 owns the separate retirement and cutover comparison; CONNECT-013 and other
+connection clauses retain ongoing provider access and synchronization obligations.
 
 ## Teamwork.com move-in
 
-The Teamwork.com section accepts reviewed timesheet CSV/value-only Excel,
-invoice/accounting exports and complete uploaded v1/v3 JSON captures under the
+The Teamwork.com section accepts reviewed timesheet CSV and value-only Excel,
+invoice and accounting exports and complete uploaded v1 and v3 JSON captures under the
 shared original-custody, currency, coverage, identity and independent-control
 rules above. `tests/fixtures/teamwork.mjs` is a synthetic documented package;
 `tests/gauge-teamwork.mjs` proves the DST-boundary work date versus UTC audit
-instant, archived source project, task/subtask dependencies, billed/unbilled
+instant, archived source project, task and subtask dependencies, billed and unbilled
 minutes, proof approval evidence, signed retainer carry and independent
-project/period financial balances. Source history does not approve native work,
+project and period financial balances. Source history does not approve native work,
 reactivate provider accounts or issue a native invoice. Explicit native drafts
-still need fresh owner/native review; MIGRATE-010 retains financial cutover.
+still need fresh owner and native review; MIGRATE-010 retains financial cutover.
 
 ## Productive move-in
 
 Productive source imports retain current and prior time versions, distinct worked
 and billable quantities, dated rate overrides, unnumbered draft attribution,
-manual invoiced state, recurring budgets and retainer opening/period balances.
-Manager-level CSV/value-only XLSX and complete uploaded API captures require
+manual invoiced state, recurring budgets and retainer opening and period balances.
+Manager-level CSV and value-only XLSX and complete uploaded API captures require
 explicit units and the same independent source controls; JSON number lexemes and
 duplicate keys are checked before mapping. See API.md and the synthetic package
-`tests/fixtures/productive.mjs`. Imported draft/manual invoice state excludes
+`tests/fixtures/productive.mjs`. Imported draft and manual invoice state excludes
 native rebilling without inventing an invoice number. Source financial history
 remains evidence, while separately confirmed native drafts need ordinary native
 terms and approval. MIGRATE-010 retains separate operational cutover.
 
 ## Rocketlane move-in (partial)
 
-Tracked-time CSV/Excel and complete uploaded API pages preserve phase/ad-hoc
-entries, integer minutes, SOFT/HARD daily allocations, unfilled placeholders,
+Tracked-time CSV and Excel and complete uploaded API pages preserve phase and ad-hoc
+entries, integer minutes, SOFT and HARD daily allocations, unfilled placeholders,
 epoch audit units, source approvals and dated overrides. Separate original
 finance exports reconcile invoice allocations, invoices and payments before a
 source comparison can be accepted. API.md and `tests/fixtures/rocketlane.mjs`
@@ -229,3 +231,14 @@ Replay and real Worker restart do not duplicate effects, and the whole flow
 survives complete installation archive restore. Imports has visible text controls
 and is proved at 1440 and 390 pixels. No provider action, live feed or financial
 cutover is authorized; CONNECT-013 and MIGRATE-010 retain those obligations.
+
+
+## Original source custom-field exports
+
+After importing core records, the native owner can use **Source custom fields** on Imports to review original definitions and values against exact existing native relationships. The `field:import-preview` and `field:import` doors accept `format: "source-custom-fields-v1"` for Harvest, Forecast, Kantata OX, Kantata SX, Scoro, Teamwork, Productive, Rocketlane and Float. This is a documented bounded original-export carrier; it does not claim live provider access or native financial cutover.
+
+The package declares `provider` (Kantata uses `kantata-ox` or `kantata-sx`), source `account`, exact `namespace` of provider followed by a colon and account, source administrator and object permission, complete all-records coverage, and exact original `definitions.csv` and `values.csv` strings under `files`. Independently supplied `controls: {definitions, values}` must reconcile. At most 100 definitions, 1000 exported values and 100 mapped native records are accepted. Each artifact is at most 2 MiB.
+
+`package.mapping.columns` explicitly maps the definition semantics `id`, `name`, `scope`, `type`, `options` and `currency`, and the value semantics `id`, `fieldId`, `scope`, `recordId` and `value`, to their original CSV headers. `package.mapping.scopes` maps original entities to clients, engagements, people or tasks; `package.mapping.types` maps original types to the seven native field types. Select options use JSON arrays with stable IDs. Currency values use exact JSON `{amountMinor, currency}` and multi-select values use JSON arrays. Exact decimal text is preserved without floating-point rounding. `input.mapping` explicitly maps each source record to its existing native record, including every referenced source person.
+
+Preview names invalid options, unknown money, inexact values and unmapped types, records or people, and cannot apply while any finding remains. The native owner confirms the exact fingerprint and reason. Source fields are finance-only and a later source revision cannot inherit a wider native visibility; ordinary native policy review remains a separate explicit act. Originals, value IDs, definition IDs, mappings, native value versions and import receipts survive whole-installation restore. Replays retain one import receipt and no duplicate definitions. This fields-only door currently has no untouched reversal command; that remaining MIGRATE-001 obligation prevents DONE.

@@ -46,7 +46,12 @@ jobs:
             mirror=${mirrors[attempt - 1]}
             sudo sed -i -E "s@^(URIs:[[:space:]]*)https?://(([a-z0-9.-]+\.)?archive\.ubuntu\.com|security\.ubuntu\.com|mirrors\.edge\.kernel\.org)/ubuntu/?@\1${mirror}/@" /etc/apt/sources.list.d/ubuntu.sources
             printf 'Chromium apt: attempt %s/3 (mirror %s)\n' "$attempt" "$mirror"
-            if timeout --kill-after=5s 300s pnpm exec playwright install --with-deps chromium; then exit 0; fi
+            # The timeout must own root apt children too; otherwise a timed-out sudo
+            # installer leaves the dpkg lock held and every retry fails immediately.
+            if sudo env "PATH=$PATH" timeout --kill-after=5s 300s node node_modules/@playwright/test/cli.js install-deps chromium; then
+              pnpm exec playwright install chromium
+              exit 0
+            fi
             if (( attempt < 3 )); then sleep "$((attempt * 2))"; fi
           done
           printf 'Chromium apt: failed after 3 attempts\n' >&2

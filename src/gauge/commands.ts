@@ -17,6 +17,7 @@ import { syncCommand, advanceProviderSync } from './provider-health'
 import { readCommercialDelivery, readCommercialSignature } from './commercial-readback'
 import { jobCommand, dispatchProviderJob } from './provider-jobs'
 import { providerRequest } from './provider-request'
+import { githubCommand } from './github'
 import { commercialCommand } from './commercial-proposals'
 import { sendCommercial,dispatchCommercial } from './commercial-delivery'
 import type { Bindings } from '../auth.server'
@@ -76,6 +77,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action.startsWith('provider:'))return providerRequest(env,a,action,input)
  if(action==='providerJob:dispatch'){need(a.role==='owner','Only the owner dispatches provider jobs',403);const job=await get(env,'providerJobs',text(input.id,'Provider job'));return job.value.operation==='email:send'?(job.value.source.kind==='invoiceAccess'?dispatchInvoice(env,a,input):dispatchCommercial(env,a,input)):dispatchProviderJob(env,a,input)}
  if(action==='providerSync:advance')return advanceProviderSync(env,a,input)
+ if(action.startsWith('github:'))return githubCommand(env,a,action,input)
  if(action==='invoice:delivery-readback')return readInvoiceDelivery(env,a,input)
  if(action==='commercial:delivery-readback')return readCommercialDelivery(env,a,input)
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)

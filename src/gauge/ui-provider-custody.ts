@@ -1,4 +1,5 @@
 import { providerHealthSection } from './ui-provider-health'
+import { githubSection } from './ui-github'
 import type { Bindings } from '../auth.server'
 import type { Actor } from './store'
 import { providerRegister } from './provider-custody'
@@ -6,15 +7,15 @@ import { escape as e, input, form, choices, decision, table } from './ui-forms'
 import { chip } from './ui-format'
 
 const when = (ms: number | null) => ms ? new Date(ms).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '—'
-const credentialField = '<label class="g-field g-field--wide"><span>Provider credential</span><input name="credential" type="password" autocomplete="new-password" spellcheck="false" minlength="8" maxlength="4096" required></label>'
+const credentialField = '<label class="g-field g-field--wide"><span>Provider credential</span><input name="credential" type="password" autocomplete="new-password" spellcheck="false" minlength="8" maxlength="8192" required></label>'
 
 /** The existing owner Access page: blank password inputs and connection/use metadata only. */
 export async function providerCustodySection(env: Bindings, a: Actor): Promise<string> {
  if (a.session.kind !== 'native') return '<section class="g-card"><h2>Provider connections</h2><p>Sign in through your native email link to manage provider connections.</p></section>'
  const register = await providerRegister(env, a)
- let body = '<div class="g-titlebar" id="provider-connections"><h2>Provider connections</h2></div><p class="g-lede">Connect a scoped SendGrid credential for invoice delivery, a Resend credential for proposal email and exact-message delivery readback, or a Crank credential for budget exception triggers. For Zapier or a signed webhook, enter compact JSON with endpoint and signingKey (16–256 characters); both stay sealed. A receipt key verifies workflow task requests presented by the native owner; it grants no callback or automatic write. Only the owner can manage connections and inspect their use. Rotating a credential pauses queued work for a person to re-queue. Revocation permanently stops queued work for that connection.</p>'
+ let body = '<div class="g-titlebar" id="provider-connections"><h2>Provider connections</h2></div><p class="g-lede">Connect a scoped SendGrid credential for invoice delivery, a Resend credential for proposal email and exact-message delivery readback, or a Crank credential for budget exception triggers, or a GitHub App credential written as app number, installation number and base64 private key joined by colons for read-only pull request and issue evidence and owner-approved issue follow-ups. For Zapier or a signed webhook, enter compact JSON with endpoint and signingKey (16–256 characters); both stay sealed. A receipt key verifies workflow task requests presented by the native owner; it grants no callback or automatic write. Only the owner can manage connections and inspect their use. Rotating a credential pauses queued work for a person to re-queue. Revocation permanently stops queued work for that connection.</p>'
  if (!register.initialized) body += form('provider:initialize', 'Initialize provider custody', '<p class="g-note">Create this installation’s private encryption key before entering credentials. Restored connections require fresh credentials.</p>', undefined, 'Initialize provider custody', 'g-card--form')
- else body += form('provider:connect', 'Connect provider', choices('provider', 'Provider', ['resend', 'sendgrid', 'crank', 'inkwell','zapier','webhook','receipt']) + input('accountLabel', 'Account label') + input('origin', 'Inkwell HTTPS origin (Inkwell only)', '', 'url', false) + credentialField, undefined, 'Connect provider', 'g-card--form')
+ else body += form('provider:connect', 'Connect provider', choices('provider', 'Provider', ['resend', 'sendgrid', 'crank', 'inkwell','zapier','webhook','receipt','github']) + input('accountLabel', 'Account label') + input('origin', 'Inkwell HTTPS origin (Inkwell only)', '', 'url', false) + credentialField, undefined, 'Connect provider', 'g-card--form')
  body += table('Connections', register.connections, [
   {label: 'Account', wrap: true, line: 1, cell: r => `${e(r.value.accountLabel)}<span class="g-sub">${e(r.value.provider)}</span>`},
   {label: 'Scope', wrap: true, line: 3, cell: r => e(r.value.scopes.join(', '))},
@@ -32,5 +33,5 @@ export async function providerCustodySection(env: Bindings, a: Actor): Promise<s
   {label: 'Operation', wrap: true, line: 3, cell: r => e(r.value.operation)},
   {label: 'Outcome', size: 'status', line: 2, cell: r => e(r.value.outcome)},
  ], undefined, 'No provider use yet.')
- return body+await providerHealthSection(env,a)
+ return body+await providerHealthSection(env,a)+await githubSection(env,a)
 }

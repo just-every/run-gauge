@@ -1,15 +1,16 @@
 import { webhookCredential } from './provider-job-webhook'
+import { parseGithubCredential } from './github-app'
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { Fault, type Row, type Value, integer, need, text, uuid } from './model'
 import { type Actor, type Transaction, all, fence, get } from './store'
 
-export type Provider = 'sendgrid' | 'resend' | 'crank' | 'inkwell' | 'zapier' | 'webhook' | 'receipt'
-export type ProviderOperation = 'email:send' | 'email:read' | 'trigger:submit' | 'signature:read' | 'followup:verify'
+export type Provider = 'sendgrid' | 'resend' | 'crank' | 'inkwell' | 'zapier' | 'webhook' | 'receipt' | 'github'
+export type ProviderOperation = 'email:send' | 'email:read' | 'trigger:submit' | 'signature:read' | 'followup:verify' | 'repo:read' | 'issue:write'
 export type ProviderOutcome = 'accepted' | 'rejected' | 'uncertain' | 'credential-rotated' | 'credential-revoked' | 'credential-disconnected' | 'rate-limited'
 export interface ProviderUse { connectionId: string; credentialVersion: number; jobId: string; operation: ProviderOperation; outcome: ProviderOutcome }
 export interface ProviderAcknowledgement { id: string | null; revision: string | null; saved: true }
-const scopes: Record<Provider, ProviderOperation[]> = { sendgrid: ['email:send','email:read'], resend: ['email:send','email:read'], crank: ['trigger:submit'], inkwell: ['signature:read'], zapier:['trigger:submit'], webhook:['trigger:submit'], receipt:['followup:verify'] }
+const scopes: Record<Provider, ProviderOperation[]> = { sendgrid: ['email:send','email:read'], resend: ['email:send','email:read'], crank: ['trigger:submit'], inkwell: ['signature:read'], zapier:['trigger:submit'], webhook:['trigger:submit'], receipt:['followup:verify'], github:['repo:read','issue:write'] }
 const encode = new TextEncoder()
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
 const bytes = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0))
@@ -99,10 +100,10 @@ export async function providerCommand(env: Bindings, a: Actor, tx: Transaction, 
   return {id: saved.id, revision: saved.revision, saved: true}
  }
  const provider = row?.value.provider ?? input.provider
- need(provider === 'sendgrid' || provider === 'resend' || provider === 'crank' || provider === 'inkwell' || provider === 'zapier' || provider === 'webhook' || provider === 'receipt', 'Choose SendGrid, Resend, Crank, Inkwell, Zapier or a signed webhook')
+ need(provider === 'sendgrid' || provider === 'resend' || provider === 'crank' || provider === 'inkwell' || provider === 'zapier' || provider === 'webhook' || provider === 'receipt' || provider === 'github', 'Choose SendGrid, Resend, Crank, Inkwell, Zapier, GitHub or a signed webhook')
  const accountLabel = row ? row.value.accountLabel : text(input.accountLabel, 'Provider account label', 120)
  const credential = input.credential
- need(typeof credential === 'string' && credential.length >= 8 && credential.length <= 4096 && !/\s/.test(credential), 'Enter a provider credential of 8 to 4096 characters without whitespace')
+ need(typeof credential === 'string' && credential.length >= 8 && credential.length <= (provider === 'github' ? 8192 : 4096) && !/\s/.test(credential), 'Enter a provider credential of 8 to 4096 characters (GitHub up to 8192) without whitespace')
  if(provider==='receipt')need(credential.length>=16,'Use a workflow receipt verification key of at least 16 characters')
  need(!String(accountLabel).includes(credential), 'Use an account label without the credential')
  let origin: string | null = row?.value.origin ?? null
@@ -113,6 +114,7 @@ export async function providerCommand(env: Bindings, a: Actor, tx: Transaction, 
   origin = url.origin
  }
  let lastFour=credential.slice(-4)
+ if(provider==='github'){const app=parseGithubCredential(credential);need(!String(accountLabel).includes(app.installationId)&&!String(accountLabel).includes(app.appId),'Use an account label without the app or installation number');lastFour=app.installationId.slice(-4)}
  if(['zapier','webhook'].includes(provider)){const hook=webhookCredential(credential,provider);need(!accountLabel.includes(hook.endpoint)&&!accountLabel.includes(hook.signingKey),'Use an account label without the hook URL or signing key');lastFour=hook.signingKey.slice(-4)}
  const id = row?.id ?? uuid(), version = row ? integer(row.value.version, 'Credential version', 1) + 1 : 1
  const sealed = await sealCredential(env, id, version, credential)
@@ -168,7 +170,7 @@ export async function dispatchCredential(env: Bindings, connectionId: string, ex
 
 /** Dispatch commits the outcome with its durable job, including every refused dispatch. */
 export async function recordProviderUse(tx: Transaction, use: ProviderUse): Promise<Row> {
- need(['email:send','email:read', 'trigger:submit', 'signature:read','followup:verify'].includes(use.operation), 'Unknown provider operation')
+ need(['email:send','email:read', 'trigger:submit', 'signature:read','followup:verify','repo:read','issue:write'].includes(use.operation), 'Unknown provider operation')
  need(['accepted', 'rejected', 'uncertain', 'credential-rotated', 'credential-revoked', 'credential-disconnected','rate-limited'].includes(use.outcome), 'Unknown provider outcome')
  return tx.record('providerUses', {
   at: Date.now(), connectionId: text(use.connectionId, 'Provider connection'), credentialVersion: integer(use.credentialVersion, 'Credential version', 1),

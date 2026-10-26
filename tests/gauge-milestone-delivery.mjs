@@ -301,7 +301,7 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
  console.log('PASS DELIVERY-005 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale, revoked and expired authority, replay and separate finance gates')
 }
 
-async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financePerson}) {
+export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financePerson}) {
  const {cmd,state,request}=h
  const alice=await h.invite('synthetic-gauge-91401'),bob=await h.invite('synthetic-gauge-91402')
  const make=async(name)=>{const c=await cmd('save:clients',{name});return cmd('save:engagements',{name,clientId:c.id,leadId:lead.id,members:[worker.id],scope:'Agreed design deliverables',timezone:'UTC'})}
@@ -370,6 +370,7 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  await cmd('retainer:adjust-approve',lateAdjustment)
  assert.equal((await augustStatement()).consumed,3600);assert.equal((await augustStatement()).remaining,21600)
  const lateLink=(await augustStatement()).linkedAdjustments.find(a=>a.id===lateAdjustment.id)
+ assert.deepEqual((await augustStatement()).linkedAdjustments.map(a=>a.id).sort(),[adjustment.id,lateAdjustment.id].sort(),'Both approved linked adjustments remain visible')
  assert.equal(lateLink.sourceId,late.id);assert.equal(lateLink.sourceRevision,late.revision);assert.equal(lateLink.ruleId,rich.id);assert.equal(lateLink.ruleRevision,rich.revision)
  const valuePreview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{...richTerms,name:'Selected value statement',unit:'value',allowance:100000,services:['Portal value'],rules:{...richTerms.rules,carryCap:20000}} ,from:'2026-07-01',to:'2026-10-31'})
  const valueRetainer=await cmd('retainer:approve',{...valuePreview.input,fingerprint:valuePreview.fingerprint,reason:'Agreed monetary allowance'})
@@ -377,7 +378,8 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  const valueTime=async(start,end)=>cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'Portal value',timezone:'UTC',start,end,notes:'Private value source note',billable:true},staff.cookie)
  let valueApproved=await valueTime('2026-08-06T09:00:00Z','2026-08-06T10:00:00Z');valueApproved=await cmd('time:submit',valueApproved,staff.cookie);valueApproved=await cmd('time:approve',valueApproved,manager.cookie)
  await valueTime('2026-08-06T10:00:00Z','2026-08-06T11:00:00Z')
- const richDocument=await read(),managerBalances=(await report()).retainerBalances
+ const richDocument=await read(),managerReport=await report(),managerBalances=managerReport.retainerBalances
+ assert.deepEqual(richDocument.statements.map(b=>b.periodId).sort(),managerReport.data.retainerPeriods.filter(p=>p.value.engagementId===project.id).map(p=>p.id).sort(),'The client receives the complete permitted statement period set')
  for(const b of richDocument.statements)for(const key of ['opening','rollover','allowance','consumed','pending','pendingSeconds','adjustments','projectedAdjustments','remaining','projectedRemaining'])assert.deepEqual(b[key],managerBalances.find(m=>m.periodId===b.periodId)[key],`${b.periodId} ${key}`)
  const valuePeriod=(await report()).data.retainerPeriods.find(p=>p.value.retainerId===valueRetainer.id&&p.value.periodStart==='2026-08-01'),valueStatement=richDocument.statements.find(b=>b.periodId===valuePeriod.id)
  assert.equal(valueStatement.rollover,20000);assert.equal(valueStatement.opening,120000);assert.equal(valueStatement.consumed,25000);assert.equal(valueStatement.remaining,95000);assert.equal(valueStatement.pending,null);assert.equal(valueStatement.pendingSeconds,3600);assert.equal(valueStatement.projectedRemaining,null)

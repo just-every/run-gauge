@@ -317,11 +317,22 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  await cmd('client:invite-project',{...invite,engagementId:other.id,contact:'synthetic-gauge-91402@example.test'})
  const path=`/api/gauge/client-projects/${project.id}`
  const read=async(cookie=alice.cookie)=>{const response=await request(path,cookie);assert.equal(response.status,200,await response.clone().text());return response.json()}
- assert.deepEqual((await read()).budgets,[],'No monetary exposure on issuance')
+ assert.deepEqual((await read()).budgets,[],'No monetary exposure on issuance');assert.equal((await read()).burn,null)
  for(const cookie of [bob.cookie,staff.cookie,h.owner])assert.equal((await request(path,cookie)).status,403)
  assert.equal((await request(`/api/gauge/client-projects/${other.id}`,alice.cookie)).status,403)
  assert.equal((await request(`/app/client-projects/${other.id}`,alice.cookie)).status,403)
  for(const door of ['/api/gauge/state','/app/rates',`/api/gauge/history/engagements/${project.id}`,'/api/gauge/rates/explain'])assert.equal((await request(door,alice.cookie)).status,403)
+ const field=async(scope,name,visibility='everyone',type='text')=>cmd('field:define',{scope,name,type,visibility,...(type==='currency'?{currency:'USD'}:{}),reason:'Explicit field visibility'})
+ const publicField=await field('engagements','Client progress'),privateField=await field('engagements','Private commercial strategy','finance-only'),narrowed=await field('engagements','Restricted after publication'),historical=await field('engagements','Historical private value','finance-only'),currencyField=await field('engagements','Selected contract amount','everyone','currency'),taskField=await field('tasks','Client task action'),clientField=await field('clients','Client reference')
+ const setFields=async(scope,id,values)=>{const row=(await state()).data[scope].find(r=>r.id===id);return cmd('field:values',{scope,id,revision:row.revision,customFields:values})}
+ await setFields('engagements',project.id,{[publicField.id]:'Ready for client',[privateField.id]:'Never share strategy',[narrowed.id]:'Withdrawn publication',[historical.id]:'Originally private',[currencyField.id]:678900})
+ await setFields('tasks',task.id,{[taskField.id]:'Approve design'});await setFields('clients',(await state()).data.engagements.find(r=>r.id===project.id).value.clientId,{[clientField.id]:'Sponsor reference'})
+ await cmd('field:define',{...narrowed,visibility:'finance-only',reason:'Narrow current policy'})
+ const broadened=await cmd('field:define',{...historical,visibility:'everyone',reason:'Broaden definition without publishing old value'})
+ const flatFields=d=>d.customFields.flatMap(r=>r.fields)
+ assert.deepEqual(flatFields(await read()).map(f=>f.id).sort(),[publicField.id,taskField.id,clientField.id].sort(),'Only current and original public values; currency also needs finance sharing')
+ assert(!JSON.stringify(await read()).includes('Originally private'))
+ await setFields('engagements',project.id,{[historical.id]:'Explicitly published value'})
  const shared=await cmd('client:share-money',{...grant,shareMoney:'yes',reason:'Finance authorizes sponsor budget'},financePerson.cookie)
  assert.equal((await read()).budgets[0].amountMinor,500000)
  const terms={name:'Client hour statement',frequency:'monthly',unit:'hours',allowance:144000,services:['Design'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:28800,carryPeriods:1,deficit:false,overage:'bill',overageRate:12000}}
@@ -336,7 +347,37 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  for(const key of ['opening','rollover','deficitOpening','allowance','consumed','pending','pendingSeconds','projectedRemaining','adjustments','projectedAdjustments','remaining','provisional'])assert.deepEqual(statement[key],managerStatement[key],key)
  assert.equal(statement.consumed,before.statements.find(b=>b.periodId===period.id).consumed)
  assert.equal(statement.pending,7200);assert.equal(statement.sources.find(s=>s.id===approved.id).status,'approved');assert.equal(statement.rules[0].id,retainer.id)
- const leaves=[];(function walk(v){if(v&&typeof v==='object')Object.values(v).forEach(walk);else leaves.push(String(v))})(document)
+ // Open several saved periods with independent nonzero FIFO and linked correction controls.
+ const richTerms={...terms,name:'Rollover and linked corrections',services:['Portal rollover'],start:'2026-07-01',allowance:14400,rules:{...terms.rules,carryCap:7200}}
+ const richPreview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:richTerms,from:'2026-07-01',to:'2026-10-31'})
+ const rich=await cmd('retainer:approve',{...richPreview.input,fingerprint:richPreview.fingerprint,reason:'Reviewed client statement rules'})
+ const report=async()=>{const r=await request('/api/gauge/state?from=2026-07-01&to=2026-10-31',manager.cookie);assert.equal(r.status,200);return r.json()}
+ const periods=(await report()).data.retainerPeriods.filter(p=>p.value.retainerId===rich.id).sort((a,b)=>a.value.periodStart.localeCompare(b.value.periodStart)),[july,august]=periods
+ await cmd('retainer:close',{...july,reason:'Completed July allowance'})
+ const adjustment=await cmd('retainer:adjust-prepare',{...july,kind:'renewal',quantity:18000,amountMinor:0,reason:'Agreed extra allowance'})
+ const augustStatement=async()=> (await read()).statements.find(b=>b.periodId===august.id)
+ assert.equal((await augustStatement()).rollover,7200);assert.equal((await augustStatement()).projectedAdjustments,3600);assert.equal((await augustStatement()).adjustments,0)
+ await cmd('retainer:adjust-approve',adjustment)
+ assert.equal((await augustStatement()).opening,25200);assert.equal((await augustStatement()).adjustments,3600);assert.equal((await augustStatement()).remaining,25200)
+ const linked=(await augustStatement()).linkedAdjustments;assert.equal(linked.length,1);assert.equal(linked[0].id,adjustment.id);assert.equal(linked[0].originPeriodId,july.id);assert.equal(linked[0].ruleRevision,rich.revision)
+ const valuePreview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{...richTerms,name:'Selected value statement',unit:'value',allowance:100000,services:['Portal value'],rules:{...richTerms.rules,carryCap:20000}} ,from:'2026-07-01',to:'2026-10-31'})
+ const valueRetainer=await cmd('retainer:approve',{...valuePreview.input,fingerprint:valuePreview.fingerprint,reason:'Agreed monetary allowance'})
+ await cmd('save:rates',{personId:worker.id,service:'Portal value',effective:'2020-01-01',costMinor:12347,billMinor:25000})
+ const valueTime=async(start,end)=>cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'Portal value',timezone:'UTC',start,end,notes:'Private value source note',billable:true},staff.cookie)
+ let valueApproved=await valueTime('2026-08-06T09:00:00Z','2026-08-06T10:00:00Z');valueApproved=await cmd('time:submit',valueApproved,staff.cookie);valueApproved=await cmd('time:approve',valueApproved,manager.cookie)
+ await valueTime('2026-08-06T10:00:00Z','2026-08-06T11:00:00Z')
+ const richDocument=await read(),managerBalances=(await report()).retainerBalances
+ for(const b of richDocument.statements)for(const key of ['opening','rollover','allowance','consumed','pending','pendingSeconds','adjustments','projectedAdjustments','remaining','projectedRemaining'])assert.deepEqual(b[key],managerBalances.find(m=>m.periodId===b.periodId)[key],`${b.periodId} ${key}`)
+ const valuePeriod=(await report()).data.retainerPeriods.find(p=>p.value.retainerId===valueRetainer.id&&p.value.periodStart==='2026-08-01'),valueStatement=richDocument.statements.find(b=>b.periodId===valuePeriod.id)
+ assert.equal(valueStatement.rollover,20000);assert.equal(valueStatement.opening,120000);assert.equal(valueStatement.consumed,25000);assert.equal(valueStatement.remaining,95000);assert.equal(valueStatement.pending,null);assert.equal(valueStatement.pendingSeconds,3600);assert.equal(valueStatement.projectedRemaining,null)
+ assert.equal(valueStatement.sources.find(t=>t.id===valueApproved.id).revision,valueApproved.revision)
+ assert.deepEqual(richDocument.burn,{approvedSeconds:7200,pendingSeconds:10800,hourlyValueMinor:48457,knownHourlyValueMinor:48457,unknownHourlyValues:0,currency:'USD'})
+ assert.deepEqual(flatFields(richDocument).map(f=>[f.id,f.value]).sort(),[[publicField.id,'Ready for client'],[historical.id,'Explicitly published value'],[currencyField.id,678900],[taskField.id,'Approve design'],[clientField.id,'Sponsor reference']].sort())
+ assert.equal(flatFields(richDocument).find(f=>f.id===historical.id).valueRevision,broadened.revision)
+ const hidden=await cmd('client:share-money',{...shared,shareMoney:'no',reason:'Finance withdraws monetary sharing'},financePerson.cookie)
+ assert.equal((await read()).burn,null);assert.deepEqual((await read()).budgets,[]);assert(!(await read()).statements.some(b=>b.unit==='value'));assert(!flatFields(await read()).some(f=>f.id===currencyField.id))
+ const reshared=await cmd('client:share-money',{...hidden,shareMoney:'yes',reason:'Finance reauthorizes selected figures'},financePerson.cookie)
+ const leaves=[];(function walk(v){if(v&&typeof v==='object')Object.values(v).forEach(walk);else leaves.push(String(v))})(richDocument)
  for(const privateValue of ['Private internal time detail','12347','23457'])assert(!leaves.some(v=>v===privateValue),'Private staff economics and notes excluded')
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  try{
@@ -344,8 +385,8 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await login(alice.cookie)
    await page.goto(`${h.origin}/app/client-projects/${project.id}`)
-   assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)
-   await page.getByText('Sources and rule versions',{exact:true}).click()
+   assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)
+   for(const control of await page.getByText('Sources and rule versions',{exact:true}).all())await control.click()
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client project fits ${width}`)
    if(width===1440)assert((await page.locator('main').boundingBox()).width>800,'Desktop portal uses the workspace content column')
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-${width}.png`,fullPage:true})
@@ -356,8 +397,11 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
   }
  }finally{await context.close()}
  await cmd('client:share-money',{...grant,shareMoney:'no',reason:'Stale choice'},financePerson.cookie,409)
- await cmd('client:revoke-project',{...shared,reason:'Recipient no longer authorized'})
+ await cmd('client:revoke-project',{...reshared,reason:'Recipient no longer authorized'})
  assert.equal((await request(path,alice.cookie)).status,403)
+ const liveInvitation=await cmd('client:invite-project',invite)
+ await cmd('client:share-money',{...liveInvitation,shareMoney:'yes',reason:'Restore must drop currently active permission'},financePerson.cookie)
+ const portableDocument=await read()
  const {createPortability,readArchive}=await import('@runeditrun/rer/modules/portability')
  const {portabilityPolicy}=await import('../scripts/installer/portability-policy.mjs')
  const service=await createPortability({db:h.db,policy:portabilityPolicy}),archiveId=await service.exports.create()
@@ -366,6 +410,36 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  assert(!records[0].tables.some(t=>t.name==='g_client_portal_authority'),'Project recipient authority never travels in business archives')
  assert(records.filter(r=>r.kind==='part').flatMap(r=>r.items).some(r=>r.table==='g_audit'&&String(r.row.data).includes('Sponsor project access')),'Business consent history remains portable without execution authority')
  await service.exports.abort(archiveId)
+ const {mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join,resolve}=await import('node:path'),{execFileSync}=await import('node:child_process'),{getPlatformProxy}=await import('wrangler'),{harness}=await import('./gauge-harness.mjs')
+ const destination=await mkdtemp(join(tmpdir(),'gauge-client-restore-'));let proxy,restored
+ try{
+  execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','DB','--local','--persist-to',destination,'--config','wrangler.jsonc'],{stdio:'pipe',maxBuffer:8*1024*1024,env:{...process.env,CI:'true',WRANGLER_SEND_METRICS:'false'}})
+  proxy=await getPlatformProxy({configPath:resolve('wrangler.jsonc'),persist:{path:join(destination,'v3')},remoteBindings:false})
+  const restore=await createPortability({db:proxy.env.DB,policy:portabilityPolicy}),restoreId=await restore.imports.create(records[0])
+  for(const part of records.filter(r=>r.kind==='part'))await restore.imports.uploadPart(restoreId,part.index,part)
+  await restore.imports.finalize(restoreId,records.at(-1))
+  assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_client_portal_authority').first()).n,0)
+  for(const table of ['g_engagements','g_clients','g_tasks','g_time','g_retainers','g_retainerPeriods','g_retainerCloses','g_retainerAdjustments','g_customFields','g_history','g_audit']){
+   const expected=records.filter(r=>r.kind==='part').flatMap(r=>r.items).filter(r=>r.table===table).map(r=>r.row)
+   const actual=(await proxy.env.DB.prepare(`SELECT * FROM "${table}"`).all()).results
+   const ordered=rows=>rows.map(r=>JSON.stringify(Object.fromEntries(Object.entries(r).sort()))).sort()
+   assert.deepEqual(ordered(actual),ordered(expected),`${table} business history survives restore`)
+  }
+  await proxy.dispose();proxy=undefined
+  restored=await harness({persistenceDirectory:destination,beforeLogin:async({request})=>assert.equal((await request(path,alice.cookie)).status,401,'Pre-restore client session is invalid')})
+  assert.equal((await restored.post('/auth/magic-link',{email:invite.contact})).status,202)
+  const link=new URL(restored.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0]),confirmation=await restored.post('/auth/confirm',{token:link.searchParams.get('token')})
+  assert.equal(confirmation.status,303)
+  const freshCookie=confirmation.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+  for(const door of [path,`/app/client-projects/${project.id}`])assert.equal((await restored.request(door,freshCookie)).status,403,'Fresh matching email restores no project authority')
+  const fresh=await restored.cmd('client:invite-project',invite)
+  const restoredRead=async()=>{const response=await restored.request(path,freshCookie);assert.equal(response.status,200);return response.json()}
+  assert.equal((await restoredRead()).burn,null,'Fresh invitation starts without restored monetary consent')
+  await restored.cmd('client:share-money',{...fresh,shareMoney:'yes',reason:'New installation finance explicitly shares again'})
+  const stable=v=>Array.isArray(v)?v.map(stable).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).sort().map(([k,x])=>[k,stable(x)])):v
+  assert.deepEqual(stable(await restoredRead()),stable(portableDocument),'Fresh explicit authority reveals identical business projections and source versions')
+ }finally{await proxy?.dispose();await restored?.dispose();await rm(destination,{recursive:true,force:true})}
+
  const renewed=await cmd('client:invite-project',invite)
  await h.db.prepare('UPDATE g_client_portal_authority SET expires_at=0 WHERE id=?').bind(renewed.id).run()
  assert.equal((await request(path,alice.cookie)).status,403)

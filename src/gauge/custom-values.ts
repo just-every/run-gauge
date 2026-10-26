@@ -4,7 +4,7 @@ import type { Actor,Transaction } from './store'
 export const customScopes=['clients','engagements','people','tasks']
 export const customTypes=['text','number','currency','date','single-select','multi-select','person']
 export const empty=(v:any)=>v===undefined||v===null||v===''||Array.isArray(v)&&!v.length
-export const canField=(a:Actor,f:Row)=>['owner','finance'].includes(a.role)||f.value.visibility==='everyone'&&['staff','lead'].includes(a.role)||f.value.visibility==='lead-finance'&&a.role==='lead'
+export const canField=(a:Actor,f:Row)=>['owner','finance'].includes(a.role)||f.value.visibility==='everyone'&&['staff','lead','client'].includes(a.role)||f.value.visibility==='lead-finance'&&a.role==='lead'
 export const definitionStamp=(rows:Row[])=>JSON.stringify(rows.map(r=>[r.id,r.revision]).sort((a,b)=>a[0].localeCompare(b[0])))
 export function visibleCustom(a:Actor,scope:string,value:Value):Value {
  if(['owner','finance'].includes(a.role))return value

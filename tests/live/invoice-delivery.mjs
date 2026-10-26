@@ -69,11 +69,11 @@ try{
  for(const [name,bytes]of [[invoice.value.number+'.pdf',Buffer.from(invoice.value.pdf.base64,'base64')],[invoice.value.number+'-detail.pdf',Buffer.from(invoice.value.detailPdf.base64,'base64')],[invoice.value.number+'-detail.csv',Buffer.from(invoice.value.detailCsv)]]){
   const attachment=parsed.attachments.find(a=>a.filename===name);assert(attachment,'Received exact invoice attachment');assert.deepEqual(Buffer.from(attachment.base64,'base64'),bytes)
  }
- for(let attempt=0;attempt<13;attempt++){
+ for(let attempt=0;attempt<37;attempt++){
   await cmd('invoice:delivery-readback',event)
   event=(await state()).data.commercialEvents.find(r=>r.id===event.id)
-  if(['delivered','bounced','failed'].includes(event.value.mailboxState)||event.value.readbackException&&event.value.readbackException!=='message-not-found')break
-  if(attempt<12)await new Promise(r=>setTimeout(r,5000))
+  if(['delivered','bounced','failed'].includes(event.value.mailboxState)||event.value.readbackException&&!['message-not-found','not-found'].includes(event.value.readbackException))break
+  if(attempt<36)await new Promise(r=>setTimeout(r,5000))
  }
  const path='/app/client-invoices/'+release.id,pdf=await request(path+'?format=pdf',recipient.cookie);assert.equal(pdf.status,200);assert.equal(hash(Buffer.from(await pdf.arrayBuffer())),invoice.value.pdf.sha256)
  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
@@ -85,4 +85,5 @@ try{
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert(await page.locator(selector).isVisible());if(shots)await page.locator(selector).screenshot({path:`${shots}/${name}-${width}.png`})}
  }
  console.log(JSON.stringify({mailboxReceiptId:receipt.id,receivedAt:receipt.receivedAt,dmarc:receipt.auth.dmarc,receivedMessageId:parsed.messageId,attachmentsByteIdentical:true,providerMessageId:job.value.providerMessageId,providerState:event.value.mailboxState,readbackException:event.value.readbackException,providerEvidenceMessageId:event.value.providerEvidenceMessageId??null,hostedPageAndPdf:true}))
+ assert.equal(event.value.mailboxState,'delivered','Provider reconciles the exact delivered invoice message')
 }finally{if(browser)await browser.close();await h.dispose()}

@@ -58,7 +58,7 @@ export async function invoiceDeliveryJourney(h,{issued,release,recipient,personI
   const url=new URL(req.url)
   if(url.origin!=='https://api.sendgrid.com')return previousEdge?.(req,body)
   if(req.method==='POST'&&req.url===sendUrl){
-   const id='synthetic-gauge-816-message-'+(sends.length+1)
+   const id='synthetic-gauge-816-message_'+(sends.length+1)
    sends.push({id,body,authorization:req.headers.get('authorization')})
    return new Response(null,{status:202,headers:{'x-message-id':id}})
   }

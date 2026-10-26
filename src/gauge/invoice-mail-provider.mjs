@@ -83,7 +83,6 @@ function uniqueArgs(value) {
 }
 
 const quoteQuery = value => value.replace(/[\\"]/g, '\\$&')
-const quotePrefix = value => quoteQuery(value).replace(/[%_]/g, '\\$&')
 const sameRecipient = (actual, expected) => typeof actual === 'string' && actual.toLowerCase() === expected
 const sameSendGridId = (actual, submitted) => opaque(actual) && (actual === submitted || actual.startsWith(submitted + '.'))
 
@@ -127,7 +126,7 @@ export async function readInvoiceMail(credential, provider, id, to, deliveryId, 
   providerMessageId = message.id
   status = resendState(message.last_event)
  } else {
-  const query = `msg_id LIKE "${quotePrefix(id)}%" AND to_email="${quoteQuery(recipient)}"`
+  const query = `msg_id LIKE "${quoteQuery(id)}%" AND to_email="${quoteQuery(recipient)}"`
   const result = await readJson(credential, provider, '/v3/messages?limit=20&query=' + encodeURIComponent(query))
   if (result.exception) return unknown(result.exception)
   if (!Array.isArray(result.data?.messages)) return unknown('unreadable-evidence')

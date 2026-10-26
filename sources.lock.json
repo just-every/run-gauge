@@ -1713,7 +1713,7 @@
       "executable": false
     },
     "src/gauge/invoice-mail-provider.mjs": {
-      "sha256": "5f56da87dc95ad5a134ee822562dbdca615e327111ddd202a7af1a99bec57ae2",
+      "sha256": "b0c92462815455733d90182f4916dce448576fd7acfa99c37a83bcc930eab0d3",
       "executable": false
     },
     "src/gauge/invoice-mail-source.ts": {
@@ -4421,7 +4421,7 @@
       "executable": false
     },
     "tests/gauge-invoice-delivery.mjs": {
-      "sha256": "4a6e70241880c2af476050ace47458c8132be0f72805f79c9fa41cec9575f672",
+      "sha256": "13b38383d6b6ee7bce3b01f78dd68a4b6d71ec41c0758302079234fa4c016635",
       "executable": false
     },
     "tests/gauge-invoices.mjs": {

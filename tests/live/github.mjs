@@ -19,7 +19,7 @@ const addFile=async(ref,name)=>{await gh(setup,'POST',`/repos/${sandbox}/git/ref
 await addFile(commitOnly,`commit-only-${stamp}.md`)
 await addFile(branch,`proof-${stamp}.md`)
 const opened=(await gh(setup,'POST',`/repos/${sandbox}/pulls`,{title:`Gauge live proof ${stamp}`,head:branch,base:installation.repositories[0].default_branch,body:`Synthetic proof.\nGauge milestone: ${milestoneName}`})).json
-assert(opened.number,'The App opens a pull request');const merge=await gh(setup,'PUT',`/repos/${sandbox}/pulls/${opened.number}/merge`,{merge_method:'squash'});assert.equal(merge.status,200,'The App merges the pull request')
+assert(opened.number,'The App opens a pull request');const merge=await gh(setup,'PUT',`/repos/${sandbox}/pulls/${opened.number}/merge`,{});assert.equal(merge.status,200,'The App merges the pull request')
 
 const h=await harness({currency:'USD',timezone:'America/New_York',databaseBinding:true}),{cmd,state,request}=h
 const touched=[]
@@ -27,7 +27,8 @@ h.providerEdge.handler=async(req,body)=>{
  const url=new URL(req.url);if(url.origin!=='https://api.github.com')return null
  const sandboxPath=url.pathname.startsWith(`/repos/${sandbox}/`)||url.pathname==='/installation/repositories'||url.pathname===`/app/installations/${installationId}/access_tokens`
  assert(sandboxPath&&!url.pathname.includes(uninstalled),`Gauge touched only the sandbox: ${url.pathname.split('/').slice(0,3).join('/')}`);touched.push(`${req.method} ${url.pathname.replace(sandbox,'sandbox')}`)
- const response=await fetch(req.url,{method:req.method,headers:req.headers,...(body?{body:JSON.stringify(body)}:{}),redirect:'manual',signal:AbortSignal.timeout(20000)})
+ let response;try{const forward=new Headers(req.headers);forward.delete('content-length');forward.delete('host');response=await fetch(req.url,{method:req.method,headers:forward,...(body?{body:JSON.stringify(body)}:{}),redirect:'manual',signal:AbortSignal.timeout(20000)})}catch(error){console.error('edge fetch failed',req.method,url.pathname.replace(sandbox,'sandbox'),error.name,error.message,error.cause?.message);throw error}
+ console.error('edge',req.method,url.pathname.replace(sandbox,'sandbox'),response.status)
  const headers=new Headers(response.headers);headers.delete('content-encoding');headers.delete('content-length');return new Response(response.body,{status:response.status,headers})
 }
 try{
@@ -47,8 +48,14 @@ try{
  const followup=await cmd('github:followup-draft',{repoId:repo.id,title:`Gauge live follow-up ${stamp}`,body:'Synthetic approved follow-up from the live proof.',reason:'Live follow-up proof'})
  const row=(await state()).data.githubFollowups.find(r=>r.id===followup.id);await cmd('github:followup-send',{id:row.id,revision:row.revision})
  const sent=(await state()).data.githubFollowups.find(r=>r.id===followup.id);assert.equal(sent.value.status,'created')
- repo=(await state()).data.githubRepos[0];await cmd('github:sync',{id:repo.id,revision:repo.revision})
- data=(await state()).data;assert(data.githubEvidence.some(r=>r.value.kind==='issue'&&r.value.number===sent.value.issueNumber),'The approved follow-up returns as issue evidence')
+ // GitHub's issue list can trail a create by a few seconds; each read is an ordinary owner-initiated sync.
+ let reads=[]
+ for(let attempt=0;attempt<5;attempt++){
+  repo=(await state()).data.githubRepos[0];reads.push(await cmd('github:sync',{id:repo.id,revision:repo.revision}))
+  data=(await state()).data;if(data.githubEvidence.some(r=>r.value.kind==='issue'&&r.value.number===sent.value.issueNumber))break
+  await new Promise(r=>setTimeout(r,4000))
+ }
+ assert(data.githubEvidence.some(r=>r.value.kind==='issue'&&r.value.number===sent.value.issueNumber),`The approved follow-up returns as issue evidence: ${JSON.stringify({issue:sent.value.issueNumber,reads,evidence:data.githubEvidence.map(r=>[r.value.kind,r.value.number])})}`)
  const delivered=data.milestones.find(r=>r.id===milestone.id);assert.equal(delivered.value.delivery.deliveries.length,1)
  const invited=await h.invite('casey'),release=await cmd('milestone:release-review',{...delivered,key:randomUUID(),contact:'casey@example.test',days:1,reason:'Live client view',description:'Delivered for review'})
  const review=(await state()).data.milestones.find(r=>r.id===milestone.id).value.delivery.clientReviews.at(-1)

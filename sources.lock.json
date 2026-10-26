@@ -429,7 +429,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3052fc576ad33b3ccaee7b448292ef0c2e8f9c236b2f12d0dd9d438a30e18559",
+      "sha256": "9956b2dc160755e696a2bcd803e015af5594b076766c82e291e9fc0c468c5e6f",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -441,7 +441,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "a1f3467940104dabe49fe469b5dbeb15431268ba83875bc4fb438489582604d6",
+      "sha256": "afb929136370b19cb4cb6fcd0bdf474a68bc4bdb893348ae44af98ef785a24d7",
       "executable": false
     },
     "base-copies.json": {
@@ -453,7 +453,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5a5f7fa2d63b95321f906394dbd7c3d6d1fbfab2bd0573186b0ef0c801e505be",
+      "sha256": "286e987aa982aa9c9a317d4434e3fb8c17b622769e366aec37fcce4d65c6a600",
       "executable": false
     },
     "DEMO.md": {
@@ -541,7 +541,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "2cb9a4c1a8e3a20c1cec2c7308c51e10391de3529b798bf8ec85dfd831148012",
+      "sha256": "1000e674ce39c047eed95e2b933f384464e66bf105205a9dad969bf482f715e1",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -842,6 +842,10 @@
     },
     "migrations/core/0075_gauge_app_keys.sql": {
       "sha256": "b74bdc763d5181fabec3380b2bfdbedaad863746b10bad7d516eba52e9c7b4b2",
+      "executable": false
+    },
+    "migrations/core/0076_gauge_github.sql": {
+      "sha256": "3911593f1729611ef91c26cac3265a78103b889a560c0b2e63a0b1d2f41f25d2",
       "executable": false
     },
     "MOVE-IN.md": {
@@ -1493,7 +1497,7 @@
       "executable": false
     },
     "src/gauge/audit.ts": {
-      "sha256": "72d93097e6fe4fe8c0a92d113b89d7b06739b654b757c77d6db0240db27570f6",
+      "sha256": "70e9fa0d8ea5c53b96865b7adbff4d482e943d4caeb1abf3c1c260baedee1f2c",
       "executable": false
     },
     "src/gauge/billability.ts": {
@@ -1537,7 +1541,7 @@
       "executable": false
     },
     "src/gauge/commands.ts": {
-      "sha256": "555c0564b39d8b7fea5212a0ff407ba502194a13e23e62b6286592c5063ba640",
+      "sha256": "cee9a844c363ab66127cd5513ea1c738d8786517c48edec377a387c4d5c1d6dd",
       "executable": false
     },
     "src/gauge/commercial-client.ts": {
@@ -1660,6 +1664,22 @@
       "sha256": "4ab25cbcbe50377c780a72195a76aba9be57d80b42cc9ad979582aec593dbfd9",
       "executable": false
     },
+    "src/gauge/github-app.ts": {
+      "sha256": "51febb9535c946ff52e90123a4920182d168021da5cd025500bb960435dafb1e",
+      "executable": false
+    },
+    "src/gauge/github-evidence.ts": {
+      "sha256": "b440007ab97c631e9f7a98a21b15dafaed6a4c7529129b9cba5a8ebcd19869f2",
+      "executable": false
+    },
+    "src/gauge/github-followups.ts": {
+      "sha256": "aa8463ff45eb9ef8515169830d89be9593ac3ed70da592c7a95e4fc120101c56",
+      "executable": false
+    },
+    "src/gauge/github.ts": {
+      "sha256": "12ff23cc250e78e71623b7fcef359a918be5afbaa03ecfb073104f1cd0e5dc4b",
+      "executable": false
+    },
     "src/gauge/harvest-coverage.ts": {
       "sha256": "0a6a1c9461ffc33c830ccf48c2f5365f18c00cf9e75c48b62844df940bb9e0d6",
       "executable": false
@@ -1685,7 +1705,7 @@
       "executable": false
     },
     "src/gauge/http.ts": {
-      "sha256": "45d547e6aa8252cf51a521fc38ff553887061f44cc25afeb2847d47560ba2bbb",
+      "sha256": "a20a152e271f92d91d09f2e06962b363cf2369b9a71cdd1d1202dc0aa6fc3e7f",
       "executable": false
     },
     "src/gauge/import-targets.ts": {
@@ -1773,7 +1793,7 @@
       "executable": false
     },
     "src/gauge/model.ts": {
-      "sha256": "141e10fa2be048f7d4d17af45e6412849b2a165ddab254482a382d162b4ec15e",
+      "sha256": "abe912fc142330ec7ca897b131ab1fff4ade9b16a4a69364b621248f13da29d3",
       "executable": false
     },
     "src/gauge/operational-cases.ts": {
@@ -1841,7 +1861,7 @@
       "executable": false
     },
     "src/gauge/provider-custody.ts": {
-      "sha256": "995801c4025c0deed6137825b8870eb5a4d1df5a272129614283efcbe94378c9",
+      "sha256": "142e489a610c2a64d627b6d21dda355ae3e6310a591534e2bd8b3bba3d9044bf",
       "executable": false
     },
     "src/gauge/provider-followups.ts": {
@@ -1965,7 +1985,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "d74e1c12e45a251a53e398286644988fbb253d28a0765ccdb37192e1b57f0fc3",
+      "sha256": "cb81e78d0d5a5612e5f425dea2cbae41a0b04e3d6c2692803eb81cb9250503df",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -2260,6 +2280,10 @@
       "sha256": "c32ea0513565f513cc9a4d0651b31dc482ce9afc531793a54ed35592d42345b3",
       "executable": false
     },
+    "src/gauge/ui-github.ts": {
+      "sha256": "69b1fd4b4acccdef16aca2310b2b9a3b86e242d422afc053fad83ad10e08f50d",
+      "executable": false
+    },
     "src/gauge/ui-harvest-history.ts": {
       "sha256": "4a8b806462005c3b22e1b355e3f3e07030eb1739e9a6416d88bf8ef6a9134fda",
       "executable": false
@@ -2337,7 +2361,7 @@
       "executable": false
     },
     "src/gauge/ui-provider-custody.ts": {
-      "sha256": "ad9c6b9d5d29c4460e31e72f39e0ea8cb659199b1930133a1d08f2c71da7e548",
+      "sha256": "2f102bc2dd4bfc48e6ba6782a68c3fec6bcbc7596289ca2b4a0c4e6dd3b4ab2f",
       "executable": false
     },
     "src/gauge/ui-provider-health.ts": {
@@ -4416,6 +4440,10 @@
       "sha256": "5b69708155803b7d0067cf11dd7c8b2ed31f1377798b3d8ea34cc8e0183809f9",
       "executable": false
     },
+    "tests/gauge-github.mjs": {
+      "sha256": "e429c596a04af31f2971303936c17cc2b9d89365411cc147543b66de094bf455",
+      "executable": false
+    },
     "tests/gauge-handoffs.mjs": {
       "sha256": "70d4f982c6e139ce9eb4a8c3a559f0ae133f71909d0168c37e0dba816b33a456",
       "executable": false
@@ -4449,7 +4477,7 @@
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {
-      "sha256": "4ac1a19dbc688d0727c95f3444efc5bd458a146fed8b0f8914b3c507dba6aa56",
+      "sha256": "d00f79c5b69d37e6a0a2ef04a9a53754d5502e0b542457a1ebd75a560af44398",
       "executable": false
     },
     "tests/gauge-portability.mjs": {
@@ -4578,6 +4606,10 @@
     },
     "tests/journeys/forecast-browser.mjs": {
       "sha256": "18bb602af3439b3ccc2f8a55402a24f7f8bbb01c4b19d7de88fbedb6e8602035",
+      "executable": false
+    },
+    "tests/live/github.mjs": {
+      "sha256": "b5fa92bf2e14af424b0bdcc8a33be155f7f554aec7591933589d73371ff4c36d",
       "executable": false
     },
     "tests/live/invoice-delivery.mjs": {

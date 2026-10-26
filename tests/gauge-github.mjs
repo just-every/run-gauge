@@ -54,6 +54,7 @@ export async function githubJourney(browser){
   await cmd('save:rates',{personId:person.id,service:'*',effective:'2026-01-01',costMinor:8000,billMinor:15000})
   const project=await cmd('save:engagements',{name:'Harbor beta delivery',clientId:client.id,leadId:person.id,members:[person.id],scope:'GitHub evidence',timezone:'America/New_York'})
   const unrelated=await cmd('save:engagements',{name:'Unrelated project',clientId:client.id,leadId:person.id,members:[person.id],scope:'No repositories',timezone:'America/New_York'})
+  await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'fixed',amountMinor:50000,effortSeconds:3600,roundingSeconds:60,reason:'Fixed beta fee'}))
   const milestone=await cmd('milestone:approve',await cmd('save:milestones',{engagementId:project.id,name:'Beta release',due:'2026-10-30',amountMinor:50000}))
   const roles=[];for(const [i,role] of ['finance','lead','staff','agent'].entries()){const user=await h.invite('synthetic-gauge-gh-'+i);roles.push({...user,role});await cmd('grant',{operatorId:user.id,role,enabled:true,...(role==='agent'?{purpose:'time',engagementIds:[project.id]}:{personId:person.id})})}
 

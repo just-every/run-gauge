@@ -33,7 +33,8 @@ h.providerEdge.handler=async(req,body)=>{
 try{
  const client=await cmd('save:clients',{name:'Live proof client'}),person=await cmd('save:people',{name:'Morgan Hale',timezone:'America/New_York'})
  const project=await cmd('save:engagements',{name:'Live proof project',clientId:client.id,leadId:person.id,members:[person.id],scope:'GitHub live proof',timezone:'America/New_York'})
- const milestone=await cmd('milestone:approve',await cmd('save:milestones',{engagementId:project.id,name:milestoneName,due:'2026-10-30',amountMinor:10000}))
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'fixed',amountMinor:50000,effortSeconds:3600,roundingSeconds:60,reason:'Fixed live proof fee'}))
+ const milestone=await cmd('milestone:approve',await cmd('save:milestones',{engagementId:project.id,name:milestoneName,due:'2026-10-30',amountMinor:50000}))
  const connected=await cmd('provider:connect',{provider:'github',accountLabel:'Live GitHub App',credential:`${appId}:${installationId}:${keyB64}`})
  const refused=await cmd('github:select-repo',{connectionId:connected.id,fullName:uninstalled,engagementId:project.id,reason:'Unauthorized repository'},h.owner,403);assert.match(refused.error,/not part of the GitHub App installation/)
  await cmd('github:select-repo',{connectionId:connected.id,fullName:sandbox,engagementId:project.id,reason:'Live sandbox repository'})

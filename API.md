@@ -1,6 +1,6 @@
 # Gauge HTTP API
 
-The app's pages and any agent use the same server handlers. Every call needs a native Base session cookie; each handler checks the session, operator and Gauge grant itself and repeats the check inside the D1 batch that writes.
+The app's pages and any agent use the same server handlers. Session API calls need a native Base session cookie; each handler checks the session, operator and Gauge grant itself and repeats the check inside the D1 batch that writes.
 
 ## Agency setup and money
 
@@ -26,6 +26,19 @@ The owner creates a read-only utilization key on **Access** (or `apikey:create` 
 `GET /api/gauge/state?from=YYYY-MM-DD&to=YYYY-MM-DD` with `Authorization: Bearer <key>` returns only `{scope: "utilization:read", from, to, participantCount, availableSeconds, knownAvailableSeconds, missingCalendarDays, approvedBillableSeconds, asOf}` for the whole agency. Both dates are required and inclusive, up to one year apart. `participantCount` counts every person record. `availableSeconds` is their net calendar seconds after holidays and leave, or `null` when any participant lacks a calendar day in the window (then `knownAvailableSeconds` and `missingCalendarDays` say how much is known). `approvedBillableSeconds` sums approved, billable client time whose work date, in the entry's own time zone, falls in the window; internal work is never billable. The figures equal the owner's own utilization report; the answer names no person and carries no rate, cost or pay. A key opens no other route (403) except its self-revocation door and cannot change business data. Each create, revoke and keyed read is audited and listed under **Key activity**; export leaves keys out, so a restored installation holds none.
 
 `POST /api/gauge/keys/revoke` with `Authorization: Bearer <key>` revokes only the presented utilization key. No body or request key is required; body fields cannot select another key. Active, unknown and already-revoked keys all receive HTTP 200 with an empty body. Only the first successful revocation is audited, as `key:<label>`. The next read with that key returns 401. Missing/malformed Bearer authentication returns 401; other methods return 405. This is RFC 7009 style idempotent revocation for Gauge's scoped keys, not an OAuth token endpoint.
+
+## Version 1 app API (CONNECT-020)
+
+On Access the native owner creates `appkey:create` with `label`, `operatorId` (an active staff operator with a person) and `scope`: `projects:read` or `projects:read time:write`. The credential is shown once and stored only as SHA-256. Replaying creation returns its acknowledgement without the credential. `appkey:revoke` takes its `id`. The creating owner must remain an active owner, and the staff operator, operator version and exact staff grant must remain live. Changing that grant invalidates existing credentials; issue a new one after review. Every API request and committing batch checks these conditions. Keys and their hashes never enter installation archives; audit history does.
+
+Send `Authorization: Bearer <app credential>`:
+
+- `GET /api/gauge/v1/projects?limit=50&cursor=&clientId=&q=` returns `{version: "1", projects, nextCursor}` and `Gauge-API-Version: 1`. Projects use the same record shape and field projection as the staff member's native state. Only assigned projects are visible. `clientId` filters exactly and `q` matches the name case-insensitively. Page size is 1 to 100. Follow `nextCursor` until null. A cursor binds the credential, filters and complete visible project snapshot; changed inputs return 409 and require restarting pagination.
+- `POST /api/gauge/v1/time` takes the native `time:save` fields and a unique `key` of at most 120 characters (JSON body at most 16 KiB). It saves only that staff member's draft time on an assigned project. Native task, custom-field, revision, date, overlap and period-lock rules still apply. It cannot submit, approve, bill or trigger outbound delivery. The acknowledgement matches native command responses. Identical request keys replay one result; changed bodies return 409. Receipts are isolated per credential. A revoked credential returns 401 even for a previously successful request replay; changed native authority returns 403.
+
+This version exposes project reads and draft time writes only. Other routes remain session-only; utilization keys retain their separate aggregate-only boundary. Every app use is audited with its credential identity, scope and principal without its secret. Future API capabilities inherit native authorization, current field visibility, audited request keys and authority-free restore before shipping.
+
+Signed outbound events use the existing owner-reviewed `providerJob:queue-webhook` and `providerJob:dispatch` doors described below: no unattended subscription is enabled. Event identity, exact bytes, HMAC-SHA-256 signature, source revision, delivery history and controlled redelivery remain bound to the exact native owner release. The provider custody journey verifies the signature independently and refuses stale signed workflow results without writing.
 
 ## Commands
 

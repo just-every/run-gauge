@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises'
 import { createHash, randomUUID } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { appApiJourney } from './gauge-app-api.mjs'
 import { realizationJourney } from './gauge-realization.mjs'
 
 // RESOURCE-004: one journey through real commands, the emitted Worker and its forms.
@@ -66,7 +67,7 @@ try {
  assert.equal(capacity.days.find(d => d.date === '2026-10-06').availableSeconds, 0)
  assert(capacity.days.find(d => d.date === '2026-10-06').leaveSources.includes(leave.id))
 
- browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+ browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}), headless: true, args: ['--use-mock-keychain', '--password-store=basic',...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?['--no-sandbox']:[])] })
  const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage()
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
  const capture = async name => {
@@ -267,6 +268,7 @@ try {
  assert(/active/i.test(await page.locator(`tr[id="${survivor.id}"]`).innerText()))
  await capture('utilization-key-self-revoked')
  console.log('PASS CONNECT-020 self-revoke: presented-key-only, idempotent and unknown-key 200, concurrent single audit, other keys unaffected, immediate read refusal')
+ await appApiJourney(h,browser,{staff,person,client,task,engagement})
  await realizationJourney(h, browser)
  console.log('PASS RESOURCE-004 scheduled/recorded/pending/approved utilization, 30/32 billable capacity, internal training, holiday and leave denominators, zero and missing capacity, service/project/detail grouping, scoped sources, CSV fingerprint and browser drills')
 } finally { await browser?.close(); await h.dispose() }

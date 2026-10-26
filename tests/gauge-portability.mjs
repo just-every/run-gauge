@@ -15,6 +15,7 @@ export async function portability(source,{verifyRestored}={}){
   for(const name of ['g_provider_installation_key','g_provider_credentials','g_provider_receipts','g_provider_job_authority','g_provider_sync_authority'])assert(!expected[0].tables.some(t=>t.name===name),'Provider authority stays out of archive')
   assert(expected[0].tables.some(t=>t.name==='g_files'&&t.count>0));assert(expected[0].tables.some(t=>t.name==='ik_jobs'&&t.count>0));assert(!expected[0].tables.some(t=>t.name==='oa_sessions'))
   assert((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_api_keys').first()).n>0);assert(!expected[0].tables.some(t=>t.name==='g_api_keys'),'utilization keys never leave');assert(expected[0].tables.some(t=>t.name==='g_api_key_audit'&&t.count>0),'key audit history travels')
+  assert((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_app_keys').first()).n>0);assert(!expected[0].tables.some(t=>t.name==='g_app_keys'),'app credentials never leave')
   await service.exports.abort(id)
   const occupied=await service.imports.create(expected[0]);for(const part of expected.filter(r=>r.kind==='part'))await service.imports.uploadPart(occupied,part.index,part);await assert.rejects(()=>service.imports.finalize(occupied,{contentHash:expected.at(-1).contentHash,archiveHash:expected.at(-1).archiveHash}),/destination|empty|occupied/);await service.imports.abort(occupied)
  }finally{await proxy.dispose()}
@@ -27,6 +28,7 @@ export async function portability(source,{verifyRestored}={}){
   await service.imports.finalize(id,{contentHash:expected.at(-1).contentHash,archiveHash:expected.at(-1).archiveHash})
   for(const table of manifest.tables){const actual=await restored.env.DB.prepare(`SELECT COUNT(*) n FROM "${table.name}"`).first();assert.equal(actual.n,table.count,table.name)}
   assert.equal((await restored.env.DB.prepare('SELECT COUNT(*) n FROM g_api_keys').first()).n,0,'a restored installation holds no utilization key')
+  assert.equal((await restored.env.DB.prepare('SELECT COUNT(*) n FROM g_app_keys').first()).n,0,'a restored installation holds no app credential')
   // COST-001's receipt, chosen by its bytes: later journeys add other receipts and row order is not part of restore.
   const file=await restored.env.DB.prepare("SELECT id,expense_id,bytes FROM g_files WHERE CAST(bytes AS TEXT)='private receipt bytes'").first();assert(file,'the COST-001 receipt is restored');assert.equal(Buffer.from(file.bytes).toString(),'private receipt bytes')
   const expense=await restored.env.DB.prepare('SELECT data FROM g_expenses WHERE id=?').bind(file.expense_id).first();assert.equal(JSON.parse(expense.data).status,'approved');assert(JSON.parse(expense.data).attachmentIds.includes(file.id),'restored approved expense retains its receipt link')

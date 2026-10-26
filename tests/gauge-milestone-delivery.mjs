@@ -144,10 +144,11 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
    for(const width of [1440,390]){
     await page.setViewportSize({width,height:1000})
     await page.goto(h.origin+path.replace('/api/gauge/','/app/'))
+    attempts.push({path,status:200,method:'GET'})
     await page.getByLabel('Review key',{exact:true}).fill(tokens.get(path))
     await page.getByRole('button',{name:'Open delivery',exact:true}).click()
     attempts.push({path,status:200,method:'GET'})
-    assert.equal(await page.getByLabel('Your decision').count(),1)
+    assert.equal(await page.getByLabel('Your decision').count(),1,await page.locator('main').innerText())
     assert(!(await page.locator('main').innerText()).includes('Private internal'))
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client review fits ${width}`)
     assert.equal(await page.locator('button:not(:has-text("Open")):not(:has-text("Submit"))').count(),0,'All review controls have visible names')
@@ -279,5 +280,91 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-access-audit-${width}.png`,fullPage:true})
   }
  }finally{await context.close()}
+ const ownerContext=await browser.newContext({ignoreHTTPSErrors:true}),ownerPage=await ownerContext.newPage()
+ try{
+  await ownerContext.addCookies(h.owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
+  for(const width of [1440,390]){
+   const fresh=await cmd('milestone:deliver',{...await cmd('save:milestones',{engagementId:engagement.id,name:`Owner form review ${width}`,due:'2020-01-03',amountMinor:0}),date:'2020-01-02',reason:'Private delivery notes'})
+   await ownerPage.setViewportSize({width,height:1000});await ownerPage.goto(`${h.origin}/app/engagements?edit=${engagement.id}`)
+   const release=ownerPage.locator('form').filter({has:ownerPage.locator('[name=action][value="milestone:release-review"]')}).filter({has:ownerPage.locator(`[name=id][value="${fresh.id}"]`)})
+   await release.getByLabel('Confirmed recipient email',{exact:true}).fill('synthetic-gauge-7301@example.test')
+   await release.getByLabel('Client delivery description',{exact:true}).fill('Customer description from the owner form')
+   await release.getByLabel('Client review authorization reason',{exact:true}).fill('Explicit exact release')
+   assert(await ownerPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
+   if(process.env.GAUGE_DELIVERY_SHOTS)await ownerPage.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/owner-release-${width}.png`,fullPage:true})
+   await release.getByRole('button',{name:'Release client review',exact:true}).click()
+   assert.equal(await ownerPage.getByLabel('Review key (shown once)',{exact:true}).count(),1)
+   if(process.env.GAUGE_DELIVERY_SHOTS)await ownerPage.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/owner-release-saved-${width}.png`,fullPage:true,mask:[ownerPage.getByLabel('Review key (shown once)',{exact:true})]})
+  }
+ }finally{await ownerContext.close()}
+ await clientPortalJourney(h,browser,{lead,worker,manager,staff,financePerson})
  console.log('PASS DELIVERY-005 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale, revoked and expired authority, replay and separate finance gates')
+}
+
+async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financePerson}) {
+ const {cmd,state,request}=h
+ const alice=await h.invite('synthetic-gauge-91401'),bob=await h.invite('synthetic-gauge-91402')
+ const make=async(name)=>{const c=await cmd('save:clients',{name});return cmd('save:engagements',{name,clientId:c.id,leadId:lead.id,members:[worker.id],scope:'Agreed design deliverables',timezone:'UTC'})}
+ const project=await make('synthetic-gauge-91403'),other=await make('synthetic-gauge-91404')
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:500000,effortSeconds:144000,roundingSeconds:60,reason:'Agreed budget'}))
+ const task=await cmd('save:tasks',{engagementId:project.id,name:'Design deliverable',remainingSeconds:3600})
+ const invite={engagementId:project.id,contact:'synthetic-gauge-91401@example.test',reason:'Sponsor project access',days:7}
+ for(const cookie of [manager.cookie,staff.cookie,financePerson.cookie,alice.cookie])await cmd('client:invite-project',invite,cookie,403)
+ const grant=await cmd('client:invite-project',invite)
+ await cmd('client:invite-project',{...invite,engagementId:other.id,contact:'synthetic-gauge-91402@example.test'})
+ const path=`/api/gauge/client-projects/${project.id}`
+ const read=async(cookie=alice.cookie)=>{const response=await request(path,cookie);assert.equal(response.status,200,await response.clone().text());return response.json()}
+ assert.deepEqual((await read()).budgets,[],'No monetary exposure on issuance')
+ for(const cookie of [bob.cookie,staff.cookie,h.owner])assert.equal((await request(path,cookie)).status,403)
+ assert.equal((await request(`/api/gauge/client-projects/${other.id}`,alice.cookie)).status,403)
+ assert.equal((await request(`/app/client-projects/${other.id}`,alice.cookie)).status,403)
+ for(const door of ['/api/gauge/state','/app/rates',`/api/gauge/history/engagements/${project.id}`,'/api/gauge/rates/explain'])assert.equal((await request(door,alice.cookie)).status,403)
+ const shared=await cmd('client:share-money',{...grant,shareMoney:'yes',reason:'Finance authorizes sponsor budget'},financePerson.cookie)
+ assert.equal((await read()).budgets[0].amountMinor,500000)
+ const terms={name:'Client hour statement',frequency:'monthly',unit:'hours',allowance:144000,services:['Design'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:28800,carryPeriods:1,deficit:false,overage:'bill',overageRate:12000}}
+ const preview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms})
+ const retainer=await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Agreed retainer'})
+ await cmd('save:rates',{personId:worker.id,service:'Design',effective:'2020-01-01',costMinor:12347,billMinor:23457})
+ const time=async(start,end)=>cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'Design',timezone:'UTC',start,end,notes:'Private internal time detail',billable:true},staff.cookie)
+ let approved=await time('2026-10-06T09:00:00Z','2026-10-06T10:00:00Z');approved=await cmd('time:submit',approved,staff.cookie);await cmd('time:approve',approved,manager.cookie)
+ const before=await read(),period=(await state()).data.retainerPeriods.find(p=>p.value.retainerId===retainer.id)
+ await time('2026-10-06T10:00:00Z','2026-10-06T12:00:00Z')
+ const document=await read(),managerStatement=(await state(manager.cookie)).retainerBalances.find(b=>b.periodId===period.id),statement=document.statements.find(b=>b.periodId===period.id)
+ for(const key of ['opening','rollover','deficitOpening','allowance','consumed','pending','pendingSeconds','projectedRemaining','adjustments','projectedAdjustments','remaining','provisional'])assert.deepEqual(statement[key],managerStatement[key],key)
+ assert.equal(statement.consumed,before.statements.find(b=>b.periodId===period.id).consumed)
+ assert.equal(statement.pending,7200);assert.equal(statement.sources.find(s=>s.id===approved.id).status,'approved');assert.equal(statement.rules[0].id,retainer.id)
+ const leaves=[];(function walk(v){if(v&&typeof v==='object')Object.values(v).forEach(walk);else leaves.push(String(v))})(document)
+ for(const privateValue of ['Private internal time detail','12347','23457'])assert(!leaves.some(v=>v===privateValue),'Private staff economics and notes excluded')
+ const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
+ try{
+  const login=async cookie=>{await context.clearCookies();await context.addCookies(cookie.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))}
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await login(alice.cookie)
+   await page.goto(`${h.origin}/app/client-projects/${project.id}`)
+   assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)
+   await page.getByText('Sources and rule versions',{exact:true}).click()
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client project fits ${width}`)
+   if(width===1440)assert((await page.locator('main').boundingBox()).width>800,'Desktop portal uses the workspace content column')
+   if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-${width}.png`,fullPage:true})
+   await login(h.owner);await page.goto(`${h.origin}/app/engagements?edit=${project.id}`)
+   assert.equal(await page.getByRole('button',{name:'Invite to project',exact:true}).count(),1)
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client access controls fit ${width}`)
+   if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-access-${width}.png`,fullPage:true})
+  }
+ }finally{await context.close()}
+ await cmd('client:share-money',{...grant,shareMoney:'no',reason:'Stale choice'},financePerson.cookie,409)
+ await cmd('client:revoke-project',{...shared,reason:'Recipient no longer authorized'})
+ assert.equal((await request(path,alice.cookie)).status,403)
+ const {createPortability,readArchive}=await import('@runeditrun/rer/modules/portability')
+ const {portabilityPolicy}=await import('../scripts/installer/portability-policy.mjs')
+ const service=await createPortability({db:h.db,policy:portabilityPolicy}),archiveId=await service.exports.create()
+ while((await service.exports.advance(archiveId,{maxParts:16})).phase==='building'){}
+ const records=[];for await(const record of readArchive(await service.exports.download(archiveId)))records.push(record)
+ assert(!records[0].tables.some(t=>t.name==='g_client_portal_authority'),'Project recipient authority never travels in business archives')
+ assert(records.filter(r=>r.kind==='part').flatMap(r=>r.items).some(r=>r.table==='g_audit'&&String(r.row.data).includes('Sponsor project access')),'Business consent history remains portable without execution authority')
+ await service.exports.abort(archiveId)
+ const renewed=await cmd('client:invite-project',invite)
+ await h.db.prepare('UPDATE g_client_portal_authority SET expires_at=0 WHERE id=?').bind(renewed.id).run()
+ assert.equal((await request(path,alice.cookie)).status,403)
+ console.log('PASS CLIENT-001 scoped project: two clients, finance budget choice, private economics denial, retainer manager parity, provisional pending, source and rule versions, revocation, expiry and 1440/390')
 }

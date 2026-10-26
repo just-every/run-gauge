@@ -92,6 +92,10 @@ const suites = [
  ],
  [
   "node",
+  "tests/gauge-github.mjs"
+ ],
+ [
+  "node",
   "tests/gauge-audit.mjs"
  ],
  [
@@ -126,7 +130,8 @@ const groups = [
   "gauge-agent.mjs",
   "gauge-finance-forecast.mjs",
   "gauge-project-scenarios.mjs",
-  "gauge-handoffs.mjs"
+  "gauge-handoffs.mjs",
+  "gauge-github.mjs"
  ],
  [
   "gauge-rocketlane.mjs",

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import {createPublicKey,createVerify,generateKeyPairSync,randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
+import {fileURLToPath} from 'node:url'
+import {chromium} from '@playwright/test'
 import {harness} from './gauge-harness.mjs'
 
 // CONNECT-007 through the production Worker: a GitHub App installation fake at the network edge verifies the
@@ -154,4 +156,9 @@ export async function githubJourney(browser){
   for(const secret of ['synthetic-gauge-installation',privateBody,login,Buffer.from(privateKey).toString('base64').slice(0,60)])assert(!evidenceText.includes(secret),`Audit and receipts omit ${secret}`)
   console.log('PASS CONNECT-007 githubJourney: sealed GitHub App credential and App-signed least-permission tokens, installation-only repository selection, unauthorized repository refused and never contacted, read-only PR and issue evidence without code, bodies or logins, merged-PR milestone proposal approved into one delivery that is neither accepted nor billable, client and every non-owner role see nothing, exact approved issue follow-up sent once and uncertain send never retried, rotation and revocation, owner Access at 1440 and 390')
  }finally{await context.close();await h.dispose()}
+}
+
+if(process.argv[1]===fileURLToPath(import.meta.url)){
+ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{await githubJourney(browser)}finally{await browser.close()}
 }

@@ -31,7 +31,7 @@ try {
  const booking=await cmd('save:staffing',{engagementId:project.id,personId:worker.id,from:'2026-11-24',to:'2026-11-24',dailySeconds:21600,commitment:'committed',service:'Design'})
  await cmd('save:staffing',{engagementId:other.id,personId:worker.id,from:'2026-11-27',to:'2026-11-27',dailySeconds:14400,commitment:'committed',service:'Design'})
  const unknownBooking=await cmd('save:staffing',{engagementId:project.id,personId:unknownWorker.id,from:'2026-11-24',to:'2026-11-24',dailySeconds:3600,commitment:'tentative',service:'Design'})
- browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  await context.addCookies(manager.cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
  const capture=async(name)=>{if(!process.env.GAUGE_DELIVERY_SHOTS)return;await mkdir(process.env.GAUGE_DELIVERY_SHOTS,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);await page.locator('#delivery-schedule').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/${name}-${width}.png`,fullPage:true});await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/${name}-viewport-${width}.png`})}}

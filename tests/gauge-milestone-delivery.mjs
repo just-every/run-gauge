@@ -137,6 +137,35 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
   return response
  }
  const post=(path,input,cookie)=>request(path,cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json'},body:JSON.stringify(input)})
+ const browserDecision=async(path,cookie,input)=>{
+  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
+  try{
+   await context.addCookies(cookie.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000})
+    await page.goto(h.origin+path.replace('/api/gauge/','/app/'))
+    await page.getByLabel('Review key',{exact:true}).fill(tokens.get(path))
+    await page.getByRole('button',{name:'Open delivery',exact:true}).click()
+    attempts.push({path,status:200,method:'GET'})
+    assert.equal(await page.getByLabel('Your decision').count(),1)
+    assert(!(await page.locator('main').innerText()).includes('Private internal'))
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client review fits ${width}`)
+    assert.equal(await page.locator('button:not(:has-text("Open")):not(:has-text("Submit"))').count(),0,'All review controls have visible names')
+    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-${input.outcome}-review-${width}.png`,fullPage:true})
+   }
+   await page.locator('[name=key]').evaluate((el,key)=>el.value=key,input.key)
+   await page.getByLabel('Your decision').selectOption(input.outcome)
+   await page.getByLabel('Decision reason',{exact:true}).fill(input.reason)
+   await page.getByRole('button',{name:'Submit decision',exact:true}).click()
+   attempts.push({path,status:200,method:'POST'},{path,status:200,method:'GET'})
+   for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000})
+    assert.match(await page.getByRole('status').innerText(),new RegExp(`Response saved: ${input.outcome}`))
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
+    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-${input.outcome}-saved-${width}.png`,fullPage:true})
+   }
+  }finally{await context.close()}
+ }
  const recipient=await h.invite('synthetic-gauge-7301'),otherRecipient=await h.invite('synthetic-gauge-7302')
  const client=await cmd('save:clients',{name:'synthetic-gauge-7303'})
  const engagement=await cmd('save:engagements',{name:'synthetic-gauge-7304',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Internal scope withheld from recipients',timezone:'UTC'})
@@ -166,6 +195,7 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
  assert.equal((await request(path(review),recipient.cookie,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)})).status,403)
  assert.equal((await post(path(review),{...input,revision:'stale'},recipient.cookie)).status,409)
  assert.equal((await post(path(review),{...input,reason:''},recipient.cookie)).status,400)
+ await browserDecision(path(review),recipient.cookie,input)
  const rejected=await post(path(review),input,recipient.cookie);assert.equal(rejected.status,200,await rejected.clone().text())
  assert.deepEqual(await(await post(path(review),input,recipient.cookie)).json(),await rejected.json(),'Exact client response replay stays once-only')
  row=await current();const first=structuredClone(row.value.delivery.deliveries[0]),decision=row.value.delivery.decisions[0]
@@ -178,6 +208,7 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
  row=await current();await cmd('milestone:release-review',{...row,contact:'synthetic-gauge-7301@example.test',description:'Revised design includes editable assets',reason:'Owner releases the exact revised work'})
  row=await current();review=row.value.delivery.clientReviews.at(-1)
  const accept={key:randomUUID(),revision:row.revision,outcome:'accepted',reason:'All required assets received'}
+ await browserDecision(path(review),recipient.cookie,accept)
  const results=await Promise.all([post(path(review),accept,recipient.cookie),post(path(review),accept,recipient.cookie)])
  for(const result of results)assert.equal(result.status,200,await result.clone().text())
  assert.deepEqual(await results[0].json(),await results[1].json())

@@ -324,8 +324,9 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  for(const door of ['/api/gauge/state','/app/rates',`/api/gauge/history/engagements/${project.id}`,'/api/gauge/rates/explain'])assert.equal((await request(door,alice.cookie)).status,403)
  const field=async(scope,name,visibility='everyone',type='text')=>cmd('field:define',{scope,name,type,visibility,...(type==='currency'?{currency:'USD'}:{}),reason:'Explicit field visibility'})
  const publicField=await field('engagements','Client progress'),privateField=await field('engagements','Private commercial strategy','finance-only'),narrowed=await field('engagements','Restricted after publication'),historical=await field('engagements','Historical private value','finance-only'),currencyField=await field('engagements','Selected contract amount','everyone','currency'),taskField=await field('tasks','Client task action'),clientField=await field('clients','Client reference')
+ const yen=await cmd('field:define',{scope:'engagements',name:'Yen allowance',type:'currency',currency:'JPY',visibility:'everyone',reason:'Explicit currency field'}),dinar=await cmd('field:define',{scope:'engagements',name:'Dinar allowance',type:'currency',currency:'BHD',visibility:'everyone',reason:'Explicit currency field'})
  const setFields=async(scope,id,values)=>{const row=(await state()).data[scope].find(r=>r.id===id);return cmd('field:values',{scope,id,revision:row.revision,customFields:values})}
- await setFields('engagements',project.id,{[publicField.id]:'Ready for client',[privateField.id]:'Never share strategy',[narrowed.id]:'Withdrawn publication',[historical.id]:'Originally private',[currencyField.id]:678900})
+ await setFields('engagements',project.id,{[publicField.id]:'Ready for client',[privateField.id]:'Never share strategy',[narrowed.id]:'Withdrawn publication',[historical.id]:'Originally private',[currencyField.id]:678900,[yen.id]:1234,[dinar.id]:1234})
  await setFields('tasks',task.id,{[taskField.id]:'Approve design'});await setFields('clients',(await state()).data.engagements.find(r=>r.id===project.id).value.clientId,{[clientField.id]:'Sponsor reference'})
  await cmd('field:define',{...narrowed,visibility:'finance-only',reason:'Narrow current policy'})
  const broadened=await cmd('field:define',{...historical,visibility:'everyone',reason:'Broaden definition without publishing old value'})
@@ -382,7 +383,7 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  assert.equal(valueStatement.rollover,20000);assert.equal(valueStatement.opening,120000);assert.equal(valueStatement.consumed,25000);assert.equal(valueStatement.remaining,95000);assert.equal(valueStatement.pending,null);assert.equal(valueStatement.pendingSeconds,3600);assert.equal(valueStatement.projectedRemaining,null)
  assert.equal(valueStatement.sources.find(t=>t.id===valueApproved.id).revision,valueApproved.revision)
  assert.deepEqual(richDocument.burn,{approvedSeconds:12600,pendingSeconds:10800,hourlyValueMinor:79186,knownHourlyValueMinor:79186,unknownHourlyValues:0,currency:'USD'})
- assert.deepEqual(flatFields(richDocument).map(f=>[f.id,f.value]).sort(),[[publicField.id,'Ready for client'],[historical.id,'Explicitly published value'],[currencyField.id,678900],[taskField.id,'Approve design'],[clientField.id,'Sponsor reference']].sort())
+ assert.deepEqual(flatFields(richDocument).map(f=>[f.id,f.value]).sort(),[[publicField.id,'Ready for client'],[historical.id,'Explicitly published value'],[currencyField.id,678900],[yen.id,1234],[dinar.id,1234],[taskField.id,'Approve design'],[clientField.id,'Sponsor reference']].sort())
  assert.equal(flatFields(richDocument).find(f=>f.id===historical.id).valueRevision,broadened.revision)
  let unknown=await cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'synthetic-gauge-unpriced',timezone:'UTC',start:'2026-09-06T09:00:00Z',end:'2026-09-06T10:00:00Z',notes:'Private unpriced work',billable:true},staff.cookie)
  unknown=await cmd('time:submit',unknown,staff.cookie);await cmd('time:approve',unknown,manager.cookie)
@@ -399,7 +400,7 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await login(alice.cookie)
    await page.goto(`${h.origin}/app/client-projects/${project.id}`)
-   assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Approved hourly work value Unknown/);assert.match(await page.locator('main').innerText(),/2026-08-01 to 2026-08-31/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)
+   assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Approved hourly work value Unknown/);assert.match(await page.locator('main').innerText(),/2026-08-01 to 2026-08-31/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Yen allowance · ¥1,234/);assert.match(await page.locator('main').innerText(),/Dinar allowance · BHD\s*1\.234/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)
    for(const control of await page.getByText('Sources and rule versions',{exact:true}).all())await control.click()
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client project fits ${width}`)
    if(width===1440)assert((await page.locator('main').boundingBox()).width>800,'Desktop portal uses the workspace content column')
@@ -458,5 +459,5 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  const renewed=await cmd('client:invite-project',invite)
  await h.db.prepare('UPDATE g_client_portal_authority SET expires_at=0 WHERE id=?').bind(renewed.id).run()
  assert.equal((await request(path,alice.cookie)).status,403)
- console.log('PASS CLIENT-001 scoped project: two clients, finance budget choice, private economics denial, retainer manager parity, provisional pending, source and rule versions, revocation, expiry and 1440/390')
+ console.log('PASS CLIENT-001 scoped project: selected burn and unknown values, current and original field visibility and ISO currencies, nonzero rollover and linked corrections and value parity, authority-free restore, two-client refusal, revocation, expiry and 1440/390')
 }

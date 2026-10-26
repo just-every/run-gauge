@@ -84,7 +84,7 @@ async function prepare(env:Bindings,a:Actor,tx:Transaction,input:Value) {
    const invoice=await get(env,'invoices',v.invoiceId);tx.observe('invoices',invoice)
    need(invoice.value.engagementId===e.id&&invoice.value.currency===v.currency,'Receipt invoice identity or currency differs',409)
    lines.push({...base,id:identity,category:'payment',personId:null,date:v.date,currency:currency(v.currency),amountMinor:signedMoney(v.amountMinor),durationSeconds:null,
-    details:{basis:'User-recorded receipt; provider acceptance and settlement not independently verified; not recognized revenue',invoiceId:invoice.id,
+    details:{basis:v.source==='stripe'?'Stripe canonical settlement or reversal; independent bank reconciliation remains separate; not recognized revenue':'User-recorded receipt; provider acceptance and settlement not independently verified; not recognized revenue',invoiceId:invoice.id,
      invoiceRevision:invoice.revision,invoiceNumber:invoice.value.number,reference:v.reference,recordedBy:v.recordedBy,recordedAt:v.recordedAt}})
   }else{
    need(Array.isArray(v.lines)&&v.lines.length>0,'Approved packet has no revenue input lines')

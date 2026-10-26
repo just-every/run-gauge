@@ -17,3 +17,12 @@ An approved packet never changes. If an amount was wrong, **Prepare adjustment**
 An issued invoice never changes either. On its card, **Credit, discount or write off** issues a numbered credit note against one of its lines, with a reason; a line can never be credited beyond what it billed. **Void and reissue** cancels an invoice that has no receipts or credits and issues a new numbered invoice for the lines you keep: lower or zero a line to leave that amount written down. Credited, voided and written-down work never returns to billing. When the owner has set a review limit, a larger correction waits until another owner or finance person issues it.
 
 Gauge does not send invoices, calculate tax or take payments.
+
+
+## Stripe payment instructions
+
+The native owner connects the agency Stripe merchant account on Access, checks its requirements, then opens an issued invoice's Stripe payments panel on Billing. Choose card or eligible ACH, enter the exact amount, and create the hosted link. The test-mode choice must match Stripe's reported mode. Payment details are entered at Stripe, and Gauge holds no funds.
+
+Use Reconcile Stripe payment to read current outcomes. Pending money is separate from settled cash; fees, refunds, returns, disputes and unapplied amounts remain explicit. Refunding requires the exact typed owner instruction shown in the payment panel. Access also traces automatic payout membership. Stripe confirmation does not substitute for independent bank reconciliation.
+
+ACH sandbox proof requires an enabled US bank account merchant; the held Australian test account is not enabled. The owner-only authorization and callback policy remain subject to ct approval, so these clauses stay partial.

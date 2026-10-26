@@ -127,10 +127,14 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   return { currency, invoicedMinor: sum(items.map(i => i.amountMinor)), creditedMinor: sum(items.map(i => i.creditedMinor ?? 0)), paidMinor: sum(items.map(i => i.paidMinor)), disputedMinor: sum(items.map(i => i.disputedMinor ?? 0)), openMinor: sum(items.map(i => i.openMinor + (i.disputedMinor ?? 0))) }
  })
  const paymentTotals = issuedTotals.filter(t => issuedItems.some(i => i.currency === t.currency && i.paymentSnapshots.length)).map(t => ({ currency: t.currency, amountMinor: t.paidMinor }))
+ const processor=(data.processorPayments??[]).filter(p=>new Date(p.value.lastReadAt??p.value.recordedAt??0).toISOString().slice(0,10)<=asOf)
+ const pending=[...new Set(processor.map(p=>p.value.currency))].map(currency=>({currency,amountMinor:sum(processor.filter(p=>p.value.currency===currency).map(p=>p.value.pendingMinor??0))})).filter(p=>p.amountMinor>0)
+ const settled=[...new Set(processor.map(p=>p.value.currency))].map(currency=>({currency,amountMinor:sum(processor.filter(p=>p.value.currency===currency).map(p=>(p.value.allocatedMinor??0)+(p.value.unappliedMinor??0)))})).filter(p=>p.amountMinor>0)
+ const manualTotals=issuedTotals.map(t=>({currency:t.currency,amountMinor:sum((data.payments??[]).filter(p=>p.value.currency===t.currency&&p.value.source!=='stripe'&&p.value.date<=asOf).map(p=>p.value.amountMinor))})).filter(t=>t.amountMinor>0)
  const format = (minor: number, currency: string) => `${currency} ${(minor / 100).toFixed(2)}`
- return { asOf, labels: cashLabels, engagements, months: list, issuedTotals, paymentTotals,
+ return { asOf, labels: cashLabels, processorPendingTotals:pending, processorSettledTotals:settled, engagements, months: list, issuedTotals, paymentTotals,
   issuedReceivables: issuedTotals.length ? issuedTotals.map(t => `${format(t.openMinor, t.currency)} open${t.disputedMinor ? ` (${format(t.disputedMinor, t.currency)} disputed, not expected as cash)` : ''}`).join('; ') : cashLabels.issued,
-  recordedCash: paymentTotals.length ? `${paymentTotals.map(t => format(t.amountMinor, t.currency)).join('; ')} user-recorded receipts; not processor-verified or settled` : cashLabels.pending,
-  pendingCash: paymentTotals.length ? 'No processor-pending cash recorded; manual receipts are user-recorded' : cashLabels.pending,
-  settledCash: paymentTotals.length ? 'No processor-verified settlement; manual receipts are user-recorded' : cashLabels.settled }
+  recordedCash: manualTotals.length ? `${manualTotals.map(t => format(t.amountMinor, t.currency)).join('; ')} user-recorded receipts; not processor-verified or settled` : cashLabels.pending,
+  pendingCash: pending.length ? pending.map(p=>format(p.amountMinor,p.currency)+' processor pending').join('; ') : paymentTotals.length ? 'No processor-pending cash recorded; manual receipts are user-recorded' : cashLabels.pending,
+  settledCash: settled.length ? settled.map(p=>format(p.amountMinor,p.currency)+' processor settled').join('; ') : paymentTotals.length ? 'No processor-verified settlement; manual receipts are user-recorded' : cashLabels.settled }
 }

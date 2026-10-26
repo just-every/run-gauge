@@ -1,3 +1,4 @@
+import { stripeCommand } from './stripe'
 import { milestoneReviewCommand } from './milestone-review'
 import { scopeChangePreview, scopeChangeCommand } from './scope-changes'
 import { floatDeletionPreview, floatDeletionCommand } from './float-deletions'
@@ -74,6 +75,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
  // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
  await seal(env,action.startsWith('import:'))
+ if(action.startsWith('stripe:'))return stripeCommand(env,a,action,input)
  if(action.startsWith('provider:'))return providerRequest(env,a,action,input)
  if(action==='providerJob:dispatch'){need(a.role==='owner','Only the owner dispatches provider jobs',403);const job=await get(env,'providerJobs',text(input.id,'Provider job'));return job.value.operation==='email:send'?(job.value.source.kind==='invoiceAccess'?dispatchInvoice(env,a,input):dispatchCommercial(env,a,input)):dispatchProviderJob(env,a,input)}
  if(action==='providerSync:advance')return advanceProviderSync(env,a,input)

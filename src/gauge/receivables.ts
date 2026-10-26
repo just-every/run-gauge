@@ -48,9 +48,9 @@ export async function receivablesRead(env: Bindings, a: Actor, asOfInput: string
  const report = {
   asOf, clientId, invoices, receipts: received, totals: aggregate(invoices, received),
   clients: [...new Set([...invoices.map(r => r.clientId), ...received.map(r => r.clientId)])].sort().map(id => ({ clientId: id, totals: aggregate(invoices.filter(r => r.clientId === id), received.filter(r => r.clientId === id)) })),
-  basis: 'Native pre-tax invoices, manual receipt allocations and issued credit notes and voids through the inclusive as-of date (invoiced = paid + credited + voided + open; a reissue is its own invoice). A client receipt is money received under one unique reference: received = allocated to invoices + unapplied, an unapplied balance is not subtracted from any invoice open amount, and a client net position is open less unapplied. A dispute flags up to the open amount from its date until its resolution and changes no amount, aging bucket or cash expectation. Due today is current; aging uses whole calendar days after the frozen due date; currencies remain separate and unconverted.',
-  verification: 'Finance recorded; not bank or processor verified. Internal statement preparation; no delivery implied.',
-  unavailable: ['Accounting/provider reconciliation', 'Dispute holds in the cash forecast and collection cadence'],
+  basis: 'Native invoices, manual receipt allocations, dated Stripe settlement and reversal entries, and issued credit notes and voids through the inclusive as-of date (invoiced = paid + credited + voided + open; a reissue is its own invoice). A client receipt is money received under one unique reference: received = allocated to invoices + unapplied, an unapplied balance is not subtracted from any invoice open amount, and a client net position is open less unapplied. A dispute flags up to the open amount from its date until its resolution and changes no amount, aging bucket or cash expectation. Due today is current; aging uses whole calendar days after the frozen due date; currencies remain separate and unconverted.',
+  verification: 'Manual receipts are finance-recorded. Stripe entries have canonical processor readback; bank reconciliation is separate. Internal statement preparation; no delivery implied.',
+  unavailable: ['Accounting and independent bank reconciliation', 'Dispute holds in the cash forecast and collection cadence'],
  }
  await fence(env, a)
  return { ...report, fingerprint: sha256(canonicalJson(report)) }

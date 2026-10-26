@@ -1,3 +1,5 @@
+import { providerRegister } from './provider-custody'
+import { stripeInvoiceControls, stripeSetupSection } from './ui-stripe'
 import { capBalances } from './budget-caps'
 import { providerJobsSection } from './ui-provider-jobs'
 import { capSection } from './ui-budget-caps'
@@ -66,7 +68,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
  }
  if(section==='billing')body+=`<section class="g-card" id="partial-time"><h2>Partial time billing</h2><p>Bill selected hours from approved time. Unreserved time remains available; cancelled drafts release their portions.</p>${capBalances(d,true).filter(b=>!b.notToExceed).flatMap(b=>b.rows.filter(r=>r.eligibleSeconds>0).map(r=>form('packet:partial',nameOf(d.engagements,b.engagementId)+' · '+r.workDate,`<input type="hidden" name="engagementId" value="${e(b.engagementId)}"><input type="hidden" name="budgetId" value="${e(b.budgetId)}"><input type="hidden" name="budgetRevision" value="${e(b.budgetRevision)}"><input type="hidden" name="sourceId" value="${e(r.sourceId)}"><input type="hidden" name="sourceRevision" value="${e(r.revision)}"><p>${hours(r.availableSeconds)} remaining to bill.</p>`+duration('durationHours','Hours to bill',r.availableSeconds,3600,'any')+i('title','Packet title','Partial approved time'),undefined,'Draft partial time','g-bare'))).join('')||'<p>No unreserved hourly time.</p>'}</section>`
  if(section==='billing')body+=fixedChargesSection(report,today)
- if(section==='billing')body+=capSection(report)+invoicesSection(report,today)
+ if(section==='billing'){const connected=a.role==='owner'&&a.session.kind==='native'?new Set((await providerRegister(env,a)).connections.filter(c=>c.value.status==='connected').map(c=>c.id)):new Set<string>();body+=capSection(report)+invoicesSection(report,today)+(a.role==='owner'?report.data.invoices.map(invoice=>stripeInvoiceControls(report,invoice,today,connected)).join(''):'')}
  if(section==='billing')body+=specialistHandoffSection(a,report)
  if(section==='billing')body+='<section class="g-card"><h2>Business audit</h2><p class="g-note">Search every saved change, decision, grant, key event, packet export and import effect; verify the audit chain and export it.</p><div class="g-actions"><a class="g-btn g-btn--secondary" href="/app/audit">Open the business audit</a></div></section>'
  if(section==='imports'){
@@ -104,7 +106,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
    {label:'Enabled',cell:r=>r.value.enabled?'Yes':'No'},
   ],r=>r.value.enabled?form('grant','Revoke access',`<input type="hidden" name="operatorId" value="${e(r.id)}"><input type="hidden" name="role" value="${e(r.value.role)}"><input type="hidden" name="personId" value="${e(r.value.person_id ?? '')}">`,undefined,'Revoke access','g-bare'):'','No grants yet. The owner holds finance authority without one.')
   body+=await approvalPolicySection(env,a,d.people,d.approvalPolicies)
-  body+=await providerCustodySection(env,a)
+  body+=await providerCustodySection(env,a)+stripeSetupSection(report,env.AUTH_ORIGIN)
   body+=await providerJobsSection(env,a,report)
   body+=await apiKeysSection(env,options.createdKey)
  }

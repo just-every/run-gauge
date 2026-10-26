@@ -16,7 +16,7 @@ export const GENESIS = 'gauge-audit-v1'
 interface AuditRow { seq: number; at: number; actor: string; role: string | null; person_id: string | null; request_key: string | null; action: string; kind: string; record_id: string; previous_revision: string | null; revision: string | null; data: string; reference: string | null; hash: string | null }
 const fields = (r: AuditRow) => ({ seq: r.seq, at: r.at, actor: r.actor, role: r.role, personId: r.person_id, requestKey: r.request_key, action: r.action, kind: r.kind, recordId: r.record_id, previousRevision: r.previous_revision, revision: r.revision, data: JSON.parse(r.data), reference: r.reference })
 export const chainHash = (previous: string, r: AuditRow) => sha256(canonicalJson({ previous, entry: fields(r) }))
-const ownerPrivate = (kind: string) => ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','providerInstallation','retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','agencyProfiles'].includes(kind)
+const ownerPrivate = (kind: string) => ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts','providerInstallation','retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','agencyProfiles'].includes(kind)
 const withheld = (kind: string, a:Actor, data?:string) => kind === 'timeFavorites' || (a.role!=='owner'&&(ownerPrivate(kind)||kind==='commercialEvents'&&String(JSON.parse(data??'{}').type).startsWith('signature-')))
 const PAGE = 500
 
@@ -82,8 +82,8 @@ async function present(env: Bindings, a: Actor, r: AuditRow, names: Map<string, 
  const internalApproval = result.changeOrder&&result.reviewStatus==='approved' ? {by:result.reviewedBy,byName:names.get(result.reviewedBy)??null,at:result.reviewedAt,label:'Internal approval'} : null
  const approval = internalApproval ?? (result.approvedBy && result.approvedBy !== previous?.approvedBy ? { by: result.approvedBy, byName: names.get(result.approvedBy) ?? null, at: result.approvedAt ?? null } : null)
  return {
-  seq: r.seq, at: new Date(r.at).toISOString(), atMs: r.at, actor: { id: r.actor, name: names.get(r.actor) ?? (r.actor.startsWith('key:') ? `API key ${r.actor.slice(4)}` : null), role: r.role ?? (r.action.startsWith('import:') ? 'import job' : null), personId: r.person_id },
-  automated: r.role === 'agent' || r.actor.startsWith('key:') || r.action.startsWith('import:'),
+  seq: r.seq, at: new Date(r.at).toISOString(), atMs: r.at, actor: { id: r.actor, name: names.get(r.actor) ?? (r.actor.startsWith('key:') ? `API key ${r.actor.slice(4)}` : null), role: r.role ?? (r.action.startsWith('import:') || r.action==='stripe:webhook' ? 'import job' : null), personId: r.person_id },
+  automated: r.role === 'agent' || r.actor.startsWith('key:') || r.action.startsWith('import:') || r.action==='stripe:webhook',
   action: r.action, decision: decisions.test(r.action), kind: r.kind, recordId: r.record_id, previousRevision: r.previous_revision, revision: r.revision,
   previous, result, changes: changed(previous, result), approval, policy: pick(result, policyKeys), requestKey: r.request_key,
   references: { ...pick(result, referenceKeys), ...(r.reference ? { importEffect: r.reference } : {}) }, hash: r.hash,
@@ -100,7 +100,7 @@ export async function auditSearch(env: Bindings, a: Actor, q: AuditQuery) {
  const from = q.from ? date(q.from) : null, to = q.to ? date(q.to) : null
  if (from && to) need(from <= to, 'The audit search ends on or after its start')
  const where: string[] = ["kind<>'timeFavorites'"], params: unknown[] = []
- if(a.role!=='owner')where.push("NOT(kind='commercialEvents' AND json_extract(data,'$.type') IN ('signature-binding','signature-evidence'))","kind NOT IN ('providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','providerInstallation')")
+ if(a.role!=='owner')where.push("NOT(kind='commercialEvents' AND json_extract(data,'$.type') IN ('signature-binding','signature-evidence'))","kind NOT IN ('providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts','providerInstallation')")
  if (q.kind) { where.push('kind=?'); params.push(q.kind) }
  if (q.recordId) { where.push('record_id=?'); params.push(q.recordId.trim()) }
  if (q.actor) { where.push('actor=?'); params.push(q.actor) }

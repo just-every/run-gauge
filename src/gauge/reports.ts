@@ -36,7 +36,7 @@ import { privateClientKeys } from './clients'
 // and an agent never sees an amount. The state read and the revision history both pass every value through here.
 export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
- if(['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups'].includes(k)&&a.role!=='owner')return {}
+ if(['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts'].includes(k)&&a.role!=='owner')return {}
  if(['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','floatAdoptions'].includes(k)&&a.role!=='owner')return {}
  if(k==='kantataRecords'&&!finance(a))return {}
  if(['revenueSchedules','revenueRecognitions'].includes(k)&&!finance(a))return {}
@@ -77,7 +77,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  data.invoiceAccess=finance(a)?data.invoiceAccess:[];data.invoiceViews=finance(a)?data.invoiceViews:[];
  data.invoiceSettings=finance(a)?data.invoiceSettings:[];data.fxRates=finance(a)?data.fxRates:[];data.agencyProfiles=finance(a)?data.agencyProfiles.map(r=>({...r,value:redact(a,'agencyProfiles',r.value)})):[]
  data.opportunities = data.opportunities.filter(r => finance(a) || (a.role === 'lead' && r.value.ownerId === a.personId))
- for(const k of ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups'] as const)data[k]=a.role==='owner'?data[k]:[]
+ for(const k of ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.commercialProposals=finance(a)?data.commercialProposals:[];data.commercialEvents=finance(a)?data.commercialEvents.filter(r=>a.role==='owner'||!String(r.value.type).startsWith('signature-')):[]
  const opportunityIds=new Set(data.opportunities.map(r=>r.id));data.estimates=data.estimates.filter(r=>finance(a)||opportunityIds.has(r.value.opportunityId));data.estimateApprovals=finance(a)?data.estimateApprovals:[];data.estimateConversions=data.estimateConversions.filter(r=>finance(a)||opportunityIds.has(r.value.opportunityId))
  // Agents use their own closed purpose projection; ordinary visibility follows person and finance rights.

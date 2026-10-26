@@ -442,7 +442,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "94fb18e8f1f320f3a8b279dc0aff6fec4e6ca0c7512c5a05b807e385caaf3e64",
+      "sha256": "f852399f5b521e9b0691408bd33b5a23023ea7a39b8663fd5ec012890a4b5d84",
       "executable": false
     },
     "base-copies.json": {
@@ -1546,7 +1546,7 @@
       "executable": false
     },
     "src/gauge/client-portal.ts": {
-      "sha256": "3b87c9876fecff34013d1fef6a2ab7774248ce70b6509e9763c76527a348c593",
+      "sha256": "c63f6b847fd94a5bceb47a6797b080fc8df36131493907e1bcb731e74ac6487f",
       "executable": false
     },
     "src/gauge/clients.ts": {
@@ -4530,7 +4530,7 @@
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
-      "sha256": "bd726ff8c411fd0cd7cffe3283634eb022dc68482843818c41f7b4914457e46d",
+      "sha256": "0b1828cad598c7f0fea68f7639603e96c2a56089baba8f16bf1eab2f56f30489",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

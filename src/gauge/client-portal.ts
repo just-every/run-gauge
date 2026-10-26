@@ -17,6 +17,8 @@ export async function clientPortalCommand(env:Bindings,a:Actor,tx:Transaction,ac
   need(recipient,'Invite and confirm the recipient email through Access first',409)
   tx.guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND lower(email)=? AND status='active' AND role='member') AND NOT EXISTS(SELECT 1 FROM g_grants WHERE operator_id=? AND enabled=1)",recipient.id,contact,recipient.id)
   const id=uuid(),revision=uuid(),expiresAt=Date.now()+integer(input.days??7,'Access duration',1,30)*86400000
+  // Fresh explicit scope replaces earlier authority; revocation cannot fall back to an older invitation.
+  tx.sql('DELETE FROM g_client_portal_authority WHERE engagement_id=? AND recipient_id=?',project.id,recipient.id)
   tx.sql('INSERT INTO g_client_portal_authority(id,revision,engagement_id,client_id,recipient_id,contact,owner_id,expires_at) VALUES(?,?,?,?,?,?,?,?)',id,revision,project.id,project.value.clientId,recipient.id,contact,a.session.operator.id,expiresAt)
   tx.audit(action,'engagements',project.id,{id,revision,contact,expiresAt,reason,shareMoney:false})
   return {id,revision}

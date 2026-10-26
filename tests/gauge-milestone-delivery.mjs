@@ -310,7 +310,10 @@ async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financeP
  const task=await cmd('save:tasks',{engagementId:project.id,name:'Design deliverable',remainingSeconds:3600})
  const invite={engagementId:project.id,contact:'synthetic-gauge-91401@example.test',reason:'Sponsor project access',days:7}
  for(const cookie of [manager.cookie,staff.cookie,financePerson.cookie,alice.cookie])await cmd('client:invite-project',invite,cookie,403)
- const grant=await cmd('client:invite-project',invite)
+ let grant=await cmd('client:invite-project',invite)
+ const replacement=await cmd('client:invite-project',invite)
+ await cmd('client:revoke-project',{...grant,reason:'An older invitation cannot alter its replacement'},h.owner,409)
+ grant=replacement
  await cmd('client:invite-project',{...invite,engagementId:other.id,contact:'synthetic-gauge-91402@example.test'})
  const path=`/api/gauge/client-projects/${project.id}`
  const read=async(cookie=alice.cookie)=>{const response=await request(path,cookie);assert.equal(response.status,200,await response.clone().text());return response.json()}

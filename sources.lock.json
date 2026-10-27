@@ -433,7 +433,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "67e95b155d8246613adbc04d1bb403b9055a3a75d62628451c412f087c3329b7",
+      "sha256": "41c11d869804ce23abc324b038211cd2e6907d795e226c5a6b07913899c742b1",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -457,7 +457,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d2bf3c087a691cdcefc90fda6c91ae47d13a796a6950a46541f2c0273a2b307d",
+      "sha256": "15d5d19211b759c450d5a29053044f49e419a0efef32a102962bd5c385403add",
       "executable": false
     },
     "DEMO.md": {
@@ -4429,7 +4429,7 @@
       "executable": false
     },
     "tests/fixtures/microsoft-journey.mjs": {
-      "sha256": "e294280dc9bf70e5782313da860df020d86c7ac689513f66070f40e1f466366c",
+      "sha256": "66be40462a0fb39cee33f586f31c94e466951882e269fcf05071e77c4d70cf92",
       "executable": false
     },
     "tests/fixtures/productive.mjs": {

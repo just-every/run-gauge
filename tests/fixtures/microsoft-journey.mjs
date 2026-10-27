@@ -112,6 +112,16 @@ export async function microsoftJourney(browser){
    const historyText=await(await request(`/api/gauge/history/graphEvidence/${original.id}`,user.cookie)).text();assert(!historyText.includes('Harbor planning'))
    if(role==='finance'){const audit=await(await request('/api/gauge/audit/export',user.cookie)).text();assert(!audit.includes(mailbox)&&!audit.includes('Harbor planning revised'))}
   }
+  const shots=process.env.GAUGE_MICROSOFT_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  const capture=async(label)=>{for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/access');await page.evaluate(()=>document.fonts.ready)
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Microsoft context fits ${width}`)
+   if(shots)for(const title of ['Tenant approval','Selected mailboxes','Microsoft context']){
+    const card=page.locator('#microsoft-context section').filter({has:page.getByRole('heading',{name:title,exact:true})})
+    await card.screenshot({path:`${shots}/microsoft-${label}-${title.replaceAll(' ','-').toLowerCase()}-${width}.png`})
+   }
+  }}
+  await capture('active')
   // A fresh app token omitting one permission stops that scope before any mailbox request; the other keeps working.
   edge.roles=edge.roles.filter(r=>r!=='Mail.Read');before=edge.requests.filter(r=>r.kind==='graph').length
   const revoked=await sync('mail');assert.equal(revoked.status,'exception');assert.equal(revoked.exceptionClass,'permission-revoked');assert.equal(edge.requests.filter(r=>r.kind==='graph').length,before)
@@ -121,7 +131,7 @@ export async function microsoftJourney(browser){
   edge.fail=403;assert.equal((await sync('calendar')).exceptionClass,'permission-revoked');edge.fail=null
   before=edge.requests.length;await cmd('graph:sync',{...await latest(),scope:'calendar'},h.owner,409);assert.equal(edge.requests.length,before)
   // Phone and desktop proof includes both successful context and stopped-scope end states.
-  const shots=process.env.GAUGE_MICROSOFT_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  await capture('stopped')
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/access');await page.evaluate(()=>document.fonts.ready)
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Microsoft context fits ${width}`)

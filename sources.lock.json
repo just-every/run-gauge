@@ -4453,7 +4453,7 @@
       "executable": false
     },
     "tests/gauge-app-api.mjs": {
-      "sha256": "913c8ff92168a03bcf92e17a9f34b98aeab1ad76883e7e07500d0bdcd7d8429b",
+      "sha256": "3bdc6900dcfae44e861b06715a6038ff4bb161e123e28475bd3f2196601aa813",
       "executable": false
     },
     "tests/gauge-approvals.mjs": {

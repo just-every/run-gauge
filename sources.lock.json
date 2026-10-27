@@ -4429,7 +4429,7 @@
       "executable": false
     },
     "tests/fixtures/microsoft-journey.mjs": {
-      "sha256": "553cf3348d1f7a09f3d85d993163469e1b1dd6d1503efe5c18e15034d9876823",
+      "sha256": "2ca7d5622dd1c22b1bb9ae5da2703bdd8b915b9db349eeaefd35442ef5efcd28",
       "executable": false
     },
     "tests/fixtures/productive.mjs": {

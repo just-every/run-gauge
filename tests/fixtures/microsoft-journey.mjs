@@ -120,6 +120,12 @@ export async function microsoftJourney(browser){
    if(shots)await page.locator('#microsoft-context').screenshot({path:`${shots}/microsoft-${label}-full-${width}.png`})
    const fit=await page.evaluate(()=>({fits:document.documentElement.scrollWidth<=innerWidth+1,overflow:[...document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).slice(0,8).map(el=>({tag:el.tagName,class:el.className}))}))
    assert(fit.fits,`Microsoft context fits ${width}: ${JSON.stringify(fit.overflow)}`)
+   if(label==='stopped'){
+   const section=page.locator('#microsoft-context');assert.match(await section.innerText(),/permission-revoked/);assert.match(await section.innerText(),/Re: October support invoice/)
+   assert.equal(await section.getByRole('button',{name:'Read mail',exact:true}).count(),0)
+   const iconControls=await page.locator('button,a[role="button"]').evaluateAll(nodes=>nodes.filter(el=>!el.textContent.trim()).map(el=>({label:el.getAttribute('aria-label'),tip:el.getAttribute('data-tooltip')})))
+   assert(iconControls.every(c=>c.label&&c.tip),'Every icon-only control has a tooltip')
+   }
    if(shots)for(const title of ['Tenant approval','Selected mailboxes','Microsoft context']){
     const card=page.locator('#microsoft-context section').filter({has:page.getByRole('heading',{name:title,exact:true})})
     await card.screenshot({path:`${shots}/microsoft-${label}-${title.replaceAll(' ','-').toLowerCase()}-${width}.png`})
@@ -136,20 +142,12 @@ export async function microsoftJourney(browser){
   before=edge.requests.length;await cmd('graph:sync',{...await latest(),scope:'calendar'},h.owner,409);assert.equal(edge.requests.length,before)
   // Phone and desktop proof includes both successful context and stopped-scope end states.
   await capture('stopped')
-  for(const width of [1440,390]){
-   await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/access');await page.evaluate(()=>document.fonts.ready)
-   if(shots)await page.locator('#microsoft-context').screenshot({path:`${shots}/microsoft-${label}-full-${width}.png`})
-   const fit=await page.evaluate(()=>({fits:document.documentElement.scrollWidth<=innerWidth+1,overflow:[...document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).slice(0,8).map(el=>({tag:el.tagName,class:el.className}))}))
-   assert(fit.fits,`Microsoft context fits ${width}: ${JSON.stringify(fit.overflow)}`)
-   const section=page.locator('#microsoft-context');assert.match(await section.innerText(),/permission-revoked/);assert.match(await section.innerText(),/Re: October support invoice/)
-   assert.equal(await section.getByRole('button',{name:'Read mail',exact:true}).count(),0)
-   if(shots)await section.screenshot({path:`${shots}/microsoft-stopped-${width}.png`})
-   const iconControls=await page.locator('button,a[role="button"]').evaluateAll(nodes=>nodes.filter(el=>!el.textContent.trim()).map(el=>({label:el.getAttribute('aria-label'),tip:el.getAttribute('data-tooltip')})))
-   assert(iconControls.every(c=>c.label&&c.tip),'Every icon-only control has a tooltip')
-  }
   // Stop is audited and immediately prevents every mailbox read. Connection revocation also blocks tenant inspection.
-  await cmd('graph:stop',{...await latest(),reason:'Stop all mailbox context'})
-  const connection=(await state()).data.providerConnections.find(r=>r.id===connected.id);await cmd('provider:revoke',connection)
+  before=edge.requests.length;await cmd('graph:revoke-scope',{...await latest(),scope:'mail',reason:'Owner confirms mail collection stopped'});assert.equal(edge.requests.length,before)
+  let connection=(await state()).data.providerConnections.find(r=>r.id===connected.id)
+  await cmd('provider:rotate',{id:connection.id,revision:connection.revision,credential})
+  await cmd('graph:stop',{...await latest(),reason:'Stop all mailbox context after credential rotation'})
+  connection=(await state()).data.providerConnections.find(r=>r.id===connected.id);await cmd('provider:revoke',connection)
   before=edge.requests.length;await cmd('graph:inspect',{connectionId:connected.id},h.owner,409);await cmd('graph:sync',{...await latest(),scope:'calendar'},h.owner,409);assert.equal(edge.requests.length,before)
   const audit=await(await request('/api/gauge/audit?action=graph:',h.owner)).text();assert(audit.includes('graph:stop')&&audit.includes('permission-revoked'))
   const persisted=await(await request('/api/gauge/audit/export',h.owner)).text()

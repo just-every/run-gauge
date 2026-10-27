@@ -31,7 +31,7 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   await form.getByLabel('App label',{exact:true}).fill(create.label);await form.locator('select[name=operatorId]').selectOption(staff.id);await form.locator('select[name=scope]').selectOption(create.scope)
   for(const id of create.projectIds)await form.locator(`input[name=projectIds][value="${id}"]`).check()
   await form.getByLabel('Expires after days (1 to 365)',{exact:true}).fill('30')
-  await capture('app-credential-create');await form.getByRole('button',{name:'Create app credential',exact:true}).click()
+  await capture('app-credential-create');const posting=page.waitForResponse(r=>new URL(r.url()).pathname==='/app/action'&&r.request().method()==='POST');await form.getByRole('button',{name:'Create app credential',exact:true}).click();const issued=await posting;assert.equal(issued.status(),200,(await issued.text()).match(/role="alert">([^<]*)/)?.[1]??'App credential form must succeed')
   const token=await page.locator('[name=createdKey]').inputValue();assert.match(token,/^gauge_app_/)
   const key=await h.db.prepare('SELECT * FROM g_app_keys WHERE label=?').bind(create.label).first();assert.equal(key.hash,createHash('sha256').update(token).digest('hex'));assert(!JSON.stringify(key).includes(token));assert.equal(key.expires_at-key.created_at,30*86400000);assert.equal(key.person_id,person.id);assert.deepEqual(JSON.parse(key.project_ids),create.projectIds)
   const lifecycle=await page.locator(`tr[id="${key.id}"]`).innerText();for(const value of ['Expires','Issued','Last used','Credential v1','Mia Chen'])assert(lifecycle.includes(value),value)

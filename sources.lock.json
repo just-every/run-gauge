@@ -433,7 +433,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3faa5e78c32fc12d8750af8c9be671f85ea55f586cf92576c0d67d63fbd784f0",
+      "sha256": "54876b32bc738d1ed99c63d6cfeee9c05402149344c4d38400062a6f5d58df69",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -457,7 +457,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "816411dd4b539b5c764bf4a3486796bb8d207216f820efec1e1a2f92ddb60198",
+      "sha256": "10bd2b2a1a4e77918f9e0fd3b02862af61dae207d403e010d58ba628e7ef6e27",
       "executable": false
     },
     "DEMO.md": {
@@ -4597,7 +4597,7 @@
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
-      "sha256": "feef5cb8a9afd48937c0aef5c759043affc5f70bb3a4d818a54d44ffd4b1460a",
+      "sha256": "d3cc2e9a3038dc079a3da5fd9d5efcf2a474fd464cde32c94b57ea976e9ec387",
       "executable": false
     },
     "tests/gauge-rate-cards.mjs": {

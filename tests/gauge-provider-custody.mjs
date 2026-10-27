@@ -303,6 +303,44 @@ export async function providerCustodyJourney(browser){
   assert.deepEqual((await state(people.find(p=>p.role==='finance').cookie)).data.providerFollowups,[])
   const auditProof=await(await request('/api/gauge/audit?action=providerJob:apply-followup',owner)).json();assert(JSON.stringify(auditProof).includes(applied.id))
   for(const path of ['/api/gauge/state','/app/access','/api/gauge/audit/export']){const body=await(await request(path,owner)).text();assert(!body.includes(receiptSecret)&&!body.includes('synthetic-gauge-5102')&&!body.includes(review.signature),'Receipt secrets and authentication proofs are absent from '+path)}
+  // Every signed-hook failure remains owned and explicit; an HTTP admission is
+  // never a claim that a receiver completed the business action.
+  const failureSource=await read('engagements',project.id),previousEdge=h.providerEdge.handler
+  const failures=[
+   {status:429,state:'retry-wait',exception:'provider-rate-limit',outcome:'rate-limited'},
+   {status:400,state:'exception',exception:'provider-rejected',outcome:'rejected'},
+   {status:408,state:'exception',exception:'uncertain',outcome:'uncertain'},
+   {status:503,state:'exception',exception:'uncertain',outcome:'uncertain'},
+   {status:200,state:'exception',exception:'uncertain',outcome:'uncertain'},
+  ]
+  try{
+   for(const [index,expected]of failures.entries()){
+    const destination='https://automation.example.test/failure-'+index,privateBody='synthetic-gauge-'+(7200+index)
+    const connection=await cmd('provider:connect',{provider:'webhook',accountLabel:'Reviewed signed failure '+index,credential:JSON.stringify({endpoint:destination,signingKey:'synthetic-gauge-'+(7100+index)})})
+    h.providerEdge.handler=async request=>request.url===destination?Response.json({error:privateBody},{status:expected.status}):previousEdge?.(request)
+    const input={connectionId:connection.id,sourceRef:`engagements:${failureSource.id}:${failureSource.revision}`,reason:'Review bounded signed delivery failure'}
+    const queued=await queueSigned(input);await cmd('providerJob:dispatch',queued)
+    const failed=await read('providerJobs',queued.id)
+    assert.equal(failed.value.status,expected.state);assert.equal(failed.value.exceptionClass,expected.exception);assert.equal(failed.value.ownerId,ownerId);assert.equal(failed.value.attempts,1)
+    const requests=()=>h.providerRequests.filter(r=>r.url===destination).length;assert.equal(requests(),1)
+    const use=(await state()).data.providerUses.find(r=>r.value.jobId===queued.id)
+    assert(use);assert.equal(use.value.outcome,expected.outcome);metadataOnly(use.value)
+    if(expected.status===429){
+     assert(failed.value.nextAttemptAt>=failed.value.attemptedAt+60000);assert.equal(failed.value.completedAt,null)
+     await cmd('providerJob:dispatch',failed);assert.equal(requests(),1,'An explicit rate-limit refusal cannot bypass its retry time')
+     await cmd('providerJob:cancel',{...failed,reason:'Owner stops the refused delivery before another attempt'})
+     assert.equal((await read('providerJobs',queued.id)).value.status,'cancelled')
+    }else{
+     assert.equal(failed.value.nextAttemptAt,null)
+     await cmd('providerJob:dispatch',failed);await cmd('providerJob:requeue',failed,owner,409);await cmd('providerJob:resume-refused',{...failed,reason:'Cannot assert non-admission from an uncertain outcome'},owner,409)
+     assert.equal((await queueSigned(input)).id,queued.id,'A second release cannot evade the existing delivery outcome')
+     assert.equal(requests(),1,'Refused and uncertain signed deliveries never resend automatically')
+    }
+    const history=await(await request('/api/gauge/history/providerJobs/'+queued.id,owner)).json()
+    assert(history.history.some(r=>r.value.status==='dispatching'&&r.value.attempts===1));assert(history.history.some(r=>r.value.status===expected.state&&r.value.exceptionClass===expected.exception))
+    for(const path of ['/api/gauge/state','/api/gauge/audit/export'])assert(!(await(await request(path,owner)).text()).includes(privateBody),'Provider failure bodies stay outside inspection and audit')
+   }
+  }finally{h.providerEdge.handler=previousEdge}
   await page.reload();await capture('signed-event-outcomes',section('Queued work and outcomes'))
   for(const path of ['/api/gauge/state','/app/access','/api/gauge/audit/export']){const body=await(await request(path,owner)).text();for(const value of [bundle,hook,signingKey,'synthetic-gauge-5004','synthetic-gauge-5005'])assert(!body.includes(value),'Signed-hook custody is absent from '+path)}
 

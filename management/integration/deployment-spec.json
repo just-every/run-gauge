@@ -480,6 +480,18 @@
       "name": "0079_gauge_change_review.sql",
       "sha256": "3d614f898559ae7d16518ceea3329c5ea61a812d391961e56579180438c75150",
       "sql": "-- Installation-only review authority is excluded from business archives.\nCREATE TABLE g_change_review_authority (\n review_id TEXT PRIMARY KEY,\n change_id TEXT NOT NULL,\n recipient_id TEXT NOT NULL,\n contact TEXT NOT NULL,\n owner_id TEXT NOT NULL,\n expires_at INTEGER NOT NULL,\n token_hash TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0080_gauge_intake.sql",
+      "sha256": "ea400c3494be892db41187739b88ec1a4d77e957eada70bf07a43f9e5a7adb3a",
+      "sql": "CREATE TABLE g_intakeRequests (id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)));\nCREATE TABLE g_intake_files (id TEXT PRIMARY KEY, request_id TEXT NOT NULL REFERENCES g_intakeRequests(id), submission_id TEXT NOT NULL, name TEXT NOT NULL, digest TEXT NOT NULL, bytes BLOB NOT NULL);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0081_gauge_microsoft.sql",
+      "sha256": "1cb00b7df3fbfbcc2d7f5c5d40633bc89e073032d1c00e07b734b85665cc6b70",
+      "sql": "-- Explicit tenant consent observations and exact mailbox selections. Credentials stay in provider custody.\nCREATE TABLE g_graphTenants(id TEXT PRIMARY KEY,revision TEXT NOT NULL,data TEXT NOT NULL CHECK(json_valid(data)));\nCREATE TABLE g_graphSelections(id TEXT PRIMARY KEY,revision TEXT NOT NULL,data TEXT NOT NULL CHECK(json_valid(data)));\nCREATE TABLE g_graphThreads(id TEXT PRIMARY KEY,revision TEXT NOT NULL,data TEXT NOT NULL CHECK(json_valid(data)));\nCREATE TABLE g_graphEvidence(id TEXT PRIMARY KEY,revision TEXT NOT NULL,data TEXT NOT NULL CHECK(json_valid(data)));\n-- Consent authority never travels in a portable archive.\nCREATE TABLE g_graph_authority(selection_id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,credential_version INTEGER NOT NULL);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

@@ -24,10 +24,10 @@ try{
  assert.equal(observation.value.directoryUsers,directory.length)
  const person=await h.cmd('save:people',{name:'Microsoft sandbox staff',timezone:'UTC'})
  const candidate=directory.find(u=>!u.assignedLicenses?.length)
- let unlicensedRefused=false
+ let unlicensedRefused=false,scopeUnavailable=false
  if(candidate){
-  await h.cmd('graph:select',{connectionId:connection.id,personId:person.id,mailboxId:candidate.id,mailboxKind:'staff',confirm:'reviewed-exact-mailbox',scopes:'calendar',from:'2026-10-01',to:'2026-10-31',reason:'Check live unlicensed mailbox refusal'},h.owner,observation.value.roles.some(r=>r.startsWith('Calendars.'))?409:403)
-  assert.equal((await h.state()).data.graphSelections.length,0);unlicensedRefused=true
+  const refused=await h.cmd('graph:select',{connectionId:connection.id,personId:person.id,mailboxId:candidate.id,mailboxKind:'staff',confirm:'reviewed-exact-mailbox',scopes:'calendar',from:'2026-10-01',to:'2026-10-31',reason:'Check live unlicensed mailbox refusal'},h.owner,observation.value.roles.some(r=>r.startsWith('Calendars.'))?409:403)
+  assert.equal((await h.state()).data.graphSelections.length,0);unlicensedRefused=/licensed, enabled staff mailbox/.test(refused.error);scopeUnavailable=/missing a selected scope/.test(refused.error);assert(unlicensedRefused||scopeUnavailable)
  }
  const beforeShared=touched.length
  await h.cmd('graph:select',{connectionId:connection.id,mailboxKind:'shared'},h.owner,403);assert.equal(touched.length,beforeShared)
@@ -35,5 +35,5 @@ try{
  const beforeRevoked=touched.length;await h.cmd('graph:inspect',{connectionId:connection.id},h.owner,409);assert.equal(touched.length,beforeRevoked,'Revoked custody makes no live token or directory call')
  const serialized=JSON.stringify((await h.db.prepare('SELECT data FROM g_audit').all()).results)+JSON.stringify((await h.db.prepare('SELECT result FROM g_receipts').all()).results)+JSON.stringify(h.logs)
  assert(!serialized.includes(secret),'Live credential never enters logs, audit or command receipts')
- console.log(JSON.stringify({proof:'CONNECT-004 live app-only tenant through production commands',head:process.env.GAUGE_PROOF_HEAD??null,tokenAcquired:touched.some(r=>r.resource==='token'&&r.status===200),directoryUsers:observation.value.directoryUsers,licensedUsers:observation.value.licensedUsers,roles:observation.value.roles,unlicensedRefused,sharedMailboxRefusedBeforeNetwork:true,revocationStopsNetwork:true,requests:touched,remaining:'A licensed mailbox is required for a live changed calendar event and exact invoice reply; shared mailbox and outbound message interoperability remain unimplemented'}))
+ console.log(JSON.stringify({proof:'CONNECT-004 live app-only tenant through production commands',head:process.env.GAUGE_PROOF_HEAD??null,tokenAcquired:touched.some(r=>r.resource==='token'&&r.status===200),directoryUsers:observation.value.directoryUsers,licensedUsers:observation.value.licensedUsers,roles:observation.value.roles,unlicensedRefused,scopeUnavailable,sharedMailboxRefusedBeforeNetwork:true,revocationStopsNetwork:true,requests:touched,remaining:'A licensed mailbox is required for a live changed calendar event and exact invoice reply; shared mailbox and outbound message interoperability remain unimplemented'}))
 }finally{await h.dispose()}

@@ -427,8 +427,8 @@ The status rows describe the current committed tree and its named public-door as
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 17 | 0 | 0 | 17 |
-| Target and push further | 52 | 39 | 34 | 125 |
-| All | 69 | 39 | 34 | 142 |
+| Target and push further | 52 | 40 | 33 | 125 |
+| All | 69 | 40 | 33 | 142 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |

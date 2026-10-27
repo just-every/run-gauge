@@ -88,13 +88,15 @@ export async function microsoftCommand(env: Bindings, a: Actor, action: string, 
  }
  const scope = input.scope
  if (action==='graph:sync'||action==='graph:revoke-scope') need(scope==='calendar'||scope==='mail','Choose calendar or mail')
- const {s,c} = await graphSelection(env,a,tx,input,action==='graph:sync'?scope:undefined)
  if (action==='graph:stop'||action==='graph:revoke-scope') {
+  const s = await get(env,'graphSelections',text(input.id,'Microsoft mailbox selection'))
+  need(s.revision===input.revision,'Microsoft mailbox selection changed; refresh',409)
   const reason = text(input.reason,'Revocation reason')
   if(action==='graph:stop')tx.sql('DELETE FROM g_graph_authority WHERE selection_id=?',s.id)
   const row = await tx.record('graphSelections',{...s.value,...(action==='graph:stop'?{stoppedAt:Date.now(),stopReason:reason}:{scopes:{...s.value.scopes,[scope]:'revoked'},revocationReason:reason})},s,undefined,action)
   return finishReadback(tx,digest,row)
  }
+ const {s,c} = await graphSelection(env,a,tx,input,action==='graph:sync'?scope:undefined)
  if(action==='graph:bind-invoice')return bindMicrosoftThread(env,a,tx,digest,s,c,input)
  let found = 0, changed = 0, status = 'read', exceptionClass: string|null = null
  let items: {id:string;value:Value}[] = []

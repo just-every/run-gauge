@@ -457,7 +457,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8d96b39741c9a5b1a973d13f6af32d6d370c4007283afb02db43c26f0f64c255",
+      "sha256": "d2bf3c087a691cdcefc90fda6c91ae47d13a796a6950a46541f2c0273a2b307d",
       "executable": false
     },
     "DEMO.md": {
@@ -545,7 +545,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "f61c8cfeecdca25f43925f42fadc1c44f4d007e780c40f0af057407b936bccc1",
+      "sha256": "e2bc65a10f64ec7b0aec4b95266045944f780db724dcdfe54a1a07d6c161ffaf",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1837,7 +1837,7 @@
       "executable": false
     },
     "src/gauge/microsoft.ts": {
-      "sha256": "7e042b785717891a74ad9974d7a45e2d49db7186709d70e9d0d7395ad273d5e1",
+      "sha256": "c20a89e1e0060894fb5730ebfc7f60d140ec24104f8d0e9d526d0f34054dc39a",
       "executable": false
     },
     "src/gauge/milestone-delivery.ts": {
@@ -4429,7 +4429,7 @@
       "executable": false
     },
     "tests/fixtures/microsoft-journey.mjs": {
-      "sha256": "cfaf2d1ad9580fcd70fed138bcafe200ca530e98103d44c09903bf5be422a20c",
+      "sha256": "e294280dc9bf70e5782313da860df020d86c7ac689513f66070f40e1f466366c",
       "executable": false
     },
     "tests/fixtures/productive.mjs": {
@@ -4737,7 +4737,7 @@
       "executable": false
     },
     "tests/live/microsoft.mjs": {
-      "sha256": "f151db721ad46b4b80d879de940c31e1ecb01cdd4c9e5f102a19233578cc0bad",
+      "sha256": "c1ab131434b533d9c686c84aa97cf74c2e4a3495b916c6285bc048244763d1b8",
       "executable": false
     },
     "tests/runtime.mjs": {

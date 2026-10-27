@@ -3,13 +3,13 @@ import {mkdir} from 'node:fs/promises'
 import {harness} from '../gauge-harness.mjs'
 
 export const tenantId='10000000-0000-4000-8000-000000000001',clientId='10000000-0000-4000-8000-000000000002',mailboxId='10000000-0000-4000-8000-000000000003'
-const credential=`${tenantId}:${clientId}:synthetic-gauge-1`,mailbox='jordan@example.test',contact='casey@example.test'
+const credential=`${tenantId}:${clientId}:synthetic-gauge-900001`,mailbox='jordan@example.test',contact='casey@example.test'
 export function microsoftEdge(){
  const edge={roles:['User.Read.All','Calendars.Read','Mail.Read'],requests:[],users:[{id:mailboxId,mail:mailbox,userType:'Member',accountEnabled:true,assignedLicenses:[{skuId:'synthetic-gauge-2'}]}],events:[],messages:[],original:null,fail:null,next:null}
  edge.handler=async(req,body)=>{
   const url=new URL(req.url)
   if(url.origin==='https://login.microsoftonline.com'){
-   assert.equal(url.pathname,`/${tenantId}/oauth2/v2.0/token`);assert.equal(req.method,'POST');assert.equal(body.client_id,clientId);assert.equal(body.client_secret,'synthetic-gauge-1');assert.equal(body.scope,'https://graph.microsoft.com/.default');assert.equal(body.grant_type,'client_credentials')
+   assert.equal(url.pathname,`/${tenantId}/oauth2/v2.0/token`);assert.equal(req.method,'POST');assert.equal(body.client_id,clientId);assert.equal(body.client_secret,'synthetic-gauge-900001');assert.equal(body.scope,'https://graph.microsoft.com/.default');assert.equal(body.grant_type,'client_credentials')
    edge.requests.push({kind:'token'})
    const b64=v=>Buffer.from(JSON.stringify(v)).toString('base64url')
    return Response.json({token_type:'Bearer',access_token:`${b64({alg:'RS256'})}.${b64({tid:tenantId,appid:clientId,aud:'https://graph.microsoft.com',exp:Math.floor(Date.now()/1000)+300,roles:edge.roles})}.c3ludGhldGljLWdhdWdlLTk`})
@@ -32,11 +32,14 @@ const event=(id,subject,over={})=>({id,subject,sensitivity:'normal',showAs:'busy
 
 /** Native owner page and API doors, with only Microsoft itself replaced at the network boundary. */
 export async function microsoftJourney(browser){
+ console.log('Microsoft journey: starting native Worker')
  const h=await harness({currency:'USD',timezone:'America/New_York'}),{cmd,state,request}=h,edge=microsoftEdge();h.providerEdge.handler=edge.handler
  const context=await browser.newContext({ignoreHTTPSErrors:true})
  try{
+  console.log('Microsoft journey: native setup ready')
   const person=await cmd('save:people',{name:'Jordan Lane',timezone:'America/New_York'}),other=await h.invite('synthetic-gauge-27')
   const connected=await cmd('provider:connect',{provider:'microsoft',accountLabel:'Harbor Microsoft tenant',credential})
+  console.log('Microsoft journey: credential sealed')
   const inspect=await cmd('graph:inspect',{connectionId:connected.id});assert.equal(inspect.status,'connected')
   let data=(await state()).data
   assert.equal(data.graphTenants.length,1);assert.equal(data.graphTenants[0].value.directoryUsers,1);assert.equal(data.graphTenants[0].value.licensedUsers,1);assert.equal(data.graphTenants[0].value.tenantId,tenantId)
@@ -46,6 +49,7 @@ export async function microsoftJourney(browser){
   await cmd('graph:select',{...select,confirm:''},h.owner,400)
   edge.users[0].assignedLicenses=[];await cmd('graph:select',select,h.owner,409);edge.users[0].assignedLicenses=[{skuId:'synthetic-gauge-2'}]
   await cmd('graph:select',select,other.cookie,403)
+  console.log('Microsoft journey: tenant and mailbox refusals passed')
   // Select the exact mailbox through the built page, as the owner does.
   await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
   const page=await context.newPage(),form=action=>page.locator('form').filter({has:page.locator(`input[name="action"][value="${action}"]`)})
@@ -72,6 +76,7 @@ export async function microsoftJourney(browser){
   assert.equal((await sync('calendar')).status,'exception');assert.equal((await state()).data.graphEvidence.length,2,'Unsafe pagination commits no partial snapshot');assert(!edge.requests.some(r=>r.path?.includes('000000000099')))
   edge.next=null
 
+  console.log('Microsoft journey: changed calendar and privacy passed')
   // Issue a real native invoice and bind its exact released recipient to the reviewed outgoing message.
   const client=await cmd('save:clients',{name:'Harbor Studio'}),project=await cmd('save:engagements',{name:'Harbor October support',clientId:client.id,leadId:person.id,members:[person.id],scope:'Support',timezone:'America/New_York'})
   await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:100000,effortSeconds:3600,roundingSeconds:60,reason:'Support terms'}))
@@ -97,6 +102,7 @@ export async function microsoftJourney(browser){
   assert(!JSON.stringify(data.graphEvidence).includes(reply.bodyPreview));assert.equal(data.payments.length,0);assert.equal(data.invoiceDisputes.length,0);assert.equal(data.time.length,1)
   assert.equal((await sync('mail')).changed,0,'One reply is retained once under replayed polling')
 
+  console.log('Microsoft journey: exact invoice reply passed')
   // Every other principal and history and audit projections preserve owner-only work context.
   for(const [n,role] of ['finance','lead','staff','agent'].entries()){
    const user=await h.invite('synthetic-gauge-4'+n);await cmd('grant',{operatorId:user.id,role,enabled:true,...(role==='agent'?{purpose:'time',engagementIds:[project.id]}:{personId:person.id})})
@@ -131,7 +137,7 @@ export async function microsoftJourney(browser){
   before=edge.requests.length;await cmd('graph:inspect',{connectionId:connected.id},h.owner,409);await cmd('graph:sync',{...await latest(),scope:'calendar'},h.owner,409);assert.equal(edge.requests.length,before)
   const audit=await(await request('/api/gauge/audit?action=graph:',h.owner)).text();assert(audit.includes('graph:stop')&&audit.includes('permission-revoked'))
   const persisted=JSON.stringify((await h.db.prepare('SELECT data FROM g_audit').all()).results)+JSON.stringify((await h.db.prepare('SELECT result FROM g_receipts').all()).results)
-  for(const secret of [credential,'synthetic-gauge-1','synthetic-private-title','synthetic-private-body','synthetic-private-mail-body','synthetic-private-error'])assert(!persisted.includes(secret),'Secrets and excluded private provider fields never reach audit or receipts')
+  for(const secret of [credential,'synthetic-gauge-900001','synthetic-private-title','synthetic-private-body','synthetic-private-mail-body','synthetic-private-error'])assert(!persisted.includes(secret),'Secrets and excluded private provider fields never reach audit or receipts')
   console.log('PASS microsoftJourney: tenant consent, exact licensed staff mailbox, changed event and previous revision, private-event projection, exact invoice reply and sender refusals, independent scope revocation, provider denial, no non-owner exposure, no automatic business effects, owner page at 1440 and 390')
  }finally{await context.close();await h.dispose()}
 }

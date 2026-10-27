@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import {createHmac,randomUUID} from 'node:crypto'
 import {mkdir,rm} from 'node:fs/promises'
+import {DatabaseSync} from 'node:sqlite'
+import {openWebhookReceiver} from '../scripts/integrations/webhook-receiver.mjs'
 import {harness} from './gauge-harness.mjs'
 
 // One custody business flow through the production Worker, native owner forms,
@@ -8,6 +10,9 @@ import {harness} from './gauge-harness.mjs'
 export async function providerCustodyJourney(browser){
  let h=await harness({databaseBinding:false,currency:'USD',timezone:'America/New_York'}),owner=h.owner;const logHistory=[]
  const directory=h.directory,cmd=(...args)=>h.cmd(...args),state=(...args)=>h.state(...args),request=(...args)=>h.request(...args),endpoint='https://crank.example.test/api/crank/flows/budget-exception/trigger'
+ const queueSigned=async input=>{const preview=await cmd('providerJob:preview-webhook',input);return cmd('providerJob:queue-webhook',{...input,previewId:preview.previewId,confirm:'release-exact-event'})}
+ let receiver
+ const receiverPath=directory+'/receiver.sqlite'
  const credentials=['synthetic-gauge-1001','synthetic-gauge-1002','synthetic-gauge-1003'],accountLabel='Northline budget notifications'
  const scan=(label,value)=>{const serialized=typeof value==='string'?value:JSON.stringify(value);for(const credential of credentials)assert(!serialized.includes(credential),`Full provider credential is absent from ${label}`)}
  const metadataOnly=value=>{for(const [key,child]of Object.entries(value??{})){assert(!['credential','ciphertext','iv','authorization','payload','requestBody','responseBody'].includes(key),`Provider use excludes ${key}`);if(child&&typeof child==='object')metadataOnly(child)}}
@@ -162,40 +167,73 @@ export async function providerCustodyJourney(browser){
   assert.equal(edge().length,networkBefore+1,'Permission refusals, inspections and exports never submit provider work')
   const hook='https://hooks.zapier.com/hooks/catch/synthetic-gauge-5001/synthetic-gauge-5002/',signingKey='synthetic-gauge-5003'
   const bundle=JSON.stringify({endpoint:hook,signingKey})
-  h.providerEdge.handler=async request=>request.url===hook?Response.json({status:'success'}):request.url==='https://automation.example.test/events'?Response.json({accepted:true,event_id:request.headers.get('x-gauge-event-id')},{status:202}):undefined
+  receiver=openWebhookReceiver({database:receiverPath,signingKey})
+  h.providerEdge.handler=async request=>request.url===hook?((await receiver.receive(request)).status===202?Response.json({status:'success'}):new Response(null,{status:401})):request.url==='https://automation.example.test/events'?Response.json({accepted:true,event_id:request.headers.get('x-gauge-event-id')},{status:202}):undefined
   const zapier=await cmd('provider:connect',{provider:'zapier',accountLabel:'Northline Zapier budget follow-up',credential:bundle})
   const signedInput={connectionId:zapier.id,sourceRef:`budgetAlerts:${alert.id}:${alert.revision}`,reason:'Owner releases this exact budget exception; no automatic subscription'}
   await cmd('providerJob:queue-webhook',signedInput,people.find(p=>p.role==='finance').cookie,403)
-  const signedPage=await page.goto(h.origin+'/app/access');assert.equal(signedPage.status(),200,await page.locator('body').innerText());const signedForm=form('providerJob:queue-webhook');assert.equal(await signedForm.count(),1,await page.locator('body').innerText())
-  await signedForm.locator('select[name=connectionId]').selectOption(zapier.id);await signedForm.locator('select[name=sourceRef]').selectOption(signedInput.sourceRef);await signedForm.getByLabel('Explicit event release reason',{exact:true}).fill(signedInput.reason)
-  await capture('signed-event-release',signedForm.locator('..'))
-  await signedForm.getByRole('button',{name:'Queue signed event',exact:true}).click()
+  const signedPage=await page.goto(h.origin+'/app/access');assert.equal(signedPage.status(),200,await page.locator('body').innerText());const signedForm=form('providerJob:preview-webhook');assert.equal(await signedForm.count(),1,await page.locator('body').innerText())
+  await signedForm.locator('select[name=connectionId]').selectOption(zapier.id);await signedForm.locator('select[name=sourceRef]').selectOption(signedInput.sourceRef)
+  await cmd('providerJob:preview-webhook',signedInput,people.find(p=>p.role==='finance').cookie,403)
+  await cmd('providerJob:queue-webhook',signedInput,owner,400)
+  await signedForm.getByRole('button',{name:'Preview signed event',exact:true}).click()
+  const releaseForm=form('providerJob:queue-webhook'),reviewedBody=await releaseForm.locator('[data-webhook-preview]').inputValue()
+  await cmd('providerJob:queue-webhook',{...signedInput,previewId:await releaseForm.locator('[name=previewId]').inputValue()},owner,400)
+  const reviewed=JSON.parse(reviewedBody)
+  assert.equal(reviewed.sourceId,alert.id);assert.equal(reviewed.sourceRevision,alert.revision)
+  assert.deepEqual(reviewed.data,{engagementId:project.id,phaseKey:'',metric:'hours',threshold:50,actual:3600,budget:3600,raisedAt:alert.value.raisedAt})
+  assert.equal(h.providerRequests.filter(r=>r.url===hook).length,0,'Preview sends nothing')
+  await releaseForm.getByLabel('Explicit event release reason',{exact:true}).fill(signedInput.reason)
+  await releaseForm.locator('input[name=confirm]').check()
+  await capture('signed-event-release',releaseForm.locator('..'))
+  await releaseForm.getByRole('button',{name:'Queue signed event',exact:true}).click()
   const signedJob=(await state()).data.providerJobs.find(r=>r.value.connectionId===zapier.id)
-  assert(signedJob);assert.equal((await cmd('providerJob:queue-webhook',signedInput)).id,signedJob.id,'The same source revision cannot create another signed event')
+  assert(signedJob);assert.equal((await queueSigned(signedInput)).id,signedJob.id,'The same source revision cannot create another signed event')
   assert(!JSON.stringify(signedJob).includes(hook)&&!JSON.stringify(signedJob).includes(signingKey),'Hook URL and signing key stay sealed')
   await Promise.all([cmd('providerJob:dispatch',signedJob),cmd('providerJob:dispatch',signedJob)])
   const signedRequests=h.providerRequests.filter(r=>r.url===hook);assert.equal(signedRequests.length,1)
   const wire=signedRequests[0],signature=wire.headers.signature.match(/^t=(\d+),v1=([a-f0-9]{64})$/)
   assert(signature);assert.equal(createHmac('sha256',signingKey).update(signature[1]+'.'+JSON.stringify(wire.body)).digest('hex'),signature[2],'The exact body is authenticated with HMAC-SHA-256')
+  assert.equal(JSON.stringify(wire.body),reviewedBody,'Dispatch sends exactly the bytes reviewed before release')
   assert.equal(wire.headers.eventId,signedJob.value.eventId);assert.equal(wire.headers.idempotencyKey,signedJob.value.eventId)
   assert.equal(wire.body.type,'gauge.budget-exception');assert.equal(wire.body.sourceId,alert.id);assert.equal(wire.body.sourceRevision,alert.revision);assert.equal(wire.body.data.metric,alert.value.metric)
   assert(!JSON.stringify(wire.body).includes('notes')&&!JSON.stringify(wire.body).includes('costMinor'))
   await cmd('providerJob:dispatch',await read('providerJobs',signedJob.id));assert.equal(h.providerRequests.filter(r=>r.url===hook).length,1)
+  const receiverRequest=(body,stamp=String(Math.floor(Date.now()/1000)),signatureValue)=>new Request(hook,{method:'POST',headers:{'x-gauge-event-id':wire.body.event_id,'idempotency-key':wire.body.event_id,'x-gauge-signature':`t=${stamp},v1=${signatureValue??createHmac('sha256',signingKey).update(stamp+'.'+body).digest('hex')}`},body})
+  const originalBody=JSON.stringify(wire.body)
+  const concurrent=await Promise.all([receiver.receive(receiverRequest(originalBody)),receiver.receive(receiverRequest(originalBody))]);for(const response of concurrent){assert.equal(response.status,202);assert.equal((await response.json()).duplicate,true)}
+  assert.equal((await receiver.receive(receiverRequest(originalBody,'0'))).status,401,'An authentic stale event is refused')
+  const now=String(Math.floor(Date.now()/1000)),authentic=createHmac('sha256',signingKey).update(now+'.'+originalBody).digest('hex')
+  assert.equal((await receiver.receive(receiverRequest(originalBody+' ',now,authentic))).status,401,'Changed transmitted bytes are refused')
+  const changedEnvelope=JSON.stringify({...wire.body,data:{...wire.body.data,actual:0}})
+  assert.equal((await receiver.receive(receiverRequest(changedEnvelope))).status,409,'A signed collision cannot change a retained event')
+  receiver.close();receiver=openWebhookReceiver({database:receiverPath,signingKey})
+  const redelivery=await receiver.receive(receiverRequest(originalBody));assert.equal(redelivery.status,202);assert.equal((await redelivery.json()).duplicate,true,'Reviewed redelivery after receiver restart has one durable effect')
+  const received=new DatabaseSync(receiverPath,{readOnly:true});try{assert.deepEqual(received.prepare('SELECT event_id,body FROM received_events').all().map(r=>({...r})),[{event_id:wire.body.event_id,body:originalBody}])}finally{received.close()}
   const webhook=await cmd('provider:connect',{provider:'webhook',accountLabel:'Northline signed project notifications',credential:JSON.stringify({endpoint:'https://automation.example.test/events',signingKey:'synthetic-gauge-5004'})})
-  const projectSource=await read('engagements',project.id),genericJob=await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`engagements:${projectSource.id}:${projectSource.revision}`,reason:'Owner releases project changes to a signed subscription'})
+  const projectSource=await read('engagements',project.id),genericJob=await queueSigned({connectionId:webhook.id,sourceRef:`engagements:${projectSource.id}:${projectSource.revision}`,reason:'Owner releases project changes to a signed subscription'})
   await cmd('provider:rotate',{...await read('providerConnections',webhook.id),credential:JSON.stringify({endpoint:'https://automation.example.test/events',signingKey:'synthetic-gauge-5005'})})
+  const stalePreview=await cmd('providerJob:preview-webhook',{connectionId:webhook.id,sourceRef:`engagements:${projectSource.id}:${projectSource.revision}`})
+  await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`engagements:${projectSource.id}:${projectSource.revision}`,previewId:stalePreview.previewId,confirm:'release-exact-event',reason:'Existing event is still unique'})
   const genericBefore=h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length
   await cmd('providerJob:dispatch',genericJob);const rotation=await read('providerJobs',genericJob.id)
   assert.equal(rotation.value.exceptionClass,'credential-rotated');assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore)
-  await cmd('providerJob:requeue',rotation);await cmd('providerJob:dispatch',await read('providerJobs',rotation.id))
+  await cmd('providerJob:requeue',rotation,owner,400);const rotationPreview=await cmd('providerJob:preview-webhook',{connectionId:webhook.id,sourceRef:`engagements:${projectSource.id}:${projectSource.revision}`,jobId:rotation.id,jobRevision:rotation.revision});assert.equal(JSON.parse(rotationPreview.body).event_id,rotation.value.eventId)
+  await cmd('providerJob:requeue',{...rotation,previewId:rotationPreview.previewId,confirm:'release-exact-event'});await cmd('providerJob:dispatch',await read('providerJobs',rotation.id))
   assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore+1)
-  assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').at(-1).body.type,'gauge.project.created')
+  const projectEvent=h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').at(-1).body
+  assert.equal(projectEvent.type,'gauge.project.created');assert.deepEqual(projectEvent.data,{name:'Mariner launch research',clientId:client.id,leadId:person.id,type:'client',currency:'USD',timezone:zone})
+  const outdatedPreview=await cmd('providerJob:preview-webhook',{connectionId:webhook.id,sourceRef:`engagements:${projectSource.id}:${projectSource.revision}`})
   const changedProject=await cmd('save:engagements',{...projectSource.value,...projectSource,scope:'Owner-reviewed expanded delivery scope'})
-  const changedJob=await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`engagements:${changedProject.id}:${changedProject.revision}`,reason:'Owner releases an exact changed project revision'})
+  await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`engagements:${changedProject.id}:${changedProject.revision}`,previewId:outdatedPreview.previewId,confirm:'release-exact-event',reason:'Changed source requires renewed preview'},owner,409)
+  const changedJob=await queueSigned({connectionId:webhook.id,sourceRef:`engagements:${changedProject.id}:${changedProject.revision}`,reason:'Owner releases an exact changed project revision'})
   await cmd('providerJob:dispatch',changedJob)
   assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').at(-1).body.type,'gauge.project.changed')
   const approvedTime=await cmd('time:approve',await read('time',actual.id))
-  const revokedHookJob=await cmd('providerJob:queue-webhook',{connectionId:webhook.id,sourceRef:`time:${approvedTime.id}:${approvedTime.revision}`,reason:'Owner releases the exact approval'})
+  const timeJob=await queueSigned({connectionId:zapier.id,sourceRef:`time:${approvedTime.id}:${approvedTime.revision}`,reason:'Owner releases the approved duration without private notes'})
+  await cmd('providerJob:dispatch',timeJob);const timeEvent=h.providerRequests.filter(r=>r.url===hook).at(-1).body
+  assert.equal(timeEvent.type,'gauge.time.approved');assert.deepEqual(timeEvent.data,{personId:person.id,engagementId:project.id,taskId:task.id,status:'approved',start:Date.parse('2026-10-08T09:00:00+10:00'),end:Date.parse('2026-10-08T10:00:00+10:00'),durationSeconds:3600,billable:false,workDate:'2026-10-08'})
+  const revokedHookJob=await queueSigned({connectionId:webhook.id,sourceRef:`time:${approvedTime.id}:${approvedTime.revision}`,reason:'Owner releases the exact approval'})
   await cmd('provider:revoke',await read('providerConnections',webhook.id));await cmd('providerJob:dispatch',revokedHookJob)
   assert.equal((await read('providerJobs',revokedHookJob.id)).value.status,'revoked');assert.equal(h.providerRequests.filter(r=>r.url==='https://automation.example.test/events').length,genericBefore+2,'Revocation sends no new data')
   // Invoice and payment events are grounded in actual issued and allocated
@@ -207,13 +245,14 @@ export async function providerCustodyJourney(browser){
   const payment=await cmd('payment:record',{...invoice,date:'2026-10-11',amountMinor:15000,reference:'synthetic-gauge-5011'})
   for(const [kind,row,type]of [['invoices',invoice,'gauge.invoice.issued'],['payments',payment,'gauge.payment.recorded']]){
    const input={connectionId:zapier.id,sourceRef:`${kind}:${row.id}:${row.revision}`,reason:'Owner releases this exact native financial source'}
-   const queued=await cmd('providerJob:queue-webhook',input);assert.equal((await cmd('providerJob:queue-webhook',input)).id,queued.id)
+   const queued=await queueSigned(input);assert.equal((await queueSigned(input)).id,queued.id)
    await cmd('providerJob:dispatch',queued)
    const event=h.providerRequests.filter(r=>r.url===hook).at(-1).body;assert.equal(event.type,type);assert.equal(event.sourceId,row.id);assert.equal(event.data.currency,'USD');assert.equal(kind==='invoices'?event.data.totalMinor:event.data.amountMinor,15000)
    assert(!('billTo'in event.data)&&!('remitTo'in event.data)&&!('lines'in event.data)&&!('reference'in event.data),'Signed financial events disclose only their scoped business summary')
+   assert.deepEqual(Object.keys(event.data).sort(),(kind==='invoices'?['engagementId','clientId','number','issueDate','dueDate','currency','totalMinor','issuance']:['engagementId','invoiceId','amountMinor','currency','date','source','verification']).sort(),'Only the documented financial projection is released')
    if(kind==='payments')assert.match(event.data.verification,/not bank or processor verified/)
   }
-  assert.equal(h.providerRequests.filter(r=>r.url===hook).length,3,'Budget, invoice and payment source replays produce one event each')
+  assert.equal(h.providerRequests.filter(r=>r.url===hook).length,4,'Budget, approved time, invoice and payment source replays produce one event each')
   const receiptSecret='synthetic-gauge-5101',receiptKey=await cmd('provider:connect',{provider:'receipt',accountLabel:'Northline workflow receipt verification',credential:receiptSecret})
   const proofSignature=receipt=>createHmac('sha256',receiptSecret).update('gauge-followup-v1\n'+JSON.stringify(Object.fromEntries(Object.entries(receipt).sort(([a],[b])=>a.localeCompare(b))))).digest('hex')
   const receiptFor=(job,name)=>({schema:'gauge-followup-v1',eventId:job.value.eventId,sourceRevision:job.value.source.revision,remoteReference:job.value.providerRunId??job.value.eventId,taskName:name})
@@ -255,7 +294,7 @@ export async function providerCustodyJourney(browser){
   await scopedCrankForm.getByLabel('Crank HTTPS trigger endpoint',{exact:true}).fill(endpoint);await scopedCrankForm.getByLabel('Explicit Crank event release reason',{exact:true}).fill('Owner reviews this exact native source in the scoped release form')
   const jobsBeforeForm=(await state()).data.providerJobs.length;await capture('scoped-crank-release',scopedCrankForm.locator('..'))
   await scopedCrankForm.getByRole('button',{name:'Queue scoped Crank event',exact:true}).click();assert.equal((await state()).data.providerJobs.length,jobsBeforeForm,'Native scoped release replay keeps the same exact-source event')
-  const staleSource=await read('engagements',project.id),staleJob=await cmd('providerJob:queue-webhook',{connectionId:zapier.id,sourceRef:`engagements:${staleSource.id}:${staleSource.revision}`,reason:'Owner releases a source for a stale-request refusal'})
+  const staleSource=await read('engagements',project.id),staleJob=await queueSigned({connectionId:zapier.id,sourceRef:`engagements:${staleSource.id}:${staleSource.revision}`,reason:'Owner releases a source for a stale-request refusal'})
   await cmd('providerJob:dispatch',staleJob);const staleAdmitted=await read('providerJobs',staleJob.id),staleReceipt=receiptFor(staleAdmitted,'This stale request must not apply')
   await cmd('save:engagements',{...staleSource.value,...staleSource,scope:'Source changed after workflow admission'})
   await cmd('providerJob:apply-followup',{...staleAdmitted,connectionId:receiptKey.id,receipt:JSON.stringify(staleReceipt),signature:proofSignature(staleReceipt),reason:'Attempt a stale workflow result',confirm:'apply-exact-followup',customFields:{[required.id]:'Must not persist'}},owner,409)
@@ -267,7 +306,7 @@ export async function providerCustodyJourney(browser){
   await page.reload();await capture('signed-event-outcomes',section('Queued work and outcomes'))
   for(const path of ['/api/gauge/state','/app/access','/api/gauge/audit/export']){const body=await(await request(path,owner)).text();for(const value of [bundle,hook,signingKey,'synthetic-gauge-5004','synthetic-gauge-5005'])assert(!body.includes(value),'Signed-hook custody is absent from '+path)}
 
- }finally{await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
+ }finally{receiver?.close();await context.close();await h.close();await rm(directory,{recursive:true,force:true})}
  console.log('PASS GOVERN-008 owner provider custody: exact secret replay, native rotation and requeue, durable owned exceptions, one concurrent Crank submission, terminal revocation, owner-only metadata, secret-free public surfaces and 1440/390')
 }
 

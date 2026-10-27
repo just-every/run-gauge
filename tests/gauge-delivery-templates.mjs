@@ -75,6 +75,8 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
  const recipient=await h.invite('intake-recipient'),stranger=await h.invite('intake-stranger')
  const grant=await cmd('client:invite-project',{engagementId:project.id,contact:'intake-recipient@example.test',days:7,reason:'Brand sponsor access'})
  await cmd('client:invite-project',{engagementId:other.id,contact:'intake-stranger@example.test',days:7,reason:'Separate client'})
+ const financePerson=await cmd('save:people',{name:'Intake finance',timezone:zone}),financeUser=await h.invite('intake-finance')
+ await cmd('grant',{operatorId:financeUser.id,personId:financePerson.id,role:'finance',enabled:true})
  const shots=process.env.GAUGE_INTAKE_SHOTS??process.env.GAUGE_DELIVERY_SHOTS
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  const login=async cookie=>{await context.clearCookies();await context.addCookies(cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))}
@@ -107,6 +109,17 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
   submitted=await current(row.id);assert.equal(submitted.value.status,'submitted');assert.deepEqual(submitted.value.submissions[0].answers,['Use the blue wordmark',''])
   const file=submitted.value.submissions[0].file;assert.equal(file.name,'brand.txt');assert.equal(file.size,29)
   const bytes=await request(`/api/gauge/intake-files/${file.id}`,recipient.cookie);assert.equal(bytes.status,200);assert.equal(await bytes.text(),'synthetic-gauge-1 brand bytes');assert.match(bytes.headers.get('content-disposition'),/^attachment/)
+  assert.equal(bytes.headers.get('content-type'),['application','octet-stream'].join('/'));assert.equal(bytes.headers.get('x-content-type-options'),'nosniff');assert.equal(bytes.headers.get('content-security-policy'),"default-src 'none'; sandbox")
+  for(const cookie of [manager.cookie,financeUser.cookie]){const internal=await request(`/api/gauge/intake-files/${file.id}`,cookie);assert.equal(internal.status,200,'Assigned lead and native finance can download');assert.equal(await internal.text(),'synthetic-gauge-1 brand bytes')}
+  await page.goto(h.origin+portal);assert((await article(row.id).innerText()).includes('Next in-app reminder 2026-11-09'),'Submitted intake retains its outstanding reminder')
+  const bounded=await cmd('intake:request',{engagementId:project.id,title:'Bounded finance request',questions:['Brand'],fileLabel:'Asset',due:'2026-11-12'},financeUser.cookie)
+  assert.equal((await current(bounded.id)).value.requestedBy,financeUser.id,'Native finance requests dated intake')
+  const boundaryForm=size=>{const f=new FormData();f.set('key',crypto.randomUUID());f.set('revision',bounded.revision);f.set('answer0','Boundary asset');f.set('file',new File([Buffer.alloc(size,97)],'boundary.html',{type:['text','html'].join('/')}));return f}
+  const boundedPost=size=>request(`/app/client-intake/${project.id}/${bounded.id}`,recipient.cookie,{method:'POST',headers:{origin:h.origin},body:boundaryForm(size)})
+  assert.equal((await boundedPost(512*1024+1)).status,413,'Oversized file is refused at the intake limit');assert.equal((await current(bounded.id)).value.submissions.length,0)
+  assert.equal((await boundedPost(512*1024)).status,303,'Exactly 512 KiB is supported')
+  const boundaryFile=(await current(bounded.id)).value.submissions[0].file;assert.equal(boundaryFile.size,512*1024)
+  const boundaryDownload=await request(`/api/gauge/intake-files/${boundaryFile.id}`,financeUser.cookie);assert.equal(boundaryDownload.status,200);assert.equal(boundaryDownload.headers.get('content-type'),['application','octet-stream'].join('/'));assert.deepEqual(Buffer.from(await boundaryDownload.arrayBuffer()),Buffer.alloc(512*1024,97),'Boundary file bytes are retained as inert data')
   for(const cookie of [stranger.cookie,staff.cookie,outsider.cookie])assert.equal((await request(`/api/gauge/intake-files/${file.id}`,cookie)).status,403)
   assert.equal((await request(portal,stranger.cookie)).status,403)
   await cmd('intake:review',{...submitted,outcome:'accepted',reason:'Incomplete cannot pass'},manager.cookie,409)
@@ -132,10 +145,21 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
   assert.equal((await post(stranger.cookie)).status,403)
   await h.db.exec("CREATE TRIGGER intake_authority_race AFTER INSERT ON g_intake_files BEGIN DELETE FROM g_client_portal_authority; END")
   try{assert.equal((await post(recipient.cookie)).status,409,'Authority changing in the committing batch rolls back the upload');assert.equal((await current(row.id)).value.submissions.length,2);assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM g_intake_files WHERE request_id=?').bind(row.id).first()).n,1)}finally{await h.db.exec('DROP TRIGGER intake_authority_race')}
+  for(const [name,sql] of [
+   ['client',`UPDATE g_engagements SET data=json_set(data,'$.clientId','${otherClient.id}') WHERE id='${project.id}'`],
+   ['session',`UPDATE oa_sessions SET revoked_at=1 WHERE operator_id='${recipient.id}'`]
+  ]){
+   await h.db.exec(`CREATE TRIGGER intake_${name}_race AFTER INSERT ON g_intake_files BEGIN ${sql}; END`)
+   try{assert.equal((await post(recipient.cookie)).status,409,`${name} authority changing inside commit rolls back`);assert.equal((await current(row.id)).value.submissions.length,2);assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM g_intake_files WHERE request_id=?').bind(row.id).first()).n,1)}finally{await h.db.exec(`DROP TRIGGER intake_${name}_race`)}
+  }
   await Promise.all([page.waitForURL(/client-projects/),upload().getByRole('button',{name:'Submit inputs'}).click()])
   assert.equal((await post(recipient.cookie)).status,303,'Exact upload replay is once only')
   const changed=replayForm();changed.set('answer0','Changed');assert.equal((await post(recipient.cookie,changed)).status,409)
   const complete=await current(row.id);assert.equal(complete.value.submissions.length,3);assert.equal(complete.value.status,'submitted')
+  const laterFile=complete.value.submissions[2].file;assert.equal(laterFile.size,33)
+  for(const cookie of [recipient.cookie,manager.cookie,financeUser.cookie]){const later=await request(`/api/gauge/intake-files/${laterFile.id}`,cookie);assert.equal(later.status,200);assert.equal(await later.text(),'synthetic-gauge-2 complete assets','Later upload retains independently expected bytes')}
+  await cmd('intake:review',{...submitted,outcome:'accepted',reason:'Stale review cannot decide a replacement'},manager.cookie,409)
+  assert.deepEqual(await current(row.id),complete,'Stale review leaves the latest submission unchanged')
   await login(manager.cookie);await page.goto(h.origin+`/app/engagements?edit=${project.id}`)
   const review=article(row.id).locator('form').filter({has:page.locator('[name=action][value="intake:review"]')})
   await review.getByLabel('Review decision').selectOption('accepted');await review.getByLabel('Review reason').fill('Complete brand package approved');await capture('intake-lead-review')
@@ -148,9 +172,9 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
   // Onboarding templates carry the complete form and apply relative due dates.
   await login(h.owner);await page.goto(h.origin+'/app/engagements');const templateEditor=page.locator('#delivery-templates section.g-card').filter({has:page.getByRole('heading',{name:'New delivery template',exact:true})});await templateEditor.getByText('Client intake form',{exact:true}).click();await templateEditor.getByLabel('Intake title',{exact:true}).fill('Template brand assets');await templateEditor.getByLabel('Required questions, one per line').fill('Brand direction');await templateEditor.getByLabel('Requested file',{exact:true}).fill('Logo package');await templateEditor.getByLabel('Intake due after business days').fill('1');await templateEditor.getByLabel('Reminder interval in days').fill('3');await capture('intake-template-editor')
   const template=await cmd('template:save',{name:'Intake onboarding',purpose:'client-onboarding',items:[{key:'start',kind:'task',name:'Kickoff',durationDays:1,owner:'lead'}],intakeForms:[{title:'Template brand assets',questions:['Brand direction'],fileLabel:'Logo package',everyDays:3,offsetDays:1}],reason:'Reusable intake'})
-  await cmd('template:apply',{templateId:template.id,engagementId:other.id,start:'2026-11-02',reason:'New engagement onboarding'},manager.cookie)
+  await cmd('template:apply',{templateId:template.id,engagementId:other.id,start:'2026-11-06',reason:'New engagement onboarding'},manager.cookie)
   const fromTemplate=(await state()).data.intakeRequests.filter(r=>r.value.engagementId===other.id)
-  assert.equal(fromTemplate.length,1);assert.deepEqual([fromTemplate[0].value.title,fromTemplate[0].value.due,fromTemplate[0].value.questions,fromTemplate[0].value.everyDays,fromTemplate[0].value.status,fromTemplate[0].value.templateId],['Template brand assets','2026-11-03',['Brand direction'],3,'requested',template.id])
+  assert.equal(fromTemplate.length,1);assert.deepEqual([fromTemplate[0].value.title,fromTemplate[0].value.due,fromTemplate[0].value.questions,fromTemplate[0].value.everyDays,fromTemplate[0].value.status,fromTemplate[0].value.templateId],['Template brand assets','2026-11-09',['Brand direction'],3,'requested',template.id])
   const templateBefore=await current(fromTemplate[0].id);await cmd('template:save',{previousId:template.id,items:[{key:'start',kind:'task',name:'Kickoff',durationDays:1,owner:'lead'}],intakeForms:[{title:'Changed future intake',questions:['New question'],fileLabel:'New file',everyDays:1,offsetDays:2}],reason:'Future projects only'});assert.deepEqual(await current(fromTemplate[0].id),templateBefore,'Template evolution never rewrites an existing request')
   await cmd('client:revoke-project',{...grant,reason:'Sponsor revoked'})
   assert.equal((await request(`/api/gauge/intake-files/${file.id}`,recipient.cookie)).status,403);assert.equal((await post(recipient.cookie)).status,403,'Revoked authority also refuses successful replay')

@@ -1,3 +1,4 @@
+import { canReadClientChange } from './scope-review'
 import { intakeSection } from './intake'
 import { hours, money } from './ui-format'
 import { latestBudget } from './budget-caps'
@@ -85,7 +86,10 @@ export async function clientPortalResponse(request:Request,env:Bindings):Promise
   const customFields=[{scope:'clients',recordId:client.id,fields:fields('clients',client)},{scope:'engagements',recordId:project.id,fields:fields('engagements',project)},...tasks.map(t=>({scope:'tasks',recordId:t.id,fields:fields('tasks',t)}))].filter(r=>r.fields.length)
   const currentBudget=latestBudget(budgets,project.id),currentBudgets=currentBudget?[currentBudget]:[]
   const document:Value={burn,remainingBudgets:grant.share_remaining?currentBudgets.map(r=>({id:r.id,currency:r.value.currency,amountMinor:unknownHourlyValues?null:r.value.amountMinor-knownHourlyValueMinor})):[],customFields,id:project.id,name:project.value.name,client:client.value.name,scope:project.value.scope,tasks:tasks.map(r=>({id:r.id,...pick(r.value,['name','status','from','to'])})),milestones:milestones.map(r=>({id:r.id,...pick(r.value,['name','due','status']),reviews:(r.value.delivery?.clientReviews??[]).filter((v:Value)=>v.recipientId===session.operator.id).map((v:Value)=>({id:v.id,name:v.name,date:v.date,href:`/app/client-milestones/${r.id}/${v.id}`}))})),budgets:grant.share_budget?currentBudgets.map(r=>({id:r.id,revision:r.revision,...pick(r.value,['amountMinor','currency','effortSeconds','mode'])})):[],budgetHistory:grant.share_budget?budgets.filter(r=>r.value.status==='approved'&&r.id!==currentBudget?.id).map(r=>({id:r.id,revision:r.revision,...pick(r.value,['amountMinor','currency','effortSeconds','mode'])})):[],statements}
-  const changes=(await all(env,'projectScenarios')).filter(r=>r.value.changeOrder&&r.value.engagementId===project.id&&r.value.clientReview?.recipientId===session.operator.id).map(r=>({id:r.id,version:r.value.number,description:r.value.clientReview.description,href:`/app/client-changes/${r.id}/${r.value.clientReview.id}`}))
+  const changes:Value[]=[]
+  for(const row of (await all(env,'projectScenarios')).filter(r=>r.value.changeOrder&&r.value.engagementId===project.id&&r.value.clientReview?.recipientId===session.operator.id)) {
+   if(await canReadClientChange(env,a,row))changes.push({id:row.id,version:row.value.number,description:row.value.clientReview.description,href:`/app/client-changes/${row.id}/${row.value.clientReview.id}`})
+  }
   document.changes=changes
   await fence(env,a)
   if(match[1]!=='app')return Response.json(document,{headers})

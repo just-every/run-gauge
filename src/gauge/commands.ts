@@ -72,7 +72,7 @@ import { fxCommand, consolidate } from './fx-rates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
  need(!a.clientChange||action==='change:respond','Client change review permits only its exact response',403)
- need(!a.clientPortal||action==='intake:submit','Project recipients may only submit requested intake',403)
+ need(!a.clientPortal||action==='intake:submit'||(!!a.clientChange&&action==='change:respond'),'Project recipients may only submit requested intake',403)
  need(!a.clientMilestone||action==='milestone:respond','Client review authorizes only an exact delivery response',403)
  need(a.role!=='resource-manager'||resourceActions.includes(action),'Resource managers plan permitted staffing only',403)
  need(a.role!=='accountant','Accountants have read-only access',403)

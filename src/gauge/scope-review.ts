@@ -17,7 +17,7 @@ async function current(env:Bindings,row:Row,tx?:Transaction,inspect=false) {
 const pick=(v:Value,keys:string[])=>Object.fromEntries(keys.filter(k=>v[k]!==undefined).map(k=>[k,v[k]]))
 /** The agency releases a closed customer projection, never its private financial comparison. */
 export function changeDocument(row:Row):Value {
- const v=row.value,terms=(t:Value|null)=>t?{currency:v.baseline.projects.find((p:Value)=>p.engagementId===v.engagementId)?.currency,...pick(t.value??t,['currency','mode','amountMinor','effortSeconds','roundingSeconds','expenseBudgetMinor','expenseDate'])}:null
+ const v=row.value,terms=(t:Value|null)=>t?{currency:v.baseline.projects.find((p:Value)=>p.engagementId===v.engagementId)?.currency,...pick(t.value??t,['currency','mode','amountMinor','effortSeconds','roundingSeconds','expenseBudgetMinor','expenseDate','notToExceed']),phases:(t.value??t).phases?.map((p:Value)=>pick(p,['key','name','service','mode','hourBudgetSeconds','feeBudgetMinor','expenseBudgetMinor']))??[]}:null
  const dates=(set:Value)=>set.dates.filter((p:Value)=>p.engagementId===v.engagementId).map((p:Value)=>({finish:p.finish,tasks:p.tasks.map((t:Value)=>({...t,name:v.customerNames?.tasks[t.id]??'Deliverable'})),milestones:p.milestones.map((m:Value)=>({...m,name:v.customerNames?.milestones[m.id]??'Milestone'}))}))
  return {engagementId:v.engagementId,changeId:row.id,version:v.number,fingerprint:v.fingerprint,scope:v.scopeDifference,terms:{before:terms(v.termsDifference.before),after:terms(v.termsDifference.after)},dates:{before:dates(v.baseline),after:dates(v.scenario)}}
 }

@@ -1,3 +1,4 @@
+import { assertBudgetTerms } from './catalog'
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Kind, type Row, type Value, need, text, date, workDate } from './model'
@@ -128,6 +129,7 @@ async function applyEffects(a:Actor,tx:Transaction,candidate:Awaited<ReturnType<
    const additions = candidate.effects.filter(p=>p.kind==='staffing'&&p.value.engagementId===effect.source?.id).map(p=>p.value.personId)
    value = {...value,members:[...new Set([...(value.members ?? []),...additions])]}
   }
+  if(effect.kind==='budgets')await assertBudgetTerms(tx.env,tx,data.engagements.find(e=>e.id===value.engagementId)!,value)
   if(acceptance&&effect.kind==='budgets')value={...value,acceptedChange:acceptance}
   const row = await tx.record(effect.kind,value,effect.source,effect.id,acceptance?'change:adopt':'projectScenario:adopt')
   effects.push({kind:effect.kind,sourceId:effect.source?.id ?? null,id:row.id,revision:row.revision})

@@ -1585,7 +1585,7 @@
       "executable": false
     },
     "src/gauge/catalog.ts": {
-      "sha256": "75b5ccf01ca987a9656957d9251a5030ba8ffa59814b78c6e1b30e9310185762",
+      "sha256": "68489fe2f6a7ca0b246ff64c796c506795d108b264cb76d9253b02edb732a77b",
       "executable": false
     },
     "src/gauge/client-portal.ts": {
@@ -1905,7 +1905,7 @@
       "executable": false
     },
     "src/gauge/project-scenario-scope.ts": {
-      "sha256": "2ffc41180d9c3eab4452531694aa89cdf81178d9769ec5da7928e6922a2cd744",
+      "sha256": "76eb004fec5d89995a60373fbbff65e2df908b156dc57346e23e547550ad1b7f",
       "executable": false
     },
     "src/gauge/project-scenario-staffing.ts": {
@@ -1913,7 +1913,7 @@
       "executable": false
     },
     "src/gauge/project-scenarios.ts": {
-      "sha256": "c9a80d8a98ddf71863702e327580dd11cf808cfa97badee42098dd5c2e2bc73e",
+      "sha256": "01f87fcd275ffe3fcda2874e4aca01ec218580b5699c4ed9721cce0142aea0ca",
       "executable": false
     },
     "src/gauge/proposal-sources.ts": {
@@ -2169,11 +2169,11 @@
       "executable": false
     },
     "src/gauge/scope-changes.ts": {
-      "sha256": "778b27e47702a95f981e477f6e5c4f7a4b8ee6c5b78ee626b9f3767b907fab1a",
+      "sha256": "c94bcf1bef245f00c16426263eba1d3f2486c947b1dbd376aef027f8f7e974d9",
       "executable": false
     },
     "src/gauge/scope-review.ts": {
-      "sha256": "2bc3564648efc39126a8fc2c86f8d1db8093abf064758720d920e2aefc16be41",
+      "sha256": "95095315ba8ce13470b323953f313bf5b4146e0b7a406a0f6beb9d54ea3d4d12",
       "executable": false
     },
     "src/gauge/scoro-common.ts": {
@@ -2297,7 +2297,7 @@
       "executable": false
     },
     "src/gauge/ui-client-change.ts": {
-      "sha256": "40ab0155058d1b440a2cb492c28f369bb27a3d71e371f639cf6bde75e1046fbb",
+      "sha256": "0a4017dde64243c5ef5a8902b9eafe57c6f6e3987be5580ede61bfd084b6790d",
       "executable": false
     },
     "src/gauge/ui-client-delivery.ts": {
@@ -4629,7 +4629,7 @@
       "executable": false
     },
     "tests/gauge-project-scenario-scope.mjs": {
-      "sha256": "09e837c17d5913f9fb4dcd347751dd8df138233b24381daeb4ba8cc2107d3312",
+      "sha256": "b8d115ba0ae76ee28a18a427bd8e1b3040866b477e717699ede52faaa8980efc",
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {

@@ -232,7 +232,7 @@ export async function acceptedChangeJourney(h,browser){
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  try{
   await context.addCookies(recipient.cookie.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
-  for(const width of [1440,390]){
+  for(const width of [390,1440]){
    await page.setViewportSize({width,height:1000});await page.goto(`${h.origin}/app/client-projects/${project.id}`)
    await page.getByRole('link',{name:/Review change/}).click();assert.equal(new URL(page.url()).pathname,pagePath(row))
    if(width===1440){assert.match(await page.locator('main').innerText(),/USD 2,600.00|USD 2600.00|\$2,600.00/);assert.match(await page.locator('main').innerText(),/Original delivery plus prototype/)}
@@ -250,7 +250,7 @@ export async function acceptedChangeJourney(h,browser){
   assert.equal((await response(acceptedRow,{...exact,consent:false})).status,400)
   assert.equal((await response(acceptedRow,{...exact,signatureName:''})).status,400)
   assert.equal((await response(acceptedRow,{...exact,revision:'stale'})).status,409)
-  for(const width of [1440,390]){
+  for(const width of [390,1440]){
    await page.setViewportSize({width,height:1000});await page.goto(h.origin+pagePath(acceptedRow))
    assert.equal((await page.locator('[name=revision]').inputValue()),acceptedRow.revision)
    if(process.env.GAUGE_SCENARIO_SHOTS)await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/client-change-accept-${width}.png`,fullPage:true})

@@ -76,9 +76,9 @@ try {
   for (const width of [1440, 390]) {
    await page.setViewportSize({ width, height: 1000 }); await page.evaluate(() => document.fonts.ready)
    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name} fits ${width}`)
-   await page.screenshot({ path: `${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`, fullPage: true })
+   await page.screenshot({ path: `${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`, fullPage: true, mask: [page.locator('[name=createdKey]')] })
    const focus=page.locator(name.startsWith('utilization-key')?'#api-keys':name.startsWith('internal')?'form:has(input[value="save:engagements"])':'#utilization')
-   await focus.scrollIntoViewIfNeeded(); await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`})
+   await focus.scrollIntoViewIfNeeded(); await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`,mask:[page.locator('[name=createdKey]')]})
   }
  }
  await page.goto(h.origin + '/app/engagements')

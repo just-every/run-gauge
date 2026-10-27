@@ -323,7 +323,10 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  const longGrant=await h.db.prepare('SELECT expires_at FROM g_client_portal_authority WHERE id=?').bind(grant.id).first()
  assert(longGrant.expires_at>Date.now()+360*86400000&&longGrant.expires_at<=Date.now()+366*86400000,'Twelve calendar months, including leap years')
  await cmd('client:renew-project',{...grant,months:12,reason:'Only owner renewal'},financePerson.cookie,403)
+ await h.db.prepare('UPDATE g_client_portal_authority SET expires_at=0 WHERE id=?').bind(grant.id).run()
  grant=await cmd('client:renew-project',{...grant,months:12,reason:'Continue standing sponsor relationship'})
+ const renewedExpiry=await h.db.prepare('SELECT expires_at FROM g_client_portal_authority WHERE id=?').bind(grant.id).first()
+ assert(renewedExpiry.expires_at>Date.now()+360*86400000&&renewedExpiry.expires_at<=Date.now()+366*86400000,'Renewal replaces expired access with twelve calendar months')
 
  const replacement=await cmd('client:invite-project',invite)
  await cmd('client:revoke-project',{...grant,reason:'An older invitation cannot alter its replacement'},h.owner,409)
@@ -409,6 +412,15 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  assert.equal(valueStatement.sources.find(t=>t.id===valueApproved.id).revision,valueApproved.revision)
  assert.deepEqual(richDocument.burn,{approvedSeconds:12600,pendingSeconds:10800,hourlyValueMinor:79186,knownHourlyValueMinor:79186,unknownHourlyValues:0,currency:'USD'})
  assert.deepEqual(richDocument.remainingBudgets,[{id:richDocument.budgets[0].id,currency:'USD',amountMinor:420814}])
+ // A change order replaces the current budget; earlier approved terms are history.
+ const priorBudget=richDocument.budgets[0]
+ const change=await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:800000,effortSeconds:144000,roundingSeconds:60,reason:'Approved expanded scope'})
+ await cmd('budget:approve',change)
+ const changed=await read()
+ assert.deepEqual(changed.budgets.map(b=>[b.id,b.amountMinor]),[[change.id,800000]],'Only current approved terms are shared as the budget')
+ assert.deepEqual(changed.remainingBudgets,[{id:change.id,currency:'USD',amountMinor:720814}],'Remaining budget deducts burn from current terms once')
+ assert.deepEqual(changed.budgetHistory,[priorBudget],'Superseded approved terms remain labelled history')
+
  assert.deepEqual(flatFields(richDocument).map(f=>[f.id,f.value]).sort(),[[publicField.id,'Ready for client'],[historical.id,'Explicitly published value'],[currencyField.id,678900],[yen.id,1234],[dinar.id,1234],[taskField.id,'Approve design'],[clientField.id,'Sponsor reference']].sort())
  assert.equal(flatFields(richDocument).find(f=>f.id===historical.id).valueRevision,broadened.revision)
  let unknown=await cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'synthetic-gauge-unpriced',timezone:'UTC',start:'2026-09-06T09:00:00Z',end:'2026-09-06T10:00:00Z',notes:'Private unpriced work',billable:true},staff.cookie)
@@ -423,6 +435,7 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
   selected=await cmd('client:share-money',{...selected,...noMoney,[detail]:'yes',reason:`Selected detail ${detail}`},financePerson.cookie)
   const projection=await read()
   assert.equal(projection.budgets.length,detail==='shareBudget'?1:0)
+  assert.equal(projection.budgetHistory.length,detail==='shareBudget'?1:0,'Historical money follows explicit budget sharing')
   assert.equal(projection.burn!==null,detail==='shareBurn')
   assert.equal(projection.remainingBudgets.length,detail==='shareRemaining'?1:0)
   assert.equal(projection.statements.some(b=>b.unit==='value'),detail==='shareValue')
@@ -452,9 +465,9 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await login(alice.cookie)
    await page.goto(`${h.origin}/app/client-projects/${project.id}`)
-   if(width===1440){assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Approved hourly work value Unknown/);assert.match(await page.locator('main').innerText(),/2026-08-01 to 2026-08-31/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Yen allowance · ¥1,234/);assert.match(await page.locator('main').innerText(),/Dinar allowance · BHD\s*1\.234/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)}
+   if(width===1440){assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Earlier approved budgets/);await page.getByText('Earlier approved budgets',{exact:true}).click();assert.match(await page.locator('main').innerText(),/Superseded · \$5,000\.00/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Approved hourly work value Unknown/);assert.match(await page.locator('main').innerText(),/2026-08-01 to 2026-08-31/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Yen allowance · ¥1,234/);assert.match(await page.locator('main').innerText(),/Dinar allowance · BHD\s*1\.234/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)}
    for(const control of await page.getByText('Sources and rule versions',{exact:true}).all())await control.click()
-   if(width===1440){assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client project fits ${width}`)}
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client project fits ${width}`)
    if(width===1440)assert((await page.locator('main').boundingBox()).width>800,'Desktop portal uses the workspace content column')
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-${width}.png`,fullPage:true})
    await page.goto(`${h.origin}/app/client-projects`)
@@ -468,7 +481,7 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
    await login(h.owner);await page.goto(`${h.origin}/app/engagements?edit=${project.id}`)
    if(width===1440){assert.equal(await page.getByRole('button',{name:'Invite to project',exact:true}).count(),1)}
    if(width===1440){const navigation=page.locator('nav .g-menu a').first();await navigation.focus();assert.equal(await navigation.evaluate(el=>getComputedStyle(el,'::after').opacity),'1','Navigation tooltip appears on keyboard focus');assert((await navigation.getAttribute('data-tooltip')).split(' ').length>=2)}
-   if(width===1440){assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client access controls fit ${width}`)}
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client access controls fit ${width}`)
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-access-${width}.png`,fullPage:true})
   }
  }finally{await context.close()}
@@ -489,7 +502,7 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  const accepted=(await state()).data.milestones.find(m=>m.id===portalMilestone.id)
  assert.deepEqual(accepted.value.delivery.deliveries[0],rejection);assert.equal(accepted.value.delivery.issues.at(-1).status,'resolved')
  assert.deepEqual(accepted.value.delivery.decisions.map(d=>[d.outcome,d.reason]),[['rejected','Please finish the final illustration'],['accepted','Final illustration now complete']])
- assert.equal((await state()).data.packets.filter(p=>p.value.engagementId===project.id).length,0);assert.equal((await state()).data.invoices.filter(p=>p.value.engagementId===project.id).length,0)
+ assert.equal((await state()).data.packets.filter(p=>p.value.engagementId===reviewProject.id).length,0);assert.equal((await state()).data.invoices.filter(p=>p.value.engagementId===reviewProject.id).length,0)
  await cmd('packet:create',{engagementId:reviewProject.id,title:'Acceptance still requires finance',sources:[`milestones:${portalMilestone.id}`]},financePerson.cookie,409)
  await cmd('milestone:authorize',accepted,financePerson.cookie)
  await cmd('client:revoke-project',{...reviewInvitation,reason:'End project-based review access'})
@@ -517,8 +530,9 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
   assert.equal(await renewal.locator('[name=contact]').count(),0,'Renewal selects the existing recipient')
   await renewal.getByLabel('Renewal duration in months').fill('12');await renewal.getByLabel('Client access reason').fill('Current owner renews stopped access')
   const before=h.providerRequests.length;await renewal.getByRole('button',{name:'Renew project access',exact:true}).click();assert.equal(h.providerRequests.length,before)
-  const current=await h.db.prepare('SELECT id,revision,owner_id FROM g_client_portal_authority WHERE id=?').bind(stopped.id).first()
+  const current=await h.db.prepare('SELECT id,revision,owner_id,expires_at FROM g_client_portal_authority WHERE id=?').bind(stopped.id).first()
   assert.equal(current.owner_id,(await(await request('/auth/session',h.owner)).json()).operator.id);assert.notEqual(current.revision,stopped.revision)
+  assert(current.expires_at>Date.now()+360*86400000&&current.expires_at<=Date.now()+366*86400000,'Owner renewal grants twelve calendar months after the stop')
   stopped={id:current.id,revision:current.revision}
  }finally{await ownerContext.close()}
  assert.equal((await request(path,alice.cookie)).status,200)

@@ -19,18 +19,18 @@
 .g-card h3 a:hover { text-decoration: underline; }
 .g-lede { max-width: 82ch; color: var(--g-slate); font-size: 14px; }
 .g-note, .g-footnote { color: var(--g-slate); font-size: 13px; }
-.g-sub { display: block; color: var(--g-slate); font-size: 12px; }
+.g-sub { display: block; color: var(--g-slate); font-size: 13px; }
 .g-summary { font-size: 15px; }
 .g-evidence { color: var(--g-slate); font-size: 13px; }
 .g-empty { color: var(--g-slate); font-size: 14px; }
 .g-alert { padding: 11px 16px; border: 1px solid color-mix(in srgb, var(--g-claret) 40%, transparent); border-radius: var(--g-radius-input); background: var(--g-claret-wash); color: #8E2526; font-size: 14px; font-weight: 600; }
 .g-saved { align-self: flex-start; padding: 5px 14px; border-radius: 999px; background: var(--g-mint-wash); color: #17785F; font-size: 13px; font-weight: 600; }
-.g-tag { color: var(--g-slate); font-size: 12px; font-weight: 400; white-space: nowrap; }
+.g-tag { color: var(--g-slate); font-size: 13px; font-weight: 400; white-space: nowrap; }
 .g-app td.g-num .g-tag { display: block; }
 .g-brief { display: none; }
 
 /* Chips: approved in green, warnings in claret on its wash, the rest quiet. */
-.g-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; background: var(--g-fill); color: var(--g-slate); font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.g-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; background: var(--g-fill); color: var(--g-slate); font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; }
 .g-chip--approved { background: var(--g-mint-wash); color: #17785F; }
 .g-chip--warn { background: var(--g-claret-wash); color: #9B2C2D; }
 
@@ -119,7 +119,7 @@
 .g-table { overflow-x: auto; }
 .g-app table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .g-app caption { text-align: left; font-weight: var(--g-weight-strong); padding: 0 0 8px; }
-.g-app th { padding: 8px 10px; text-align: left; color: var(--g-slate); font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--g-hair); white-space: nowrap; }
+.g-app th { padding: 8px 10px; text-align: left; color: var(--g-slate); font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--g-hair); white-space: nowrap; }
 .g-app tbody th { font-size: 14px; color: var(--rer-text); font-weight: 500; white-space: normal; }
 .g-app td { padding: 10px; border-bottom: 1px solid var(--g-hair); vertical-align: top; white-space: nowrap; }
 .g-app td.g-wrap, .g-app td.g-actions-cell { white-space: normal; }
@@ -223,7 +223,7 @@
   .g-app .g-table tr { padding: 10px 0; border-bottom: 1px solid var(--g-hair); }
   .g-app .g-table tbody tr:last-child { border-bottom: 0; }
   .g-app .g-table td { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding: 3px 0; border: 0; text-align: left; white-space: normal; min-width: 0; }
-  .g-app .g-table td::before { content: attr(data-label); flex: 0 0 36%; color: var(--g-slate); font-size: 12px; font-weight: 600; }
+  .g-app .g-table td::before { content: attr(data-label); flex: 0 0 36%; color: var(--g-slate); font-size: 13px; font-weight: 600; }
   .g-app .g-table td > :not(.g-sub) { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
   .g-app .g-table td > .g-sub { flex-basis: 100%; padding-left: calc(36% + 12px); }
   .g-app .g-table td.g-actions-cell { display: block; padding-top: 10px; }

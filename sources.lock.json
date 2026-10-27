@@ -454,7 +454,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "80c966c9cca7ce71303b0c3fe68854539f5f064a7b406937e39bdb9bed0515c8",
+      "sha256": "27f15e1a4d37f948c4539628968c20eb7bc2e7cb69ea84aeff8f5f271a8c144d",
       "executable": false
     },
     "DEMO.md": {
@@ -4642,7 +4642,7 @@
       "executable": false
     },
     "tests/gauge-scope-review.mjs": {
-      "sha256": "5dc6b86db002bae8ffe4587b1b9b353a904b861a08c234ec93a6de14c7800a6a",
+      "sha256": "7ed9a2feb9501ca4c49c5138d90f0c18f1dd0e11ae8961abfc0f81ae80cbce4e",
       "executable": false
     },
     "tests/gauge-scoro.mjs": {

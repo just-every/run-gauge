@@ -418,7 +418,9 @@ The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 20
 
 ## Status
 
-Status inventory reconciled on 27 October 2026. Evidence citations describe their named public-door assertions; historical policy rulings do not establish fresh execution or completion. SALES-005 remains partial pending its named commercial, signature and adoption proofs.
+Judged from the code and tests at commit `8949e0f9ee3a85f5f7d15076fd07271d80899f7c` (27 October 2026).
+
+This source pin identifies the product and test bytes for the current evidence; later status metadata does not change those bytes. Historical policy rulings do not establish fresh execution or completion. SALES-005 remains partial pending its named commercial, signature and adoption proofs.
 
 The named current public-door evidence below extends that prior audit; status totals include those completed assertions.
 

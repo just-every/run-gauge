@@ -13,6 +13,7 @@ export async function scopeReviewJourney(h,{change,reviewer,person,read,input,pr
   roles.push(member)
  }
  const current=async()=> (await read()).data.projectScenarios.find(r=>r.id===change.id)
+ for(const member of [owner,...roles.map(r=>r.cookie),external.cookie])await cmd('change:respond',{...change,outcome:'accepted',reason:'A native command cannot impersonate the released recipient'},member,403)
  const releaseInput=async(extra={})=>({...await current(),contact:'synthetic-gauge-8101@example.test',days:7,description:'Review the proposed extra prototype. Commercial agreement and signature remain separate.',reason:'Request unsigned feedback',...extra})
  for(const member of [...roles,external]) {
   await cmd('change:release-review',await releaseInput(),member.cookie,403)

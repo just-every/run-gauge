@@ -40,7 +40,7 @@ const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-c
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
  if(path==='/api/gauge/stripe/webhook')return stripeWebhook(request,runtimeBindings(original))
- if(path.startsWith('/app/client-projects/')||path.startsWith('/api/gauge/client-projects/'))return clientPortalResponse(request,runtimeBindings(original))
+ if(path==='/app/client-projects'||path==='/api/gauge/client-projects'||path.startsWith('/app/client-projects/')||path.startsWith('/api/gauge/client-projects/'))return clientPortalResponse(request,runtimeBindings(original))
  if(path.startsWith('/app/client-milestones/'))return clientDeliveryResponse(request,runtimeBindings(original))
  if(path.startsWith('/api/gauge/client-milestones/'))return milestoneClientResponse(request,runtimeBindings(original))
  // Resolve complete declared paths before admitting a command or reading its body.

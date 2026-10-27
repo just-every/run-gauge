@@ -446,7 +446,23 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
 export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financePerson}) {
  const {state,request}=h
  const allMoney=Object.fromEntries(['shareBudget','shareBurn','shareRemaining','shareValue','shareFields'].map(k=>[k,'yes'])),noMoney=Object.fromEntries(Object.keys(allMoney).map(k=>[k,'no']))
- const cmd=async(action,input={},cookie=h.owner,expected=200)=>{const before=h.providerRequests.length,result=await h.cmd(action,input,cookie,expected);if(action.startsWith('client:'))assert.equal(h.providerRequests.length,before,'Client invitation, renewal, sharing and revocation send nothing');return result}
+ const cmd=async(action,input={},cookie=h.owner,expected=200)=>{
+  const key=input.key??randomUUID(),before=h.providerRequests.length,result=await h.cmd(action,{...input,key},cookie,expected)
+  if(action.startsWith('client:')){
+   assert.equal(h.providerRequests.length,before,'Client invitation, renewal, sharing and revocation send nothing')
+   if(expected===200){
+    const entries=(await h.db.prepare('SELECT actor,request_key,action,kind,record_id,data FROM g_audit WHERE request_key=?').bind(key).all()).results
+    assert.equal(entries.length,1,'Each successful client command records exactly one complete business audit entry')
+    const entry=entries[0],session=await(await request('/auth/session',cookie)).json(),data=JSON.parse(entry.data)
+    assert.equal(entry.actor,session.operator.id);assert.equal(entry.request_key,key);assert.equal(entry.action,action);assert.equal(entry.kind,'engagements')
+    assert.equal(data.id,result.id);assert.equal(data.revision,result.revision);assert.equal(data.reason,input.reason)
+    if(action==='client:invite-project'){assert.equal(entry.record_id,input.engagementId);assert.equal(data.contact,input.contact.toLowerCase());assert.equal(data.shareMoney,false)}
+    if(action==='client:invite-project'||action==='client:renew-project')assert.equal(data.expiresAt,(await h.db.prepare('SELECT expires_at FROM g_client_portal_authority WHERE id=?').bind(result.id).first()).expires_at)
+    if(action==='client:share-money')assert.deepEqual(Object.fromEntries(Object.keys(allMoney).map(k=>[k,data[k]])),Object.fromEntries(Object.keys(allMoney).map(k=>[k,input[k]==='yes'])))
+   }
+  }
+  return result
+ }
  const alice=await h.invite('synthetic-gauge-91401'),bob=await h.invite('synthetic-gauge-91402')
  const signInAlice=async()=>{
   assert.equal((await h.post('/auth/magic-link',{email:'synthetic-gauge-91401@example.test'})).status,202)
@@ -626,6 +642,7 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
    if(width===1440){assert.deepEqual((await page.locator('main a').allTextContents()).sort(),['synthetic-gauge-91403','synthetic-gauge-portal-handover'].sort())}
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-list-${width}.png`,fullPage:true})
    await page.goto(`${h.origin}/app/client-projects/${reviewProject.id}`)
+   if(width===1440)assert.equal(await page.getByRole('link',{name:'Review Portal handover',exact:false}).count(),1,'Exactly one released delivery opens from its invited project')
    await page.getByRole('link',{name:'Review Portal handover',exact:false}).click()
    if(width===1440){await page.getByLabel('Your decision').selectOption('rejected');await page.getByLabel('Decision reason').fill('Please finish the final illustration');await page.getByRole('button',{name:'Submit decision',exact:true}).click()}
    if(width===1440){assert.match(await page.locator('main').innerText(),/Response saved: rejected/)}
@@ -751,6 +768,8 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  await h.db.prepare('UPDATE oa_operators SET email=? WHERE id=?').bind(invite.contact,alice.id).run()
  await h.db.prepare("UPDATE oa_operators SET role='owner' WHERE id=?").bind(alice.id).run()
  assert.equal((await request(path,alice.cookie)).status,401,'Changed recipient role invalidates its prior native session')
+ await signInAlice()
+ assert.equal((await request(path,alice.cookie)).status,403,'A fresh owner session cannot use its former recipient invitation')
  await h.db.prepare("UPDATE oa_operators SET role='member' WHERE id=?").bind(alice.id).run()
  await signInAlice()
  assert.equal((await request(path,alice.cookie)).status,200)

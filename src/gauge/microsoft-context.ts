@@ -2,7 +2,7 @@ import { type Row, type Value, need } from './model'
 import { sha256 } from '../modules/import-kit/src/d1/index'
 
 export const graphId = (value: unknown, label: string): string => {
- need(typeof value === 'string' && /^[A-Za-z0-9_=+@.~-]{1,512}$/.test(value), `Use an opaque Microsoft ${label}`)
+ need(typeof value === 'string' && /^[A-Za-z0-9_=+\/@.~-]{1,512}$/.test(value) && value!=='.' && value!=='..', `Use an opaque Microsoft ${label}`)
  return value
 }
 const label = (value: unknown, max: number) => typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, max) : ''

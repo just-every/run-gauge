@@ -61,7 +61,7 @@ export async function microsoftJourney(browser){
   data=(await state()).data;assert.equal(data.graphSelections.length,1);let s=data.graphSelections[0];assert.equal(s.value.personId,person.id);assert.deepEqual(s.value.scopes,{calendar:'active',mail:'active'})
   const latest=async()=>{s=(await state()).data.graphSelections.find(r=>r.id===s.id);return {id:s.id,revision:s.revision}}
   const sync=async scope=>cmd('graph:sync',{...await latest(),scope})
-  edge.events=[event('synthetic-gauge-10','Harbor planning'),event('synthetic-gauge-11','synthetic-private-title',{sensitivity:'private',body:{content:'synthetic-private-body'},attendees:[{emailAddress:{address:'synthetic-private-person'}}]})]
+  edge.events=[event('synthetic-gauge-10','Harbor planning'),event('synthetic-gauge-11+/=','synthetic-private-title',{sensitivity:'private',body:{content:'synthetic-private-body'},attendees:[{emailAddress:{address:'synthetic-private-person'}}]})]
   await page.goto(h.origin+'/app/access')
   await Promise.all([page.waitForResponse(r=>r.url()===h.origin+'/app/action'&&r.request().method()==='POST'),form('graph:sync').filter({has:page.locator('input[name="scope"][value="calendar"]')}).getByRole('button',{name:'Read calendar',exact:true}).click()])
   data=(await state()).data;assert.equal(data.graphEvidence.length,2);assert.deepEqual(data.graphEvidence.map(r=>r.value.subject).sort(),['Harbor planning','Private event'])
@@ -136,7 +136,7 @@ export async function microsoftJourney(browser){
   edge.roles=edge.roles.filter(r=>r!=='Mail.Read');before=edge.requests.filter(r=>r.kind==='graph').length
   const revoked=await sync('mail');assert.equal(revoked.status,'exception');assert.equal(revoked.exceptionClass,'permission-revoked');assert.equal(edge.requests.filter(r=>r.kind==='graph').length,before)
   before=edge.requests.length;await cmd('graph:sync',{...await latest(),scope:'mail'},h.owner,409);assert.equal(edge.requests.length,before,'A stopped scope no longer requests tokens or data')
-  edge.events=[edge.events[0]];assert.equal((await sync('calendar')).status,'read');assert.equal((await state()).data.graphEvidence.find(r=>r.value.sourceId==='synthetic-gauge-11').value.removed,true)
+  edge.events=[edge.events[0]];assert.equal((await sync('calendar')).status,'read');assert.equal((await state()).data.graphEvidence.find(r=>r.value.sourceId==='synthetic-gauge-11+/=').value.removed,true)
   // An actual provider denial is visible and freezes collection too.
   edge.fail=403;assert.equal((await sync('calendar')).exceptionClass,'permission-revoked');edge.fail=null
   before=edge.requests.length;await cmd('graph:sync',{...await latest(),scope:'calendar'},h.owner,409);assert.equal(edge.requests.length,before)

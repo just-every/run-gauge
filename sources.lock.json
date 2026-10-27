@@ -1829,7 +1829,7 @@
       "executable": false
     },
     "src/gauge/microsoft-context.ts": {
-      "sha256": "f2950d77ec8f1a8bbbead84956654dc9bbdb2764df7f1bf3cfb5afd85093342d",
+      "sha256": "a23f7066dcf78a5d55a629f87305111cc7e52be7d49625db952f2dafbbdfe07f",
       "executable": false
     },
     "src/gauge/microsoft-replies.ts": {
@@ -4429,7 +4429,7 @@
       "executable": false
     },
     "tests/fixtures/microsoft-journey.mjs": {
-      "sha256": "2ca7d5622dd1c22b1bb9ae5da2703bdd8b915b9db349eeaefd35442ef5efcd28",
+      "sha256": "6470c84954d423f5dc12b5210d1087a4f3af7a368f7b78e99260c4daa7dccc31",
       "executable": false
     },
     "tests/fixtures/productive.mjs": {
@@ -4737,7 +4737,7 @@
       "executable": false
     },
     "tests/live/microsoft.mjs": {
-      "sha256": "1633f7274d4654925869c610ba102c6469ac5aa6fb8770c7b64fcc8012b71958",
+      "sha256": "2ac6ca628b30abbfaf6fc1089228dc33a855e3066386e7f915a3c31ae10ac629",
       "executable": false
     },
     "tests/runtime.mjs": {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {execFileSync} from 'node:child_process'
 import {harness} from '../gauge-harness.mjs'
 
 // Held credentials enter only through the named-key injector, never through arguments or files.
@@ -35,5 +36,5 @@ try{
  const beforeRevoked=touched.length;await h.cmd('graph:inspect',{connectionId:connection.id},h.owner,409);assert.equal(touched.length,beforeRevoked,'Revoked custody makes no live token or directory call')
  const serialized=await(await h.request('/api/gauge/audit/export',h.owner)).text()+JSON.stringify(h.logs)
  assert(!serialized.includes(secret),'Live credential never enters logs or the business audit')
- console.log(JSON.stringify({proof:'CONNECT-004 live app-only tenant through production commands',head:process.env.GAUGE_PROOF_HEAD??null,tokenAcquired:touched.some(r=>r.resource==='token'&&r.status===200),directoryUsers:observation.value.directoryUsers,licensedUsers:observation.value.licensedUsers,roles:observation.value.roles,unlicensedRefused,scopeUnavailable,sharedMailboxRefusedBeforeNetwork:true,revocationStopsNetwork:true,requests:touched,remaining:'A licensed mailbox is required for a live changed calendar event and exact invoice reply; shared mailbox and outbound message interoperability remain unimplemented'}))
+ console.log(JSON.stringify({proof:'CONNECT-004 live app-only tenant through production commands',head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),tokenAcquired:touched.some(r=>r.resource==='token'&&r.status===200),directoryUsers:observation.value.directoryUsers,licensedUsers:observation.value.licensedUsers,roles:observation.value.roles,unlicensedRefused,scopeUnavailable,sharedMailboxRefusedBeforeNetwork:true,revocationStopsNetwork:true,requests:touched,remaining:'A licensed mailbox is required for a live changed calendar event and exact invoice reply; shared mailbox and outbound message interoperability remain unimplemented'}))
 }finally{await h.dispose()}

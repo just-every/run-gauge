@@ -1,3 +1,4 @@
+import {microsoftJourney} from './fixtures/microsoft-journey.mjs'
 import assert from 'node:assert/strict'
 import {createPublicKey,createVerify,generateKeyPairSync,randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
@@ -160,5 +161,5 @@ export async function githubJourney(browser){
 
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
- try{await githubJourney(browser)}finally{await browser.close()}
+ try{await githubJourney(browser);await microsoftJourney(browser)}finally{await browser.close()}
 }

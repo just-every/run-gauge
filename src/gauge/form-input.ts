@@ -41,6 +41,7 @@ function readCustomForm(form:FormData,input:Value,prefix:string,destination:stri
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
+ if(input.action==='graph:bind-invoice'){const [id,revision]=String(input.selection??'').split('@');input.id=id;input.revision=revision;delete input.selection}
  if(input.action==='template:save'&&form.has('intakeTitle'))input.intakeForms=String(input.intakeTitle).trim()?[{title:input.intakeTitle,questions:input.intakeQuestions,fileLabel:input.intakeFileLabel,offsetDays:input.intakeOffsetDays,everyDays:input.intakeEveryDays,chestUrl:input.intakeChestUrl,blotterUrl:input.intakeBlotterUrl}]:[];if(input.action==='template:save'&&form.has('intakeExtraForms'))input.intakeForms=[...input.intakeForms,...JSON.parse(String(form.get('intakeExtraForms')))]
  if(['kantataAdopt:','floatAdopt:'].some(prefix=>String(input.action).startsWith(prefix))&&typeof input.config==='string')input.config=JSON.parse(input.config||'{}')
  if(form.has('closeInput'))Object.assign(input,JSON.parse(String(form.get('closeInput'))))

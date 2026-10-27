@@ -418,6 +418,8 @@ The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 20
 
 ## Status
 
+Judged from the code and tests at commit `fe207e842d44c6e275c427b889cb542d7144acf7` (27 October 2026).
+
 Historical ct judgment: DELIVERY-006 remained PARTIAL at `47b862d1ce99cf7ed238a4235455404f0fb8b8f7` on 27 October 2026. The current proof patch is a builder claim awaiting fresh independent judgment.
 
 CLIENT-001 implementation and journey bytes at the proof commit are retained unchanged in this metadata update. Local public-door assertions, mutation receipts and browser captures support the candidate; the handoff identifies the final commit, and exact-commit Verify, main equality, Run site and publication scan remain guarded landing gates. Other clauses retain their recorded evidence.

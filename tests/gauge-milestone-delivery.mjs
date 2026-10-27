@@ -502,6 +502,8 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  assert.equal((await h.post('/auth/operator/status',{operatorId:secondOwner.id,status:'inactive'},h.owner)).status,200)
  assert.equal((await request(path,alice.cookie)).status,403);assert.deepEqual(await projects(alice.cookie),[])
  assert.match(await(await request(`/app/engagements?edit=${project.id}`,h.owner)).text(),/Stopped: releasing owner lost owner authority/)
+ assert.equal((await h.post('/auth/operator/status',{operatorId:secondOwner.id,status:'active'},h.owner)).status,200)
+ assert.equal((await request(path,alice.cookie)).status,403,'Reactivating a former owner cannot revive an old invitation')
  const ownerContext=await browser.newContext({ignoreHTTPSErrors:true}),ownerPage=await ownerContext.newPage()
  try{
   await ownerContext.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))

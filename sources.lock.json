@@ -423,7 +423,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "62c54c08e39d07f8a127e69b58fa90645e2e0b0524ca18bed32c12e80c531403",
+      "sha256": "f23590dda1c5b6af22099d9e45f3771f7538fdb25d0f91cff64b288732a6cfe5",
       "executable": false
     },
     ".gitignore": {
@@ -459,7 +459,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3e6f983b20162d5e61df17458978c658664e85630d86d75cf86a1e7946b9f83b",
+      "sha256": "d28d9445996721ef0976116f12ff2570f3134ffdc97635cf7b1a244e8109a330",
       "executable": false
     },
     "DEMO.md": {
@@ -1307,7 +1307,7 @@
       "executable": false
     },
     "scripts/gauge-tests.mjs": {
-      "sha256": "2eeceb896707dec281c9ff4a00d2a1f1ef490c2e866464b2d1cf40425653a44e",
+      "sha256": "1e074c4e60fc718c40774d2ef9e8b709b24930843fb116a533445300de2cecaa",
       "executable": false
     },
     "scripts/install.mjs": {

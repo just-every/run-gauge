@@ -109,19 +109,17 @@ const suites = [
   "tests/gauge-forecast.mjs"
  ]
 ]
+// Keep the restore journey apart from the long import and commercial suites.
 const groups = [
  [
-  "gauge.mjs",
-  "gauge-currency.mjs",
   "gauge-harvest-history.mjs",
   "gauge-rate-cards.mjs",
-  "gauge-pipeline.mjs"
+  "gauge-pipeline.mjs",
+  "gauge-scoro.mjs"
  ],
  [
   "gauge-float.mjs",
-  "gauge-scoro.mjs",
   "gauge-cash-forecast.mjs",
-  "gauge-clients.mjs",
   "gauge-expected-cash.mjs",
   "gauge-forecast.mjs"
  ],
@@ -131,14 +129,14 @@ const groups = [
   "gauge-finance-forecast.mjs",
   "gauge-project-scenarios.mjs",
   "gauge-handoffs.mjs",
-  "gauge-github.mjs"
+  "gauge-github.mjs",
+  "gauge-currency.mjs"
  ],
  [
   "gauge-rocketlane.mjs",
   "gauge-retainers.mjs",
   "gauge-timesheets.mjs",
-  "gauge-tasks.mjs",
-  "gauge-audit.mjs"
+  "gauge-tasks.mjs"
  ],
  [
   "gauge-productive.mjs",
@@ -148,6 +146,11 @@ const groups = [
   "gauge-utilization.mjs",
   "gauge-resources.mjs",
   "gauge-schedule.mjs"
+ ],
+ [
+  "gauge.mjs",
+  "gauge-clients.mjs",
+  "gauge-audit.mjs"
  ]
 ]
 const names=suites.map(s=>basename(s.at(-1))),assigned=groups.flat()

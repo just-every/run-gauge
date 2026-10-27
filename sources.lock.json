@@ -862,6 +862,10 @@
       "sha256": "3d614f898559ae7d16518ceea3329c5ea61a812d391961e56579180438c75150",
       "executable": false
     },
+    "migrations/core/0079_gauge_intake.sql": {
+      "sha256": "ea400c3494be892db41187739b88ec1a4d77e957eada70bf07a43f9e5a7adb3a",
+      "executable": false
+    },
     "MOVE-IN.md": {
       "sha256": "b8baacbb587bdcf9aa6dc0d0c1fb28906929601ad7805c66a72bf8723fa79c5d",
       "executable": false
@@ -1555,7 +1559,7 @@
       "executable": false
     },
     "src/gauge/client-portal.ts": {
-      "sha256": "a95312c341ce623507b0f47eee0561b36929bd896bc5bce5e6a32dcc717bebb6",
+      "sha256": "5614d61563b06a09038f8ff51d7def069493aa34ae9bd2544a25c367d49f2fe0",
       "executable": false
     },
     "src/gauge/clients.ts": {
@@ -1563,7 +1567,7 @@
       "executable": false
     },
     "src/gauge/commands.ts": {
-      "sha256": "70ca51f0151d5a71a37d1ffda50b864fe08158ea4a58aeefcbd8460c164fd307",
+      "sha256": "e09ecf43b67e459d64c925ba44b5ff359391746dc977eee06fe9384e5466d2ee",
       "executable": false
     },
     "src/gauge/commercial-client.ts": {
@@ -1619,7 +1623,7 @@
       "executable": false
     },
     "src/gauge/delivery-templates.ts": {
-      "sha256": "3a9819ec147a6903e97c4549116aa37a6891af84a4a91d3967582d496da7988e",
+      "sha256": "f2976e085e8fc3951ed7ec22a4efd883e1351ad5328f5a4fbcc502d6b82e717a",
       "executable": false
     },
     "src/gauge/demand-forecast.ts": {
@@ -1679,7 +1683,7 @@
       "executable": false
     },
     "src/gauge/form-input.ts": {
-      "sha256": "20cc2c5096fa936d21b73c59aa812421099e5f980b659e646199957862b443ef",
+      "sha256": "adbd072d5bc2b4a7ffaa1448e1ec02adbfef450bacb00616e759c4aeb5611827",
       "executable": false
     },
     "src/gauge/fx-rates.ts": {
@@ -1727,7 +1731,7 @@
       "executable": false
     },
     "src/gauge/http.ts": {
-      "sha256": "3673504ba13384a1a03093100e7042cba7ba0cbd35fc8ad31e9e717c6a03e0f4",
+      "sha256": "49a67a720a8f3e0650ce98e85dd15b0e711916e06c705d659ab4505ede487f85",
       "executable": false
     },
     "src/gauge/import-targets.ts": {
@@ -1736,6 +1740,14 @@
     },
     "src/gauge/imports.ts": {
       "sha256": "2a50f75838b3f0bab8aeaa69d5f9d88a8e2d2bbe47caae60fe739881cd922317",
+      "executable": false
+    },
+    "src/gauge/intake-http.ts": {
+      "sha256": "2af7d85032d2e1f92fa644ce063f46973ca5c89be1b974a035d899ae79896203",
+      "executable": false
+    },
+    "src/gauge/intake.ts": {
+      "sha256": "a0f84ad327a45e41503501418a86c333783c37c2e55d5786e3c91be01fff16a6",
       "executable": false
     },
     "src/gauge/invoice-access.ts": {
@@ -1815,7 +1827,7 @@
       "executable": false
     },
     "src/gauge/model.ts": {
-      "sha256": "deeb50aa259f5d75aa9be28b356ffa8676e3377a7481ab2fcf3f327c88b29a1d",
+      "sha256": "45e16b2976943663415013593982f41ad5bd7e5acde13ff037924af0d26921cc",
       "executable": false
     },
     "src/gauge/operational-cases.ts": {
@@ -2007,7 +2019,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "c8649d06bde3bc08c45faa4dc0e1f7ce8e5aeb3d46fb4be7afa0407c10a2e153",
+      "sha256": "b249b6cc3ded87e4a9e7398158a86611dd5e6c9f6c3d09d981518f22394e0a21",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -2283,7 +2295,7 @@
       "executable": false
     },
     "src/gauge/ui-delivery-templates.ts": {
-      "sha256": "0abc0ddb929569c549bf7d8d1da1ed24635a60f4d086323c3c8749d9ba721e3f",
+      "sha256": "c0eaf49b38449706d0d9d8802f4d61e128110b8b335f5d8078a4eb19e4ea2dd2",
       "executable": false
     },
     "src/gauge/ui-demand.ts": {
@@ -2523,7 +2535,7 @@
       "executable": false
     },
     "src/gauge/ui.ts": {
-      "sha256": "0a5a03a890d7d3bab39c1908514eff38dd9615384bb2491c7f884114361e21c9",
+      "sha256": "0db44286fe6643614ce4c934fb03bfe6d8a862efa12e644254cf24cdd6753e21",
       "executable": false
     },
     "src/gauge/utilization.ts": {
@@ -4483,7 +4495,7 @@
       "executable": false
     },
     "tests/gauge-delivery-templates.mjs": {
-      "sha256": "5cfdb7e301135efbd6e23cbfb017a1c04721ff49e0f1ab6013481b2bc4e2ecd1",
+      "sha256": "ab8ec0ec4a42cd60ec2c1da07d1f3ec84f636605906485a558d5e1db9f5f7b0d",
       "executable": false
     },
     "tests/gauge-delivery.mjs": {

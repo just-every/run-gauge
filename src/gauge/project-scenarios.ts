@@ -123,13 +123,13 @@ export async function projectScenarioCommand(env: Bindings, a: Actor, tx: Transa
 async function applyEffects(a:Actor,tx:Transaction,candidate:Awaited<ReturnType<typeof compare>>,data:Record<Kind,Row[]>,reason:string,acceptance?:Value) {
  const effects:Value[]=[]
  // All guards above precede every write. A selected alternative is one atomic effect set.
+ for(const effect of candidate.effects)if(effect.kind==='budgets')await assertBudgetTerms(tx.env,tx,data.engagements.find(e=>e.id===effect.value.engagementId)!,effect.value)
  for(const effect of candidate.effects) {
   let value = effect.kind === 'budgets' ? {...effect.value,createdAt:Date.now(),approvedAt:Date.now(),approvedBy:a.session.operator.id} : effect.kind === 'deliveryPlans' ? {...effect.value,reason,approvedBy:a.session.operator.id,approvedAt:Date.now()} : effect.value
   if(effect.kind === 'engagements') {
    const additions = candidate.effects.filter(p=>p.kind==='staffing'&&p.value.engagementId===effect.source?.id).map(p=>p.value.personId)
    value = {...value,members:[...new Set([...(value.members ?? []),...additions])]}
   }
-  if(effect.kind==='budgets')await assertBudgetTerms(tx.env,tx,data.engagements.find(e=>e.id===value.engagementId)!,value)
   if(acceptance&&effect.kind==='budgets')value={...value,acceptedChange:acceptance}
   const row = await tx.record(effect.kind,value,effect.source,effect.id,acceptance?'change:adopt':'projectScenario:adopt')
   effects.push({kind:effect.kind,sourceId:effect.source?.id ?? null,id:row.id,revision:row.revision})

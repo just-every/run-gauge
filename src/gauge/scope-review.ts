@@ -14,6 +14,18 @@ async function current(env:Bindings,row:Row,tx?:Transaction,inspect=false) {
  if(tx){tx.observe('projectScenarios',row);tx.guard("(SELECT COUNT(*) FROM g_projectScenarios WHERE json_extract(data,'$.changeOrder')=1 AND json_extract(data,'$.engagementId')=?)=?",row.value.engagementId,versions.length)}
  await assertScenarioBasis(env,row,tx)
 }
+/** Navigation uses the same live authority and current-basis checks as review reads. */
+export async function canReadClientChange(env:Bindings,a:Actor,row:Row):Promise<boolean> {
+ try {
+  await fence(env,{...a,clientChange:{id:row.id,reviewId:row.value.clientReview.id,tokenHash:''}})
+  await current(env,row,undefined,true)
+  await fence(env,{...a,clientChange:{id:row.id,reviewId:row.value.clientReview.id,tokenHash:''}})
+  return true
+ } catch(error) {
+  if(error instanceof Fault&&[403,404,409].includes(error.status))return false
+  throw error
+ }
+}
 const pick=(v:Value,keys:string[])=>Object.fromEntries(keys.filter(k=>v[k]!==undefined).map(k=>[k,v[k]]))
 /** The agency releases a closed customer projection, never its private financial comparison. */
 export function changeDocument(row:Row):Value {

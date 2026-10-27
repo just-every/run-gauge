@@ -67,6 +67,10 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.deepEqual(selectedTasks.map(r=>r.id).sort(),[task.id,secondTask.id].sort(),'Task pages contain every task on exactly the selected project')
   assert.deepEqual(selectedTasks,(await h.state(staff.cookie)).data.tasks.filter(r=>r.value.engagementId===engagement.id).sort((a,b)=>a.id.localeCompare(b.id)))
   assert(!JSON.stringify(selectedTasks).includes('synthetic-gauge-7001'));assert(!selectedTasks.some(r=>r.id===otherTask.id))
+  await cmd('field:define',{...taskField,visibility:'everyone',reason:'Task field widening requires an explicit value publication'})
+  const historicalTask=(await(await app(token,taskPath)).json()).tasks.find(r=>r.id===secondTask.id)
+  assert(!Object.hasOwn(historicalTask.value.customFields,taskField.id),'A task’s historical finance-only value stays private after definition widening')
+
   assert.deepEqual((await(await app(token,taskPath+'?q=SELECTABLE')).json()).tasks.map(r=>r.id),[secondTask.id])
   assert.equal((await app(token,taskPath+'?cursor='+encodeURIComponent(firstCursor))).status,409,'A project cursor cannot page tasks')
   assert.equal((await app(token,'/api/gauge/v1/projects/'+assigned[0].id+'/tasks?cursor='+encodeURIComponent(firstTaskCursor))).status,409,'Task cursors bind the selected project')
@@ -98,6 +102,11 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,...someoneElse,key:randomUUID()})).status,403,'A known entry identity cannot edit another person’s draft')
   const submitted=await cmd('time:submit',edited,staff.cookie)
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,...submitted,key:randomUUID()})).status,409,'A submitted entry cannot be overwritten through the draft API')
+  const policy=await cmd('time:policy',{lockThrough:'2026-10-04',reason:'Lock reviewed app-entry day'})
+  assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),start:'2026-10-04T16:00:00+10:00',end:'2026-10-04T16:30:00+10:00'})).status,409,'The app cannot create a draft in a locked native period')
+  await cmd('time:policy',{...policy,lockThrough:null,reason:'Reopen the test period after the refusal'})
+  assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),end:input.start})).status,400,'A nonpositive interval is refused')
+
 
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,end:'2026-10-04T10:00:00+10:00'})).status,409,'A changed request cannot replay the same key')
   for(const data of [{...input,key:randomUUID(),personId:hiddenPerson.id},{...input,key:randomUUID(),engagementId:hidden.id},...['time:submit','time:approve','packet:create','grant','providerJob:dispatch'].map(action=>({...input,key:randomUUID(),action}))])assert.equal((await app(token,'/api/gauge/v1/time',data)).status,403)

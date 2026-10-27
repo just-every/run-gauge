@@ -89,18 +89,26 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.equal((await app(token,'/api/gauge/v1/projects?cursor='+encodeURIComponent(firstCursor))).status,409,'A changed snapshot refuses stale pagination')
   const input={key:randomUUID(),personId:person.id,engagementId:engagement.id,taskId:task.id,service:'App entry',billable:false,timezone:'Australia/Brisbane',start:'2026-10-04T09:00:00+10:00',end:'2026-10-04T09:30:00+10:00',notes:'Native app draft'}
   const before=(await h.state()).data.time.length
-  const sent=await app(token,'/api/gauge/v1/time',input);assert.equal(sent.status,200,await sent.clone().text());const saved=await sent.json()
+  const concurrentWrites=await Promise.all(Array.from({length:3},()=>app(token,'/api/gauge/v1/time',input)))
+  for(const response of concurrentWrites)assert.equal(response.status,200,await response.clone().text())
+  const saved=await concurrentWrites[0].json();for(const response of concurrentWrites.slice(1))assert.deepEqual(await response.json(),saved,'Concurrent identical time writes share one result')
   const second=await app(token,'/api/gauge/v1/time',input);assert.equal(second.status,200);assert.deepEqual(await second.json(),saved)
   assert.equal((await h.state()).data.time.length,before+1);assert.equal((await h.state()).data.time.find(r=>r.id===saved.id).value.status,'draft')
   const edit={...input,...saved,key:randomUUID(),end:'2026-10-04T09:45:00+10:00',notes:'Revised through the scoped API',status:'approved',economics:{costMinor:1}}
   const editResponse=await app(token,'/api/gauge/v1/time',edit);assert.equal(editResponse.status,200,await editResponse.clone().text());const edited=await editResponse.json()
   const editedRow=(await h.state()).data.time.find(r=>r.id===saved.id);assert.equal(editedRow.value.durationSeconds,2700);assert.equal(editedRow.value.notes,edit.notes);assert.equal(editedRow.value.status,'draft');assert(!editedRow.value.economics)
   assert.deepEqual(await(await app(token,'/api/gauge/v1/time',edit)).json(),edited,'An identical edit replays one revision')
+  const competing={...edit,...edited,key:randomUUID(),end:'2026-10-04T10:00:00+10:00',notes:'One exact winning revision'}
+  const contenders=await Promise.all([app(token,'/api/gauge/v1/time',competing),app(token,'/api/gauge/v1/time',{...competing,key:randomUUID(),notes:'The other stale contender'})])
+  assert.deepEqual(contenders.map(r=>r.status).sort(),[200,409],'Only one writer can replace the exact draft revision')
+  const winning=(await h.state()).data.time.find(r=>r.id===saved.id)
+  assert.equal(winning.value.durationSeconds,3600);assert.equal(winning.value.status,'draft')
+
   assert.equal((await app(token,'/api/gauge/v1/time',{...edit,key:randomUUID()})).status,409,'A stale draft revision cannot overwrite the edit')
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),taskId:otherTask.id})).status,400,'A task on another project cannot receive this time')
   const someoneElse=await cmd('time:save',{...input,key:randomUUID(),personId:hiddenPerson.id,start:'2026-10-04T15:00:00+10:00',end:'2026-10-04T15:30:00+10:00'})
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,...someoneElse,key:randomUUID()})).status,403,'A known entry identity cannot edit another person’s draft')
-  const submitted=await cmd('time:submit',edited,staff.cookie)
+  const submitted=await cmd('time:submit',{id:winning.id,revision:winning.revision},staff.cookie)
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,...submitted,key:randomUUID()})).status,409,'A submitted entry cannot be overwritten through the draft API')
   const policy=await cmd('time:policy',{lockThrough:'2026-10-04',reason:'Lock reviewed app-entry day'})
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),start:'2026-10-04T16:00:00+10:00',end:'2026-10-04T16:30:00+10:00'})).status,409,'The app cannot create a draft in a locked native period')

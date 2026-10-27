@@ -80,6 +80,7 @@ jobs:
       CI: 'true'
       GAUGE_TEST_SHARD: ${{ matrix.shard }}/5
       WRANGLER_SEND_METRICS: 'false'
+      GAUGE_DELIVERY_SHOTS: ${{ matrix.shard == 5 && 'test-results/client-portal' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; action runtime Node 24
         with:
@@ -106,6 +107,14 @@ jobs:
             node scripts/ci/chromium-probe.mjs
           }
       - run: pnpm run verify
+      - name: Retain client portal browser proof
+        if: ${{ always() && matrix.shard == 5 }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: client-portal-${{ github.sha }}
+          path: test-results/client-portal
+          if-no-files-found: error
+          retention-days: 30
 
   verify:
     name: verify

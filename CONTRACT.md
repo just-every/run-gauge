@@ -418,7 +418,7 @@ The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 20
 
 ## Status
 
-Historical judgments remain at their cited pins. CLIENT-001 candidate proof is the current committed tree; exact commit and execution receipts accompany the branch handoff and guarded landing.
+Judged from the code and tests at commit `2a63cf0da3e98029445a9d6dc045e402f7c32989` (27 October 2026).
 
 CLIENT-001 now distinguishes the current approved budget from superseded approved history, asserts renewal expiry and billing separation on the reviewed project, and restores phone fit checks. Other clauses are not rejudged; exact candidate receipts accompany the guarded landing.
 

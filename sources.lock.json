@@ -421,7 +421,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "9ff3fa0f644a6d78236cb3afa83ac6f0173889e16f913c25ee7d308327e5263c",
+      "sha256": "f9a6066a9afe90f52d75bce170e450cca2e284818495fac07d81f6ec61127336",
       "executable": false
     },
     ".gitignore": {
@@ -457,7 +457,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e4759c7bc1ad16316b2ec9593bb056d49df5ff4d318e7e5de557cb40fa30ab28",
+      "sha256": "fb90dd8577e347f77f78f6469d2dd3ad787a7f28b833afb54bea97f06aa7c2a8",
       "executable": false
     },
     "DEMO.md": {
@@ -4553,7 +4553,7 @@
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
-      "sha256": "81ec0c679edcef734432e44a660dfd97590c582ad73c4dbade2fa980cdfbef0c",
+      "sha256": "dd21ac6b895d3cb82564ba07f7b893981c18204b496888db5f0c6c689f2a7444",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

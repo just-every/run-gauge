@@ -8,7 +8,11 @@ async function portalRevisionRace(h,path,cookie,grant){
  const {createRequire}=await import('node:module'),{realpath}=await import('node:fs/promises')
  const {build}=createRequire(await realpath('node_modules/wrangler/package.json'))('esbuild')
  const bundled=await build({entryPoints:['src/gauge/client-portal.ts'],bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent'})
- const {clientPortalResponse}=await import('data:text/javascript;base64,'+Buffer.from(bundled.outputFiles[0].text).toString('base64'))
+ const {mkdtemp,writeFile,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
+ const directory=await mkdtemp(join(tmpdir(),'gauge-portal-handler-')),modulePath=join(directory,'handler.mjs')
+ await writeFile(modulePath,bundled.outputFiles[0].text)
+ const {clientPortalResponse}=await import(modulePath)
+ await rm(directory,{recursive:true,force:true})
  let changed=false
  const database={prepare(sql){
   const statement=h.db.prepare(sql)
@@ -444,6 +448,12 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  const allMoney=Object.fromEntries(['shareBudget','shareBurn','shareRemaining','shareValue','shareFields'].map(k=>[k,'yes'])),noMoney=Object.fromEntries(Object.keys(allMoney).map(k=>[k,'no']))
  const cmd=async(action,input={},cookie=h.owner,expected=200)=>{const before=h.providerRequests.length,result=await h.cmd(action,input,cookie,expected);if(action.startsWith('client:'))assert.equal(h.providerRequests.length,before,'Client invitation, renewal, sharing and revocation send nothing');return result}
  const alice=await h.invite('synthetic-gauge-91401'),bob=await h.invite('synthetic-gauge-91402')
+ const signInAlice=async()=>{
+  assert.equal((await h.post('/auth/magic-link',{email:'synthetic-gauge-91401@example.test'})).status,202)
+  const link=new URL(h.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0]),response=await h.post('/auth/confirm',{token:link.searchParams.get('token')})
+  assert.equal(response.status,303)
+  alice.cookie=response.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+ }
  const make=async(name)=>{const c=await cmd('save:clients',{name});return cmd('save:engagements',{name,clientId:c.id,leadId:lead.id,members:[worker.id],scope:'Agreed design deliverables',timezone:'UTC'})}
  const project=await make('synthetic-gauge-91403'),other=await make('synthetic-gauge-91404')
  await cmd('budget:approve',await cmd('save:budgets',{engagementId:other.id,mode:'hourly',amountMinor:800000,effortSeconds:144000,roundingSeconds:60,reason:'Other sponsor budget'}))
@@ -727,7 +737,6 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
 
  // Each lifecycle probe starts with usable native recipient authority.
  let lifecycle=await cmd('client:invite-project',invite)
- const liveSession=await(await request('/auth/session',alice.cookie)).json()
  assert.equal((await request(path,alice.cookie)).status,200)
  const currentProject=(await state()).data.engagements.find(r=>r.id===project.id)
  const foreignClient=(await state()).data.engagements.find(r=>r.id===other.id).value.clientId
@@ -741,14 +750,15 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  assert.equal((await request(path,alice.cookie)).status,403,'Changed recipient email cannot retain invitation access')
  await h.db.prepare('UPDATE oa_operators SET email=? WHERE id=?').bind(invite.contact,alice.id).run()
  await h.db.prepare("UPDATE oa_operators SET role='owner' WHERE id=?").bind(alice.id).run()
- assert.equal((await request(path,alice.cookie)).status,403,'Changed recipient role cannot retain invitation access')
+ assert.equal((await request(path,alice.cookie)).status,401,'Changed recipient role invalidates its prior native session')
  await h.db.prepare("UPDATE oa_operators SET role='member' WHERE id=?").bind(alice.id).run()
+ await signInAlice()
+ assert.equal((await request(path,alice.cookie)).status,200)
  assert.equal((await h.post('/auth/operator/status',{operatorId:alice.id,status:'inactive'},h.owner)).status,200)
  assert.equal((await request(path,alice.cookie)).status,401,'Deactivated recipient loses its session immediately')
  assert.equal((await h.post('/auth/operator/status',{operatorId:alice.id,status:'active'},h.owner)).status,200)
  assert.equal((await request(path,alice.cookie)).status,401,'Reactivation never revives the old recipient session')
- const freshAlice=await h.invite('synthetic-gauge-91401')
- alice.cookie=freshAlice.cookie
+ await signInAlice()
  assert.equal((await request(path,alice.cookie)).status,200)
  await portalRevisionRace(h,path,alice.cookie,lifecycle)
  const renewed=await cmd('client:invite-project',invite)

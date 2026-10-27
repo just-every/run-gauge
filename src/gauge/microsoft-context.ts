@@ -13,11 +13,13 @@ const instant = (v: Value) => {
 }
 export function calendarContext(selection: Row, item: Value): {id: string; value: Value} {
  const sourceId = graphId(item.id, 'event id'), privateEvent = item.sensitivity !== 'normal'
+ const start = instant(item.start), end = instant(item.end)
+ need(start < end, 'Microsoft returned an invalid event interval', 409)
  // Unknown sensitivity is private too. No subject, attendees, organizer, location or description survives.
  return {id: sha256(`graph:${selection.id}:calendar:${sourceId}`), value: {
   selectionId: selection.id, personId: selection.value.personId, sourceId, scope: 'calendar',
   subject: privateEvent ? 'Private event' : label(item.subject, 200), private: privateEvent,
-  start: instant(item.start), end: instant(item.end), cancelled: item.isCancelled === true,
+  start, end, cancelled: item.isCancelled === true,
   showAs: ['free','tentative','busy','oof','workingElsewhere','unknown'].includes(item.showAs) ? item.showAs : 'unknown',
   billable: false,
  }}

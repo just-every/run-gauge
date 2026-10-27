@@ -67,6 +67,7 @@ export async function microsoftToken(raw: string): Promise<{ token: string; role
   if (segments.length !== 3 || segments.some((part: string) => !/^[A-Za-z0-9_-]+$/.test(part))) throw new Error()
   const payload = segments[1].replaceAll('-', '+').replaceAll('_', '/')
   const claims = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '=')), c => c.charCodeAt(0))))
+  if (!['https://graph.microsoft.com', 'https://graph.microsoft.com/', '00000003-0000-0000-c000-000000000000'].includes(claims.aud)) throw new Error()
   if (typeof claims.tid !== 'string' || claims.tid.toLowerCase() !== credential.tenantId || !Number.isFinite(claims.exp) || claims.exp <= Date.now() / 1000) throw new Error()
   const app = claims.appid ?? claims.azp
   if (typeof app !== 'string' || app.toLowerCase() !== credential.clientId) throw new Error()

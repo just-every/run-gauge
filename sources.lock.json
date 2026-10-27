@@ -433,7 +433,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e7242c205ca94870aa713ced02016d597ebce9fda064ee286d2034b26f186468",
+      "sha256": "67e95b155d8246613adbc04d1bb403b9055a3a75d62628451c412f087c3329b7",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -445,7 +445,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "69714c612b04ee5e9cca8b9b1cecdc6ef2d4b23265102b9d206fd207818e4632",
+      "sha256": "d3001d1e007a7142d73869416472b2a33635bde5f80ae74069b675d6b32cb084",
       "executable": false
     },
     "base-copies.json": {
@@ -457,7 +457,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "56aedd8fa40c3e2d7642ed1b0a2a1fb49c4d3c60ca1d560fc5f31efd4da2a7de",
+      "sha256": "8d96b39741c9a5b1a973d13f6af32d6d370c4007283afb02db43c26f0f64c255",
       "executable": false
     },
     "DEMO.md": {
@@ -1825,11 +1825,11 @@
       "executable": false
     },
     "src/gauge/microsoft-api.ts": {
-      "sha256": "a068ca3bd074d77a7148ad537c262f120c6cf3299982b05b8ba108c527c85f83",
+      "sha256": "9cd571aaa198d68012c6f16d64bded98eda3c85e3b58d00ec35e5bd07058c9bc",
       "executable": false
     },
     "src/gauge/microsoft-context.ts": {
-      "sha256": "85e3962d4d651102e47a72ef5371e883afefdaf01913f6db21358bcb87f9626b",
+      "sha256": "f2950d77ec8f1a8bbbead84956654dc9bbdb2764df7f1bf3cfb5afd85093342d",
       "executable": false
     },
     "src/gauge/microsoft-replies.ts": {

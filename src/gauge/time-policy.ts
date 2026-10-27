@@ -1,3 +1,4 @@
+import { holdClosedTimePeriods } from './period-locks'
 import type { Bindings } from '../auth.server'
 import { type Row, type Value, date, need, text, integer, flag } from './model'
 import { type Actor, Transaction, all, finance } from './store'
@@ -39,6 +40,7 @@ export async function timePolicyCommand(env: Bindings, a: Actor, tx: Transaction
  else need((input.id === undefined || input.id === policyId) && !input.revision, 'Timesheet policy changed; reload before saving', 409)
  const requestedLock = input.lockThrough === undefined ? current?.value.lockThrough ?? null : input.lockThrough
  const lockThrough = requestedLock === null || requestedLock === '' ? null : date(requestedLock)
+ await holdClosedTimePeriods(env,tx,lockThrough)
  const reason = text(input.reason, 'Policy change or reopening reason')
  if (lockThrough) {
   const timer = await env.DB.prepare("SELECT id FROM g_time WHERE start_ms IS NOT NULL AND end_ms IS NULL AND json_extract(data,'$.workDate')<=? LIMIT 1").bind(lockThrough).first()

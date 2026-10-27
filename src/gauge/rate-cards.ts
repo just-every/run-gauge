@@ -1,6 +1,9 @@
+import { observedQuoteBill } from './quote-pricing'
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, integer, money, date, charge } from './model'
 import { type Actor, Transaction, finance, get, all } from './store'
+import { currencies } from './agency'
+import { activeClient } from './clients'
 
 // RATE-002 rate cards. One effective-dated, immutable `rates` row is one card version.
 // Bill precedence, most specific first: an entry override, then project, client-role, client,
@@ -29,14 +32,16 @@ export async function rateCard(env: Bindings, a: Actor, tx: Transaction, input: 
  const v: Value = { personId: input.personId || null, role: input.role ? text(input.role, 'Role', 200) : null, clientId: input.clientId || null, engagementId: input.engagementId || null, service: text(input.service || '*', 'Service') }
  need([v.personId, v.clientId, v.engagementId].filter(Boolean).length <= 1 && !(v.role && (v.personId || v.engagementId)), 'A card belongs to one project, client (optionally one role), role, person or service')
  if (v.personId) tx.observe('people', await get(env, 'people', v.personId))
- if (v.clientId) tx.observe('clients', await get(env, 'clients', v.clientId))
+ if (v.clientId) tx.observe('clients', await activeClient(env, v.clientId))
  if (v.engagementId) { const e = await get(env, 'engagements', v.engagementId); tx.observe('engagements', e); need(e.value.type !== 'internal', 'Internal work has no bill rates') }
  v.scope = levelOf(v)
  need(v.scope !== 'service' || v.service !== '*', 'Choose a project, client, role, person or named service')
  v.effective = date(input.effective)
  v.billMinor = money(input.billMinor)
- // Until SETUP-003 gives a client its own billing currency, every card bills in the agency currency.
- v.currency = a.currency
+ // Scoped bill cards inherit the saved client or engagement currency. Costs retain their declared USD.
+ const scope = v.engagementId ? await get(env, 'engagements', v.engagementId) : v.clientId ? await activeClient(env, v.clientId) : null
+ v.currency = scope ? (v.engagementId ? scope.value.currency : scope.value.billingCurrency ?? a.currency) : input.currency || a.currency
+ need(currencies.includes(v.currency), 'Choose a supported billing currency')
  v.costMinor = input.costMinor === '' || input.costMinor === null || input.costMinor === undefined ? null : money(input.costMinor)
  need(v.costMinor === null || (costLevels as readonly string[]).includes(v.scope), 'Client and project cards carry bill rates; declare costs on person, role or service cards')
  // A cost is a declared input in USD (W-2 loaded or 1099 contract), never a payroll calculation.
@@ -84,20 +89,22 @@ export async function freeze(env: Bindings, tx: Transaction, row: Row, engagemen
  const costKind = person.value.employmentType === 'contractor' || person.value.contractor ? '1099-contract' : 'w2-loaded'
  const cost = { costRateId: costCard?.id ?? null, costLevel: x.cost?.level ?? null, costMinor: costCard?.value.costMinor == null ? null : charge(seconds, costCard.value.costMinor), costCurrency: costCard?.value.costMinor == null ? null : costCurrencyOf(costCard), costKind: costCard?.value.costMinor == null ? null : costKind }
  if (engagement.value.type === 'internal') return { rateId: costCard?.id ?? null, budgetId: null, mode: 'internal', roundingSeconds: 1, ...cost, billRateMinor: 0, roundedBillingSeconds: seconds, billMinor: 0, currency: engagement.value.currency, precedence: traceOf(x) }
+ const budget=terms.budgetId?await get(env,'budgets',terms.budgetId):undefined,quote=x.bill?.level==='project'?undefined:await observedQuoteBill(env,tx,engagement.id,budget,v);if(budget)tx.observe('budgets',budget)
  const override = v.rateOverride
- need(override || !card || card.value.currency === engagement.value.currency, 'Rate currency differs from engagement; no implicit FX')
- const rate: number | null = override ? override.billRateMinor : card?.value.billMinor ?? null, rounded = Math.ceil(seconds / terms.roundingSeconds) * terms.roundingSeconds
- const priced: Value = { rateId: override ? null : card?.id ?? null, rateLevel: override ? 'entry' : x.bill?.level ?? null, entryOverride: override ?? null, budgetId: terms.budgetId, mode: terms.mode, roundingSeconds: terms.roundingSeconds, ...cost, billRateMinor: rate, roundedBillingSeconds: rounded, overtimeSeconds: 0, overtimeRateMinor: null, standardBillMinor: null, writeDownBps: 0, writeDownMinor: 0, billMinor: null, currency: engagement.value.currency, precedence: traceOf(x) }
+ need(override||terms.mode!=='hourly'||!v.billable||!quote||quote.value.billMinor!==null,'Quoted hourly pricing is held: '+(quote?.value.quoteHeldReason??'review the accepted source'),409)
+ need(override || (quote?quote.value.currency===engagement.value.currency:!card||card.value.currency===engagement.value.currency), 'Rate currency differs from engagement; no implicit FX')
+ const rate: number | null = override ? override.billRateMinor : quote ? quote.value.billMinor : card?.value.billMinor ?? null, rounded = Math.ceil(seconds / terms.roundingSeconds) * terms.roundingSeconds
+ const priced: Value = { rateId: override||quote ? null : card?.id ?? null, rateLevel: override ? 'entry' : quote?'estimate':x.bill?.level ?? null,...(!override&&quote?{estimateId:quote.id,estimateRevision:quote.revision,estimateLineKeys:quote.value.estimateLineKeys}:{}), entryOverride: override ?? null, budgetId: terms.budgetId, mode: terms.mode, roundingSeconds: terms.roundingSeconds, ...cost, billRateMinor: rate, roundedBillingSeconds: rounded, overtimeSeconds: 0, overtimeRateMinor: null, standardBillMinor: null, writeDownBps: 0, writeDownMinor: 0, billMinor: null, currency: engagement.value.currency, precedence: traceOf(x) }
  if (rate === null) return priced
  // Overtime: billing seconds past the card's daily threshold, counting this person's time already approved for that work date.
  let overtime = 0
- if (!override && card?.value.overtimeAfterSeconds !== undefined) {
+ if (!override && !quote && card?.value.overtimeAfterSeconds !== undefined) {
   const earlier = (await all(env, 'time')).filter(t => t.id !== row.id && t.value.status === 'approved' && t.value.personId === v.personId && t.value.workDate === v.workDate)
   tx.guard("(SELECT COUNT(*) FROM g_time WHERE id<>? AND json_extract(data,'$.status')='approved' AND json_extract(data,'$.personId')=? AND json_extract(data,'$.workDate')=?)=?", row.id, v.personId, v.workDate, earlier.length)
   const before = earlier.reduce((n, t) => n + t.value.durationSeconds, 0)
   overtime = Math.min(rounded, Math.max(0, before + seconds - card.value.overtimeAfterSeconds))
  }
- Object.assign(priced, billPricing(rounded, rate, overtime, !override && card?.value.overtimeAfterSeconds !== undefined ? card.value.overtimeBps : undefined, override ? override.writeDownBps : card?.value.writeDownBps ?? 0))
+ Object.assign(priced, billPricing(rounded, rate, overtime, !override && !quote && card?.value.overtimeAfterSeconds !== undefined ? card.value.overtimeBps : undefined, override ? override.writeDownBps : quote?.value.writeDownBps??card?.value.writeDownBps ?? 0))
  return priced
 }
 
@@ -123,9 +130,10 @@ export async function rateCommand(env: Bindings, a: Actor, tx: Transaction, acti
 }
 
 /** The explain view: which card each level offers for a person, engagement, service and date, and which wins. */
-export async function explainRate(env: Bindings, a: Actor, q: { personId: string, engagementId: string, service: string, date: string }) {
+export async function explainRate(env: Bindings, a: Actor, q: { personId: string, engagementId: string, service: string, date: string,taskId?:string,phaseKey?:string }) {
  need(finance(a), 'Finance access required', 403)
  const person = await get(env, 'people', text(q.personId, 'Person')), engagement = await get(env, 'engagements', text(q.engagementId, 'Engagement')), service = text(q.service, 'Service'), day = date(q.date)
  const x = explain(activeRates(await all(env, 'rates'), await all(env, 'rateWithdrawals')), person, engagement, service, day), view = (r?: Row): Value | null => r ? { id: r.id, ...r.value } : null
- return { personId: person.id, engagementId: engagement.id, service, date: day, precedence: ['entry', ...billLevels], costPrecedence: [...costLevels], levels: x.levels.map(l => ({ level: l.level, candidates: l.candidates.map(view), chosen: l.chosen?.id ?? null })), bill: x.bill ? { level: x.bill.level, rate: view(x.bill.chosen) } : null, cost: x.cost ? { level: x.cost.level, rate: view(x.cost.chosen) } : null }
+ const budget=(await all(env,'budgets')).filter(b=>b.value.engagementId===engagement.id&&b.value.status==='approved').sort((a,b)=>b.value.approvedAt-a.value.approvedAt)[0],quote=x.bill?.level==='project'?undefined:await observedQuoteBill(env,undefined,engagement.id,budget,{personId:person.id,service,taskId:q.taskId||undefined,phaseKey:q.phaseKey||undefined})
+ return { personId: person.id, engagementId: engagement.id, service, date: day, quote:quote?view(quote):null, precedence: ['entry','project',...(quote?['estimate']:[]), ...billLevels.filter(l=>l!=='project')], costPrecedence: [...costLevels], levels: [...(quote?[{level:'estimate',candidates:[view(quote)!],chosen:view(quote)}]:[]),...x.levels.map(l => ({ level: l.level, candidates: l.candidates.map(view), chosen: l.chosen?.id ?? null }))], bill:quote?{level:'estimate',rate:view(quote)}:x.bill ? { level: x.bill.level, rate: view(x.bill.chosen) } : null, cost: x.cost ? { level: x.cost.level, rate: view(x.cost.chosen) } : null }
 }

@@ -64,7 +64,7 @@ function pack(items: Omit<Segment, 'track'>[]) {
 }
 
 /** The leave a person is on for a date: the committed hours booked that date are struck, not worked. */
-export const onLeave = (report: Report, personId: string, date: string) => report.data.leave.find(r => r.value.personId === personId && r.value.from <= date && r.value.to >= date)
+export const onLeave = (report: Report, personId: string, date: string) => report.data.leave.find(r => (!r.value.status || r.value.status === 'approved') && r.value.personId === personId && r.value.from <= date && r.value.to >= date)
 /** Committed hours that will be worked over `days`: a date on leave counts none of its committed hours. */
 export const workedCommitted = (report: Report, person: Report['capacity'][number], days: string[]) => person.days.filter(x => days.includes(x.date) && !onLeave(report, person.personId, x.date)).reduce((n, x) => n + x.committedSeconds, 0)
 
@@ -76,7 +76,7 @@ export function lanes(report: Report, cols: Column[], tintOf: (clientId: string)
  const label = (engagementId: string) => nameOf(d.clients, client(engagementId), nameOf(d.engagements, engagementId, 'Engagement'))
  return report.capacity.map(person => {
   const own = d.staffing.filter(r => r.value.personId === person.personId && r.value.from <= to && r.value.to >= from)
-  const leave = d.leave.filter(r => r.value.personId === person.personId && r.value.from <= to && r.value.to >= from)
+  const leave = d.leave.filter(r => (!r.value.status || r.value.status === 'approved') && r.value.personId === person.personId && r.value.from <= to && r.value.to >= from)
   const leaveOn = (date: string) => leave.find(r => r.value.from <= date && r.value.to >= date), working = (date: string) => !leaveOn(date)
   const bars: Omit<Segment, 'track'>[] = []
   for (const a of merge(own)) {
@@ -97,7 +97,7 @@ export function lanes(report: Report, cols: Column[], tintOf: (clientId: string)
    if (alt.personId !== person.personId) return
    const at = covered(cols, alt.from, alt.to); if (!at) return
    const total = load({ engagementId: options.proposal!.value.engagementId, commitment: 'tentative', dailySeconds: alt.dailySeconds, ranges: [[alt.from, alt.to]] }, from, to)
-   bars.push({ start: at[0], end: at[1], kind: 'option', tint: tintOf(client(options.proposal!.value.engagementId)), name: `Option ${String.fromCharCode(65 + n)} · takes ${figure(total.seconds)} hrs`, amount: label(options.proposal!.value.engagementId), when: span(total.first, total.last), title: 'Proposed by the agent; not yet approved' })
+   bars.push({ start: at[0], end: at[1], kind: 'option', tint: tintOf(client(options.proposal!.value.engagementId)), name: `Option ${String.fromCharCode(65 + n)} · takes ${figure(total.seconds)} hrs`, amount: label(options.proposal!.value.engagementId), when: span(total.first, total.last), title: options.proposal!.value.availability ?? 'Proposed by the agent; not yet approved' })
   })
   const order: Kind[] = ['booking', 'tentative', 'leave', 'option']
   const placed = pack(bars.sort((x, y) => order.indexOf(x.kind) - order.indexOf(y.kind) || x.start - y.start || y.end - x.end))

@@ -21,24 +21,30 @@ export function demandForecast(data: Record<string, Row[]>, asOf: string, curren
  const months = new Map<string, Month>(), at = (day: string) => { const m = day.slice(0, 7); if (!months.has(m)) months.set(m, blank(m)); return months.get(m)! }
  const future = (from: string, to: string) => days(from > asOf ? from : nextDay(asOf), to)
  const sources: Record<string, string[]> = { staffing: [], resourceRequests: [], opportunities: [], people: [], calendars: [] }
- for (const s of data.staffing ?? []) for (const day of future(s.value.from, s.value.to)) { if (!sources.staffing.includes(s.id)) sources.staffing.push(s.id); if (s.value.commitment === 'tentative') at(day).tentativeSeconds += s.value.dailySeconds; else at(day).committedSeconds += s.value.dailySeconds }
- for (const r of (data.resourceRequests ?? []).filter(r => r.value.status === 'open')) for (const day of future(r.value.from, r.value.to)) { if (!sources.resourceRequests.includes(r.id)) sources.resourceRequests.push(r.id); at(day).unfilledSeconds += r.value.dailySeconds }
+ // REPORT-005: the source rows behind each month's figure, as `kind:id`.
+ const byMonth: Record<string, Record<string, string[]>> = {}
+ const note = (month: string, measure: string, ref: string) => { const list = ((byMonth[month] ??= {})[measure] ??= []); if (!list.includes(ref)) list.push(ref) }
+ for (const s of data.staffing ?? []) for (const day of future(s.value.from, s.value.to)) { if (!sources.staffing.includes(s.id)) sources.staffing.push(s.id); note(day.slice(0, 7), s.value.commitment === 'tentative' ? 'tentativeSeconds' : 'committedSeconds', `staffing:${s.id}`); if (s.value.commitment === 'tentative') at(day).tentativeSeconds += s.value.dailySeconds; else at(day).committedSeconds += s.value.dailySeconds }
+ for (const r of (data.resourceRequests ?? []).filter(r => r.value.status === 'open')) for (const day of future(r.value.from, r.value.to)) { if (!sources.resourceRequests.includes(r.id)) sources.resourceRequests.push(r.id); note(day.slice(0, 7), 'unfilledSeconds', `resourceRequests:${r.id}`); at(day).unfilledSeconds += r.value.dailySeconds }
  const dealDays = (o: Value, delay = 0) => days(shift(o.from, delay), shift(o.to, delay))
  const placeDemand = (seconds: number, all: string[], add: (day: string, s: number) => void) => { for (const [day, s] of spread(seconds, all)) if (day > asOf && s) add(day, s) }
  const opportunities = data.opportunities ?? [], open = opportunities.filter(o => !['won', 'lost'].includes(o.value.stage))
  // Won but not converted: its whole demand is committed backlog until conversion places it on open roles.
- for (const o of opportunities.filter(o => o.value.stage === 'won' && !o.value.engagementId)) { sources.opportunities.push(o.id); placeDemand(o.value.demandSeconds, dealDays(o.value), (day, s) => { at(day).wonSeconds += s }) }
- for (const o of open) { sources.opportunities.push(o.id); placeDemand(Number((BigInt(o.value.demandSeconds) * BigInt(o.value.probability) + 50n) / 100n), dealDays(o.value), (day, s) => { at(day).weightedPipelineSeconds += s }) }
+ for (const o of opportunities.filter(o => o.value.stage === 'won' && !o.value.engagementId)) { sources.opportunities.push(o.id); placeDemand(o.value.demandSeconds, dealDays(o.value), (day, s) => { note(day.slice(0, 7), 'wonSeconds', `opportunities:${o.id}`); at(day).wonSeconds += s }) }
+ for (const o of open) { sources.opportunities.push(o.id); placeDemand(Number((BigInt(o.value.demandSeconds) * BigInt(o.value.probability) + 50n) / 100n), dealDays(o.value), (day, s) => { note(day.slice(0, 7), 'weightedPipelineSeconds', `opportunities:${o.id}`); at(day).weightedPipelineSeconds += s }) }
  const unplaced = opportunities.filter(o => o.value.conversion?.unplacedSeconds > 0).map(o => ({ opportunityId: o.id, seconds: o.value.conversion.unplacedSeconds }))
  const contractors = new Set((data.people ?? []).filter(p => (p.value.employmentType ?? (p.value.contractor ? 'contractor' : 'employee')) === 'contractor').map(p => p.id))
  let missingCalendarDays = 0
  for (const c of capacity) for (const d of c.days.filter((d: Value) => d.date > asOf)) {
   if (d.availableSeconds === null) { missingCalendarDays++; continue }
   if (d.calendarId && !sources.calendars.includes(d.calendarId)) sources.calendars.push(d.calendarId)
+  const measure = contractors.has(c.personId) ? 'contractorCapacitySeconds' : 'employeeCapacitySeconds'
+  note(d.date.slice(0, 7), measure, `people:${c.personId}`); if (d.calendarId) note(d.date.slice(0, 7), measure, `calendars:${d.calendarId}`); for (const id of d.leaveSources ?? []) note(d.date.slice(0, 7), measure, `leave:${id}`)
   if (contractors.has(c.personId)) at(d.date).contractorCapacitySeconds += d.availableSeconds; else at(d.date).employeeCapacitySeconds += d.availableSeconds
  }
  const asOfMonth = asOf.slice(0, 7)
- for (const e of (forecast?.engagements ?? []).filter((e: Value) => e.currency === currency)) for (const m of e.months.filter((m: Value) => m.month >= asOfMonth)) { const row = months.get(m.month) ?? (months.set(m.month, blank(m.month)), months.get(m.month)!); row.committedFeesMinor += m.committedFeesMinor; row.committedCostMinor += m.committedCostMinor; row.tentativeFeesMinor += m.tentativeFeesMinor }
+ for (const e of (forecast?.engagements ?? []).filter((e: Value) => e.currency === currency)) for (const m of e.months.filter((m: Value) => m.month >= asOfMonth)) { note(m.month, 'committedFeesMinor', `engagements:${e.engagementId}`); note(m.month, 'committedCostMinor', `engagements:${e.engagementId}`); const row = months.get(m.month) ?? (months.set(m.month, blank(m.month)), months.get(m.month)!); row.committedFeesMinor += m.committedFeesMinor; row.committedCostMinor += m.committedCostMinor; row.tentativeFeesMinor += m.tentativeFeesMinor }
+ for (const o of open.filter(o => o.value.currency === currency)) for (const m of monthsBetween(o.value.from, o.value.to).filter(m => m >= asOfMonth)) note(m, 'weightedPipelineFeesMinor', `opportunities:${o.id}`)
  for (const p of (forecast?.pipeline ?? []).filter((p: Value) => p.currency === currency)) for (const m of p.months.filter((m: Value) => m.month >= asOfMonth)) { const row = months.get(m.month) ?? (months.set(m.month, blank(m.month)), months.get(m.month)!); row.weightedPipelineFeesMinor += m.weightedMinor }
  const incomplete = [...(forecast?.engagements ?? []).filter((e: Value) => e.currency === currency && !e.complete).map((e: Value) => `engagements:${e.engagementId}: FINANCE-006 forecast incomplete`), ...(missingCalendarDays ? [`${missingCalendarDays} person-days have no working calendar; capacity is a known minimum`] : []), ...(sources.resourceRequests.length ? ['Unfilled roles have no named person, so no rate prices them; their cost is outside committed cost'] : [])]
  const baselineMonths = [...months.values()].filter(m => m.month >= asOfMonth).sort((x, y) => x.month.localeCompare(y.month)).map(m => ({ ...m, committedDemandSeconds: m.committedSeconds + m.unfilledSeconds + m.wonSeconds, capacitySeconds: m.employeeCapacitySeconds + m.contractorCapacitySeconds, marginMinor: m.committedFeesMinor - m.committedCostMinor }))
@@ -64,5 +70,5 @@ export function demandForecast(data: Record<string, Row[]>, asOf: string, curren
   const t = { capacitySeconds: total(rows, 'capacitySeconds'), demandSeconds: total(rows, 'demandSeconds'), feesMinor: total(rows, 'feesMinor'), costMinor: total(rows, 'costMinor'), marginMinor: total(rows, 'marginMinor') }
   return { ...head, compared: true, from: shifted[0], to: shifted.at(-1), months: rows, ...t, delta: { capacitySeconds: t.capacitySeconds - baseline.capacitySeconds, demandSeconds: t.demandSeconds - baseline.committedDemandSeconds, feesMinor: t.feesMinor - baseline.feesMinor, costMinor: t.costMinor - baseline.costMinor, marginMinor: t.marginMinor - baseline.marginMinor } }
  })
- return { asOf, currency, labels: { committed: 'committed', tentative: '+ tentative', pipeline: '+ weighted pipeline' }, complete: incomplete.length === 0, incomplete, unplaced, baseline, scenarios, sources }
+ return { asOf, currency, labels: { committed: 'committed', tentative: '+ tentative', pipeline: '+ weighted pipeline' }, complete: incomplete.length === 0, incomplete, unplaced, baseline, scenarios, sources, sourcesByMonth: byMonth }
 }

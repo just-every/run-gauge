@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
+import { portfolioJourney } from './gauge-portfolio.mjs'
 import { harness } from './gauge-harness.mjs'
 
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
@@ -96,5 +97,6 @@ try {
  await capture('review-incomplete-overspend')
  await cmd('grant', { operatorId: staff.id, personId: worker.id, role: 'staff', enabled: false })
  assert.equal((await request(csvPath(staffData), staff.cookie)).status, 403)
+ await portfolioJourney(h,browser)
  console.log('PASS REPORT-005 burn drill, frozen rate and approval lineage, exact CSV subtotal reconciliation, unknown cost/calendar, stale snapshot refusal and private/revoked exports')
 } finally { await browser?.close(); await h.dispose() }

@@ -1,7 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Value, type Row, type Kind, need, text, date, integer } from './model'
-import { type Actor, type Transaction, access, all, fence } from './store'
+import { type Actor, type Transaction, access, all, fence, finance } from './store'
 import { allocateRetainer } from './retainer-allocation'
 import { closeRetainer } from './retainer-close'
 import { adjustmentCommand } from './retainer-adjustments'
@@ -20,14 +20,18 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  const rootId=existing?.value.rootId??previous?.value.rootId??null
  const family=rootId?rows('retainers').filter(r=>r.value.rootId===rootId):[]
  if(previous)need(family.at(-1)?.id===previous.id,'Retainer version changed; reload',409)
- const terms=operation==='terms'?normalizeRetainer(input.terms,engagement.value.currency):existing!.value.terms
+ if(operation==='terms'&&!finance(a))need(input.terms?.feeMinor===undefined,'Only finance may set a period fee',403)
+ const proposed=operation==='terms'&&!finance(a)&&previous?.value.terms.feeMinor!==undefined?{...input.terms,feeMinor:previous.value.terms.feeMinor}:input.terms
+ const terms=operation==='terms'?normalizeRetainer(proposed,engagement.value.currency):existing!.value.terms
  if(previous)need(terms.unit===previous.value.terms.unit&&terms.frequency===previous.value.terms.frequency,'Keep the unit and calendar frequency within one retainer; create a separate retainer to change them')
  if(previous)need(terms.start>previous.value.terms.start,'A new commercial version starts after the previous version')
  const calendarRow=rows('agencyCalendars').at(-1)
- need(terms.proration!=='working'||(operation==='periods'?existing!.value.calendar:calendarRow),'The owner must save the agency workweek and holidays before working-day proration')
+ need((terms.proration!=='working'&&terms.feeMinor==null)||(operation==='periods'?existing!.value.calendar?.weekdays?.length:calendarRow),'The owner must save the agency workweek and holidays before working-day proration or period fees')
  const calendar=operation==='periods'?existing!.value.calendar:calendarRow?.value.calendar??{weekdays:[],holidays:[]}
  const from=date(input.from??terms.start),to=date(input.to??from)
  const calculated=retainerPeriods(terms,from,to,calendar)
+ // The fee uses working days even when the included allowance uses calendar days.
+ if(terms.feeMinor!=null)retainerPeriods({...terms,proration:'working'},from,to,calendar)
  need(calculated.length>0,'This window has no authorized retainer period')
  const successor=existing?family.find(r=>r.value.number===existing.value.number+1):undefined
  need(!successor||calculated.every(p=>p.activeEnd<successor.value.terms.start),'A later commercial version governs this period; use that version')
@@ -53,7 +57,9 @@ export async function retainerPreview(env:Bindings,a:Actor,input:Value,tx?:Trans
  const fingerprint=sha256(canonicalJson({input:normalized,engagement,observed,operator:a.session.operator.id,role:a.role}))
  if(tx){tx.observe('engagements',engagement);for(const {kind,rows:records} of observed){for(const row of records)tx.observe(kind,row);tx.guard(`(SELECT COUNT(*) FROM g_${kind})=?`,records.length)}}
  await fence(env,a)
- return {input:normalized,engagementId:engagement.id,rootId,number:(previous?.value.number??0)+1,terms,calendar,calendarId:operation==='periods'?existing!.value.calendarId:calendarRow?.id??null,periods,fingerprint}
+ const visibleTerms=!finance(a)&&!tx?Object.fromEntries(Object.entries(terms).filter(([key])=>!['feeMinor','feeBasis'].includes(key))):terms
+ const visibleInput=!finance(a)&&!tx&&operation==='terms'?{...normalized,terms:visibleTerms}:normalized
+ return {input:visibleInput,engagementId:engagement.id,rootId,number:(previous?.value.number??0)+1,terms:visibleTerms,calendar,calendarId:operation==='periods'?existing!.value.calendarId:calendarRow?.id??null,periods,fingerprint}
 }
 export async function retainerCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null> {
  if(action==='retainer:close')return closeRetainer(env,a,tx,input)

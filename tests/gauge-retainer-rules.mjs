@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
+import { harness } from './gauge-harness.mjs'
 
 // RETAINER-002 / RETAINER-003: public commands, statement, draft/approve/download and immutable
 // versions. Called by the existing retainer journey, sharing its built app.
@@ -78,4 +79,295 @@ export async function retainerRulesJourney(h,browser,{client,lead,worker,staff,m
   assert.equal((await state()).data.packets.find(p=>p.id===refreshed.id).value.totalMinor,60000)
   console.log('PASS RETAINER-002: capped 8-of-40 hour FIFO rollover, original expiry, deficit carry, versioned hour/value overage rates, exact three-hour $600 packet, source reservation, repeated download and stale approval refusal')
  }finally{await context.close()}
+}
+
+export async function retainerScheduleJourney(h,browser,{client,lead,manager,staff,agent}){
+ const {cmd,state,request}=h,zone='America/New_York'
+ const worker=await cmd('save:people',{name:'Scheduled service specialist',timezone:zone})
+ const project=await cmd('save:engagements',{name:'Scheduled monthly service',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Scheduled commercial fee and exact overage',timezone:zone})
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:9000000,effortSeconds:720000,roundingSeconds:60,reason:'Separate ad hoc terms'}))
+ await cmd('save:rates',{personId:worker.id,service:'Scheduled service',effective:'2026-01-01',costMinor:9000,billMinor:15000})
+ const task=await cmd('save:tasks',{engagementId:project.id,name:'Scheduled service delivery',remainingSeconds:3600})
+ const calendar=(await state()).data.agencyCalendars.at(-1)
+ await cmd('agency:calendar',{previousId:calendar.id,weekdays:[1,2,3,4,5],holidays:[],reason:'Contracted service working calendar'})
+ const preview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{name:'Monthly 40-hour service',feeMinor:300000,frequency:'monthly',unit:'hours',allowance:144000,services:['Scheduled service'],consumes:'billable',proration:'calendar',start:'2026-08-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:28800,carryPeriods:1,deficit:false,overage:'bill',overageRate:20000}}})
+ const term=await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Approved immutable monthly fee and allowance'})
+ const priorLimit=(await state()).data.approvalPolicies[0]
+ await cmd('approval:limit',{...priorLimit,reviewAboveMinor:400000,reason:'Owner bounds monthly automatic invoices'})
+ const savedClient=(await state()).data.clients.find(c=>c.id===client.id)
+ await cmd('save:clients',{...savedClient.value,...savedClient,paymentTermsDays:30})
+ const policy={retainerId:term.id,basis:'advance',from:'2026-08-01',enabled:true,autoIssue:true,capMinor:360000,includeOverages:true,billTo:'Service client accounts',remitTo:'Agency operating account',reference:'Monthly service agreement',heldPeriodIds:[],reason:'Consent to bounded automatic native invoices including agreed overages'}
+ for(const actor of [manager,staff,agent])await cmd('retainer:schedule',policy,actor.cookie,403)
+ // ct 22 Oct replaces the former autoIssue:true -> 403 policy pin.
+ await cmd('retainer:schedule',{...policy,capMinor:400001},h.owner,400)
+ let schedule=await cmd('retainer:schedule',policy)
+ const run=asOf=>cmd('retainer:run',{...schedule,asOf})
+ await run('2026-07-31');assert.equal((await state()).data.retainerRuns.filter(r=>r.value.rootId===term.id).length,0)
+ await run('2026-08-01');let data=await state(),aug=data.data.retainerPeriods.find(p=>p.value.rootId===term.id)
+ const fee=data.data.retainerCharges.find(c=>c.value.periodId===aug.id)
+ assert.equal(fee.value.amountMinor,300000);assert.equal(fee.value.date,'2026-08-01')
+ let packet=data.data.packets.find(p=>p.value.scheduleId===schedule.id)
+ assert.equal(packet.value.totalMinor,300000);assert.equal(packet.value.lines.length,1)
+ await run('2026-08-01');assert.equal((await state()).data.packets.filter(p=>p.value.scheduleId===schedule.id).length,1,'Restart with a new request key never duplicates a fee draft')
+ await cmd('packet:create',{engagementId:project.id,title:'Duplicate period fee',sources:[`retainerCharges:${fee.id}`]},h.owner,409)
+ const csv=await request(`/api/gauge/packets/${packet.id}`,h.owner);assert.equal(csv.status,200);const bytes=await csv.text();assert(bytes.includes('300000')&&bytes.includes(fee.id),'Automatic packet approval retains its exact downloadable source artifact');assert.equal(await(await request(`/api/gauge/packets/${packet.id}`,h.owner)).text(),bytes)
+ assert.equal(packet.value.status,'approved')
+ const invoice=data.data.invoices.find(i=>i.value.packetId===packet.id)
+ assert(invoice,'Eligible fee issues atomically with packet approval and the run receipt')
+ assert.equal(invoice.value.document.totalMinor,invoice.value.totalMinor);assert(invoice.value.pdf.sha256);assert(invoice.value.detailPdf.sha256)
+ assert.deepEqual([invoice.value.issueDate,invoice.value.dueDate,invoice.value.autoIssue.scheduleRevision,invoice.value.autoIssue.termsVersion],['2026-08-01','2026-08-31',schedule.revision,1])
+ assert.equal(data.data.retainerRuns.find(r=>r.value.periodId===aug.id).value.invoiceId,invoice.id)
+ data=await state();assert(data.data.invoices.find(i=>i.id===invoice.id).value.lines[0].sourceSnapshot)
+ const reportResponse=await request('/api/gauge/state?from=2026-08-01&to=2026-10-31&asOf=2026-10-01',h.owner),report=await reportResponse.json()
+ const cash=report.cash.engagements.find(e=>e.engagementId===project.id)
+ assert(!cash.items.some(i=>!i.issued&&i.source===`retainerPeriods:${aug.id}`),'Issued principal replaces its fee schedule once')
+ for(const [index,hours] of [8,8,8,8,8,3].entries()){
+  const day=`2026-08-${String(index+2).padStart(2,'0')}`
+  let time=await cmd('time:save',{engagementId:project.id,personId:worker.id,taskId:task.id,service:'Scheduled service',timezone:zone,start:`${day}T06:00:00-04:00`,end:`${day}T${String(6+hours).padStart(2,'0')}:00:00-04:00`,notes:'Confirmed monthly service',billable:true})
+  time=await cmd('time:submit',time);await cmd('time:approve',time)
+ }
+ const nativeDispute=await cmd('invoice:dispute',{...invoice,date:'2026-08-15',amountMinor:1000,reason:'Client questions the scheduled fee'})
+ schedule=await cmd('retainer:schedule',{...policy,...schedule,heldPeriodIds:[aug.id],reason:'Client disputes August excess; hold it'})
+ await run('2026-09-01');data=await state()
+ let familyPeriods=data.data.retainerPeriods.filter(p=>p.value.rootId===term.id)
+ assert.equal(familyPeriods.length,2);assert.equal(data.data.retainerCharges.filter(c=>c.value.rootId===term.id).length,2)
+ const september=data.data.retainerRuns.find(r=>r.value.rootId===term.id&&r.value.issueDate==='2026-09-01')
+ assert(september.value.exceptions.some(x=>x.periodId===aug.id&&x.reason==='Disputed overage held'));assert(september.value.exceptions.some(x=>x.reason.includes('unresolved dispute')))
+ assert.equal(data.data.packets.find(p=>p.id===september.value.packetId).value.totalMinor,300000)
+ assert.equal(data.data.packets.find(p=>p.id===september.value.packetId).value.status,'draft')
+ assert(!data.data.invoices.some(i=>i.value.packetId===september.value.packetId),'Disputed overages leave a draft and no invoice')
+ await run('2026-09-01');assert.equal((await state()).data.retainerPeriods.filter(p=>p.value.rootId===term.id).length,2)
+ await cmd('invoice:dispute-resolve',{...nativeDispute,date:'2026-09-02',outcome:'withdrawn',resolution:'Client withdrew the reported fee dispute'})
+ schedule=await cmd('retainer:schedule',{...policy,...schedule,heldPeriodIds:[],reason:'Finance records resolution of August excess'})
+ const races=await Promise.all([1,2].map(()=>h.post('/api/gauge/command',{key:crypto.randomUUID(),action:'retainer:run',...schedule,asOf:'2026-10-01'},h.owner)))
+ assert(races.some(r=>r.status===200)&&races.every(r=>[200,409].includes(r.status)),'Concurrent workers either commit once, acknowledge completed work or refuse a stale observation')
+ data=await state();const october=data.data.retainerRuns.find(r=>r.value.rootId===term.id&&r.value.issueDate==='2026-10-01'),octPacket=data.data.packets.find(p=>p.id===october.value.packetId)
+ assert.equal(data.data.retainerPeriods.filter(p=>p.value.rootId===term.id).length,3)
+ assert.equal(octPacket.value.totalMinor,360000);assert.deepEqual(octPacket.value.lines.map(l=>[l.kind,l.amountMinor]).sort(),[['retainerCharges',300000],['retainerPeriods',60000]].sort())
+ const excessLine=octPacket.value.lines.find(l=>l.kind==='retainerPeriods');assert.equal(excessLine.durationSeconds,10800);assert.equal(excessLine.billRateMinor,20000)
+ assert(!octPacket.value.lines.some(l=>l.kind==='time'),'Included 40 hours are never billed again')
+ await run('2026-10-01');assert.equal((await state()).data.packets.filter(p=>p.value.scheduleId===schedule.id).length,3)
+ assert.equal(octPacket.value.status,'approved')
+ const octoberInvoice=data.data.invoices.find(i=>i.value.packetId===octPacket.id)
+ assert.equal(Number(octoberInvoice.value.number.slice(4)),Number(invoice.value.number.slice(4))+1,'Draft exceptions consume no invoice number')
+ assert.equal(octoberInvoice.value.lines.find(l=>l.kind==='retainerPeriods').durationSeconds,10800)
+ assert.equal(octoberInvoice.value.lines.find(l=>l.kind==='retainerPeriods').billRateMinor,20000)
+ await cmd('packet:create',{engagementId:project.id,title:'Duplicate overage',sources:[`retainerPeriods:${aug.id}`]},h.owner,409)
+ // A contractual arrears date changes cash timing without repricing any earned period fee.
+ schedule=await cmd('retainer:schedule',{...policy,...schedule,basis:'arrears',reason:'Next contractual bill is in arrears'})
+ await run('2026-11-30');assert.equal((await state()).data.retainerPeriods.filter(p=>p.value.rootId===term.id).length,3)
+ await run('2026-12-01');data=await state();assert.equal(data.data.retainerCharges.filter(c=>c.value.rootId===term.id).at(-1).value.date,'2026-12-01')
+ assert.equal(data.data.retainerCharges.find(c=>c.id===fee.id).value.date,'2026-08-01','Later policy never changes an existing fee schedule')
+ const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
+ try{
+  await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  await page.goto(`${h.origin}/app/engagements?edit=${project.id}`)
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await page.locator('#retainer-schedules').scrollIntoViewIfNeeded()
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Scheduled billing fits ${width}`)
+   assert.match(await page.locator('#retainer-schedules').innerText(),/Contractual billing basis/)
+   if(process.env.GAUGE_RETAINER_SHOTS){await mkdir(process.env.GAUGE_RETAINER_SHOTS,{recursive:true});await page.locator('#retainer-schedules').screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/scheduled-billing-${width}.png`})}
+  }
+  await page.goto(`${h.origin}/app/billing#invoice-${octoberInvoice.id}`)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const card=page.locator(`#invoice-${octoberInvoice.id}`);await card.scrollIntoViewIfNeeded();await card.getByText('Immutable invoice and sources',{exact:true}).click();assert.match(await card.innerText(),/Auto-issued under schedule revision/);assert.match(await card.innerText(),/3 hours ×/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(process.env.GAUGE_RETAINER_SHOTS)await card.screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/auto-issued-invoice-${width}.png`});await card.getByText('Immutable invoice and sources',{exact:true}).click()}
+ }finally{await context.close()}
+ for(const actor of [manager,staff,agent]){const view=await state(actor.cookie);for(const k of ['retainerSchedules','retainerCharges','retainerRuns'])assert.deepEqual(view.data[k],[]);assert.equal((await request(`/api/gauge/history/retainerSchedules/${schedule.id}`,actor.cookie)).status,403);await cmd('retainer:run',{...schedule,asOf:'2027-01-01'},actor.cookie,403)}
+ schedule=await cmd('retainer:schedule',{...policy,...schedule,enabled:false,reason:'Finance revokes execution consent'})
+ await cmd('retainer:run',{...schedule,asOf:'2027-01-01'},h.owner,409)
+ assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM g_retainer_schedule_authority WHERE schedule_id=?').bind(schedule.id).first()).n,0)
+ const cronPerson=await cmd('save:people',{name:'Scheduling finance',timezone:zone}),cronUser=await h.invite('scheduling-finance')
+ await cmd('grant',{operatorId:cronUser.id,personId:cronPerson.id,role:'finance',enabled:true})
+ const cronPreview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{...preview.terms,name:'Cron-operated service',services:['Cron support'],start:'2026-08-01'}})
+ const cronTerm=await cmd('retainer:approve',{...cronPreview.input,fingerprint:cronPreview.fingerprint,reason:'Finance agrees the cron service'})
+ const cronPolicy=await cmd('retainer:schedule',{...policy,retainerId:cronTerm.id,reason:'Finance consents to bounded automatic issue'},cronUser.cookie)
+ const beforeCron=(await state()).data.retainerRuns.length
+ assert.equal((await h.scheduled()).status,200)
+ assert.equal((await state()).data.retainerRuns.length,beforeCron+1,'Real scheduled-event handler issues one due invoice without a session')
+ assert.equal((await state()).data.retainerRuns.filter(r=>r.value.rootId===cronTerm.id).length,1)
+ const cronInvoice=(await state()).data.invoices.find(i=>i.value.autoIssue?.scheduleId===cronPolicy.id);assert(cronInvoice)
+ await cmd('grant',{operatorId:cronUser.id,personId:cronPerson.id,role:'staff',enabled:true})
+ assert.equal((await h.scheduled()).status,200)
+ assert.equal((await state()).data.retainerRuns.length,beforeCron+1,'Revoked scheduling finance cannot execute the next due job')
+ await cmd('retainer:run',{...cronPolicy,asOf:'2026-09-01'},h.owner,403)
+ const audit=await (await request('/api/gauge/audit?action=invoice:auto-issue',h.owner)).json();assert(JSON.stringify(audit).includes(octoberInvoice.id),'Automatic issue is attributed in the business audit')
+ await retainerAutomaticExceptions(h,browser,{project,term,policy,clientId:client.id})
+ await retainerRestartAndCloseJourney(browser)
+ await retainerDurableJobJourney(browser)
+ console.log('PASS RETAINER-005 bounded automatic issue: exact fee/overage invoices, consecutive numbers, exception drafts, cap, current consent, locks, terms, PO, audit and 1440/390')
+}
+
+async function retainerAutomaticExceptions(h,browser,{project,term,policy,clientId}){
+ const {cmd,state}=h
+ term=(await state()).data.retainers.find(t=>t.id===term.id)
+ const make=async(name,overrides={})=>{
+  const preview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{...term.value.terms,name,services:[name],start:'2026-08-01'}})
+  const t=await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Reviewed exception scenario'})
+  const s=await cmd('retainer:schedule',{...policy,...overrides,retainerId:t.id})
+  return {t:(await state()).data.retainers.find(r=>r.id===t.id),s}
+ }
+ const draft=async(s,asOf,reason)=>{
+  const before=(await state()).data.invoices.length
+  await cmd('retainer:run',{...s,asOf})
+  const d=(await state()).data,run=d.retainerRuns.find(r=>r.value.scheduleSnapshot.id===s.id&&r.value.issueDate===asOf),p=d.packets.find(p=>p.id===run?.value.packetId)||d.packets.find(p=>p.value.scheduleId===s.id&&p.value.deferredSources)
+  assert(p);assert.equal(p.value.status,'draft');assert.match(JSON.stringify(p.value.exceptions),reason);assert.equal(d.invoices.length,before)
+  await cmd('retainer:run',{...s,asOf});assert.equal((await state()).data.packets.filter(p=>p.value.scheduleId===s.id).length,1,'Exception retry creates no duplicate draft')
+  return p
+ }
+ const capped=await make('Over cap service',{capMinor:299999})
+ await draft(capped.s,'2026-08-01',/exceeds the automatic issue cap/)
+ const poClient=(await state()).data.clients.find(c=>c.id===clientId)
+ const poRequired=await cmd('save:clients',{...poClient.value,...poClient,poRequired:true,poNumbers:['PO-RETAINER-2026']})
+ const missingPO=await make('PO-reviewed service')
+ await draft(missingPO.s,'2026-08-01',/matching saved PO/)
+ await cmd('save:clients',{...poClient.value,...poRequired,poRequired:false})
+ const missingAddress=await make('Missing remittance',{remitTo:''})
+ await draft(missingAddress.s,'2026-08-01',/bill-to and remit-to/)
+ const newer=await make('Revised commercial service')
+ const next=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',previousId:newer.t.id,terms:{...newer.t.value.terms,start:'2026-09-01'}})
+ await cmd('retainer:approve',{...next.input,fingerprint:next.fingerprint,reason:'Later version requires fresh auto-issue consent'})
+ await cmd('retainer:run',{...newer.s,asOf:'2026-08-01'})
+ const before=(await state()).data.invoices.length
+ await cmd('retainer:run',{...newer.s,asOf:'2026-09-01'})
+ const later=(await state()).data.retainerRuns.find(r=>r.value.scheduleSnapshot.id===newer.s.id&&r.value.issueDate==='2026-09-01')
+ assert.match(JSON.stringify(later.value.exceptions),/newer than/);assert.equal((await state()).data.invoices.length,before)
+ const locked=await make('Locked service')
+ const oldTimePolicy=(await state()).data.timePolicies[0]
+ const lock=await cmd('time:policy',{...oldTimePolicy,lockThrough:'2026-08-31',reason:'Finance locks August'})
+ await draft(locked.s,'2026-08-01',/TIME-003 locked period/)
+ await cmd('time:policy',{...lock,lockThrough:null,reason:'Finance reopens August with recorded reason'})
+ // Disabling even an owner-consented schedule stops the next real cron.
+ const enabled=await make('Disabled service')
+ await cmd('retainer:schedule',{...policy,...enabled.s,retainerId:enabled.t.id,enabled:false,reason:'Withdraw scheduled issue authority'})
+ await h.scheduled();assert(!(await state()).data.retainerRuns.some(r=>r.value.scheduleSnapshot.id===enabled.s.id))
+ const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
+ try{
+  await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  await page.goto(`${h.origin}/app/engagements?edit=${project.id}`)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const panel=page.locator('#retainer-schedules');assert.match(await panel.innerText(),/exceeds the automatic issue cap/);assert.match(await panel.innerText(),/matching saved PO/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(process.env.GAUGE_RETAINER_SHOTS){await panel.locator(':scope > ul').screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/automatic-exceptions-${width}.png`})}}
+  await page.goto(`${h.origin}/app/billing`)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const row=page.getByRole('row').filter({hasText:'Over cap service: scheduled 2026-08-01'});assert.match(await row.innerText(),/exceeds the automatic issue cap/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(process.env.GAUGE_RETAINER_SHOTS)await row.screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/billing-exception-${width}.png`})}
+ }finally{await context.close()}
+}
+
+async function retainerRestartAndCloseJourney(browser){
+ const h=await harness({currency:'USD',timezone:'America/New_York'});let restarted
+ try{
+  const {cmd,state}=h
+  await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:[],reason:'Saved advisory workweek'})
+  const client=await cmd('save:clients',{name:'Northline monthly advisory',paymentTermsDays:14})
+  const person=await cmd('save:people',{name:'Avery Finance',timezone:'America/New_York'})
+  const project=await cmd('save:engagements',{name:'Northline advisory',clientId:client.id,leadId:person.id,members:[],scope:'Monthly advisory',timezone:'America/New_York'})
+  await cmd('approval:limit',{reviewAboveMinor:100000,reason:'Owner permits monthly advisory invoice cap'})
+  const p=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{name:'Monthly advisory',feeMinor:100000,frequency:'monthly',unit:'hours',allowance:14400,services:['Advisory'],consumes:'billable',proration:'calendar',start:'2026-01-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:0,carryPeriods:0,deficit:false,overage:'bill',overageRate:25000}}})
+  const term=await cmd('retainer:approve',{...p.input,fingerprint:p.fingerprint,reason:'Monthly advisory agreement'})
+  const input={retainerId:term.id,basis:'advance',from:'2026-01-01',enabled:true,autoIssue:true,capMinor:100000,includeOverages:true,billTo:'Northline Finance',remitTo:'Advisory agency',reference:'Northline agreement',reason:'Owner consents to bounded automatic issue'}
+  let schedule=await cmd('retainer:schedule',input)
+  await cmd('retainer:run',{...schedule,asOf:'2026-01-01'})
+  await cmd('retainer:run',{...schedule,asOf:'2026-02-01'})
+  await h.close();restarted=await harness({persistenceDirectory:h.directory})
+  await restarted.cmd('retainer:run',{...schedule,asOf:'2026-02-01'})
+  const january=(await restarted.state()).data.retainerPeriods.find(p=>p.value.rootId===term.id&&p.value.periodStart==='2026-01-01')
+  await restarted.cmd('retainer:close',{...january,reason:'January immutable allowance close'})
+  const credit=await restarted.cmd('retainer:adjust-approve',await restarted.cmd('retainer:adjust-prepare',{...january,kind:'refund',amountMinor:10000,reason:'Finance agreed service credit, no external refund executed'}))
+  await restarted.cmd('retainer:schedule',{...input,...schedule,creditAdjustmentIds:[credit.id]},restarted.owner,400)
+  const creditContext=await browser.newContext({ignoreHTTPSErrors:true}),creditPage=await creditContext.newPage()
+  try{
+   await creditContext.addCookies(restarted.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:restarted.origin}}))
+   await creditPage.goto(`${restarted.origin}/app/engagements?edit=${project.id}`)
+   const form=creditPage.locator('#retainer-schedules form').filter({has:creditPage.locator(`input[name=retainerId][value="${term.id}"]`)})
+   await form.locator(`input[name=creditAdjustmentIds][value="${credit.id}"]`).check();await form.getByLabel('I confirm selected credits have not been executed externally').check();await form.getByLabel('Scheduling consent or change reason').fill('Explicitly apply the unexecuted approved service credit once to the next invoice')
+   for(const width of [1440,390]){await creditPage.setViewportSize({width,height:1000});if(process.env.GAUGE_RETAINER_SHOTS)await form.screenshot({path:`${process.env.GAUGE_RETAINER_SHOTS}/select-approved-credit-${width}.png`})}
+   await form.getByRole('button',{name:'Save billing schedule',exact:true}).click()
+   schedule=(await restarted.state()).data.retainerSchedules.find(s=>s.id===schedule.id)
+   assert.equal(schedule.value.creditAdjustments[0].id,credit.id)
+  }finally{await creditContext.close()}
+  await restarted.cmd('retainer:run',{...schedule,asOf:'2026-03-01'})
+  await restarted.cmd('retainer:run',{...schedule,asOf:'2026-03-01'})
+  let d=(await restarted.state()).data
+  assert.deepEqual(d.invoices.map(i=>[i.value.number,i.value.issueDate,i.value.dueDate,i.value.totalMinor]),[['INV-000001','2026-01-01','2026-01-15',100000],['INV-000002','2026-02-01','2026-02-15',100000],['INV-000003','2026-03-01','2026-03-15',90000]],'Two month ends and a real worker restart issue each period once with consecutive numbers')
+  assert.equal(d.retainerRuns.length,3);assert.equal(d.retainerCharges.length,3);assert.equal(d.packets.filter(p=>p.value.status==='approved').length,3)
+  const credited=d.invoices[2].value.lines.find(l=>l.kind==='retainerAdjustments');assert.equal(credited.amountMinor,-10000);assert.equal(credited.sourceSnapshot.id,credit.id);assert.equal(credited.creditConsent.scheduleRevision,schedule.revision)
+  await restarted.cmd('retainer:run',{...schedule,asOf:'2026-04-01'})
+  d=(await restarted.state()).data;assert.equal(d.invoices.at(-1).value.totalMinor,100000,'Approved credit is consumed once, never on a later recurring bill')
+  assert.equal(d.invoices.flatMap(i=>i.value.lines).filter(l=>l.sourceId===credit.id).length,1)
+  // An already-open period may be explicitly carried on the close checklist, but its later scheduled issue remains held.
+  const closedPreview=await restarted.cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms:{...p.terms,name:'January closed service',services:['Closed service']}})
+  const closedTerm=await restarted.cmd('retainer:approve',{...closedPreview.input,fingerprint:closedPreview.fingerprint,reason:'Saved before agency close'})
+  const held=await restarted.cmd('retainer:schedule',{...input,retainerId:closedTerm.id})
+  const lifecyclePreview=await restarted.cmd('retainer:preview',{engagementId:project.id,operation:'terms',from:'2026-01-01',to:'2026-02-28',terms:{...p.terms,name:'Paused monthly service',services:['Paused service']}})
+  const lifecycleTerm=await restarted.cmd('retainer:approve',{...lifecyclePreview.input,fingerprint:lifecyclePreview.fingerprint,reason:'Finance agrees service lifecycle'})
+  const lifecyclePeriod=(await restarted.state()).data.retainerPeriods.find(p=>p.value.rootId===lifecycleTerm.id&&p.value.periodStart==='2026-01-01')
+  await restarted.cmd('retainer:close',{...lifecyclePeriod,reason:'Close service before pause'})
+  const pause=await restarted.cmd('retainer:adjust-prepare',{...lifecyclePeriod,kind:'pause',amountMinor:0,reason:'Client pauses the next period'})
+  await restarted.cmd('retainer:adjust-approve',pause)
+  const lifecycleSchedule=await restarted.cmd('retainer:schedule',{...input,retainerId:lifecycleTerm.id})
+  const lifecycleResult=await restarted.cmd('retainer:run',{...lifecycleSchedule,asOf:'2026-01-01'}),lifecycleDraft=(await restarted.state()).data.packets.find(p=>p.id===lifecycleResult.id)
+  assert.equal(lifecycleDraft.value.status,'draft');assert.match(JSON.stringify(lifecycleDraft.value.exceptions),/lifecycle exception/)
+  await restarted.cmd('time:policy',{lockThrough:'2026-01-31',reason:'January time reconciled'})
+  const invoice=d.invoices[0]
+  await restarted.cmd('period:match',{month:'2026-01',invoiceId:invoice.id,invoiceRevision:invoice.revision,system:'synthetic-gauge-accounting',externalId:'synthetic-gauge-1',amountMinor:100000,currency:'USD',reference:'January accounting control',reason:'Match native invoice'})
+  let preview=await restarted.cmd('period:preview',{month:'2026-01'})
+  const exceptions=Object.fromEntries(preview.snapshot.checklist.blocking.filter(b=>b.kind==='retainers').map(b=>[b.id,'Finance explicitly retains the named open service period']))
+  preview=await restarted.cmd('period:preview',{month:'2026-01',retainerExceptions:exceptions})
+  assert.deepEqual(preview.snapshot.checklist.blocking,[])
+  const prepared=await restarted.cmd('period:prepare',{...preview.input,fingerprint:preview.fingerprint,acknowledgeWip:true,wipReconciliation:'Reviewed all January WIP and held retainer periods',reason:'January close'})
+  // The source review is at the saved cap and can be approved by this owner.
+  const limit=(await restarted.state()).data.approvalPolicies[0]
+  await restarted.cmd('approval:limit',{...limit,reviewAboveMinor:10000000,reason:'Owner sets close review limit'})
+  // Review policy is not a source assumption of the close snapshot.
+  await restarted.cmd('period:approve',prepared)
+  const before=(await restarted.state()).data
+  const heldResult=await restarted.cmd('retainer:run',{...held,asOf:'2026-01-01'}),heldDraft=(await restarted.state()).data.packets.find(p=>p.id===heldResult.id)
+  assert.equal(heldDraft.value.status,'draft');assert.match(JSON.stringify(heldDraft.value.exceptions),/FINANCE-004 closed period/)
+  await restarted.cmd('packet:approve',heldDraft,restarted.owner,409)
+  await restarted.cmd('retainer:run',{...held,asOf:'2026-01-01'})
+  d=(await restarted.state()).data
+  assert.equal(d.invoices.length,before.invoices.length);assert.equal(d.retainerCharges.length,before.retainerCharges.length);assert.equal(d.retainerPeriods.length,before.retainerPeriods.length)
+  assert.equal(d.packets.filter(p=>p.value.scheduleId===held.id).length,1,'Closed-period retries retain one exception draft without writing financial sources')
+  console.log('PASS retainerRestartAndCloseJourney: two month ends, real restart, atomic numbered issue, closed-period exception draft')
+ }finally{await restarted?.dispose();await h.dispose()}
+}
+
+export async function retainerDurableJobJourney(browser){
+ let h=await harness({currency:'USD',timezone:'America/New_York'});const directory=h.directory
+ const cmd=(...args)=>h.cmd(...args),state=()=>h.state(),job=async id=>(await state()).data.retainerJobs.find(j=>j.value.scheduleId===id)
+ const context=await browser.newContext({ignoreHTTPSErrors:true})
+ try{
+  await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:[],reason:'Retainer scheduler workweek'})
+  const person=await cmd('save:people',{name:'Northline finance owner',timezone:'America/New_York'}),client=await cmd('save:clients',{name:'Northline durable billing'})
+  const project=await cmd('save:engagements',{name:'Northline durable advisory',clientId:client.id,leadId:person.id,members:[],scope:'Native draft scheduling only',timezone:'America/New_York'})
+  const preview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',from:'2026-01-01',to:'2026-01-31',terms:{name:'Durable advisory',feeMinor:30000,frequency:'monthly',unit:'hours',allowance:3600,services:['Advisory'],consumes:'billable',proration:'calendar',start:'2026-01-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:0,carryPeriods:0,deficit:false,overage:'bill',overageRate:10000}}})
+  const term=await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Owner agrees immutable monthly service'})
+  const policy={retainerId:term.id,basis:'advance',from:'2026-03-01',enabled:true,autoIssue:false,heldPeriodIds:[],reason:'Finance authorizes native drafts, no external sending'}
+  const schedule=await cmd('retainer:schedule',policy),at=Date.parse('2026-03-02T12:00:00Z')
+  // Missing intervening periods are a real source precondition. The scheduler
+  // commits its durable claim, then its atomic draft transaction refuses it.
+  assert.equal((await h.scheduled(at)).status,200)
+  const failed=await job(schedule.id);assert.equal(failed.value.status,'retry-wait');assert.equal(failed.value.attempts,1);assert.equal(failed.value.nextAttemptAt,at+60000)
+  assert.equal((await state()).data.packets.length,0,'A refused attempt creates no partial draft or financial source')
+  assert.equal((await h.scheduled(at+30000)).status,200);assert.equal((await job(schedule.id)).revision,failed.revision,'Backoff prevents another claim before it is due')
+  await h.close();h=await harness({currency:'USD',timezone:'America/New_York',persistenceDirectory:directory})
+  assert.deepEqual((await job(schedule.id)).value,failed.value,'The claimed failed draft and retry bound survive a real Worker restart')
+  const periods=await cmd('retainer:preview',{engagementId:project.id,operation:'periods',retainerId:term.id,from:'2026-02-01',to:'2026-02-28'})
+  await cmd('retainer:approve',{...periods.input,fingerprint:periods.fingerprint,reason:'Finance opens the missing intervening period'})
+  assert.equal((await h.scheduled(at+60000)).status,200)
+  const recovered=await job(schedule.id);assert.equal(recovered.value.status,'idle');assert.equal(recovered.value.attempts,0)
+  let data=(await state()).data;assert.equal(data.packets.length,1);assert.equal(data.packets[0].value.totalMinor,30000);assert.equal(data.packets[0].value.status,'draft');assert.equal(data.retainerRuns.length,1)
+  await h.scheduled(at+120000);data=(await state()).data;assert.equal(data.packets.length,1,'A restarted due job creates one native draft');assert.equal(data.retainerCharges.length,1)
+  const finance=await h.invite('synthetic-gauge-7001');await cmd('grant',{operatorId:finance.id,personId:person.id,role:'finance',enabled:true})
+  const revised=await cmd('retainer:schedule',{...policy,...schedule,reason:'Finance takes responsibility for the next recurring draft'},finance.cookie)
+  await cmd('grant',{operatorId:finance.id,personId:person.id,role:'staff',enabled:true})
+  await h.scheduled(Date.parse('2026-04-02T12:00:00Z'))
+  const report=await state();assert.equal(report.retainerScheduleHealth.find(s=>s.id===schedule.id).status,'authority-expired');assert.equal(report.data.packets.length,1,'Expired authority produces an owned exception without another financial write')
+  assert.deepEqual((await h.state(finance.cookie)).data.retainerJobs,[])
+  await context.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  const page=await context.newPage();await page.goto(h.origin+'/app/engagements?edit='+project.id)
+  const shots=process.env.GAUGE_RETAINER_SHOTS;if(shots)await mkdir(shots,{recursive:true})
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.match(await page.locator('#retainer-schedules').innerText(),/authority-expired/);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await page.locator('#retainer-schedules').screenshot({path:`${shots}/owned-job-authority-${width}.png`})}
+  await cmd('retainer:schedule',{...policy,...revised,enabled:false,reason:'Owner cancels scheduled draft work'})
+  assert.equal((await job(schedule.id)).value.status,'cancelled')
+  await h.scheduled(Date.parse('2026-05-02T12:00:00Z'));assert.equal((await state()).data.packets.length,1)
+  assert(!h.providerRequests.some(r=>r.url!=='https://api.resend.com/emails'),'Native scheduling creates no external business write')
+ }finally{await context.close();await h.close();const {rm}=await import('node:fs/promises');await rm(directory,{recursive:true,force:true})}
+ console.log('PASS retainerDurableJobJourney: durable claim/refused transaction, backoff, actual restart, once-only native draft recovery, expired authority and cancellation with 1440/390')
 }

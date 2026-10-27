@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { milestoneDeliveryJourney } from './gauge-milestone-delivery.mjs'
 import { deliveryTemplatesJourney } from './gauge-delivery-templates.mjs'
 
 // DELIVERY-002: plan actual tasks, phases and a priced milestone through native
@@ -30,7 +31,7 @@ try {
  const booking=await cmd('save:staffing',{engagementId:project.id,personId:worker.id,from:'2026-11-24',to:'2026-11-24',dailySeconds:21600,commitment:'committed',service:'Design'})
  await cmd('save:staffing',{engagementId:other.id,personId:worker.id,from:'2026-11-27',to:'2026-11-27',dailySeconds:14400,commitment:'committed',service:'Design'})
  const unknownBooking=await cmd('save:staffing',{engagementId:project.id,personId:unknownWorker.id,from:'2026-11-24',to:'2026-11-24',dailySeconds:3600,commitment:'tentative',service:'Design'})
- browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  await context.addCookies(manager.cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
  const capture=async(name)=>{if(!process.env.GAUGE_DELIVERY_SHOTS)return;await mkdir(process.env.GAUGE_DELIVERY_SHOTS,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);await page.locator('#delivery-schedule').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/${name}-${width}.png`,fullPage:true});await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/${name}-viewport-${width}.png`})}}
@@ -115,6 +116,7 @@ try {
  const cross=structuredClone(first.value.schedule);cross.nodes.find(n=>n.id===task.id).sourceId=(await cmd('save:tasks',{engagementId:other.id,name:'Private task',remainingSeconds:0})).id
  await cmd('delivery:preview',{engagementId:project.id,previousId:second.id,operation:'baseline',plan:cross},manager.cookie,400)
  await deliveryTemplatesJourney(h,browser,{lead,worker,manager,staff,outsider})
+ await milestoneDeliveryJourney(h,browser,{lead,worker,manager,staff,outsider})
  await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:false})
  await cmd('delivery:preview',again,manager.cookie,403)
  console.log('PASS DELIVERY-002: phase/task/milestone DAG, inclusive business dates, Thanksgiving cascade, critical path/slack, global staffing effects, immutable baseline, exact replay/stale refusal and scoped access')

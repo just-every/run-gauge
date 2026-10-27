@@ -2,7 +2,7 @@ An engagement is the work a client agreed to: who leads it, who works on it, the
 
 ## Clients and people
 
-Add each **Client** by name. Add each **Person** with their **Work timezone** (for example `America/Los_Angeles`) and tick **Contractor** for contractors. A person is a record of who does the work; giving them a sign-in is a separate step on **Access**.
+Add each **Client** by name. Finance can also keep its legal name, billing and project contacts, addresses, a tax ID reference and exemption certificates, whether invoices need a PO and the PO numbers, tags and external IDs such as `hubspot:5001`, beside its payment terms. **Find a client** searches by name, PO number or external ID. Opening a client offers a form to merge it into another client: its engagements and opportunities move to the client you keep, which also takes its PO numbers and external IDs; when the two clients' payment terms differ you choose which to keep. Add each **Person** with their **Work timezone** (for example `America/Los_Angeles`) and tick **Contractor** for contractors. A person is a record of who does the work; giving them a sign-in is a separate step on **Access**.
 
 ## Engagements
 

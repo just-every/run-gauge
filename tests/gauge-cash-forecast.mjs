@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { stripePaymentJourney, invoicePresentationJourney, receivablesJourney, notToExceedJourney, phaseBudgetJourney, agencyCloseJourney, customFieldJourney } from './gauge-invoices.mjs'
+import { progressJourney } from './gauge-progress.mjs'
+import { receiptJourney } from './gauge-receipts.mjs'
+import { revenueDashboardJourney, captureRevenueDashboard } from './gauge-revenue-dashboard.mjs'
 
 // FINANCE-002 revenue and cash forecast as of 20 October 2026, through the command, state and Week in review doors:
 // a milestone delayed two weeks through the delivery plan moves expected cash exactly as an independent FINANCE-007
@@ -9,6 +13,7 @@ import { harness } from './gauge-harness.mjs'
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
 let browser
 try {
+ await captureRevenueDashboard(h,'empty')
  const { cmd, request, owner } = h, asOf = '2026-10-20'
  const read = async (cookie = owner) => { const r = await request(`/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=${asOf}`, cookie); assert.equal(r.status, 200); return r.json() }
  const worker = await cmd('save:people', { name: 'Ada Ruiz', timezone: 'America/New_York' })
@@ -72,7 +77,7 @@ try {
  // Each month's cash traces to its milestone, client terms and as-of day.
  const figure = data.lineage.find(x => x.id === 'cash:USD:2026-12:expectedMinor')
  assert.equal(figure.value, december.expectedMinor); assert(figure.sources.some(s => s.kind === 'milestones' && s.id === launch.id)); assert(figure.sources.some(s => s.kind === 'clients' && s.id === client.id)); assert.match(figure.formula, /As of 2026-10-20/)
- // A client without payment terms is placed on "Net 30 assumed", labelled, until SETUP-002 client terms ship.
+ // A client without payment terms is placed on "Net 30 assumed", labelled, while its terms are unset.
  const bare = await cmd('save:clients', { name: 'Termless' })
  const termless = await cmd('save:engagements', { name: 'Termless fixed', clientId: bare.id, leadId: worker.id, members: [worker.id], scope: 'Fixed', timezone: 'America/New_York' })
  await cmd('budget:approve', await cmd('save:budgets', { engagementId: termless.id, mode: 'fixed', amountMinor: 500000, effortSeconds: 3600, roundingSeconds: 60, reason: 'Fixed fee' }))
@@ -88,19 +93,35 @@ try {
  assert.equal(leadView.cash, null); assert(!leadView.lineage.some(x => x.id.startsWith('cash:')))
  assert(leadView.data.clients.every(c => c.value.daysLate === undefined && c.value.collectionPercent === undefined && c.value.paymentTermsDays === undefined))
 
+ await revenueDashboardJourney(h,{read,worker,client,hourly,entry,asOf})
+
  browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
  const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage(), shots = process.env.GAUGE_CASH_SHOTS
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
- await page.goto(h.origin + '/app/review')
+ await page.goto(h.origin + `/app/review?from=2026-10-01&to=2026-10-31&asOf=${asOf}`)
  const section = page.locator('#cash-forecast'), text = await section.innerText()
- for (const label of [/none issued/i, /no payments recorded/i, /historical timing/i, /weighted pipeline/i]) assert.match(text, label)
+ for (const label of [/issued receivables/i, /user-recorded/i, /historical timing/i, /weighted pipeline/i]) assert.match(text, label)
  for (const width of [1440, 390]) {
   await page.setViewportSize({ width, height: 1000 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Cash forecast fits ${width}`)
-  if (shots) { await mkdir(shots, { recursive: true }); await section.screenshot({ path: `${shots}/cash-${width}.png` }) }
+  if (shots) { await mkdir(shots, { recursive: true }); await section.screenshot({ path: `${shots}/cash-${width}.png` }); await page.locator('#project-margin').screenshot({path:`${shots}/margin-${width}.png`}); await page.locator('#revenue-dashboard').screenshot({path:`${shots}/REPORT-003-${width}.png`}) }
+  const dashboard=page.locator('#revenue-dashboard');assert(await dashboard.isVisible());assert.match(await dashboard.innerText(),/Unverified|unverified/);assert.match(await dashboard.innerText(),/Unknown/)
  }
  await page.setViewportSize({ width: 1440, height: 1000 })
+ await page.locator('#revenue-dashboard').getByRole('row',{name:/USD/}).locator('a[href*="wipMinor"]').click()
+ assert.match(await page.locator('#report-evidence article').first().innerText(),/Hourly WIP and reimbursable expenses/)
  await section.getByRole('row', { name: /2027-01/ }).getByRole('link').nth(1).click()
  assert((await page.locator('#report-evidence article').first().innerText()).includes('Expected cash on terms'))
+ // Add receivables fixtures after the existing cash/WIP controls have reconciled.
+ await receivablesJourney(h,worker)
+ await notToExceedJourney(h)
+ await phaseBudgetJourney(h)
+ await receiptJourney(h,worker)
+ await progressJourney(h,worker)
+ await agencyCloseJourney(h)
+ await customFieldJourney(h)
+ // This independent document journey has its own installation and native authentication limits.
+ const invoiceApp=await harness({currency:'USD',timezone:'America/New_York',databaseBinding:false})
+ try{await invoicePresentationJourney(invoiceApp);await stripePaymentJourney(invoiceApp)}finally{await invoiceApp.dispose()}
  console.log('PASS FINANCE-002 milestone delay moves expected cash as an independent FINANCE-007 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only')
 } finally { await browser?.close(); await h.dispose() }

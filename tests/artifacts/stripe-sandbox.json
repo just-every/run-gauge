@@ -1,0 +1,36 @@
+{
+  "candidate": "f73eca516d6df00f239b90c807d6d6772e682878",
+  "mode": "Stripe test",
+  "checkoutSessionId": "cs_test_a1QeyvVI0z2QLButaqjg0q1Vinfh1F15qMDmt5r5hzuF9jzJa7mrcOEtwl",
+  "paymentIntentId": "pi_3UUljw5ErG20QHq81MoguV9x",
+  "beforeRefund": {
+    "status": "pending",
+    "pendingMinor": 10000,
+    "settledMinor": 0,
+    "feeMinor": null,
+    "netMinor": null,
+    "balanceStatus": "pending"
+  },
+  "afterRefund": {
+    "refundedMinor": 1000,
+    "settledMinor": 0,
+    "pendingMinor": 9000,
+    "allocatedMinor": 0
+  },
+  "refundEventId": "ad1595c0-825c-4d30-9900-01b048a9b376",
+  "achGap": "Held AU test account has no activated US bank account capability",
+  "signedDeliveryGap": "No public sandbox callback endpoint is configured; signed replay is asserted at the network edge",
+  "payout": {
+    "id": "po_1UUU9U5ErG20QHq8RyNej1F7",
+    "currency": "AUD",
+    "amountMinor": 2544932,
+    "netMinor": 2544932,
+    "differenceMinor": 0,
+    "transactions": 152
+  },
+  "ach": {
+    "status": "refused",
+    "exceptionClass": "provider-refused"
+  },
+  "heavyRun": "20261026T110520276871Z-heavy-slot-8b881a49"
+}

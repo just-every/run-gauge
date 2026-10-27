@@ -1,3 +1,16 @@
+import { intakeSection } from './intake'
+import { clientPortalSection } from './client-portal'
+import { accountantBody } from './accountant'
+import { floatSection } from './ui-float'
+import { rocketlaneSection } from './ui-rocketlane'
+import { productiveSection } from './ui-productive'
+import { teamworkSection } from './ui-teamwork'
+import { scoroSection } from './ui-scoro'
+import { kantataSection } from './ui-kantata'
+import { agencySection, consolidationSection } from './ui-agency'
+import { casesSection } from './ui-operational-cases'
+import { privacySection } from './ui-privacy'
+import { customDefinitionSection,customRecordSection,customReportsSection,customImportSection } from './ui-custom-fields'
 import type { Bindings } from '../auth.server'
 import type { Actor } from './store'
 import { finance, fence } from './store'
@@ -14,8 +27,9 @@ import { engagementsSection } from './ui-engagements'
 import { timeSection } from './ui-time'
 import { boardWindow } from './ui-board'
 import { reportEvidence } from './ui-report-evidence'
+import { acceptanceSummary } from './ui-estimate-attestation'
 
-export const tabsFor = (a: Actor) => a.role === 'agent' ? ['review'] : ['review', 'engagements', 'capacity', 'time', 'expenses', ...(finance(a) ? ['billing', 'rates', 'imports'] : []), ...(a.role === 'owner' ? ['access'] : [])]
+export const tabsFor = (a: Actor) => a.role==='resource-manager'?['capacity']:a.role==='accountant'?['review']:a.role === 'client' ? [] : a.role === 'agent' ? ['review'] : ['review', 'engagements', 'capacity', 'time', 'expenses', ...(finance(a) ? ['billing', 'rates', 'imports'] : []), ...(a.role === 'owner' ? ['access'] : [])]
 const fonts = '<link rel="preload" href="/fonts/mona-sans/mona-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="preload" href="/fonts/source-serif-4/source-serif-4-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous"><link rel="stylesheet" href="/fonts/fonts.css">'
 const styles = ['/rer-theme.css', '/gauge.css', '/gauge-shell.css', '/gauge-board.css'].map(href => `<link rel="stylesheet" href="${href}">`).join('')
 
@@ -36,17 +50,28 @@ export function periods(zone:string,now=Date.now()) {
 
 export async function appPage(env:Bindings,a:Actor,section:string,options:Value={}) {
  const zone=workspaceZone(a),{today,week}=periods(zone)
+ if(a.role==='resource-manager'&&section==='review')section='capacity'
+ if(a.role==='accountant'){need(section==='review','Page unavailable',404);return shell(a,'review','Accountant inputs',await accountantBody(env,a),{today,zone})}
  // Staffing reads its five-week board; every other page reads the week.
  const timeFrom=options.sheetFrom??options.from??week[0]
  const [from,to]=section==='time'?[timeFrom,shift(timeFrom,options.sheetView==='day'?0:6)]:section==='capacity'?boardWindow(options.from??today):[options.from??week[0],options.to??week[1]]
- const report=await reports(env,a,from,to,section==='time'&&a.role==='owner'?options.sheetPerson:undefined)
+ const report=await reports(env,a,from,to,section==='time'&&a.role==='owner'?options.sheetPerson:undefined,options.asOf,options)
  need(tabsFor(a).includes(section),'Page unavailable',404)
  let body=options.error?`<p class="g-alert" role="alert">${e(options.error)}</p>`:options.saved?'<p class="g-saved" role="status">Saved.</p>':''
- if(section==='review')body+=await reviewSection(env,a,report)
+ if(section==='review')body+=await reviewSection(env,a,report,options)
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
+ if(section==='engagements'&&options.edit){const project=report.data.engagements.find(r=>r.id===options.edit);if(project)body+=await clientPortalSection(env,a,project)+await intakeSection(env,a,project)}
  if(section==='time')body+=timeSection(a,report,options)
+ if(section==='access')body+=await agencySection(env,a,report)+customDefinitionSection(a,report,options)
+ if(section==='engagements')body+=customRecordSection(a,report,options)
+ if(section==='review'||section==='capacity')body+=customReportsSection(a,report,options)
+ if(section==='imports')body+=customImportSection(a,options)
  body+=await operations(env,a,section,{...options,today,zone},report)
- if(['review','engagements','capacity','billing'].includes(section))body+=reportEvidence(report,options.calculation)
+ if(section==='access')body+=privacySection(a,report,options)
+ if(section==='imports')body+=await consolidationSection(env,a)
+ if(section==='review')body+=casesSection(a,report,options)
+ if(section==='imports')body+=await kantataSection(env,a,report,options)+await scoroSection(env,a,options)+await teamworkSection(env,a,options)+await productiveSection(env,a,options)+await rocketlaneSection(env,a,options)+await floatSection(env,a,options)
+ if(a.role!=='resource-manager'&&['review','engagements','capacity','billing'].includes(section))body+=reportEvidence(report,options.calculation)
  const notice=await agentNotice(env,a,report,zone,today)
  await fence(env,a)
  return shell(a,section,tabLabels[section],body,{today,zone,notice,currency:report.agency.currency})
@@ -60,9 +85,11 @@ const summary = (v: Value, currency: string) => [v.name ?? v.title ?? v.descript
 export async function historyPage(env: Bindings, a: Actor, k: Kind, id: string, data: Report['data'], history: { revision: string; value: Value; actor: string; action: string; at: number }[]) {
  const names = new Map((await env.DB.prepare('SELECT id,display_name FROM oa_operators').all<{ id: string; display_name: string }>()).results.map(o => [o.id, o.display_name]))
  const zone = history.find(h => h.value.timezone)?.value.timezone ?? a.timezone, { today } = periods(a.timezone)
- const rows = history.map(h => `<tr><td data-label="Changed">${e(when(h.at, zone))}</td><td data-label="Change">${e(actions[h.action] ?? h.action.replace(/^[a-z-]+:/, '').replace(/^\w/, c => c.toUpperCase()))}</td><td data-label="By">${e(names.get(h.actor) ?? 'Unknown operator')}</td><td data-label="Earlier revision">${h.value.status ? chip(h.value.status) : ''} ${summary(h.value, data.engagements.find(r => r.id === h.value.engagementId)?.value.currency ?? a.currency)}</td></tr>`).join('')
+ const rows = history.map(h => `<tr><td data-label="Changed">${e(when(h.at, zone))}</td><td data-label="Change">${e(actions[h.action] ?? h.action.replace(/^[a-z-]+:/, '').replace(/^\w/, c => c.toUpperCase()))}</td><td data-label="By">${e(names.get(h.actor) ?? 'Unknown operator')}</td><td class="g-wrap" data-label="Earlier revision">${h.value.status ? chip(h.value.status) : ''} ${summary(h.value, data.engagements.find(r => r.id === h.value.engagementId)?.value.currency ?? a.currency)}${acceptanceSummary(h.value)}</td></tr>`).join('')
+ const current=data[k].find(r=>r.id===id)
  const back = sectionOf[k] ?? 'engagements'
  const body = `<nav class="g-crumbs" aria-label="Breadcrumb"><a href="/app/${back}">${e(tabLabels[back])}</a><span aria-hidden="true">/</span><span aria-current="page">Revision history</span></nav><div class="g-titlebar"><h1>Revision history</h1></div><p class="g-summary">${e(describeSource(data, `${k}:${id}`).text)}</p><p class="g-lede">Each row keeps the revision as it was before the change, who changed it and when.</p>`
+  + acceptanceSummary(current?.value)
   + `<section class="g-card g-card--table"><h2>Earlier revisions</h2>${rows ? `<div class="g-table"><table><thead><tr><th scope="col">Changed</th><th scope="col">Change</th><th scope="col">By</th><th scope="col">Earlier revision</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="g-empty">No earlier revisions: this record has not changed since it was created.</p>'}</section>`
  await fence(env, a)
  return shell(a, back, 'Revision history', body, { today, zone: a.timezone })

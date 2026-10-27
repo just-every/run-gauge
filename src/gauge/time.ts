@@ -1,5 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, instant, zone, flag, workDate, integer, date } from './model'
+import { phaseFor } from './budget-phases'
 import { freeze } from './rate-cards'
 import { assertRetainerSourceEditable } from './retainer-source-lock'
 import { enforceTimeReview, timeReviewer, reviewSettings, activeDelegation } from './time-review'
@@ -12,7 +13,8 @@ export async function snapshotRates(env: Bindings,tx: Transaction,row: Row) {
  const budgets = (await all(env,'budgets')).filter(b=> b.value.engagementId === row.value.engagementId && b.value.status === 'approved').sort((x,y)=>y.value.approvedAt-x.value.approvedAt)
  need(budgets[0],'Approve engagement terms first'); tx.observe('budgets',budgets[0]);tx.guard("(SELECT COUNT(*) FROM g_budgets WHERE engagement_id=? AND status='approved')=?",row.value.engagementId,budgets.length)
  need(budgets[0].value.currency === engagement.value.currency, 'Terms currency differs from engagement; no implicit FX')
- return freeze(env,tx,row,engagement,{mode:budgets[0].value.mode,roundingSeconds:budgets[0].value.roundingSeconds,budgetId:budgets[0].id})
+ const phase=await phaseFor(env,tx,engagement.id,row.value.phaseKey)
+ return freeze(env,tx,row,engagement,{mode:phase?.mode??budgets[0].value.mode,roundingSeconds:budgets[0].value.roundingSeconds,budgetId:budgets[0].id})
 }
 export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action: string,input: Value): Promise<Row | null> {
  if (!['time:save','timer:start','timer:stop','time:submit','time:return','time:approve','time:correct'].includes(action)) return null
@@ -31,7 +33,9 @@ export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action:
   need(end === null || end > start!,'End must follow start'); need(end === null || end <= Date.now()+60000,'Time cannot end in the future')
   const timezone = zone(input.timezone)
   await assertTimeUnlocked(env,tx,[dateOnly?date(input.workDate):workDate(start!,timezone)])
-  return tx.record('time',{engagementId:e.id,personId:person.id,taskId:task.id,service:text(input.service,'Service'),notes:String(input.notes ?? '').slice(0,4000),billable,start,end,durationSeconds:dateOnly ? integer(input.durationSeconds,'Actual duration seconds',1,86400) : end === null ? null : Math.round((end-start!)/1000),timezone,workDate:dateOnly ? date(input.workDate) : workDate(start!,timezone),status:'draft',source:old?.value.source ?? null},old)
+  const phase=await phaseFor(env,tx,e.id,task.value.phaseKey)
+  if(phase)need(String(input.service).toLowerCase()===phase.service.toLowerCase(),'Use the approved phase service for this task')
+  return tx.record('time',{...(phase?{phaseKey:phase.key}:{}),engagementId:e.id,personId:person.id,taskId:task.id,service:text(input.service,'Service'),notes:String(input.notes ?? '').slice(0,4000),billable,start,end,durationSeconds:dateOnly ? integer(input.durationSeconds,'Actual duration seconds',1,86400) : end === null ? null : Math.round((end-start!)/1000),timezone,workDate:dateOnly ? date(input.workDate) : workDate(start!,timezone),status:'draft',source:old?.value.source ?? null},old)
  }
  const row = await get(env,'time',text(input.id,'Entry')); need(row.revision === input.revision,'Entry changed; reload',409)
  await assertTimeUnlocked(env,tx,[row.value.workDate])

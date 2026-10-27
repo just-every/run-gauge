@@ -14,12 +14,16 @@ import type { Alternative, ScenarioEffect } from './project-scenario-effects'
 
 // FINANCE-003: every comparison uses the native committed forecast and cash basis.
 // Full set guards include inserts/deletes as well as revision changes.
-const basisKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','retainers','retainerPeriods','retainerCloses','retainerAdjustments','deliveryPlans']
+const basisKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','retainers','retainerPeriods','retainerCloses','retainerAdjustments','deliveryPlans','invoices','payments','paymentPromises','invoiceCorrections']
 const hash = (value: unknown) => sha256(canonicalJson(value))
 async function basis(env: Bindings, tx?: Transaction) {
  const data = Object.fromEntries(await Promise.all(basisKinds.map(async k => [k, await all(env,k)]))) as Record<Kind,Row[]>
  if(tx) for(const k of basisKinds) { for(const row of data[k])tx.observe(k,row);tx.guard(`(SELECT COUNT(*) FROM g_${k})=?`,data[k].length) }
  return data
+}
+/** Client review validates the complete native basis without projecting private comparison data. */
+export async function assertScenarioBasis(env:Bindings,row:Row,tx?:Transaction) {
+ need(hash(await basis(env,tx))===row.value.basisDigest,'Change baseline changed; prepare a new version',409)
 }
 function normalize(input: unknown): Value[] {
  need(Array.isArray(input) && input.length > 0 && input.length <= 20, 'Choose between 1 and 20 alternatives')
@@ -83,6 +87,7 @@ export async function projectScenarioPreview(env: Bindings, a: Actor, input: Val
  let changes: Value[], stored: Row | undefined
  if(input.id) {
   stored = await get(env,'projectScenarios',text(input.id,'Scenario'))
+  need(!stored.value.changeOrder, 'Client change requests cannot be adopted as internal financial scenarios', 409)
   need(stored.revision === input.revision && stored.value.status === 'prepared', 'Scenario changed or already adopted', 409)
   need(asOf === stored.value.asOf && hash(data) === stored.value.basisDigest, 'Scenario baseline changed; prepare a new scenario', 409)
   need(Array.isArray(input.selectedIds) && input.selectedIds.length > 0, 'Explicitly select the alternatives to adopt')

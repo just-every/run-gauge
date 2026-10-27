@@ -1,8 +1,11 @@
+import { sourceFieldJourney } from './fixtures/source-custom-fields.mjs'
+import { harvestFinancePackage } from './fixtures/harvest-finance.mjs'
 import assert from 'node:assert/strict'
 import { readFile, mkdir } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { agencyJourney, clientCurrencyJourney } from './gauge-agency.mjs'
 
 const h = await harness({ finishSetup: false }), { cmd, state, request, owner } = h
 let browser
@@ -23,6 +26,10 @@ try {
  await page.goto(h.origin + '/setup')
  assert.equal(await page.locator('[name=currency]').inputValue(), 'USD')
  await page.getByLabel('Work timezone').fill('America/New_York')
+ // SETUP-001: the New York agency's legal business, US address, EIN and fiscal year are saved with the first-run form.
+ await page.getByLabel('Legal business name').fill('Hudson Studio LLC'); await page.getByLabel('US billing address').fill('1 Pier Plaza')
+ await page.getByLabel('City').fill('New York'); await page.getByLabel('State').fill('NY'); await page.getByLabel('ZIP code').fill('10001')
+ await page.getByLabel('EIN (owner-only, never printed on documents)').fill('123456789'); await page.getByLabel('Fiscal year starts in').selectOption('1')
  await capture('setup')
  await page.getByRole('checkbox').check(); await page.getByRole('button', { name: 'Finish setup' }).click(); await page.waitForURL('**/app')
  assert.deepEqual((await state()).agency, { currency: 'USD', timezone: 'America/New_York' })
@@ -31,23 +38,38 @@ try {
  assert.equal((await state()).agency.currency, 'USD')
 
  const fixture = 'tests/fixtures/harvest/', files = {}
- for (const name of ['clients.csv', 'people.csv', 'projects.csv', 'time.csv']) files[name] = await readFile(fixture + name, 'utf8')
+ for (const name of ['clients.csv', 'people.csv', 'projects.csv', 'time.csv', 'finance.json']) files[name] = await readFile(fixture + name, 'utf8')
  files['clients.csv'] = files['clients.csv'].replace('Synthetic client', 'Cascade Cider')
  files['people.csv'] = files['people.csv'].replace('Synthetic person', 'Owen Park')
  files['projects.csv'] = files['projects.csv'].replace('Synthetic project', 'Fall launch')
  const manifest = { ...JSON.parse(await readFile(fixture + 'manifest.json', 'utf8')), currency: 'USD', timezone: 'America/New_York' }
+ harvestFinancePackage({manifest,files})
  const mismatch = await cmd('import:preview', { package: { manifest: { ...manifest, currency: 'AUD' }, files } }, owner, 400)
  assert.match(mismatch.error, /AUD.*USD/)
  await page.goto(h.origin + '/app/imports')
  await page.locator('input[name=files]').setInputFiles(Object.entries(files).map(([name, contents]) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(contents) })))
+ const incomplete=structuredClone(manifest);incomplete.sourceCoverage.time.complete=false
+ await page.getByLabel('Manifest, as described in the move-in guide').fill(JSON.stringify(incomplete))
+ await page.getByRole('button', { name: 'Preview', exact: true }).click()
+ await page.getByRole('heading', { name: 'Incomplete source preview' }).waitFor()
+ assert.equal(await page.getByRole('button',{name:'Apply first bounded batch'}).count(),0)
+ assert((await page.locator('body').innerText()).includes('Filtered or incomplete original'))
+ assert.equal((await state()).data.time.length,0)
+ await capture('harvest-incomplete')
+ const icons=await page.locator('button,a,summary').evaluateAll(nodes=>nodes.filter(n=>!n.textContent.trim()&&n.querySelector('svg,img')).map(n=>n.outerHTML));assert.deepEqual(icons,[],'Imports controls have visible text')
+ await page.locator('input[name=files]').setInputFiles(Object.entries(files).map(([name,contents])=>({name,mimeType:'text/csv',buffer:Buffer.from(contents)})))
  await page.getByLabel('Manifest, as described in the move-in guide').fill(JSON.stringify(manifest))
  await page.getByRole('button', { name: 'Preview', exact: true }).click()
  await page.getByRole('heading', { name: 'Reconciled preview' }).waitFor(); await capture('harvest-preview')
+ assert.deepEqual((await cmd('import:preview',{package:{manifest,files}})).financialControls,manifest.finance.controls.financial)
  await page.getByRole('button', { name: 'Apply first bounded batch' }).click()
- let data = await state(), job = await cmd('import:read', { id: await page.locator('input[name=id]').first().inputValue() })
+ let data = await state(), job = await cmd('import:read', { id: await page.locator('form').filter({has:page.locator('input[value="import:resume"]')}).first().locator('input[name=id]').inputValue() })
  while (job.state !== 'completed') job = await cmd('import:resume', { id: job.id })
  data = await state()
+ assert.equal(data.data.archives.filter(r=>r.value.harvestFinance).length,9)
+ await page.reload();assert.equal(await page.getByRole('link',{name:'Download retained Harvest finance',exact:true}).count(),9);await capture('harvest-finance')
  const engagement = data.data.engagements[0], person = data.data.people[0], task = data.data.tasks[0]
+ await sourceFieldJourney(h,{client:data.data.clients[0],project:engagement,person,task,providers:['harvest'],page,capture})
  assert.equal(engagement.value.currency, 'USD'); assert.equal(data.data.rates[0].value.currency, 'USD')
  assert(data.data.time.every(row => row.value.source.currency === 'USD'))
  const expense = await cmd('expense:save', { engagementId: engagement.id, personId: person.id, date: '2026-09-01', description: 'Launch workshop materials', amountMinor: 8650, reimbursable: true })
@@ -82,9 +104,10 @@ try {
   assert(!/AUD|A\$|GST|Australia\/Brisbane/.test(await page.locator('body').innerText()), `${section} uses agency currency and timezone`)
  }
  await page.goto(h.origin + '/app/billing')
- await page.locator('[name=engagementId]').selectOption(engagement.id); await page.getByLabel('Packet title').fill('Cascade Cider · September delivery')
- await page.locator(`input[name=sources][value="time:${entry.id}"]`).check()
- await page.getByRole('button', { name: 'Save', exact: true }).click()
+ const preparation=page.locator('select[name=engagementId]').locator('xpath=ancestor::form')
+ await preparation.locator('select[name=engagementId]').selectOption(engagement.id); await preparation.getByLabel('Packet title',{exact:true}).fill('Cascade Cider · September delivery')
+ await preparation.locator(`input[name=sources][value="time:${entry.id}"]`).check()
+ await preparation.getByRole('button', { name: 'Save', exact: true }).click()
  await page.getByRole('button', { name: 'Approve exact packet', exact: true }).click()
  await capture('billing')
  const download = page.waitForEvent('download'); await page.getByRole('link', { name: 'Download approved CSV' }).click()
@@ -99,6 +122,8 @@ try {
  await cmd('packet:approve', adjustment)
  assert.equal((await state()).data.packets.find(row => row.id === adjustment.id).value.totalMinor, -2)
  console.log('PASS USD setup → Harvest preview/apply → exact cents → approval → report → billing CSV and correction; mismatch refused')
+ await agencyJourney(h, page, capture)
+ await clientCurrencyJourney(h, page, capture)
 } finally { await browser?.close(); await h.dispose() }
 
 // Legacy milestones inherited currency from their engagement. Populate that old

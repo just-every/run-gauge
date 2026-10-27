@@ -1,3 +1,6 @@
+import { customFilterInputs } from './ui-custom-fields'
+import { personMatches } from './custom-resource'
+import { matchesCustom } from './custom-values'
 import type { Actor } from './store'
 import { finance } from './store'
 import type { Row, Value } from './model'
@@ -11,7 +14,7 @@ const hidden = (name: string, value: unknown) => `<input type="hidden" name="${e
 /** Search changes the displayed roster only; demand and report calculations retain all their inputs. */
 export function schedulePeople(report: Report, options: Value) {
  const contains = (value: unknown, query: unknown) => String(value ?? '').toLowerCase().includes(String(query ?? '').trim().toLowerCase())
- return new Set(report.data.people.filter(p => contains(p.value.name, options.schedulePerson)
+ return new Set(report.data.people.filter(p => personMatches(report.data,p,options.customFilters??{})&&contains(p.value.name, options.schedulePerson)
   && contains(p.value.role, options.scheduleRole)
   && (!String(options.scheduleSkill ?? '').trim() || (p.value.skills ?? []).some((skill: Value) => contains(skill.name, options.scheduleSkill))))
   .map(p => p.id))
@@ -22,6 +25,7 @@ export function scheduleSearch(report: Report, options: Value) {
   + input('schedulePerson', 'Person name contains', options.schedulePerson ?? '', 'search', false)
   + input('scheduleRole', 'Role contains', options.scheduleRole ?? '', 'search', false)
   + input('scheduleSkill', 'Skill contains', options.scheduleSkill ?? '', 'search', false)
+  + customFilterInputs(report,undefined,options.customFilters??{})
   + `<div class="g-actions"><button class="g-btn g-btn--primary">Search calendar</button><a class="g-btn g-btn--secondary" href="/app/capacity?from=${e(report.from)}${options.view === 'weeks' ? '&amp;view=weeks' : ''}">Clear search</a></div></form></section>`
 }
 
@@ -56,7 +60,7 @@ function schedulePreview(report: Report, preview: Value) {
 }
 
 export function scheduleSection(a: Actor, report: Report, options: Value, people: Set<string>) {
- if (!finance(a) && a.role !== 'lead') return ''
+ if (!finance(a) && !['lead','resource-manager'].includes(a.role)) return ''
  const d = report.data, preview: Value | undefined = options.schedulePreview
  const selected = d.staffing.find(r => r.id === (preview?.id ?? options.edit))
  let body = '<details class="g-records" id="schedule-changes" open><summary>Move or split a booking</summary><p class="g-lede">Select a booking, preview its new dates or people, review daily capacity and apply the exact change. Hours per date, service, billability and commitment stay the same.</p>'

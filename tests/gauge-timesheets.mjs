@@ -74,7 +74,7 @@ try {
  first=(await state()).data.time.find(t=>t.id===first.id);await cmd('time:approve',first,manager.cookie)
  first=(await state()).data.time.find(t=>t.id===first.id);assert.equal(first.value.durationSeconds,4020);assert.equal(first.value.economics.roundedBillingSeconds,4500)
  // Import a historical package before locking, then demonstrate locked undo and insert refusals.
- const fixture=new URL('./fixtures/harvest/',import.meta.url),files={};for(const file of ['clients.csv','people.csv','projects.csv','time.csv'])files[file]=await readFile(new URL(file,fixture),'utf8')
+ const fixture=new URL('./fixtures/harvest/',import.meta.url),files={};for(const file of ['clients.csv','people.csv','projects.csv','time.csv','finance.json'])files[file]=await readFile(new URL(file,fixture),'utf8')
  const manifest=JSON.parse(await readFile(new URL('manifest.json',fixture),'utf8'));manifest.currency='USD';manifest.namespace='timesheet-lock-source'
  const pack={manifest,files},preview=await cmd('import:preview',{package:pack});let imported=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});while(['applying','queued'].includes(imported.state))imported=await cmd('import:resume',{id:imported.id});assert.equal(imported.state,'completed')
  const draftInput={personId:worker.id,engagementId:project.id,taskId:task.id,service:'Design',timezone:zone,billable:true,notes:'Awaiting submission',start:'2026-10-06T13:00:00-04:00',end:'2026-10-06T14:00:00-04:00'}

@@ -1,6 +1,8 @@
+import { projectBillingData } from './consolidated-billing'
 import { type Row, type Value, charge, sum } from './model'
 import { explain, activeRates } from './rate-cards'
 import type { financeForecast } from './finance-forecast'
+import { liveInvoices } from './invoice-standing'
 
 // FINANCE-001 actual and forecast margin per engagement, on the FINANCE-006 basis. Integer cents in the engagement currency.
 // Earned value is FINANCE-006 actual fees: operational, not recognized revenue. Billed is approved billing packets net of
@@ -21,9 +23,9 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    const x = t.value.economics ?? {}
    if (x.costMinor == null) costUnknown.push(`time:${t.id}: frozen costMinor unknown`)
    else if ((x.costCurrency ?? x.currency) !== f.currency) costUnknown.push(`time:${t.id}: cost declared in ${x.costCurrency}; SETUP-003 exchange rates convert it`)
-   if (f.basis === 'hourly' && t.value.billable && x.billMinor == null) feesUnknown.push(`time:${t.id}: frozen billMinor unknown`)
+   if ((f.basis === 'hourly'||x.mode==='hourly') && t.value.billable && x.billMinor == null) feesUnknown.push(`time:${t.id}: frozen billMinor unknown`)
   }
-  if (f.basis === 'retainer') feesUnknown.push(`engagements:${e.id}: retainer period fees are not recorded until RETAINER-005`)
+  if (f.basis === 'retainer') feesUnknown.push(...f.incomplete.filter(s=>s.includes('period fee')))
   // Provisional cost: submitted, not yet approved, time at the cost rate effective on its work date, plus submitted expenses.
   const provisionalUnknown: string[] = [], provisionalSources: string[] = []
   let provisionalLaborMinor = 0, provisionalExpenseMinor = 0
@@ -35,8 +37,11 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    else if ((cost.value.costCurrency ?? cost.value.currency) !== f.currency) provisionalUnknown.push(`time:${t.id}: cost declared in ${cost.value.costCurrency}; SETUP-003 exchange rates convert it`)
    else provisionalLaborMinor += charge(t.value.durationSeconds, cost.value.costMinor)
   }
-  for (const x of mine('expenses').filter(r => r.value.status === 'submitted')) { provisionalSources.push(`expenses:${x.id}`); provisionalExpenseMinor += x.value.amountMinor }
-  const packets = mine('packets').filter(p => p.value.status === 'approved'), credits = packets.filter(p => p.value.correctsPacketId && p.value.totalMinor < 0)
+  for (const x of mine('expenses').filter(r => r.value.status === 'submitted')) { provisionalSources.push(`expenses:${x.id}`); if(x.value.amountMinor==null)provisionalUnknown.push(`expenses:${x.id}: FX or unit pricing pending`);else provisionalExpenseMinor += x.value.amountMinor }
+  // Live invoices only: a void removes its original, and issued credit notes (INVOICE-004) are netted out of billed.
+  const billing=projectBillingData(data,e.id,forecast.asOf)
+  const standings = liveInvoices(billing, forecast.asOf).filter(s => s.invoice.value.engagementId === e.id), invoices = standings.map(s => s.invoice), invoiceCredits = standings.flatMap(s => s.credits), payments=billing.payments.filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))
+  const packets = billing.packets.filter(p => p.value.status === 'approved'), credits = packets.filter(p => p.value.correctsPacketId && p.value.totalMinor < 0)
   const approvedExpenseMinor = sum(approvedExpenses.map(x => x.value.amountMinor)), knownApprovedCostMinor = f.actualCostMinor
   const actualUnknown = [...costUnknown, ...feesUnknown], knownActualMarginMinor = f.actualFeesMinor - knownApprovedCostMinor
   // Remaining effort: open task estimates, and committed allocation seconds after the as-of day.
@@ -49,8 +54,8 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    approvedCostMinor: costUnknown.length ? null : knownApprovedCostMinor, knownApprovedCostMinor, approvedLaborCostMinor: knownApprovedCostMinor - approvedExpenseMinor, approvedExpenseCostMinor: approvedExpenseMinor, costUnknown,
    provisionalCostMinor: provisionalUnknown.length ? null : provisionalLaborMinor + provisionalExpenseMinor, knownProvisionalCostMinor: provisionalLaborMinor + provisionalExpenseMinor, provisionalLaborCostMinor: provisionalLaborMinor, provisionalExpenseCostMinor: provisionalExpenseMinor, provisionalUnknown, provisionalSources,
    earnedValueMinor: feesUnknown.length ? null : f.actualFeesMinor, knownEarnedValueMinor: f.actualFeesMinor, feesUnknown, earnedLabel: marginLabels.earned,
-   billedMinor: sum(packets.map(p => p.value.totalMinor)), creditsMinor: sum(credits.map(p => p.value.totalMinor)), billedLabel: marginLabels.billed, packetSources: packets.map(p => p.id), creditSources: credits.map(p => p.id),
-   paidCashMinor: null, paidCashLabel: marginLabels.paid,
+   billedMinor: invoices.length ? sum(standings.map(s => s.netMinor)) : sum(packets.map(p => p.value.totalMinor)), creditsMinor: sum(credits.map(p => p.value.totalMinor)), billedLabel: invoices.length ? (invoiceCredits.length ? 'Invoiced, pre-tax, net of credit notes' : 'Invoiced, pre-tax') : marginLabels.billed, invoiceCreditSources: invoiceCredits.map(c => c.id), packetSources: packets.map(p => p.id), creditSources: credits.map(p => p.id),
+   invoiceSources: invoices.map(i=>i.id), paymentSources: payments.map(p=>p.id), paidCashMinor: payments.length ? sum(payments.map(p=>p.value.amountMinor)) : null, paidCashLabel: payments.length ? 'User-recorded receipts, not provider verified' : marginLabels.paid,
    remainingTaskSeconds: sum(mine('tasks').map(t => t.value.remainingSeconds ?? 0)), committedFutureSeconds,
    etcFeesMinor: f.etcFeesMinor, eacFeesMinor: f.eacFeesMinor, etcCostMinor: f.etcCostMinor, eacCostMinor: f.eacCostMinor,
    actualMarginMinor: actualUnknown.length ? null : knownActualMarginMinor, knownActualMarginMinor, actualUnknown,

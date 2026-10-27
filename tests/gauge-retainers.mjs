@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { retainerStatementsJourney } from './gauge-retainer-statements.mjs'
-import { retainerRulesJourney } from './gauge-retainer-rules.mjs'
+import { retainerRulesJourney, retainerScheduleJourney } from './gauge-retainer-rules.mjs'
 import { retainerCloseJourney } from './gauge-retainer-close.mjs'
 import { harness } from './gauge-harness.mjs'
 
@@ -16,11 +16,12 @@ try{
  const {cmd,state,request}=h,zone='America/New_York'
  const lead=await cmd('save:people',{name:'Morgan Client Lead',timezone:zone}),worker=await cmd('save:people',{name:'Avery Designer',timezone:zone})
  const manager=await h.invite('retainer-lead'),staff=await h.invite('retainer-worker'),agent=await h.invite('retainer-agent')
- await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:true});await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true});await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true})
+ await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:true});await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true})
  const client=await cmd('save:clients',{name:'Cascade Studio'})
  const project=await cmd('save:engagements',{name:'Ongoing brand partnership',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Monthly design and strategy services',timezone:zone})
  const second=await cmd('save:engagements',{name:'Quarterly strategy support',clientId:client.id,leadId:lead.id,members:[worker.id],scope:'Quarterly service allowance',timezone:zone})
  const terms={name:'Brand partnership',frequency:'monthly',unit:'value',allowance:1000000,services:['Design','Strategy'],consumes:'all',proration:'calendar',start:'2026-10-16',end:null,renewal:'automatic',noticeDays:10,currency:'USD'}
+ await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'billing',engagementIds:[project.id,second.id]})
  const preview=(t,engagementId=project.id,extra={},cookie=manager.cookie)=>cmd('retainer:preview',{engagementId,operation:'terms',terms:t,...extra},cookie)
  const save=async(p,reason='Reviewed commercial allowance')=>cmd('retainer:approve',{...p.input,fingerprint:p.fingerprint,reason},manager.cookie)
  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
@@ -155,7 +156,7 @@ try{
  for(const user of [staff,agent]){await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms},user.cookie,403);const view=await state(user.cookie);if(user===staff){assert(view.data.retainers.some(t=>t.id===hourTerms.id));assert(view.data.retainers.every(t=>t.value.terms.unit==='hours'));assert(!view.data.retainers.some(t=>t.id===first.id));assert(view.data.retainerPeriods.every(p=>p.value.unit==='hours'))}else{assert.equal(view.data.retainers.length,0);assert.equal(view.data.retainerPeriods.length,0);assert.equal(view.retainerBalances.length,0)};assert.equal((await request(`/api/gauge/history/retainers/${first.id}`,user.cookie)).status,403)}
  // Moving out an import cannot erase an engagement with later native terms.
  const fixture=new URL('./fixtures/harvest/',import.meta.url),files={}
- for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,fixture),'utf8')
+ for(const name of ['clients.csv','people.csv','projects.csv','time.csv','finance.json'])files[name]=await readFile(new URL(name,fixture),'utf8')
  const manifest=JSON.parse(await readFile(new URL('manifest.json',fixture),'utf8'));manifest.currency='USD';manifest.namespace='retainer-undo'
  const sourcePackage={manifest,files},importPreview=await cmd('import:preview',{package:sourcePackage})
  let job=await cmd('import:create',{package:sourcePackage,fingerprint:importPreview.fingerprint})
@@ -171,6 +172,7 @@ try{
  await retainerRulesJourney(h,browser,{client,lead,worker,staff,manager})
  await retainerStatementsJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await retainerCloseJourney(h,browser,{client,lead,worker,staff,manager,agent})
+ await retainerScheduleJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:false});await cmd('retainer:preview',open.input,manager.cookie,403)
  console.log('PASS RETAINER-001: native USD value/hours terms, monthly/quarterly/annual periods, exact calendar/working proration, inclusive ends and renewal, immutable commercial versions/calendar snapshots, eligible approved-work policy, lineage and scoped authority')
 }finally{await browser?.close();await h.dispose()}

@@ -1,6 +1,6 @@
 import type { Bindings } from '../auth.server'
 
-// These currencies all use two decimal minor units. Gauge never converts money.
+// Supported billing currencies use two decimal minor units. Conversion requires an approved dated rate.
 export const currencies = ['USD', 'AUD', 'CAD', 'EUR', 'GBP', 'NZD', 'CHF', 'SGD'] as const
 export const defaults = { currency: 'USD', timezone: 'America/Los_Angeles' }
 export async function agency(env: Pick<Bindings, 'DB'>): Promise<{ currency: string; timezone: string }> {

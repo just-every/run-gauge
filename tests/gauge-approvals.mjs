@@ -1,3 +1,4 @@
+import { recordMilestoneAcceptance } from './gauge-harness.mjs'
 import assert from 'node:assert/strict'
 
 // GOVERN-001 (ct 19 Oct 18:06Z): cost export and credits by role, the owner's two-person review limit,
@@ -20,6 +21,7 @@ export async function governJourney(h, { eng, staff, leadUser, financeUser }) {
  const governed = await cmd('save:engagements', { name: 'Governed handover', clientId: base.clientId, leadId: base.leadId, members: base.members, scope: 'Fixed handover', timezone: base.timezone })
  const fee = await cmd('save:budgets', { engagementId: governed.id, mode: 'fixed', amountMinor: 50000, effortSeconds: 3600, roundingSeconds: 60, reason: 'Fixed handover fee' }); await cmd('budget:approve', fee)
  const milestone = await cmd('save:milestones', { engagementId: governed.id, name: 'Governed handover', due: '2026-10-30', amountMinor: 50000 }); await cmd('milestone:approve', milestone)
+ await recordMilestoneAcceptance(h,milestone.id)
  const draft = await cmd('packet:create', { engagementId: governed.id, title: 'Governed handover', sources: [`milestones:${milestone.id}`] }, financeUser.cookie)
  await cmd('packet:approve', draft, financeUser.cookie)
  let packet = (await report(owner)).data.packets.find(p => p.id === draft.id)

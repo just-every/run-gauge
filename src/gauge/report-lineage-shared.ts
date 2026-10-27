@@ -21,6 +21,7 @@ export interface ReportLineageInput {
  from: string
  to: string
  data: Record<string, Row[]>
+ customPerformance?:Value|null
  economics: Value[]
  capacity: Value[]
  pipeline: Value[]
@@ -31,8 +32,12 @@ export interface ReportLineageInput {
  retainerBalances?: Value[]
  resourceDemand?: Value[]
  forecast?: Value | null
+ phaseMargins?: Value[]
  margin?: Value[] | null
+ portfolio?: Value | null
+ revenueDashboard?: Value | null
  cash?: Value | null
+ demandForecast?: Value | null
 }
 
 export interface Evidence { sources: LineageSource[]; unknown: string[] }
@@ -61,6 +66,7 @@ export class Lineage {
   // the immutable referenced rate and terms when they are already visible.
   const frozen = row.value.economics
   if (frozen) {
+   if(frozen.estimateId)this.row(e,'estimates',frozen.estimateId)
    this.row(e, 'rates', frozen.rateId)
    if (frozen.costRateId && frozen.costRateId !== frozen.rateId) this.row(e, 'rates', frozen.costRateId)
    this.row(e, 'budgets', frozen.budgetId)

@@ -1,8 +1,10 @@
+import { fieldInputs } from './ui-custom-fields'
 // Delivery templates: versioned agency plans (phases, dependent tasks with owners and
 // effort, priced milestones) that start a new engagement's baseline on a chosen date.
+import { phaseFields } from './ui-budget-phases'
 import { type Actor, finance } from './store'
 import type { Row, Value } from './model'
-import { escape as e, input as i, form, table } from './ui-forms'
+import { escape as e, input as i, form, table, check,amount,choices,area } from './ui-forms'
 import { hours, money, day, nameOf } from './ui-format'
 import type { Report } from './ui-describe'
 
@@ -10,16 +12,18 @@ const label = (t: Row) => `${t.value.name} · version ${t.value.number}`
 const latestOf = (rows: Row[]) => rows.filter(t => !rows.some(n => n.value.previousId === t.id))
 
 function itemLines(report: Report, t?: Value) {
- return (t?.items ?? []).map((x: Value) => [x.key, x.kind, x.name, x.offsetDays, x.durationDays, x.predecessors.join(', '), x.owner === 'lead' ? 'lead' : x.owner ? nameOf(report.data.people, x.owner) : '', x.kind === 'task' ? x.effortSeconds / 3600 : '', x.kind === 'milestone' ? (x.amountMinor / 100).toFixed(2) : ''].join(' | ')).join('\n')
+ return (t?.items ?? []).map((x: Value) => [x.key, x.kind, x.name, x.offsetDays, x.durationDays, x.predecessors.join(', '), x.owner === 'lead' ? 'lead' : x.owner ? nameOf(report.data.people, x.owner) : '', x.kind === 'task' ? x.effortSeconds / 3600 : '', x.kind === 'milestone' ? (x.amountMinor / 100).toFixed(2) : '',x.phaseKey??''].join(' | ')).join('\n')
 }
 
 function editor(report: Report, previous?: Row) {
  const t = previous?.value
  const fields = (previous ? `<input type="hidden" name="previousId" value="${e(previous.id)}">` : '') + i('name', 'Template name', t?.name ?? '')
   + `<label class="g-field"><span>Template purpose</span><select name="purpose" required>${['project', 'client-onboarding'].map(p => `<option value="${p}" ${t?.purpose === p ? 'selected' : ''}>${p === 'project' ? 'Project' : 'Client onboarding'}</option>`).join('')}</select></label>`
-  + `<label class="g-field g-field--wide"><span>Template items</span><textarea name="itemLines" rows="6" required>${e(itemLines(report, t))}</textarea></label><p class="g-note">One item per line: key | phase, task or milestone | name | business-day offset | business-day duration | after keys | owner (lead or a person) | effort hours | fee.</p>`
+  + `<label class="g-field g-field--wide"><span>Template items</span><textarea name="itemLines" rows="6" required>${e(itemLines(report, t))}</textarea></label><p class="g-note">One item per line: key | phase, task or milestone | name | business-day offset | business-day duration | after keys | owner (lead or a person) | effort hours | fee | budget phase key.</p>`
+  + check('templateBudget','Include phase budgets',!!t?.budget)+choices('templateMode','Budget billing mode',['hourly','fixed'],t?.budget?.mode)+amount('templateAmountDollars','Template total fee',t?.budget?.amountMinor??'',false)+i('templateEffortHours','Template total effort hours',t?.budget?.effortSeconds==null?'':t.budget.effortSeconds/3600,'number',false)+amount('templateExpenseBudgetDollars','Template expense budget',t?.budget?.expenseBudgetMinor??0,false)+i('templateRoundingMinutes','Template rounding minutes',t?.budget?.roundingSeconds==null?1:t.budget.roundingSeconds/60,'number',false)+phaseFields(t?.budget?.phases??[])
+  + `<input type="hidden" name="intakeExtraForms" value="${e(JSON.stringify(t?.intakeForms?.slice(1)??[]))}"><details><summary>Client intake form</summary>${i('intakeTitle','Intake title',t?.intakeForms?.[0]?.title??'','text',false)}${area('intakeQuestions','Required questions, one per line',t?.intakeForms?.[0]?.questions?.join('\n')??'',false)}${i('intakeFileLabel','Requested file',t?.intakeForms?.[0]?.fileLabel??'','text',false)}${i('intakeOffsetDays','Intake due after business days',t?.intakeForms?.[0]?.offsetDays??0,'number')}${i('intakeEveryDays','Reminder interval in days',t?.intakeForms?.[0]?.everyDays??1,'number')}${i('intakeChestUrl','Chest shared-file link',t?.intakeForms?.[0]?.chestUrl??'','url',false)}${i('intakeBlotterUrl','Blotter practice-request link',t?.intakeForms?.[0]?.blotterUrl??'','url',false)}</details>`
   + i('reason', 'Version reason', '')
- return form('template:save', previous ? `Revise ${label(previous)}` : 'New delivery template', fields, undefined, previous ? 'Save new version' : 'Save template')
+ return form('template:save', previous ? `Revise ${label(previous)}` : 'New delivery template', fields+check('applyTemplateDefaults','Set these custom defaults on every task item')+fieldInputs(report,'tasks',{},false), undefined, previous ? 'Save new version' : 'Save template')
 }
 
 export function templatesSection(a: Actor, report: Report) {

@@ -3,5 +3,32 @@
   "projectId": "gauge-local/edition",
   "name": "Gauge",
   "sourceRepository": "https://github.com/just-every/run-gauge",
-  "license": "MIT"
+  "license": "MIT",
+  "deployment": {
+    "target": "cloudflare-workers",
+    "artifactFile": "gauge-worker-artifact.json"
+  },
+  "operations": {
+    "setup": "pnpm install --frozen-lockfile",
+    "build": "pnpm run build",
+    "verify": "pnpm run source:check && pnpm run typecheck && pnpm run test:runtime && pnpm run test:gauge && pnpm run check:deployment-spec",
+    "artifact": "pnpm run delivery:artifact",
+    "recovery": "Follow OPERATIONS.md: pause writes and scheduled work; retain source, private settings and an export; restore into fresh empty resources with unchanged migration names and bytes; establish a fresh owner and verify records, attachments and re-export before routing traffic."
+  },
+  "verification": {
+    "migrationDirectories": [
+      "migrations/core"
+    ],
+    "guidanceFiles": [
+      "AGENTS.md",
+      "OPERATIONS.md"
+    ],
+    "testPatterns": [
+      "tests/*.mjs"
+    ]
+  },
+  "setup": {
+    "path": "rer-setup.json",
+    "sha256": "7d8102e7452ce293f1dc9fc7b75aaf5651c632beaa4a789b743c8164d3ef0117"
+  }
 }

@@ -1,9 +1,10 @@
 import type { Bindings } from '../auth.server'
 import type { Row } from './model'
-import { escape as e, input as i, form, decision, table } from './ui-forms'
+import { escape as e, input as i, form, decision, table, select } from './ui-forms'
 import { chip } from './ui-format'
 import { apiKeyRegister } from './api-keys'
 
+const appScopeName=(scope:string)=>scope==='projects:read time:write'?'Read projects and save draft time':'Read assigned projects'
 const when = (ms: number | null) => ms ? new Date(ms).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '—'
 const period = (detail: string) => { const d = JSON.parse(detail); return d.from ? `${d.from} to ${d.to}` : d.scope ?? '' }
 
@@ -11,8 +12,13 @@ const period = (detail: string) => { const d = JSON.parse(detail); return d.from
 export async function apiKeysSection(env: Bindings, created?: { id: string; label: string; token: string }) {
  const { keys, activity } = await apiKeyRegister(env)
  let body = '<div class="g-titlebar" id="api-keys"><h2>Utilization API keys</h2></div><p class="g-lede">A key reads one thing: <code>GET /api/gauge/state?from=YYYY-MM-DD&amp;to=YYYY-MM-DD</code> with <code>Authorization: Bearer</code>, answering the agency\'s participant count, available seconds and approved billable seconds for those dates. It cannot write, names no person and carries no rates, costs or pay. Gauge keeps only its SHA-256 fingerprint, records every use, and an export never carries it.</p>'
- if (created?.token) body += `<section class="g-card" role="status" aria-live="polite"><h2>Copy key “${e(created.label)}” now</h2><p class="g-note">This is the only time Gauge shows it. Store it in the tool that will read utilization.</p><label class="g-field g-field--wide"><span>New utilization key</span><input name="createdKey" type="text" readonly value="${e(created.token)}"></label></section>`
+ if (created?.token) body += `<section class="g-card" role="status" aria-live="polite"><h2>Copy key “${e(created.label)}” now</h2><p class="g-note">This is the only time Gauge shows it. Store it in the authorized app.</p><label class="g-field g-field--wide"><span>${created.token.startsWith('gauge_app_')?'New app credential':'New utilization key'}</span><input name="createdKey" type="text" readonly value="${e(created.token)}"></label></section>`
  body += form('apikey:create', 'Create read-only utilization key', i('label', 'Key label (where it is used)'), undefined, 'Create key', 'g-card--form')
+ const operators=(await env.DB.prepare("SELECT o.id,o.display_name FROM oa_operators o JOIN g_grants g ON g.operator_id=o.id WHERE o.status='active' AND o.role='member' AND g.enabled=1 AND g.role='staff' AND g.person_id IS NOT NULL ORDER BY o.display_name").all<any>()).results.map(o=>({id:o.id,revision:'',value:{name:o.display_name}}))
+ body += '<div class="g-titlebar" id="app-keys"><h2>App credentials</h2></div><p class="g-lede">Read assigned projects and optionally save that staff member’s draft time. Native membership and field visibility apply on every request. Changing the staff grant invalidates the credential. No approval or outbound sending is allowed.</p>'
+ body += form('appkey:create','Create scoped app credential',i('label','App label')+select('operatorId','Staff operator',operators)+select('scope','App permissions',['projects:read','projects:read time:write'].map(scope=>({id:scope,revision:'',value:{name:appScopeName(scope)}}))),undefined,'Create app credential','g-card--form')
+ const appKeys=(await env.DB.prepare('SELECT k.id,k.label,k.scope,k.revoked_at,o.display_name AS principal FROM g_app_keys k LEFT JOIN oa_operators o ON o.id=k.operator_id ORDER BY k.created_at DESC').all<any>()).results.map(k=>({id:k.id,revision:'',value:k}))
+ body += table('App credentials',appKeys,[{label:'Label',wrap:true,line:1,cell:r=>e(r.value.label)},{label:'Staff operator',wrap:true,line:2,cell:r=>e(r.value.principal)},{label:'Permissions',wrap:true,line:3,cell:r=>e(appScopeName(r.value.scope))},{label:'Status',size:'status',line:2,cell:r=>chip(r.value.revoked_at?'revoked':'active')}],r=>r.value.revoked_at?'':decision('appkey:revoke','Revoke app credential',r,false,'secondary'),'No app credentials yet.')
  const rows: Row[] = keys.map((k: any) => ({ id: k.id, revision: '', value: k }))
  body += table('Utilization keys', rows, [
   { label: 'Label', wrap: true, line: 1, cell: r => `${e(r.value.label)}<span class="g-sub">${e(r.value.scope)}</span>` },

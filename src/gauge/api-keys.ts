@@ -21,11 +21,13 @@ export async function apiKeyCommand(env: Bindings, a: Actor, action: string, inp
  // A replayed create answers its first outcome without the key: it was shown once.
  if (previous) { need(previous.actor === a.session.operator.id && previous.digest === digest, 'Request key already used for different work', 409); return JSON.parse(previous.result) }
  const tx = new Transaction(env, a), actor = a.session.operator.id, at = Date.now()
+ tx.key = key
  if (action === 'apikey:create') {
   const label = text(input.label, 'Key label', 80), id = uuid(), token = prefix + base64url(crypto.getRandomValues(new Uint8Array(32)))
   const acknowledgement = { id, label, scope: keyScope, saved: true }
   tx.sql('INSERT INTO g_api_keys(id,label,scope,hash,created_by,created_at) VALUES(?,?,?,?,?,?)', id, label, keyScope, sha256(token), actor, at)
   tx.sql('INSERT INTO g_api_key_audit(key_id,label,action,actor,detail,at) VALUES(?,?,?,?,?,?)', id, label, 'create', actor, JSON.stringify({ scope: keyScope }), at)
+  tx.audit('apikey:create', 'apiKeys', id, { label, scope: keyScope })
   tx.sql('INSERT INTO g_receipts(key,actor,digest,result) VALUES(?,?,?,?)', key, actor, digest, JSON.stringify(acknowledgement))
   await tx.commit()
   return { ...acknowledgement, token }
@@ -36,6 +38,7 @@ export async function apiKeyCommand(env: Bindings, a: Actor, action: string, inp
  tx.guard('EXISTS(SELECT 1 FROM g_api_keys WHERE id=? AND revoked_at IS NULL)', id)
  tx.sql('UPDATE g_api_keys SET revoked_by=?,revoked_at=? WHERE id=?', actor, at, id)
  tx.sql('INSERT INTO g_api_key_audit(key_id,label,action,actor,detail,at) VALUES(?,?,?,?,?,?)', id, row.label, 'revoke', actor, '{}', at)
+ tx.audit('apikey:revoke', 'apiKeys', id, { label: row.label, scope: keyScope })
  tx.sql('INSERT INTO g_receipts(key,actor,digest,result) VALUES(?,?,?,?)', key, actor, digest, JSON.stringify(acknowledgement))
  await tx.commit()
  return acknowledgement
@@ -70,6 +73,7 @@ export async function utilizationKeyRead(env: Bindings, token: string, from: str
    env.DB.prepare('INSERT INTO g_assert(ok) VALUES(CASE WHEN EXISTS(SELECT 1 FROM g_api_keys WHERE id=? AND revoked_at IS NULL) THEN 1 ELSE 0 END)').bind(key.id),
    env.DB.prepare('UPDATE g_api_keys SET last_used_at=? WHERE id=?').bind(at, key.id),
    env.DB.prepare('INSERT INTO g_api_key_audit(key_id,label,action,actor,detail,at) VALUES(?,?,?,?,?,?)').bind(key.id, key.label, 'read', `key:${key.label}`, JSON.stringify({ from: start, to: end }), at),
+   env.DB.prepare("INSERT INTO g_audit(at,actor,action,kind,record_id,data) VALUES(?,?,'apikey:read','apiKeys',?,?)").bind(at, `key:${key.label}`, key.id, JSON.stringify({ label: key.label, scope: keyScope, from: start, to: end })),
    env.DB.prepare('DELETE FROM g_assert'),
   ])
  } catch { need(false, 'Invalid or revoked API key', 401) }
@@ -82,6 +86,7 @@ export async function revokePresentedKey(env: Bindings, token: string) {
  // INSERT ... SELECT and UPDATE share one transaction: concurrent calls audit the first revoke only.
  await env.DB.batch([
   env.DB.prepare("INSERT INTO g_api_key_audit(key_id,label,action,actor,detail,at) SELECT id,label,'revoke','key:' || label,'{}',? FROM g_api_keys WHERE hash=? AND scope=? AND revoked_at IS NULL").bind(at, hash, keyScope),
+  env.DB.prepare("INSERT INTO g_audit(at,actor,action,kind,record_id,data) SELECT ?,'key:' || label,'apikey:revoke','apiKeys',id,json_object('label',label,'scope',scope) FROM g_api_keys WHERE hash=? AND scope=? AND revoked_at IS NULL").bind(at, hash, keyScope),
   env.DB.prepare("UPDATE g_api_keys SET revoked_by='key:' || label,revoked_at=? WHERE hash=? AND scope=? AND revoked_at IS NULL").bind(at, hash, keyScope),
  ])
 }

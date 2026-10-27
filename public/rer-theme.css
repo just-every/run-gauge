@@ -1,5 +1,7 @@
-/* Gauge's declared theme: every token the app, the run site, the Lobby, sign-in, /setup and the development outbox
-   read, defined once. The --rer-* names are Base's; the --g-* names are Gauge's own. Faces come from /fonts/fonts.css.
+/* Gauge's theme: its --rer-* theme tokens and its faces, all that rer's theme reader takes (pnpm run onboard reads
+   this file with it). The app, the run site, the installer, sign-in, /setup, the Lobby and Base's run-site pages
+   read it. Base's other --rer-* names, Gauge's own --g-* and --c-* tokens, the page font and the rules that dress
+   Base's pages are in /fonts/fonts.css, which every page that uses them links with this file.
    The look is the approved design desk's (18 Oct 2026): white and pale turquoise-grey paper, heavy ink-navy serif
    headings, a slate neo-grotesk body, turquoise for the one action, mint and green for done, claret only for
    exceptions, and one fixed colour per client. Base's buttons keep the colour chosen at setup (src/branding.json
@@ -8,101 +10,93 @@
   /* type */
   --rer-font-body: 'Mona Sans', 'Mona Sans Fallback', 'Helvetica Neue', Arial, sans-serif;
   --rer-font-heading: 'Source Serif 4', Georgia, 'Times New Roman', serif;
-  --rer-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --rer-wordmark-weight: 800;
-  --rer-wordmark-tracking: -0.02em;
-  --g-weight-body: 400; --g-weight-strong: 600;
-  /* the site's headlines: the black display cut (weight 900, optical size 60) set tight, with word spaces kept at
-     a quarter em or more; smaller serif headings track a little looser */
-  --g-headline-weight: 900; --g-headline-track: -0.055em; --g-headline-space: .125em; --g-subhead-track: -0.035em;
   /* colour: Base's names */
   --rer-page: #FFFFFF;
   --rer-surface: #FFFFFF;
   --rer-text: #0E1A2B;
   --rer-muted: #4A5663;
-  --rer-border: #D9E3E6;
+  /* A control edge needs 3:1 on the white surface: #D9E3E6 is 1.31:1, so the border is the nearest colour that passes. */
+  --rer-border: #8B979B;
   --rer-focus: #0A8A92;
   --rer-link: #0A7F87;
-  /* colour: the desk's palette */
-  --g-ink: #0E1A2B; --g-slate: #4A5663; --g-quiet: #6B7682;
-  --g-turquoise: #01B2BD; --g-turquoise-deep: #0A8A92; --g-turquoise-wash: #E2F6F7;
-  --g-mint: #5CCDB0; --g-green: #2FB38F; --g-mint-wash: #E4F7F1;
-  --g-claret: #BB3536; --g-claret-wash: #FBEDEC;
-  --g-pale: #EFF7F7; --g-navy: #0F1D2B; --g-navy-line: #26384B;
-  --g-hair: #E1E9EB; --g-hair-strong: #CFDADD; --g-fill: #F4F8F9;
-  --g-card-shadow: 0 1px 2px rgba(14, 26, 43, .05), 0 12px 32px -14px rgba(14, 26, 43, .16);
-  /* one colour per client, the same on every screen */
-  --c-cascade: #13B5C1; --c-pacific: #2D6A9F; --c-willamette: #7D913C; --c-treasure: #C47B3F; --c-capitol: #D9A521; --c-rose: #7E5A8E; --c-studio: #E3E9EC;
-  --g-input: #CCD7DA;
-  /* leave and struck hours: a claret hatch on its wash */
-  --g-hatch: repeating-linear-gradient(135deg, var(--g-claret-wash) 0 6px, color-mix(in srgb, var(--g-claret) 40%, #fff) 6px 7px);
-  /* the app's frame (owner's pick J): rail, gutter, side panel and the board's people column */
-  --g-rail: 182px; --g-gutter: 20px; --g-panel: 310px; --g-people: 160px;
   /* radius, depth */
-  --rer-radius: 12px; --g-radius-card: 8px; --g-radius-input: 8px; --rer-button-radius: 8px;
+  --rer-radius: 12px;
   --rer-logo: url('/brand/mark.svg');
 }
 
-/* Base's no-JavaScript documents (sign-in, /setup, account, the demo gate) wear the app's frame from the owner's pick:
-   the ink rail with the mark down the left, a white work surface and one white hairline card. These rules only
-   restyle Base's frame; its markup is unchanged. */
-html.rer-themed body { position: relative; padding: 88px 32px 64px calc(var(--g-rail) + 32px); background: var(--rer-page); font-size: 15px; }
-/* The rail runs the page's full height, however tall the card makes it. */
-html.rer-themed body::before { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--g-rail); background: var(--rer-logo) 26px 24px / 28px 28px no-repeat, var(--g-navy); }
-html.rer-themed main { max-width: 520px; padding: 32px 36px; border: 1px solid var(--g-hair); box-shadow: var(--g-card-shadow); border-radius: var(--g-radius-card); text-align: left; }
-html.rer-themed :is(.rer-brand, .brand) { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
-html.rer-themed h1 { font-size: 34px; font-weight: var(--g-headline-weight); letter-spacing: var(--g-subhead-track); word-spacing: var(--g-headline-space); font-variation-settings: 'opsz' 60; }
-html.rer-themed dl { grid-template-columns: 7em minmax(0, 1fr); gap: 0; }
-html.rer-themed dt, html.rer-themed dd { padding: 11px 0; border-bottom: 1px solid var(--g-hair); }
-html.rer-themed label { color: var(--g-slate); font-size: 13px; font-weight: 500; }
-html.rer-themed label:has(input[type=checkbox]) { color: var(--rer-text); font-size: 14px; }
-html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 42px; border-color: var(--g-input); border-radius: var(--g-radius-input); color: var(--rer-text); font-size: 15px; }
-html.rer-themed input:focus-visible { outline: 3px solid color-mix(in srgb, var(--g-turquoise) 35%, transparent); outline-offset: 0; border-color: var(--g-turquoise-deep); }
-html.rer-themed button { min-height: 44px; border-radius: var(--rer-button-radius); font-weight: 600; }
-/* One-click sign-in: turquoise stays the one action (the first person, the owner); everyone else is a quiet row. */
-html.rer-themed .stack { display: flex; flex-direction: column; gap: 8px; }
-html.rer-themed .stack .action { margin: 0; }
-html.rer-themed .stack .action ~ .action { min-height: 0; padding: 9px 14px; border: 1px solid var(--g-hair); background: var(--rer-surface); color: var(--rer-text); font-weight: 500; text-align: left; box-shadow: none; }
-html.rer-themed .stack .action ~ .action:hover { border-color: var(--g-turquoise); background: var(--g-pale); }
-html.rer-themed .stack .action:first-child + .action { margin-top: 10px; }
-@media (max-width: 900px) {
-  html.rer-themed body { padding: 88px 16px 40px; }
-  html.rer-themed body::before { inset: 0 0 auto 0; width: auto; height: 56px; background-position: 16px center, 0 0; background-size: 26px 26px, auto; }
+/* Gauge's three faces, self-hosted (SIL Open Font License 1.1; licences beside each file). The page makes no
+   third-party request. Mona Sans: body and interface, variable weight and optical size, subset to Latin and Latin
+   Extended. Source Serif 4: headings and the wordmark, variable weight and optical size (the display cut at 60).
+   JetBrains Mono: commands. */
+@font-face {
+  font-family: 'Mona Sans';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('/fonts/mona-sans/mona-sans-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191-2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-@media (max-width: 480px) { html.rer-themed main { padding: 24px 18px; } html.rer-themed h1 { font-size: 28px; } }
-
-/* Base's run-site documents (/run, /contract and the not-found page): the homepage's header, heavy serif headings,
-   white step cards and ink code cards over the promenade band. These rules only restyle Base's frame; its markup is
-   unchanged. */
-body:has(> .art) { background: var(--rer-page); }
-body:has(> .art) .bar { width: min(100% - 96px, 1276px); max-width: none; padding: 24px 0 18px; }
-body:has(> .art) .brand { gap: 12px; font-size: 30px; font-weight: 800; letter-spacing: var(--rer-wordmark-tracking); font-variation-settings: 'opsz' 48; }
-body:has(> .art) .brand img { width: 32px; height: 32px; }
-body:has(> .art) .bar nav { gap: 44px; font-size: 18px; font-weight: 400; }
-body:has(> .art) h1 { font-weight: var(--g-headline-weight); letter-spacing: var(--g-headline-track); word-spacing: var(--g-headline-space); font-variation-settings: 'opsz' 60; }
-body:has(> .art) .step { background: var(--rer-surface); border-color: var(--g-hair); box-shadow: var(--g-card-shadow); backdrop-filter: none; border-radius: 14px; }
-body:has(> .art) .num { background: var(--g-ink); color: #fff; font-weight: 800; }
-body:has(> .art) .step h2 { font-weight: var(--g-headline-weight); letter-spacing: var(--g-subhead-track); word-spacing: .12em; font-variation-settings: 'opsz' 60; }
-body:has(> .art) .code { background: var(--g-navy); color: #E8F1F2; border-radius: 10px; }
-body:has(> .art) .art { height: 200px; min-height: 0; }
-body:has(> .art) .art img { object-position: center 40%; }
-body:has(> .art) .art::before { content: ''; position: absolute; inset: 0 0 auto; height: 70px; background: linear-gradient(var(--rer-page), transparent); }
-body:has(> .art) main { padding-bottom: calc(200px + 56px); }
-/* Base's /contract page: its serif headings keep open word spaces at their tight tracking. */
-body:has(#g-done) :is(h1, h2, h3), body:has(#g-done) .big { word-spacing: .12em; }
-
-/* Base wraps its code cards only at 760 px and below; between that and 860 px the Copy button sat on the command. */
-@media (min-width: 761px) and (max-width: 860px) {
-  body:has(> .art) .code pre { padding: 46px 14px 14px; font-size: 14px; white-space: pre-wrap; }
-  body:has(> .art) .copy { top: 8px; right: 8px; transform: none; }
+@font-face {
+  font-family: 'Mona Sans';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('/fonts/mona-sans/mona-sans-latin-ext-wght-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
-body:has(> .art) .nw { white-space: nowrap; }
-@media (max-width: 400px) { body:has(> .art) .code pre { font-size: 12px; padding-inline: 12px; } }
-@media (max-width: 760px) {
-  body:has(> .art) .bar { width: calc(100% - 32px); padding: 16px 0 12px; }
-  body:has(> .art) .brand { font-size: 25px; gap: 9px; }
-  body:has(> .art) .brand img { width: 26px; height: 26px; }
-  body:has(> .art) .bar nav { gap: 22px; font-size: 16px; }
-  body:has(> .art) .art { height: 150px; }
-  body:has(> .art) main { padding-bottom: calc(150px + 40px); }
+@font-face {
+  font-family: 'Source Serif 4';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('/fonts/source-serif-4/source-serif-4-latin-opsz-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Source Serif 4';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('/fonts/source-serif-4/source-serif-4-latin-ext-opsz-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono/jetbrains-mono-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* Match Mona Sans's sampled advance widths and its 1090/-320/0 vertical metrics.
+   Divide each vertical override by size-adjust, which scales it again. */
+@font-face {
+  font-family: 'Mona Sans Fallback';
+  font-style: normal;
+  font-weight: 100 450;
+  src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('LiberationSans');
+  size-adjust: 101.5755%;
+  ascent-override: 107.3093%;
+  descent-override: 31.5036%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Mona Sans Fallback';
+  font-style: normal;
+  font-weight: 451 549;
+  src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('LiberationSans');
+  size-adjust: 102.9710%;
+  ascent-override: 105.8551%;
+  descent-override: 31.0767%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Mona Sans Fallback';
+  font-style: normal;
+  font-weight: 550 900;
+  src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('LiberationSans-Bold');
+  size-adjust: 100.5176%;
+  ascent-override: 108.4387%;
+  descent-override: 31.8352%;
+  line-gap-override: 0%;
 }

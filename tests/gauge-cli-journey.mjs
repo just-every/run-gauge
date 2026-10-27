@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { spawn, execFileSync } from 'node:child_process'
+import { spawn, spawnSync, execFileSync } from 'node:child_process'
 import { createServer } from 'node:net'
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -17,7 +17,7 @@ export async function freePort() {
 }
 
 export function journeyCli(onStage) {
- let server,serverRoot,serverVerb,origin
+ let server,origin
  const env={...process.env,CI:'true',RER_SERVER_JOURNEY:'1',WRANGLER_SEND_METRICS:'false'}
  function run(cwd,args) {
   onStage(`rer ${args[0]}`)
@@ -26,17 +26,35 @@ export function journeyCli(onStage) {
   console.log(`PASS rer ${args[0]}${args.includes('--dry-run')?' --dry-run':''}${args.includes('--stop')?' --stop':''}`)
   return output
  }
+ function refuseDeployWithoutCredentials(cwd) {
+  onStage('rer deploy without provider credentials')
+  const isolated=Object.fromEntries(Object.entries(env).filter(([name])=>!name.startsWith('CLOUDFLARE_')))
+  const result=spawnSync(process.execPath,[rer,'deploy','--dry-run','--json'],{cwd,encoding:'utf8',env:isolated})
+  const events=String(result.stdout??'').trim().split('\n').flatMap(line=>{try{return [JSON.parse(line)]}catch{return []}})
+  assert.equal(result.status,3,'A provider-less deploy dry run is refused before provider access')
+  assert.equal(events.find(event=>event.event==='error')?.code,'missing_input')
+  assert.equal(events.find(event=>event.event==='result')?.ok,false)
+  console.log('PASS rer deploy --dry-run refuses absent provider credentials')
+ }
  async function start(cwd,verb,port) {
   assert(!server,'stop the previous runtime before starting another')
-  onStage(`rer ${verb} readiness`);serverRoot=cwd;serverVerb=verb;origin=`http://127.0.0.1:${port}`
-  server=spawn(process.execPath,[rer,verb,'--host','127.0.0.1','--port',String(port),...(verb==='dev'?['--foreground']:[])],{cwd,stdio:['ignore','pipe','pipe'],env})
+  onStage(`rer ${verb} readiness`);origin=`http://127.0.0.1:${port}`
+  server=spawn(process.execPath,[rer,verb,'--host','127.0.0.1','--port',String(port),'--foreground','--json'],{cwd,stdio:['ignore','pipe','pipe'],env})
   let output='';for(const stream of[server.stdout,server.stderr])stream.on('data',chunk=>output+=chunk)
-  const marker=verb==='dev'?/RER_OPEN\s+(\S+)/:/RER_READY\s+(\S+)/
-  for(let n=0;n<600&&!marker.test(output);n++){
-   assert(server.exitCode===null&&server.signalCode===null,'runtime exited before readiness')
+  const events=()=>output.split('\n').flatMap(line=>{try{return [JSON.parse(line)]}catch{return []}})
+  const ready=()=>events().find(event=>event.event==='ready')
+  for(let n=0;n<600&&!ready();n++){
+   if(server.exitCode!==null||server.signalCode!==null){
+    const failed=events().findLast(event=>event.event==='error')
+    const code=/^[a-z_]{1,60}$/.test(failed?.code??'')?failed.code:'unclassified'
+    const step=/^[a-z_:.-]{1,60}$/.test(failed?.step??'')?failed.step:'startup'
+    onStage(`rer ${verb} readiness: ${code}, ${step}, exit ${server.exitCode}, signal ${server.signalCode}`)
+    assert.fail('runtime exited before readiness; credential-bearing output withheld')
+   }
    await new Promise(resolve=>setTimeout(resolve,500))
   }
-  const entry=output.match(marker)?.[1];assert(entry,'native readiness received without logging credential URLs')
+  const event=ready(),entry=verb==='dev'?event?.openUrl:event?.url
+  assert(entry,'native readiness received without logging credential URLs')
   const health=await fetch(origin+'/health',{signal:AbortSignal.timeout(10000)})
   assert.equal(health.status,200);assert.equal((await health.json()).status,'ok')
   console.log(`PASS rer ${verb} readiness and native health`)
@@ -44,8 +62,9 @@ export function journeyCli(onStage) {
  }
  async function stop() {
   if(!server)return
-  const child=server;let failure
-  try{run(serverRoot,[serverVerb,'--stop'])}catch(error){failure=error;child.kill('SIGTERM')}
+  const child=server
+  // This exact foreground launcher owns its descendants and handles shutdown; never use the shared stop verb.
+  child.kill('SIGTERM')
   await new Promise(resolve=>child.exitCode!==null||child.signalCode!==null?resolve():child.once('exit',resolve))
   server=undefined
   let listening=true
@@ -54,7 +73,6 @@ export function journeyCli(onStage) {
    if(listening)await new Promise(resolve=>setTimeout(resolve,100))
   }
   assert(!listening,'stopped runtime released its public listener')
-  if(failure)throw failure
  }
  async function reset(cwd) {
   const events=run(cwd,['reset','--yes','--json']).trim().split('\n').map(line=>JSON.parse(line))
@@ -62,5 +80,5 @@ export function journeyCli(onStage) {
   assert(result?.ok&&result.paths.length,'reset removed an occupied declared inventory')
   for(const path of result.paths)await assert.rejects(()=>access(join(cwd,path)),{code:'ENOENT'})
  }
- return {run,start,stop,reset}
+ return {run,start,stop,reset,refuseDeployWithoutCredentials}
 }

@@ -31,7 +31,21 @@ export function pipelineLineage(c: Lineage) {
   }
   c.add(prefix + 'weightedMinor', 'Weighted open pipeline', group.weightedMinor, 'minor', 'SUM(each open opportunity amountMinor × probability, rounded half-up to minor units per opportunity). Excludes won and lost stages; no implicit FX.', weighted, group.currency, knownWeighted)
   c.add(prefix + 'tentativeDemandSeconds', 'Open tentative demand', group.tentativeDemandSeconds, 'seconds', 'SUM(open opportunity.demandSeconds) without probability weighting; excludes won/lost and signed staffing.', weighted, null, knownDemand)
-  c.add(prefix + 'bookedMinor', 'Booked backlog', group.bookedMinor, 'minor', 'SUM(latest approved budget per engagement, otherwise linked won value) + SUM(unlinked won opportunity value). Each signed engagement counts once; no billing/cash deduction or currency conversion.', booked, group.currency, knownBooked)
+  c.add(prefix + 'bookedMinor', 'Booked value before billing', group.bookedMinor, 'minor', 'SUM(latest approved budget per engagement, otherwise linked won value) + SUM(unlinked won opportunity value). Each signed engagement counts once; no billing/cash deduction or currency conversion.', booked, group.currency, knownBooked)
+  if (group.billedMinor !== null) {
+   const billed = c.evidence()
+   for (const id of group.billedInvoices) {
+    const e = c.evidence(), row = c.row(e, 'invoices', id)
+    if (row && row.value.currency !== group.currency) e.unknown.push(`invoices:${id}: source currency differs; no implicit FX`)
+    include(billed, e)
+   }
+   for (const id of group.billedCredits ?? []) c.row(billed, 'invoiceCorrections', id)
+   const knownBilled = billed.unknown.length ? null : group.billedMinor
+   c.add(prefix + 'billedMinor', 'Billed against booked value', group.billedMinor, 'minor', 'SUM(totalMinor of native invoices, pre-tax, issued on or before the as-of day for engagements carrying booked value) − SUM(their credit notes issued by then). An invoice voided by then is excluded and its reissue counts once; no cash or receipt deduction, no currency conversion.', billed, group.currency, knownBilled ?? 0)
+   const backlog = c.evidence()
+   include(backlog, booked); include(backlog, billed)
+   c.add(prefix + 'backlogMinor', 'Booked backlog', group.backlogMinor, 'minor', 'Booked value before billing − billed against booked value; negative when billing exceeds booked value. Equals booked value while no invoice is issued.', backlog, group.currency, knownBilled === null ? 0 : sum([knownBooked, -knownBilled]))
+  }
  }
 }
 

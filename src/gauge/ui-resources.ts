@@ -1,3 +1,4 @@
+import { customFilterInputs } from './ui-custom-fields'
 import type { Bindings } from '../auth.server'
 import { type Actor, all, finance } from './store'
 import type { Value, Row } from './model'
@@ -7,17 +8,17 @@ import { escape as e, form, input as i, select as s, duration, check, decision, 
 import { hours, nameOf, money, chip, period } from './ui-format'
 
 export async function resourcesSection(env:Bindings,a:Actor,report:Report,options:Value){
- if(!finance(a)&&a.role!=='lead')return ''
+ if(!finance(a)&&!['lead','resource-manager'].includes(a.role))return ''
  const selected=report.data.resourceRequests.find(r=>r.id===options.resourceRequest),open=selected?.value.status==='open'?selected:undefined,v=open?.value??{}
- const roster=await all(env,'people'),skills=[...new Set(roster.flatMap(p=>(p.value.skills??[]).map((s:Value)=>s.name as string)))].sort()
- const fields=s('engagementId','Engagement',report.data.engagements.filter(r=>finance(a)||r.value.leadId===a.personId),v.engagementId)
+ const roster=a.role==='resource-manager'?report.data.people:await all(env,'people'),skills=[...new Set(roster.flatMap(p=>(p.value.skills??[]).map((s:Value)=>s.name as string)))].sort()
+ const fields=s('engagementId','Engagement',report.data.engagements.filter(r=>finance(a)||a.role==='resource-manager'||r.value.leadId===a.personId),v.engagementId)
   +i('role','Role needed',v.role)+i('skill','Required skill',v.skill)+i('minProficiency','Minimum proficiency',v.minProficiency??3,'number')
   +i('from','From',v.from??report.from,'date')+i('to','Through',v.to??report.to,'date')+duration('dailyHours','Requested hours per date',v.dailySeconds??14400)
   +i('service','Service',v.service??'Delivery')+i('team','Team filter',v.team??'','text',false)+i('location','Location filter',v.location??'','text',false)
   +s('employmentType','Employment filter',[{id:'employee',revision:'',value:{name:'Employee'}},{id:'contractor',revision:'',value:{name:'Contractor'}}],v.employmentType,true)
   +'<input type="hidden" name="billable" value="false">'+check('billable','Billable request',v.billable??true)
  let body=`<details class="g-records" id="resource-requests" open><summary>Skills and resource requests</summary><p class="g-lede">Create an unfilled role, search qualified people and approve one person. Hours apply to every requested date, including weekends. Candidate availability deducts all committed work and time off; competing project details and leave reasons remain private. Missing calendars prevent approval. Tentative bookings remain separate.</p><p>Skills catalogue: ${skills.length?skills.map(e).join(', '):'Add skills and proficiency to people on Engagements.'}</p>`
- body+=form('save:resourceRequests',open?'Change resource request':'New resource request',fields,open)
+ body+=form('save:resourceRequests',open?'Change resource request':'New resource request',fields+customFilterInputs(report,undefined,v.customFilters??{}),open)
  body+=table('Resource requests',report.data.resourceRequests,[
   {label:'Role',line:1,wrap:true,cell:r=>`<a href="/app/capacity?resourceRequest=${e(r.id)}#resource-requests">${e(r.value.role)}</a>`},
   {label:'Engagement',line:1,wrap:true,cell:r=>e(nameOf(report.data.engagements,r.value.engagementId))},

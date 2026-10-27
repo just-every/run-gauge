@@ -1,3 +1,5 @@
+import { harvestFinancePackage, harvestFinanceRestart } from './fixtures/harvest-finance.mjs'
+import { recordMilestoneAcceptance } from './gauge-harness.mjs'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {execFileSync} from 'node:child_process'
@@ -66,7 +68,7 @@ try{
  })
  await flow('CAPACITY-001 working calendar, leave and separate tentative staffing',async()=>{
   await cmd('save:calendars',{personId:p.id,from:'2026-10-01',to:'2026-11-30',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:'Australia/Brisbane'})
-  await cmd('save:leave',{personId:p.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:14400,note:'Leave'},staff.cookie)
+  await cmd('leave:decide',{...await cmd('save:leave',{personId:p.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:14400,note:'Personal time'},staff.cookie),outcome:'approved'})
   await cmd('save:staffing',{personId:p.id,engagementId:eng.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:21600,commitment:'committed'},leadUser.cookie)
   await cmd('save:staffing',{personId:p.id,engagementId:eng.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:7200,commitment:'tentative'},leadUser.cookie)
   const cap=(await state()).capacity.find(c=>c.personId===p.id);assert.equal(cap.tentativeSeconds,7200);assert.equal(cap.conflicts[0].seconds,7200);const leadCap=(await state(leadUser.cookie)).capacity.find(c=>c.personId===p.id);assert.equal(leadCap.availableSeconds,cap.availableSeconds)
@@ -74,7 +76,7 @@ try{
   await cmd('save:staffing',{personId:p.id,engagementId:eng.id,from:'2026-10-04',to:'2026-10-04',dailySeconds:3600,commitment:'tentative'},leadUser.cookie)
   const contractor=await cmd('save:people',{name:'Contractor',contractor:true,timezone:'Australia/Brisbane'})
   await cmd('save:calendars',{personId:contractor.id,from:'2026-10-01',to:'2026-10-01',dailySeconds:7200,weekdays:'4',timezone:'Australia/Brisbane'})
-  await cmd('save:leave',{personId:contractor.id,from:'2026-10-01',to:'2026-10-02',dailySeconds:3600,note:'Declared leave'})
+  await cmd('leave:decide',{...await cmd('save:leave',{personId:contractor.id,from:'2026-10-01',to:'2026-10-02',dailySeconds:3600,note:'Personal time'}),outcome:'approved'})
   const unknown=await cmd('save:staffing',{personId:contractor.id,engagementId:eng.id,from:'2026-10-01',to:'2026-10-02',dailySeconds:7200,commitment:'committed'})
   const tentative=await cmd('save:staffing',{personId:contractor.id,engagementId:eng.id,from:'2026-10-02',to:'2026-10-02',dailySeconds:1800,commitment:'tentative'})
   const report=await state(),staffCap=report.capacity.find(c=>c.personId===p.id),weekend=staffCap.days.find(d=>d.date==='2026-10-04')
@@ -89,7 +91,7 @@ try{
   const expense=(await state()).data.expenses[0];const args={action:'packet:create',engagementId:eng.id,title:'October',sources:[`time:${entry.id}`,`expenses:${expense.id}`]}
   const races=await Promise.all([post('/api/gauge/command',{...args,key:randomUUID()},owner),post('/api/gauge/command',{...args,key:randomUUID()},owner)]);assert.deepEqual(races.map(r=>r.status).sort(),[200,409]);packet=(await state()).data.packets[0]
   await cmd('time:correct',{...entry,reason:'Cannot alter allocated work'},leadUser.cookie,409)
-  const fixed=await cmd('save:budgets',{engagementId:eng.id,mode:'fixed',amountMinor:50000,effortSeconds:5000,roundingSeconds:60,reason:'Fixed delivery'});await cmd('budget:approve',fixed);const milestone=await cmd('save:milestones',{engagementId:eng.id,name:'Delivered',due:'2026-10-31',amountMinor:50000});await cmd('milestone:approve',milestone);assert.equal((await request(`/api/gauge/history/milestones/${milestone.id}`,staff.cookie)).status,403,'staff read no milestone history');await cmd('packet:create',{engagementId:eng.id,title:'Milestone preparation',sources:[`milestones:${milestone.id}`]})
+  const fixed=await cmd('save:budgets',{engagementId:eng.id,mode:'fixed',amountMinor:50000,effortSeconds:5000,roundingSeconds:60,reason:'Fixed delivery'});await cmd('budget:approve',fixed);const milestone=await cmd('save:milestones',{engagementId:eng.id,name:'Delivered',due:'2026-10-31',amountMinor:50000});await cmd('milestone:approve',milestone);await recordMilestoneAcceptance({cmd,state,owner},milestone.id);assert.equal((await request(`/api/gauge/history/milestones/${milestone.id}`,staff.cookie)).status,403,'staff read no milestone history');await cmd('packet:create',{engagementId:eng.id,title:'Milestone preparation',sources:[`milestones:${milestone.id}`]})
  })
  await flow('BILLING-002 exact approval, formula-safe repeated exports and linked correction',async()=>{
   await cmd('packet:approve',packet);packet=await record('packets',packet.id);const first=await request(`/api/gauge/packets/${packet.id}`,owner),bytes=await first.text();assert(bytes.includes("'=SUM(1,2)"));assert.equal(await(await request(`/api/gauge/packets/${packet.id}`,owner)).text(),bytes);assert.equal((await request(`/api/gauge/packets/${packet.id}`,staff.cookie)).status,403)
@@ -110,17 +112,44 @@ try{
  })
  await flow('REVIEW-001 grounded decisions, missing time and capacity exceptions',async()=>{const r=await state();assert(r.exceptions.some(x=>x.type==='missing time'));assert(r.exceptions.some(x=>x.type==='capacity conflict'&&x.sources.length));for(const section of ['review','engagements','time','expenses','capacity','rates','billing','imports','access']){const page=await request(`/app/${section}`,owner);assert.equal(page.status,200,section);assert(!(await page.text()).includes(h.vars.SESSION_SECRET))}})
  await flow('MOVE-001 Harvest preview, partial rollback, native reconciliation, idempotence and untouched undo',async()=>{
-  const root=new URL('./fixtures/harvest/',import.meta.url),files={};for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,root),'utf8');const pack={manifest:{...JSON.parse(await readFile(new URL('manifest.json',root),'utf8')),currency:'USD'},files}
-  const before=(await state()).data.time.length,preview=await cmd('import:preview',{package:pack});assert.equal((await state()).data.time.length,before);assert.equal(preview.totals['c-1/2026-09'].seconds,43200)
+  const root=new URL('./fixtures/harvest/',import.meta.url),files={};for(const name of ['clients.csv','people.csv','projects.csv','time.csv','finance.json'])files[name]=await readFile(new URL(name,root),'utf8');const pack={manifest:{...JSON.parse(await readFile(new URL('manifest.json',root),'utf8')),currency:'USD'},files};harvestFinancePackage(pack)
+  await harvestFinanceRestart(pack)
+  for(const [label,alter]of [['missing review',p=>delete p.manifest.sourceCoverage],['filtered',p=>p.manifest.sourceCoverage.time.filters='one-project'],['permission',p=>p.manifest.sourceCoverage.time.permission=false],['truncated',p=>p.manifest.sourceCoverage.time.complete=false],['missing count',p=>delete p.manifest.sourceCoverage.time.count],['wrong count',p=>p.manifest.sourceCoverage.time.count++],['missing history edge',p=>p.manifest.sourceCoverage.time.historyRange.from='2025-01-01'],['missing account',p=>delete p.manifest.sourceCoverage.time.account],['different account',p=>p.manifest.sourceCoverage.time.account='synthetic-gauge-2'],['window gap',p=>{p.manifest.sourceCoverage.time.windows=[{from:'2026-01-01',to:'2026-05-31',complete:true},{from:'2026-07-01',to:'2026-12-31',complete:true}]}]]){const bad=structuredClone(pack);alter(bad);const before=(await state()).data.time.length,p=await cmd('import:preview',{package:bad});assert.equal(p.canApply,false,label);assert(p.findings.length);await cmd('import:create',{package:bad,fingerprint:p.fingerprint},owner,400);assert.equal((await state()).data.time.length,before)}
+  for(const [label,alter]of [
+   ['unknown time cost',p=>{p.manifest.rates['p-1'].costMinor=null;p.manifest.timeReconciliation['c-1/2026-09'].costMinor=null}],
+   ['missing finance',p=>delete p.files['finance.json']],
+   ['missing object coverage',p=>delete p.manifest.sourceCoverage.invoices],
+   ['missing finance controls',p=>delete p.manifest.finance.controls],
+   ['wrong currency control',p=>{const c=p.manifest.finance.controls.financial;c['c-1/2026-09/EUR']=c['c-1/2026-09/USD'];delete c['c-1/2026-09/USD']}],
+   ['wrong count',p=>p.manifest.finance.controls.counts.payments++],
+   ['wrong cash month',p=>{p.manifest.finance.controls.financial['c-1/2026-09/USD'].paidMinor=7000}],
+   ['wrong signed carry',p=>{p.manifest.finance.controls.financial['c-1/2026-09/USD'].closingMinor=50}],
+   ['missing paid control',p=>delete p.manifest.finance.controls.financial['c-1/2026-09/USD'].invoicePaidMinor]
+  ]){const bad=structuredClone(pack);alter(bad);const preview=await cmd('import:preview',{package:bad});assert.equal(preview.canApply,false,label);await cmd('import:create',{package:bad,fingerprint:preview.fingerprint},owner,400)}
+  for(const [label,alter]of [
+   ['unknown money',d=>d.invoices[0].amountMinor=null],['missing money',d=>delete d.invoices[0].paidMinor],
+   ['fractional cents',d=>d.payments[0].amountMinor='2000.01'],['unsafe integer',d=>d.payments[0].amountMinor='9007199254740993'],
+   ['duplicate payment',d=>d.payments.push(d.payments[0])]
+  ]){const bad=structuredClone(pack),doc=JSON.parse(bad.files['finance.json']);alter(doc);bad.files['finance.json']=JSON.stringify(doc);await cmd('import:preview',{package:bad},owner,400)}
+  for(const [label,alter]of [
+   ['unresolved invoice',d=>d.payments[0].invoiceId='synthetic-gauge-absent'],
+   ['mismatched currency',d=>d.payments[0].currency='EUR'],
+   ['mismatched invoice paid',d=>d.invoices[0].paidMinor=7001],
+   ['broken family carry',d=>d.retainers[1].carryInMinor=0],
+   ['outside history',d=>d.estimates[0].date='2025-01-01']
+  ]){const bad=structuredClone(pack),doc=JSON.parse(bad.files['finance.json']);alter(doc);bad.files['finance.json']=JSON.stringify(doc);const p=await cmd('import:preview',{package:bad});assert.equal(p.canApply,false,label);await cmd('import:create',{package:bad,fingerprint:p.fingerprint},owner,400)}
+  const before=(await state()).data.time.length,preview=await cmd('import:preview',{package:pack});assert(preview.canApply);assert.deepEqual(preview.financialControls,pack.manifest.finance.controls.financial);assert.deepEqual(preview.financialCounts,pack.manifest.finance.controls.counts);assert.equal((await state()).data.time.length,before);assert.equal(preview.totals['c-1/2026-09'].seconds,43200)
   let job=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});assert.equal(job.state,'applying');job=await cmd('import:rollback',{id:job.id});while(job.state==='rolling_back')job=await cmd('import:resume',{id:job.id});assert.equal((await state()).data.time.length,before)
   job=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});while(job.state==='applying'||job.state==='queued')job=await cmd('import:resume',{id:job.id});assert.equal(job.state,'completed');assert.equal((await state()).data.time.length,before+12)
+  const financeArchives=(await state()).data.archives.filter(r=>r.value.harvestFinance);assert.equal(financeArchives.length,9);assert.equal((await state()).data.invoices.length,0,'Source finance grants no native invoice authority');assert.equal((await state()).data.retainers.length,0,'Source retainers grant no billing authority');const retainedFinance=await request('/api/gauge/archives/'+financeArchives[0].id,owner);assert.equal(retainedFinance.status,200);assert.deepEqual((await retainedFinance.json()).record,financeArchives[0].value.harvestFinance.record)
   const original=await request(`/api/gauge/imports/${job.id}`,owner);assert.equal(original.status,200);assert((await original.text()).includes('retained'));assert.equal((await request(`/api/gauge/imports/${job.id}`,staff.cookie)).status,403)
   const imported=(await state()).data.time.find(r=>r.value.source?.externalId==='t-1');assert.equal(imported.value.start,null);assert.equal(imported.value.status,'draft')
+  const scoped=await h.invite('harvest-finance-reader');await cmd('grant',{operatorId:scoped.id,personId:p.id,role:'staff',enabled:true});assert.equal((await request('/api/gauge/archives/'+financeArchives[0].id,scoped.cookie)).status,403);assert.equal((await state(scoped.cookie)).data.archives.length,0)
   const importedPerson=imported.value.personId;await cmd('grant',{operatorId:staff.id,personId:importedPerson,role:'staff',enabled:true});const staffData=await state(staff.cookie);assert(staffData.data.time.length===12);assert(!JSON.stringify(staffData).includes('costMinor'));await cmd('grant',{operatorId:staff.id,personId:p.id,role:'staff',enabled:true})
-  let repeat=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});while(repeat.state==='applying'||repeat.state==='queued')repeat=await cmd('import:resume',{id:repeat.id});assert.equal((await state()).data.time.length,before+12)
+  let repeat=await cmd('import:create',{package:pack,fingerprint:preview.fingerprint});while(repeat.state==='applying'||repeat.state==='queued')repeat=await cmd('import:resume',{id:repeat.id});assert.equal((await state()).data.time.length,before+12);assert.equal((await state()).data.archives.filter(r=>r.value.harvestFinance).length,9,'Financial replay cannot duplicate history')
   // Undo the reimport first, then the source owner: reused claims never duplicate native rows.
   repeat=await cmd('import:undo',{id:repeat.id});while(repeat.state==='undoing')repeat=await cmd('import:resume',{id:repeat.id})
-  job=await cmd('import:undo',{id:job.id});while(job.state==='undoing')job=await cmd('import:resume',{id:job.id});assert.equal((await state()).data.time.length,before)
+  job=await cmd('import:undo',{id:job.id});while(job.state==='undoing')job=await cmd('import:resume',{id:job.id});assert.equal((await state()).data.time.length,before);assert.equal((await state()).data.archives.filter(r=>r.value.harvestFinance).length,0)
   const changedPack=structuredClone(pack);changedPack.manifest.namespace='synthetic-edited';const changedPreview=await cmd('import:preview',{package:changedPack});let editedJob=await cmd('import:create',{package:changedPack,fingerprint:changedPreview.fingerprint});while(editedJob.state==='applying')editedJob=await cmd('import:resume',{id:editedJob.id})
   const importedTask=(await state()).data.tasks.find(r=>r.value.source?.namespace==='harvest:synthetic-edited');await cmd('save:tasks',{...importedTask,...importedTask.value,remainingSeconds:300})
   importJob=editedJob.id
@@ -128,7 +157,7 @@ try{
  })
  await flow('GOVERN-002 contractor on two projects, one-project lead, direct approval/file denials and a revoked dated delegate',async()=>{
   const tz='Australia/Brisbane',at=(day,h)=>`2026-10-${day}T${String(h).padStart(2,'0')}:00:00+10:00`
-  const contractor=await cmd('save:people',{name:'Casey Contractor',timezone:tz,employmentType:'contractor'}),alpha=await cmd('save:people',{name:'Lead Alpha',timezone:tz}),beta=await cmd('save:people',{name:'Lead Beta',timezone:tz}),colleague=await cmd('save:people',{name:'Rights colleague',timezone:tz})
+  const contractor=await cmd('save:people',{name:'Casey Contractor synthetic-gauge-9100',timezone:tz,employmentType:'contractor'}),alpha=await cmd('save:people',{name:'Lead Alpha',timezone:tz}),beta=await cmd('save:people',{name:'Lead Beta',timezone:tz}),colleague=await cmd('save:people',{name:'Rights colleague',timezone:tz})
   const client=await cmd('save:clients',{name:'Rights client'}),project=(name,leadId,members)=>cmd('save:engagements',{name,clientId:client.id,leadId,members,scope:'Rights scope',timezone:tz})
   const one=await project('Rights one',alpha.id,[contractor.id,colleague.id]),two=await project('Rights two',beta.id,[contractor.id]),three=await project('Rights three',beta.id,[colleague.id])
   const t1=await cmd('save:tasks',{engagementId:one.id,name:'Rights task one',remainingSeconds:36000}),t2=await cmd('save:tasks',{engagementId:two.id,name:'Rights task two',remainingSeconds:36000}),t3=await cmd('save:tasks',{engagementId:three.id,name:'Rights task three',remainingSeconds:36000})
@@ -136,7 +165,7 @@ try{
   const contractorUser=await h.invite('rights-contractor'),alphaUser=await h.invite('rights-alpha'),betaUser=await h.invite('rights-beta')
   for(const [user,personId,role]of [[contractorUser,contractor.id,'staff'],[alphaUser,alpha.id,'lead'],[betaUser,beta.id,'lead']])await cmd('grant',{operatorId:user.id,personId,role,enabled:true})
   await cmd('save:rates',{personId:contractor.id,service:'*',effective:'2026-01-01',costMinor:9100,billMinor:17300})
-  await cmd('save:leave',{personId:colleague.id,from:'2026-10-14',to:'2026-10-14',dailySeconds:28800,note:'Private medical appointment'})
+  await cmd('save:leave',{personId:colleague.id,from:'2026-10-14',to:'2026-10-14',dailySeconds:28800,note:'Personal time'})
   const time=(person,e,task,day,h0,cookie=owner)=>cmd('time:save',{personId:person.id,engagementId:e.id,taskId:task.id,service:'Design',timezone:tz,notes:'Rights work',start:at(day,h0),end:at(day,h0+1)},cookie)
   const colleagueTime=await time(colleague,one,t1,13,9),hiddenTime=await time(colleague,three,t3,13,11)
   // The contractor records their own work on both assigned projects, and nothing else.
@@ -148,7 +177,17 @@ try{
   assert.deepEqual(view.data.engagements.map(e=>e.id).sort(),[one.id,two.id].sort(),'Permitted delivery context: both assigned projects only')
   assert(view.data.tasks.some(t=>t.id===t1.id)&&view.data.tasks.some(t=>t.id===t2.id)&&!view.data.tasks.some(t=>t.id===t3.id))
   assert.deepEqual(view.data.time.map(t=>t.id).sort(),[first.id,second.id,third.id].sort(),'A worker sees only their own time')
-  assert.deepEqual(view.data.rates,[]);assert(!/costMinor|billMinor|9100|17300/.test(JSON.stringify(view)),'No private rate or salary reaches a worker')
+  assert.deepEqual(view.data.rates,[])
+  assert.equal(view.data.people.find(r=>r.id===contractor.id).value.name,'Casey Contractor synthetic-gauge-9100','Public identity may contain the same digits as a private rate')
+  // Check keys and complete scalar values, not digit substrings inside public
+  // names, opaque identifiers, timestamps or report fingerprints.
+  const privateAmounts=new Set([9100,17300,'9100','17300'])
+  ;(function checkPrivate(value,path='worker'){
+   if(value&&typeof value==='object')for(const [key,child]of Object.entries(value)){
+    assert(!/costMinor|billMinor|salary/i.test(key),`No private rate/salary field reaches a worker at ${path}.${key}`)
+    checkPrivate(child,`${path}.${key}`)
+   }else assert(!privateAmounts.has(value),`No private rate or salary value reaches a worker at ${path}`)
+  })(view)
   assert.equal(view.data.leave.find(l=>l.value.personId===colleague.id)?.value.note,'Private leave','Leave reasons stay private')
   first=await cmd('time:submit',first,contractorUser.cookie);second=await cmd('time:submit',second,contractorUser.cookie);third=await cmd('time:submit',third,contractorUser.cookie)
   // Direct approval routes: the worker cannot approve through the API or the page form; each lead approves only their own project.

@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises'
 import { createHash, randomUUID } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
+import { appApiJourney } from './gauge-app-api.mjs'
 import { realizationJourney } from './gauge-realization.mjs'
 
 // RESOURCE-004: one journey through real commands, the emitted Worker and its forms.
@@ -37,7 +38,8 @@ try {
  await cmd('save:rates', { personId: person.id, service: '*', effective: '2026-01-01', costMinor: 8000, billMinor: 15000 })
  // This person's explicit six-day week is 48h gross, less 8h holiday and 8h leave.
  const calendar = await cmd('save:calendars', { personId: person.id, from, to, dailySeconds: 8 * hour, weekdays: '1,2,3,4,5,6', holidays: ['2026-10-05'], timezone: 'Australia/Brisbane' })
- const leave = await cmd('save:leave', { personId: person.id, from: '2026-10-06', to: '2026-10-06', dailySeconds: 8 * hour, note: 'Private appointment' })
+ const leave = await cmd('save:leave', { personId: person.id, from: '2026-10-06', to: '2026-10-06', dailySeconds: 8 * hour, note:'Personal time' })
+ await cmd('leave:decide',{...leave,outcome:'approved'})
  await cmd('save:calendars', { personId: zero.id, from, to, dailySeconds: 0, weekdays: '1,2,3,4,5', holidays: '2026-10-05, 2026-10-06', timezone: 'Australia/Brisbane' })
  await cmd('save:calendars', { personId: zero.id, from: '2026-10-12', to: '2026-10-12', dailySeconds: 0, weekdays: '1', holidays: ['2026-10-11'], timezone: 'Australia/Brisbane' }, owner, 400)
  const strategy = await cmd('save:staffing', { engagementId: engagement.id, personId: person.id, from: '2026-10-07', to: '2026-10-10', dailySeconds: 6 * hour, commitment: 'committed', service: 'Strategy' })
@@ -65,7 +67,7 @@ try {
  assert.equal(capacity.days.find(d => d.date === '2026-10-06').availableSeconds, 0)
  assert(capacity.days.find(d => d.date === '2026-10-06').leaveSources.includes(leave.id))
 
- browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+ browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}), headless: true, args: ['--use-mock-keychain', '--password-store=basic',...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?['--no-sandbox']:[])] })
  const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage()
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
  const capture = async name => {
@@ -193,7 +195,7 @@ try {
    assert(await page.locator(`[id="${training.id}"]`).isVisible(), 'Drill opens the actual approved time record')
   }
  }
- await cmd('save:leave', { personId: person.id, from: '2026-10-07', to: '2026-10-07', dailySeconds: hour, note: 'Additional leave' })
+ await cmd('leave:decide',{...await cmd('save:leave', { personId: person.id, from: '2026-10-07', to: '2026-10-07', dailySeconds: hour, note:'Personal time' }),outcome:'approved'})
  assert.equal((await request(csvPath(data), owner)).status, 409, 'Changed utilization denominator refuses an old export snapshot')
  assert.equal(row((await report()).utilization.byPerson, person.id).availableSeconds, 31 * hour)
  // CONNECT-020 utilization key (ct 19 Oct 12:43Z): owner-created, shown once, SHA-256 at rest, read-only,
@@ -266,6 +268,7 @@ try {
  assert(/active/i.test(await page.locator(`tr[id="${survivor.id}"]`).innerText()))
  await capture('utilization-key-self-revoked')
  console.log('PASS CONNECT-020 self-revoke: presented-key-only, idempotent and unknown-key 200, concurrent single audit, other keys unaffected, immediate read refusal')
+ await appApiJourney(h,browser,{staff,person,client,task,engagement})
  await realizationJourney(h, browser)
  console.log('PASS RESOURCE-004 scheduled/recorded/pending/approved utilization, 30/32 billable capacity, internal training, holiday and leave denominators, zero and missing capacity, service/project/detail grouping, scoped sources, CSV fingerprint and browser drills')
 } finally { await browser?.close(); await h.dispose() }

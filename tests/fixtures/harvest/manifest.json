@@ -25,5 +25,260 @@
       "seconds": 43200,
       "amountMinor": 120000
     }
+  },
+  "sourceCoverage": {
+    "clients": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 1
+    },
+    "people": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 1
+    },
+    "projects": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 1
+    },
+    "time": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 12
+    },
+    "expenses": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 0
+    },
+    "estimates": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 0
+    },
+    "invoices": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 0
+    },
+    "payments": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 0
+    },
+    "retainers": {
+      "provider": "harvest",
+      "account": "synthetic-gauge-1",
+      "administrator": true,
+      "permission": true,
+      "complete": true,
+      "filters": "all-records",
+      "historyRange": {
+        "from": "2026-01-01",
+        "to": "2026-12-31"
+      },
+      "windows": [
+        {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "complete": true
+        }
+      ],
+      "count": 0
+    }
+  },
+  "finance": {
+    "mappingVersion": "harvest-finance-v1",
+    "moneyUnit": "minor-units",
+    "columns": {
+      "expenses": {
+        "id": "id",
+        "clientId": "clientId",
+        "projectId": "projectId",
+        "date": "date",
+        "amountMinor": "amountMinor",
+        "currency": "currency"
+      },
+      "estimates": {
+        "id": "id",
+        "clientId": "clientId",
+        "date": "date",
+        "amountMinor": "amountMinor",
+        "currency": "currency"
+      },
+      "invoices": {
+        "id": "id",
+        "clientId": "clientId",
+        "date": "date",
+        "amountMinor": "amountMinor",
+        "paidMinor": "paidMinor",
+        "outstandingMinor": "outstandingMinor",
+        "currency": "currency"
+      },
+      "payments": {
+        "id": "id",
+        "invoiceId": "invoiceId",
+        "date": "date",
+        "amountMinor": "amountMinor",
+        "currency": "currency"
+      },
+      "retainers": {
+        "id": "id",
+        "familyId": "familyId",
+        "clientId": "clientId",
+        "projectId": "projectId",
+        "date": "date",
+        "openingMinor": "openingMinor",
+        "allowanceMinor": "allowanceMinor",
+        "usedMinor": "usedMinor",
+        "closingMinor": "closingMinor",
+        "carryInMinor": "carryInMinor",
+        "carryOutMinor": "carryOutMinor",
+        "currency": "currency"
+      }
+    },
+    "controls": {
+      "counts": {
+        "expenses": 0,
+        "estimates": 0,
+        "invoices": 0,
+        "payments": 0,
+        "retainers": 0
+      },
+      "financial": {}
+    }
+  },
+  "timeReconciliation": {
+    "c-1/2026-09": {
+      "count": 12,
+      "rawSeconds": 43200,
+      "billableSeconds": 43200,
+      "billingSeconds": null,
+      "billedSeconds": 0,
+      "unbilledSeconds": 43200,
+      "costMinor": 48000,
+      "billMinor": 120000
+    }
   }
 }

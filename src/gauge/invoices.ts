@@ -1,0 +1,164 @@
+import { presentationDocument, invoiceDetailCsv } from './invoice-presentation'
+import { invoicePdf } from './invoice-pdf'
+import type { Bindings } from '../auth.server'
+import { type Row, type Value, need, text, date, integer, sum } from './model'
+import { type Actor, type Transaction, authority, finance, fence, access, get } from './store'
+import { activeClient } from './clients'
+import { authorizedDelivery } from './milestone-delivery'
+import { retainerOverage } from './retainer-overages'
+import { assertAdHocTime } from './retainer-eligibility'
+
+const snapshot = (row: Row) => structuredClone(row)
+export const plusDays = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
+
+/** Sequence reservation and insertion commit together. A competing reservation
+ * fails atomically and can be retried with the same uncommitted request key. */
+export async function reserveNumber(env: Bindings, tx: Transaction, table: 'g_invoice_sequence' | 'g_credit_sequence', prefix: string) {
+ const sequence = await env.DB.prepare(`SELECT value FROM ${table} WHERE id=1`).first<{value: number}>() ?? {value:0}
+ need(sequence && Number.isSafeInteger(sequence.value) && sequence.value >= 0 && sequence.value < Number.MAX_SAFE_INTEGER, 'Document sequence unavailable', 409)
+ tx.guard(`COALESCE((SELECT value FROM ${table} WHERE id=1),0)=?`, sequence.value)
+ tx.sql(`INSERT INTO ${table}(id,value) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value`, sequence.value + 1)
+ return `${prefix}-${String(sequence.value + 1).padStart(6, '0')}`
+}
+/** What a live invoice still owes before this receipt or promise: total less receipts and issued credit notes. */
+export const owed = 'COALESCE((SELECT SUM(amount_minor) FROM g_payments WHERE invoice_id=?),0)+COALESCE((SELECT SUM(amount_minor) FROM g_invoiceCorrections WHERE invoice_id=? AND kind<>\'void\' AND status=\'issued\'),0)+? <= (SELECT total_minor FROM g_invoices WHERE id=?) AND NOT EXISTS(SELECT 1 FROM g_invoiceCorrections WHERE invoice_id=? AND kind=\'void\' AND status=\'issued\')'
+export async function settledMinor(env: Bindings, invoiceId: string) {
+ const row = await env.DB.prepare("SELECT COALESCE((SELECT SUM(amount_minor) FROM g_payments WHERE invoice_id=?1),0)+COALESCE((SELECT SUM(amount_minor) FROM g_invoiceCorrections WHERE invoice_id=?1 AND kind<>'void' AND status='issued'),0) AS total, EXISTS(SELECT 1 FROM g_invoiceCorrections WHERE invoice_id=?1 AND kind='void' AND status='issued') AS voided").bind(invoiceId).first<{total: number, voided: number}>()
+ need(!row?.voided, 'This invoice is void; record against its reissue', 409)
+ return row?.total ?? 0
+}
+
+/** Only ordinary, already approved packet sources enter this pre-tax ledger.
+ * Keep both the approved packet line and the exact native source as evidence. */
+export async function invoiceLines(env: Bindings, tx: Transaction, packet: Row, engagement: Row, issueDate: string) {
+ need(Array.isArray(packet.value.lines) && packet.value.lines.length > 0, 'Approved packet has no source lines', 409)
+ const seen = new Set<string>(), lines: Value[] = []
+ for (const line of packet.value.lines as Value[]) {
+  const kind = line.kind
+  need(kind === 'time' || kind === 'expenses' || kind === 'milestones' || kind === 'fixedCharges' || kind === 'retainerCharges' || kind === 'retainerAdjustments' || kind === 'retainerPeriods' || kind === 'timeSlices', 'Invoice issuance supports hourly time, reimbursable expenses, fixed milestones and approved deposit/progress charges; scheduled retainer fees and reviewed overages', 409)
+  const sourceId = text(line.sourceId, 'Source ID'), identity = `${kind}:${sourceId}`
+  need(!seen.has(identity), 'Packet repeats a source line', 409); seen.add(identity)
+  const source = await get(env, kind, sourceId), v = source.value
+  const project=await get(env,'engagements',line.engagementId??engagement.id)
+  need(project.value.clientId===engagement.value.clientId&&project.value.currency===packet.value.currency&&project.value.type!=='internal','Consolidated project client or currency changed',409);tx.observe('engagements',project)
+  need(source.revision === line.sourceRevision && (kind==='retainerPeriods'||v.status === 'approved') && v.engagementId === project.id, 'Approved packet source changed; issuance requires its exact approved revision', 409)
+  tx.observe(kind, source)
+  tx.guard('EXISTS(SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=? AND packet_id=?)', kind, source.id, source.revision, packet.id)
+  need(await env.DB.prepare('SELECT 1 FROM g_billing_sources WHERE kind=? AND source_id=? AND source_revision=? AND packet_id=?').bind(kind, source.id, source.revision, packet.id).first(), 'Packet no longer reserves this exact source', 409)
+  const currency = kind === 'time' ? v.economics?.currency : kind === 'milestones' ? v.currency ?? engagement.value.currency : v.currency
+  need(currency === packet.value.currency && line.currency === currency, 'Invoice source currencies differ; no implicit FX')
+  let sourceDate: string, amountMinor: number
+  if(kind==='retainerAdjustments'){
+   need(packet.value.scheduleId&&line.creditConsent?.scheduleId===packet.value.scheduleId&&line.creditConsent?.confirmation==='apply-unexecuted-adjustments-as-invoice-credits','Explicit schedule consent is required for an adjustment credit',409)
+   amountMinor=integer(-v.cashDeltaMinor,'Approved adjustment credit',1,Number.MAX_SAFE_INTEGER)*-1;sourceDate=date(line.sourceDate);need(issueDate>=sourceDate,'Invoice date precedes the reviewed adjustment credit')
+  } else if(kind==='timeSlices'){
+   const original=await get(env,'time',v.sourceId);need(original.revision===v.sourceRevision&&original.value.status==='approved','Original capped time changed',409);tx.observe('time',original);await assertAdHocTime(env,tx,original.value);amountMinor=integer(v.amountMinor,'Approved time portion');sourceDate=date(v.date);need(issueDate>=sourceDate,'Invoice date precedes approved work')
+  } else if(kind==='retainerPeriods'){
+   const current=await retainerOverage(env,tx,source)
+   need(current.retainerFingerprint===line.retainerFingerprint&&current.amountMinor===line.amountMinor,'Retainer consumption changed; review a fresh packet',409)
+   amountMinor=current.amountMinor;sourceDate=date(v.activeEnd)
+   need(issueDate>sourceDate,'Issue retainer overages only after the period ends')
+  } else if (kind === 'time') {
+   await assertAdHocTime(env, tx, v)
+   need(v.billable && !v.source?.billed && v.economics?.mode === 'hourly', 'Invoice requires approved, unbilled ordinary hourly time', 409)
+   amountMinor = integer(v.economics.billMinor, 'Approved time amount', 0, Number.MAX_SAFE_INTEGER)
+   sourceDate = date(v.workDate)
+   need(issueDate >= sourceDate, 'Invoice issue date precedes its time source date')
+  } else if (kind === 'expenses') {
+   need(v.clientBillable??v.reimbursable, 'Invoice expense must be client billable', 409)
+   amountMinor = integer(v.clientRecoveryMinor??v.amountMinor, 'Approved expense amount', 0, Number.MAX_SAFE_INTEGER)
+   sourceDate = date(v.date)
+   need(issueDate >= sourceDate, 'Invoice issue date precedes its expense source date')
+  } else if (kind === 'fixedCharges' || kind === 'retainerCharges') {
+   amountMinor = integer(v.amountMinor, 'Approved fixed charge amount', 1, Number.MAX_SAFE_INTEGER)
+   sourceDate = date(v.date)
+   need(issueDate >= sourceDate, 'Invoice issue date precedes the approved charge date')
+  } else {
+   need(authorizedDelivery(v), 'Invoice milestone requires current recorded acceptance and finance authorization', 409)
+   const budget = await get(env, 'budgets', text(v.budgetId, 'Approved fixed budget'))
+   need(budget.value.status === 'approved' && (budget.value.phases?.length?budget.value.phases.some((p:Value)=>p.key===v.phaseKey&&p.mode==='fixed'):budget.value.mode === 'fixed') && budget.value.engagementId === project.id && budget.value.currency === currency, 'Invoice milestone requires its approved fixed-fee budget', 409)
+   tx.observe('budgets', budget)
+   amountMinor = integer(v.amountMinor, 'Approved milestone amount', 0, Number.MAX_SAFE_INTEGER)
+   sourceDate = date(v.due)
+   const delivery = v.delivery.deliveries.at(-1), decision = v.delivery.decisions.at(-1)
+   need(issueDate >= date(delivery.date) && issueDate >= date(decision.date), 'Invoice issue date precedes recorded milestone delivery or acceptance')
+  }
+  need(Number.isSafeInteger(line.amountMinor) && line.amountMinor === amountMinor, 'Packet amount differs from its approved source', 409)
+  let remainingMinor=0
+  if(kind==='timeSlices'){const original=await get(env,'time',v.sourceId);remainingMinor=original.value.economics.billMinor-v.amountMinor;const reserved=await env.DB.prepare("SELECT COALESCE(SUM(json_extract(s.data,'$.amountMinor')),0) AS total FROM g_timeSlices s JOIN g_billing_sources b ON b.kind='timeSlices' AND b.source_id=s.id WHERE json_extract(s.data,'$.sourceId')=?").bind(v.sourceId).first<{total:number}>();remainingMinor=original.value.economics.billMinor-(reserved?.total??0)}
+  if(kind==='fixedCharges'){const budget=await get(env,'budgets',v.budgetId);tx.observe('budgets',budget);const fee=v.phaseKey?budget.value.phases?.find((p:Value)=>p.key===v.phaseKey)?.feeBudgetMinor:budget.value.amountMinor;need(Number.isSafeInteger(fee),'Fixed budget unavailable',409);remainingMinor=fee-v.grossMinor}
+  lines.push({ ...structuredClone(line), engagementId:project.id,projectName:project.value.name,remainingMinor,sourceDate, sourceSnapshot: snapshot(source),engagementSnapshot:snapshot(project) })
+ }
+ need(sum(lines.map(line => line.amountMinor)) === packet.value.totalMinor, 'Packet total differs from its approved source lines', 409)
+ return lines
+}
+
+export async function invoiceCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | null> {
+ if (!['invoice:issue','invoice:promise','payment:record'].includes(action)) return null
+ need(finance(a), 'Finance access required', 403)
+ await fence(env, a)
+ const privileged = authority(a, true)
+ tx.guard(privileged.sql, ...privileged.params)
+ if (action === 'invoice:issue') {
+  const packet = await get(env, 'packets', text(input.id, 'Approved packet'))
+  need(packet.revision === input.revision && packet.value.status === 'approved', 'Choose the exact approved packet revision', 409)
+  need(!packet.value.correctsPacketId, 'Correction packets cannot be issued; invoice credit and adjustment handling is not available', 409)
+  const totalMinor = integer(packet.value.totalMinor, 'Invoice total', 1, Number.MAX_SAFE_INTEGER)
+  const engagement = await access(env, a, text(packet.value.engagementId, 'Engagement'))
+  need(engagement.value.type !== 'internal', 'Internal work cannot be invoiced')
+  const client = await activeClient(env, engagement.value.clientId)
+  tx.observe('packets', packet); tx.observe('engagements', engagement); tx.observe('clients', client)
+  need(packet.value.currency === engagement.value.currency && (input.currency === undefined || input.currency === packet.value.currency), 'Invoice currency differs from engagement or packet; no implicit FX')
+  need(!await env.DB.prepare("SELECT 1 FROM g_packets WHERE json_extract(data,'$.correctsPacketId')=? AND status<>'cancelled'").bind(packet.id).first(), 'Packet has a correction; invoice adjustment handling is not available', 409)
+  tx.guard("NOT EXISTS(SELECT 1 FROM g_packets WHERE json_extract(data,'$.correctsPacketId')=? AND status<>'cancelled')", packet.id)
+  need(!await env.DB.prepare('SELECT 1 FROM g_invoices WHERE packet_id=?').bind(packet.id).first(), 'Packet already has an issued invoice', 409)
+  tx.guard('NOT EXISTS(SELECT 1 FROM g_invoices WHERE packet_id=?)', packet.id)
+  const issueDate = date(input.issueDate), dueDate = date(input.dueDate)
+  const paymentTermsDays = client.value.paymentTermsDays == null ? 30 : integer(client.value.paymentTermsDays, 'Client payment terms days', 0, 365)
+  need(dueDate === plusDays(issueDate, paymentTermsDays), 'Due date must follow the saved client payment terms (Net 30 assumed only when unset)')
+  const billTo = text(input.billTo, 'Bill-to'), remitTo = text(input.remitTo, 'Remit-to'), reference = text(input.reference, 'Invoice reference')
+  need(!client.value.poRequired || (client.value.poNumbers ?? []).some((po: string) => po.toLowerCase() === reference.toLowerCase()), 'This client requires an invoice reference matching a saved PO number')
+  const lines = await invoiceLines(env, tx, packet, engagement, issueDate)
+  const document=await presentationDocument(env,tx,packet,client,engagement,lines,input)
+  const number=await reserveNumber(env,tx,'g_invoice_sequence','INV')
+  const header={number,issueDate,dueDate,billTo,remitTo,reference}
+  const pdf=await invoicePdf(document,header), detailPdf=document.settings.attachDetail?await invoicePdf(document,header,true):null
+  return tx.record('invoices', {
+   document,pdf,detailPdf,detailCsv:document.settings.attachDetail?invoiceDetailCsv(document):null,
+   packetId: packet.id, packetRevision: packet.revision, engagementId: engagement.id, engagementIds:packet.value.engagementIds??[engagement.id],clientId: client.id,
+   number, issueDate, dueDate, billTo, remitTo, reference,
+   currency: packet.value.currency, totalMinor, lines, issuedBy: a.session.operator.id, issuedAt: Date.now(),
+   paymentTermsDays, termsLabel: client.value.paymentTermsDays == null ? 'Net 30 assumed' : `Net ${paymentTermsDays}`,
+   clientSnapshot: snapshot(client), engagementSnapshot: snapshot(engagement), packetSnapshot: snapshot(packet),
+   taxBasis: 'pre-tax', issuance: 'native ledger only; no sending or accounting-provider submission',
+  }, undefined, undefined, action)
+ }
+ const invoice = await get(env, 'invoices', text(input.id, 'Invoice'))
+ need(invoice.revision === input.revision, 'Invoice revision changed; reload before recording payment', 409)
+ tx.observe('invoices', invoice)
+ if(action==='invoice:promise') {
+  const on=date(input.date), amountMinor=integer(input.amountMinor,'Promised amount',1,Number.MAX_SAFE_INTEGER)
+  need(on>=invoice.value.issueDate,'Promise date precedes invoice issue date')
+  need(amountMinor<=invoice.value.totalMinor-await settledMinor(env,invoice.id),'Promise exceeds the invoice outstanding amount',409)
+  tx.guard(owed,invoice.id,invoice.id,amountMinor,invoice.id,invoice.id)
+  const previous=await env.DB.prepare("SELECT COUNT(*) AS count FROM g_paymentPromises WHERE json_extract(data,'$.invoiceId')=?").bind(invoice.id).first<{count:number}>()
+  tx.guard("(SELECT COUNT(*) FROM g_paymentPromises WHERE json_extract(data,'$.invoiceId')=?)=?",invoice.id,previous?.count??0)
+  return tx.record('paymentPromises',{invoiceId:invoice.id,engagementId:invoice.value.engagementId,currency:invoice.value.currency,date:on,amountMinor,reference:text(input.reference,'Promise reference'),recordedBy:a.session.operator.id,recordedAt:Date.now()},undefined,undefined,action)
+ }
+ const on = date(input.date), amountMinor = integer(input.amountMinor, 'Payment amount', 1, Number.MAX_SAFE_INTEGER), reference = text(input.reference, 'Bank receipt reference')
+ need(on >= invoice.value.issueDate, 'Payment date precedes invoice issue date')
+ need(input.currency === undefined || input.currency === invoice.value.currency, 'Payment currency differs from invoice; no implicit FX')
+ need(amountMinor <= invoice.value.totalMinor - await settledMinor(env, invoice.id), 'Payment exceeds the invoice outstanding amount', 409)
+ need(!await env.DB.prepare('SELECT 1 FROM g_payments WHERE invoice_id=? AND reference=?').bind(invoice.id, reference).first(), 'This receipt reference is already recorded for the invoice', 409)
+ need(!await env.DB.prepare('SELECT 1 FROM g_clientReceipts WHERE reference=?').bind(reference).first(), 'This reference belongs to a client receipt; allocate that receipt instead', 409)
+ tx.guard('NOT EXISTS(SELECT 1 FROM g_clientReceipts WHERE reference=?)', reference)
+ // Observing an immutable invoice cannot serialize concurrent receipts. Check
+ // the live allocation sum inside the same batch that inserts the new receipt.
+ tx.guard(owed, invoice.id, invoice.id, amountMinor, invoice.id, invoice.id)
+ tx.guard('NOT EXISTS(SELECT 1 FROM g_payments WHERE invoice_id=? AND reference=?)', invoice.id, reference)
+ return tx.record('payments', {
+  invoiceId: invoice.id, engagementId: invoice.value.engagementId, currency: invoice.value.currency,
+  amountMinor, date: on, reference, recordedBy: a.session.operator.id, recordedAt: Date.now(),
+  source: 'manual-bank-receipt', verification: 'finance recorded; not bank or processor verified',
+ }, undefined, undefined, action)
+}

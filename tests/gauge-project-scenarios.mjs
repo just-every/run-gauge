@@ -32,7 +32,7 @@ try {
  const lead=await h.invite('scenario-lead');await cmd('grant',{operatorId:lead.id,personId:employee.id,role:'lead',enabled:true})
  const fin=await h.invite('scenario-finance');await cmd('grant',{operatorId:fin.id,personId:contractor.id,role:'finance',enabled:true})
  const staff=await h.invite('scenario-staff');await cmd('grant',{operatorId:staff.id,personId:employee.id,role:'staff',enabled:true})
- const agent=await h.invite('scenario-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true})
+ const agent=await h.invite('scenario-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'staffing',engagementIds:projects.map(project=>project.id)})
  const changes=bookings.map(b=>({...b,personId:contractor.id,effectiveFrom:day(1)})),input={asOf,changes}
  await cmd('projectScenario:preview',{asOf,changes:[]},owner,400)
  await cmd('projectScenario:preview',{asOf,changes:Array.from({length:21},(_,i)=>({...changes[0],id:`excess-${i}`}))},owner,400)
@@ -107,7 +107,7 @@ try {
  await cmd('projectScenario:adopt',{...staleSelection,fingerprint:staleReview.fingerprint,reason:'Outdated'},owner,409)
  assert.equal((await read()).data.projectScenarios.find(p=>p.id===stale.id).value.status,'prepared')
  // Browser proof of resulting staffing through the existing capacity screen; no new UI was added.
- browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  await context.addCookies(owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
  for(const width of [1440,390]) {

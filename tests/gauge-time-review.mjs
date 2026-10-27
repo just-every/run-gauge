@@ -52,7 +52,7 @@ export async function timeReviewJourney(h,{page,signIn,capture,worker,lead,staff
  await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true})
  // The lead records absence; their own dated delegation routes only eligible work.
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(Date.now())
- await cmd('save:leave',{personId:lead.id,from:today,to:today,dailySeconds:8*hour,note:'Lead away'},manager.cookie)
+ await cmd('leave:decide',{...await cmd('save:leave',{personId:lead.id,from:today,to:today,dailySeconds:8*hour,note:'Personal time'},manager.cookie),outcome:'approved'})
  const booking=await cmd('save:staffing',{engagementId:project.id,personId:worker.id,from:'2026-10-12',to:'2026-10-12',dailySeconds:3600,commitment:'tentative',service:'Design',billable:true},manager.cookie)
  const unrelatedTask=await cmd('save:tasks',{engagementId:project.id,name:'Separate delivery planning',remainingSeconds:3600},manager.cookie)
  await signIn(manager.cookie);await page.goto(h.origin+'/app/time')

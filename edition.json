@@ -42,8 +42,47 @@
           "migrations/core/0030_gauge_billability_targets.sql",
           "migrations/core/0031_gauge_approval_policy.sql",
           "migrations/core/0032_gauge_retainer_close.sql",
-        "migrations/core/0033_gauge_rate_withdrawals.sql",
-          "migrations/core/0034_gauge_demand_scenarios.sql"
+          "migrations/core/0033_gauge_rate_withdrawals.sql",
+          "migrations/core/0034_gauge_demand_scenarios.sql",
+          "migrations/core/0036_gauge_audit.sql",
+          "migrations/core/0038_gauge_invoices.sql",
+          "migrations/core/0039_gauge_invoice_corrections.sql",
+          "migrations/core/0041_gauge_fixed_charges.sql",
+          "migrations/core/0042_gauge_agent_scopes.sql",
+          "migrations/core/0043_gauge_retainer_schedule.sql",
+          "migrations/core/0044_gauge_budget_caps.sql",
+          "migrations/core/0045_gauge_phase_alerts.sql",
+          "migrations/core/0046_gauge_agency_close.sql",
+          "scripts/gauge-tests.mjs",
+          "migrations/core/0047_gauge_custom_fields.sql",
+          "migrations/core/0048_gauge_estimates.sql",
+          "migrations/core/0049_gauge_commercial_proposals.sql",
+          "migrations/core/0050_gauge_provider_custody.sql",
+          "migrations/core/0051_gauge_provider_reconciliation.sql",
+          "migrations/core/0052_gauge_retainer_jobs.sql",
+          "migrations/core/0053_gauge_provider_followups.sql",
+          "migrations/core/0054_gauge_privacy.sql",
+          "migrations/core/0055_gauge_operational_cases.sql",
+          "migrations/core/0056_gauge_kantata.sql",
+          "migrations/core/0057_gauge_kantata_native.sql",
+          "migrations/core/0059_gauge_scoro.sql",
+          "migrations/core/0060_gauge_teamwork.sql",
+          "migrations/core/0061_gauge_productive.sql",
+          "migrations/core/0062_gauge_rocketlane.sql",
+          "migrations/core/0063_gauge_float.sql",
+          "migrations/core/0064_gauge_invoice_presentation.sql",
+          "migrations/core/0065_gauge_invoice_access.sql",
+          "migrations/core/0066_gauge_revenue_schedules.sql",
+          "migrations/core/0067_gauge_accountant_grant.sql",
+          "migrations/core/0068_gauge_resource_manager.sql",
+          "migrations/core/0070_gauge_float_adoption.sql",
+          "migrations/core/0073_gauge_milestone_review.sql",
+          "migrations/core/0074_gauge_milestone_review_tokens.sql",
+          "migrations/core/0078_gauge_client_portal.sql",
+          "migrations/core/0079_gauge_portal_choices.sql",
+          "migrations/core/0080_gauge_portal_owner_version.sql",
+          "migrations/core/0079_gauge_change_review.sql",
+          "migrations/core/0080_gauge_intake.sql"
         ]
       }
     },
@@ -61,7 +100,13 @@
           "paths": [
             "foundation/runtime"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/base",
+            "originPath": "foundation/runtime"
+          }
+        ]
       }
     },
     {
@@ -78,7 +123,13 @@
           "paths": [
             "modules/operator-auth"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/operator-auth",
+            "originPath": "modules/operator-auth"
+          }
+        ]
       }
     },
     {
@@ -95,7 +146,13 @@
           "paths": [
             "modules/mail"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/mail",
+            "originPath": "modules/mail"
+          }
+        ]
       }
     },
     {
@@ -112,7 +169,13 @@
           "paths": [
             "modules/ai"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/ai",
+            "originPath": "modules/ai"
+          }
+        ]
       }
     },
     {
@@ -129,7 +192,13 @@
           "paths": [
             "modules/dependencies"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/dependencies",
+            "originPath": "modules/dependencies"
+          }
+        ]
       }
     },
     {
@@ -146,7 +215,13 @@
           "paths": [
             "modules/owner-claim"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/owner-claim",
+            "originPath": "modules/owner-claim"
+          }
+        ]
       }
     },
     {
@@ -163,7 +238,13 @@
           "paths": [
             "modules/import-kit"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/import-kit",
+            "originPath": "modules/import-kit"
+          }
+        ]
       }
     },
     {
@@ -180,7 +261,13 @@
           "paths": [
             "modules/demo"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/demo",
+            "originPath": "modules/demo"
+          }
+        ]
       }
     },
     {
@@ -197,7 +284,82 @@
           "paths": [
             "modules/d1-transport"
           ]
-        }
+        },
+        "mappings": [
+          {
+            "path": "src/modules/d1-transport",
+            "originPath": "modules/d1-transport"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gauge-local/integration",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/auth.server.ts",
+          "src/mail.server.mjs",
+          "src/server.ts",
+          "src/identity.ts"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+          "paths": [
+            "foundation/template/src/auth.server.ts",
+            "foundation/template/src/mail.server.mjs",
+            "foundation/template/src/server.ts",
+            "foundation/template/src/identity.ts"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "src/auth.server.ts",
+            "originPath": "foundation/template/src/auth.server.ts"
+          },
+          {
+            "path": "src/mail.server.mjs",
+            "originPath": "foundation/template/src/mail.server.mjs"
+          },
+          {
+            "path": "src/server.ts",
+            "originPath": "foundation/template/src/server.ts"
+          },
+          {
+            "path": "src/identity.ts",
+            "originPath": "foundation/template/src/identity.ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "runeditrun/delivery-producer",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "scripts/delivery/base"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+          "paths": [
+            "modules/delivery-producer",
+            "schema"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "scripts/delivery/base",
+            "originPath": "modules/delivery-producer"
+          },
+          {
+            "path": "scripts/delivery/base/schema",
+            "originPath": "schema"
+          }
+        ]
       }
     }
   ]

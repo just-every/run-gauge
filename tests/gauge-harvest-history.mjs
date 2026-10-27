@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 import { workbook } from './fixtures/harvest-workbook.mjs'
@@ -14,7 +14,7 @@ try {
   manifest: { namespace: 'harvest-history', currency: 'USD', timezone: 'America/New_York', units: 'decimal-hours', coverage: 'all-time', projectLeads: { launch: 'ada' }, projectMembers: { launch: ['ada'] },
    rates: { ada: [{ effective: '2026-09-10', costMinor: 5000, billMinor: 17500 }, { effective: '2026-09-01', costMinor: 4000, billMinor: 10000 }] },
    reconciliation: { 'northstar/2026-09': { count: 2, seconds: 11196, amountMinor: 40000 } },
-   timeReconciliation: { 'northstar/2026-09': { count: 2, rawSeconds: 11196, billingSeconds: 11700, billedSeconds: 7596, unbilledSeconds: 3600, costMinor: 13440, billMinor: 40000 } } },
+   timeReconciliation: { 'northstar/2026-09': { count: 2, rawSeconds: 11196, billableSeconds:11700, billingSeconds: 11700, billedSeconds: 7596, unbilledSeconds: 3600, costMinor: 13440, billMinor: 40000 } } },
   files: {
    'clients.csv': 'Client ID,Client\nnorthstar,Northstar Studio\n',
    'people.csv': 'Person ID,Name,Contractor\nada,Ada Ruiz,No\n',
@@ -22,6 +22,14 @@ try {
    'time.csv': 'Time Entry ID,Person ID,Project ID,Date,Hours,Rounded Hours,Task,Billable?,Invoiced?,Invoice ID,Approved?,Locked?,Notes\nbrand,ada,launch,2026-09-04,2.11,2.25,Brand design,Yes,Yes,INV-204,Yes,Yes,Approved identity concepts\nweb,ada,launch,2026-09-11,1,1,Web delivery,Yes,No,,No,No,Accessible launch page\n',
   },
  }
+ const referenceManifest=JSON.parse(await readFile('tests/fixtures/harvest/manifest.json','utf8'))
+ pack.manifest.sourceCoverage=referenceManifest.sourceCoverage
+ pack.manifest.finance=referenceManifest.finance
+ pack.files['finance.json']=JSON.stringify({expenses:[],estimates:[],retainers:[],invoices:[{id:'INV-204',clientId:'northstar',projectId:'launch',date:'2026-09-30',amountMinor:22500,paidMinor:5000,outstandingMinor:17500,currency:'USD'}],payments:[{id:'synthetic-gauge-payment-1',invoiceId:'INV-204',date:'2026-10-02',amountMinor:5000,currency:'USD'}]})
+ pack.manifest.sourceCoverage.invoices.count=1;pack.manifest.sourceCoverage.payments.count=1
+ const zero={expenseMinor:0,estimateMinor:0,invoiceMinor:0,invoicePaidMinor:0,paidMinor:0,outstandingMinor:0,openingMinor:0,allowanceMinor:0,usedMinor:0,closingMinor:0,carryInMinor:0,carryOutMinor:0}
+ pack.manifest.finance.controls={counts:{expenses:0,estimates:0,invoices:1,payments:1,retainers:0},financial:{'northstar/2026-09/USD':{...zero,invoiceMinor:22500,invoicePaidMinor:5000,outstandingMinor:17500},'northstar/2026-10/USD':{...zero,paidMinor:5000}}}
+ pack.manifest.sourceCoverage.time.count=2
  const rows = pack.files['time.csv'].trimEnd().split('\n').map(line => line.split(','))
  rows[1][3] = 46269 // 2026-09-04 in the Excel 1900 date system.
  rows[1][4] = 2.11; rows[1][5] = 2.25; rows[2][4] = 1; rows[2][5] = 1
@@ -91,7 +99,7 @@ try {
   }
  }
  await page.getByRole('link', { name: 'Back to imports' }).click()
- await page.getByLabel('Harvest export files:', { exact: false }).setInputFiles(Object.entries(xlsx.files).map(([name, content]) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) })).concat({ name: 'time.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: bytes }))
+ await page.getByLabel('Harvest files: clients, people and projects CSV; time CSV or XLSX; finance.json (Forecast optional)', { exact: true }).setInputFiles(Object.entries(xlsx.files).map(([name, content]) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) })).concat({ name: 'time.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: bytes }))
  await page.getByLabel('Manifest, as described in the move-in guide').fill(JSON.stringify(xlsx.manifest))
  for (const width of [1440, 390]) {
   await page.setViewportSize({ width, height: 1100 })
@@ -151,3 +159,5 @@ try {
  assert.deepEqual((await state()).data.time.find(r => r.id === final.id), final, 'Reimport preserves later native approval')
  console.log('PASS MIGRATE-002 XLSX bounded value-only decoding, worksheet selection, binary custody, cross-format replay; raw 7596 / rounded 8100 seconds, historical rates, invoice reference, source approval/lock evidence, independent controls, preview/apply, native approval, duplicate-billing refusal and original custody')
 } finally { await browser?.close(); await h.dispose() }
+
+await (await import('./gauge-kantata.mjs')).kantataJourney()

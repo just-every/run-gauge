@@ -29,9 +29,9 @@ export function capacityLineage(c: Lineage) {
   for (const day of days) {
    const id = prefix + day.date + ':'
    const e = (fields: ('calendar' | 'leave' | 'committed' | 'tentative')[], unknown = false) => evidence(fields, unknown, [day])
-   c.add(id + 'baseSeconds', 'Calendar working seconds', day.baseSeconds, 'seconds', 'calendar.dailySeconds if UTC weekday of report date is in calendar.weekdays; otherwise 0. Missing calendar is unknown.', e(['calendar'], true))
+   c.add(id + 'baseSeconds', 'Calendar working seconds', day.baseSeconds, 'seconds', 'The weekday-specific seconds when set; otherwise calendar.dailySeconds on a working weekday, or 0. Missing calendar is unknown.', e(['calendar'], true))
    c.add(id + 'holidaySeconds', 'Holiday seconds', day.holidaySeconds, 'seconds', 'Calendar working seconds when the calendar explicitly lists this date as a holiday, otherwise 0.', e(['calendar']))
-   c.add(id + 'leaveSeconds', 'Leave seconds', day.leaveSeconds, 'seconds', 'SUM(leave.dailySeconds for records covering this date and person).', e(['leave']))
+   c.add(id + 'leaveSeconds', 'Leave seconds', day.leaveSeconds, 'seconds', 'SUM(leave.dailySeconds for approved or legacy declared records covering this date and person); requested, rejected and cancelled leave is excluded.', e(['leave']))
    c.add(id + 'availableSeconds', 'Available seconds', day.availableSeconds, 'seconds', 'max(0, baseSeconds − holidaySeconds − leaveSeconds); null when calendar is missing.', e(['calendar', 'leave'], true))
    c.add(id + 'committedSeconds', 'Committed seconds', day.committedSeconds, 'seconds', 'SUM(staffing.dailySeconds where commitment = committed and staffing covers date).', e(['committed']))
    c.add(id + 'tentativeSeconds', 'Tentative seconds', day.tentativeSeconds, 'seconds', 'SUM(staffing.dailySeconds where commitment = tentative and staffing covers date).', e(['tentative']))

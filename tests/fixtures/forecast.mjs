@@ -1,15 +1,17 @@
+import {createHash} from 'node:crypto'
 import {readFile} from 'node:fs/promises'
 
 export async function forecastPackage() {
  const root=new URL('./harvest/',import.meta.url),files={}
- for(const name of ['clients.csv','people.csv','projects.csv','time.csv'])files[name]=await readFile(new URL(name,root),'utf8')
+ for(const name of ['clients.csv','people.csv','projects.csv','time.csv','finance.json'])files[name]=await readFile(new URL(name,root),'utf8')
  const manifest=JSON.parse(await readFile(new URL('manifest.json',root),'utf8'))
  manifest.namespace='synthetic-forecast'
+ manifest.sourceCoverage.forecast={...structuredClone(manifest.sourceCoverage.time),provider:'forecast',pagesComplete:true};delete manifest.sourceCoverage.forecast.count
  manifest.schedulePeople={'Synthetic person':'p-1'}
  manifest.scheduleProjects={'Synthetic client/Synthetic project':'j-1'}
  manifest.schedulePeriods={Week:{from:'2026-11-02',to:'2026-11-08',workingDays:5,workingDates:['2026-11-02','2026-11-03','2026-11-04','2026-11-05','2026-11-06']}}
  files['forecast.csv']='Person,Client,Project,Week\nSynthetic person,Synthetic client,Synthetic project,20\n'
- return {manifest,files}
+ const pack={manifest,files};forecastMetadata(pack);return pack
 }
 
 export async function capturedForecastPackage() {
@@ -33,5 +35,16 @@ export async function capturedForecastPackage() {
   ],
   availability:[{id:'v1',personId:'person-7',from:'2026-11-02',to:'2026-11-08',dailySeconds:28800,weekdays:'1,2,3,4,5',holidays:['2026-11-04']}]
  })
+ const original=JSON.parse(pack.files['forecast.json'])
+ for(const [kind,rows]of Object.entries(original))original[kind]={pages:[{page:1,totalPages:1,totalCount:rows.length,next:null,data:rows}]}
+ pack.files['forecast.json']=JSON.stringify(original)
+ forecastMetadata(pack)
  return pack
+}
+
+export function forecastMetadata(pack) {
+ const review=pack.manifest.sourceCoverage.forecast,metadata={provider:'forecast',account:review.account,historyRange:review.historyRange,windows:review.windows}
+ if(pack.files['forecast.csv'])metadata.csv={count:pack.files['forecast.csv'].trim().split('\n').length-1,sha256:createHash('sha256').update(pack.files['forecast.csv']).digest('hex')}
+ if(pack.files['forecast.json'])metadata.counts=Object.fromEntries(Object.entries(JSON.parse(pack.files['forecast.json'])).map(([name,object])=>[Object.entries(pack.manifest.forecastApi.arrays??{}).find(([,alias])=>alias===name)?.[0]??name,object.pages.reduce((n,p)=>n+p.data.length,0)]))
+ pack.files['forecast-metadata.json']=JSON.stringify(metadata)
 }

@@ -1,0 +1,31 @@
+import { type Row,type Value,need,sum } from './model'
+import { targetPerformance } from './billability'
+import type { capacity,visible } from './reports'
+export function fieldRecords(data:Record<string,Row[]>,field:Row,engagementIds:string[]){
+ const ids=new Set(engagementIds),projects=data.engagements.filter(r=>ids.has(r.id)),scope=field.value.scope
+ if(scope==='engagements')return projects
+ if(scope==='clients')return data.clients.filter(r=>projects.some(e=>e.value.clientId===r.id))
+ if(scope==='tasks')return data.tasks.filter(r=>ids.has(r.value.engagementId))
+ const people=new Set(projects.flatMap(e=>[e.value.leadId,...(e.value.members??[])]).concat([...data.time,...data.staffing].filter(r=>ids.has(r.value.engagementId)).map(r=>r.value.personId)))
+ return data.people.filter(r=>people.has(r.id))
+}
+export function fieldLabels(data:Record<string,Row[]>,field:Row,rows:Row[]){
+ const values=rows.flatMap(r=>{const v=r.value.customFields?.[field.id];return v===undefined?[]:Array.isArray(v)?v:[v]})
+ return [...new Set(values.map(String))].sort().map(id=>({id,name:['single-select','multi-select'].includes(field.value.type)?field.value.options.find((o:Value)=>o.id===id)?.name??id:field.value.type==='person'?data.people.find(p=>p.id===id)?.value.name??'Unavailable person':id}))
+}
+export function projectFieldLabels(data:Record<string,Row[]>,field:Row,id:string){const labels=fieldLabels(data,field,fieldRecords(data,field,[id]));return labels.length?labels:[{id:'__unset',name:'Unset'}]}
+export function projectMatches(data:Record<string,Row[]>,id:string,filter:Value){return Object.entries(filter).every(([fieldId,value])=>{const field=data.customFields.find(f=>f.id===fieldId);need(field,'Custom filter unavailable',403);return projectFieldLabels(data,field,id).some(l=>l.id===String(value))})}
+export function customMeasures(data:Record<string,Row[]>,projects:string[],measureIds:string[]){return measureIds.map(id=>{const field=data.customFields.find(f=>f.id===id);need(field&&['number','currency'].includes(field.value.type),'Custom measure unavailable',403);const rows=fieldRecords(data,field,projects),values=rows.map(r=>r.value.customFields?.[id]),known=values.filter(v=>v!==undefined),decimal=field.value.type==='number';let scaled=0n;for(const v of known){if(decimal){const [whole,fraction='']=String(v).replace('-','').split('.');scaled+=(String(v).startsWith('-')?-1n:1n)*(BigInt(whole)*1000000n+BigInt(fraction.padEnd(6,'0')))}else scaled+=BigInt(v)}need(scaled<=BigInt(Number.MAX_SAFE_INTEGER)&&scaled>=BigInt(Number.MIN_SAFE_INTEGER),'Custom sum exceeds exact range');const knownValue=Number(scaled)/(decimal?1000000:1);return {fieldId:id,name:field.value.name,currency:field.value.currency??null,value:known.length===rows.length?knownValue:null,knownValue,missing:rows.filter((r,i)=>values[i]===undefined).map(r=>r.id),sources:rows.map(r=>({kind:field.value.scope,...r})),definition:field}})}
+export function customPerformance(data:Awaited<ReturnType<typeof visible>>,cap:ReturnType<typeof capacity>,from:string,to:string,money:boolean,options:Value){
+ if(!options.customGroup)return null;const field=data.customFields.find(f=>f.id===options.customGroup);need(field,'Custom report field unavailable',403)
+ const projectIds=data.engagements.filter(e=>projectMatches(data,e.id,options.customFilters??{})).map(e=>e.id),peopleInScope=Object.keys(options.customFilters??{}).length?fieldRecords(data,{...field,value:{...field.value,scope:'people'}},projectIds):data.people,labels=fieldLabels(data,field,field.value.scope==='people'?peopleInScope:fieldRecords(data,field,projectIds)),rows:Value[]=[]
+ for(const label of labels){
+  const projects=projectIds.filter(id=>projectFieldLabels(data,field,id).some(l=>l.id===label.id))
+  const allTime=data.time.filter(t=>projects.includes(t.value.engagementId)),time=field.value.scope==='people'?allTime.filter(t=>data.people.some(p=>p.id===t.value.personId&&fieldLabels(data,field,[p]).some(l=>l.id===label.id))):allTime
+  const personIds=field.value.scope==='people'?peopleInScope.filter(p=>fieldLabels(data,field,[p]).some(l=>l.id===label.id)).map(p=>p.id):[...new Set(time.map(t=>t.value.personId).concat(data.staffing.filter(s=>projects.includes(s.value.engagementId)).map(s=>s.value.personId)))]
+  const scoped={...data,time,people:data.people.filter(p=>personIds.includes(p.id))},performance=targetPerformance(scoped,cap.filter(c=>personIds.includes(c.personId)),from,to,money),people=performance.byPerson,available=people.some(p=>p.availableSeconds===null)?null:sum(people.map(p=>p.availableSeconds)),approvedSeconds=sum(people.map(p=>p.approvedSeconds)),billableSeconds=sum(people.map(p=>p.billableSeconds))
+  const moneyRows:Value[]=[];if(money)for(const p of people)for(const bucket of p.money as Value[]){let b=moneyRows.find(b=>b.currency===bucket.currency);if(!b){b={currency:bucket.currency,standardMinor:0,billedMinor:0,billedSeconds:0,unbilledStandardMinor:0,missingBillRate:[],packets:[]};moneyRows.push(b)}for(const k of ['standardMinor','billedMinor','billedSeconds','unbilledStandardMinor'])b[k]=sum([b[k],bucket[k]]);b.missingBillRate.push(...bucket.missingBillRate);b.packets=[...new Set([...b.packets,...bucket.packets])]}
+  rows.push({id:label.id,name:label.name,projectIds:projects,personIds,approvedSeconds,billableSeconds,availableSeconds:available,utilizationPercent:available?billableSeconds/available*100:null,...(money?{money:moneyRows.map(b=>({...b,writeOffMinor:b.standardMinor-b.billedMinor,realizationPercent:b.standardMinor?b.billedMinor/b.standardMinor*100:null,effectiveRateMinor:b.billedSeconds?Math.round(b.billedMinor*3600/b.billedSeconds):null}))}:{}),measures:customMeasures(data,projects,options.customMeasures??[]),sources:[{kind:'customFields',...field},...time.filter(t=>t.value.status==='approved'&&t.value.workDate>=from&&t.value.workDate<=to).map(r=>({kind:'time',...r})),...personIds.map(id=>({kind:'people',...data.people.find(p=>p.id===id)!})),...data.calendars.filter(c=>personIds.includes(c.value.personId)).map(r=>({kind:'calendars',...r})),...fieldRecords(data,field,projects).map(r=>({kind:field.value.scope,...r}))]})
+ }
+ return {fieldId:field.id,name:field.value.name,from,to,cohortBasis:'Distinct people capacity per cohort; multi-select and shared project cohorts overlap and must not be summed.',rows}
+}

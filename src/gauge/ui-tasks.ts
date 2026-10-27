@@ -1,3 +1,5 @@
+import { fieldInputs } from './ui-custom-fields'
+import { phasePicker } from './ui-budget-phases'
 import type { Actor } from './store'
 import { finance } from './store'
 import type { Row, Value } from './model'
@@ -5,10 +7,11 @@ import type { Report } from './ui-describe'
 import { escape as e, input as i, duration, select as s, choices as c, check, form, table, open } from './ui-forms'
 import { hours, chip, nameOf } from './ui-format'
 import { taskStates } from './tasks'
+import { activeClients } from './ui-clients'
 
 export function taskEditor(a:Actor,report:Report,old?:Row,engagementId?:string) {
  const d=report.data,v=old?.value??{},managed=d.engagements.filter(r=>finance(a)||r.value.leadId===a.personId)
- const fields=s('engagementId','Engagement',managed,v.engagementId??engagementId)+i('name','Task name',v.name)
+ const fields=s('engagementId','Engagement',managed,v.engagementId??engagementId)+phasePicker(report,v.engagementId??engagementId,v.phaseKey)+i('name','Task name',v.name)
   +s('assigneeId','Assignee',d.people,v.assigneeId,true)+s('parentId','Parent task',d.tasks.filter(t=>t.id!==old?.id&&(!engagementId||t.value.engagementId===engagementId)),v.parentId,true)
   +c('status','Task status',taskStates,v.status??'todo')+c('priority','Priority',['low','normal','high','urgent'],v.priority??'normal')
   +i('from','Start date',v.from??'','date',false)+i('to','Due date',v.to??'','date',false)
@@ -16,7 +19,7 @@ export function taskEditor(a:Actor,report:Report,old?:Row,engagementId?:string) 
   +'<input type="hidden" name="billable" value="false">'+check('billable','Billable task',v.billable??d.engagements.find(t=>t.id===engagementId)?.value.type!=='internal','true')
   +`<label class="g-field g-field--wide"><span>Checklist (one item per line)</span><textarea name="checklist" rows="3">${e((v.checklist??[]).map((item:Value)=>item.label).join('\n'))}</textarea></label>`
   +i('repeatEveryDays','Repeat every calendar days (0 = once)',v.repeatEveryDays??0,'number')+i('repeatUntil','Last recurring start date',v.repeatUntil??'','date',false)
- return form('save:tasks','Task and remaining effort',fields,old)
+ return form('save:tasks','Task and remaining effort',fields+fieldInputs(report,'tasks',v),old)
 }
 function taskTable(a:Actor,report:Report,title:string,rows:Row[]) {
  const d=report.data
@@ -46,7 +49,7 @@ export function tasksSection(a:Actor,report:Report,options:Value,engagementId?:s
  const d=report.data,view=['list','board','mine'].includes(options.taskView)?options.taskView:'list'
  const client=options.taskClient??'',project=engagementId??options.taskProject??''
  const rows=d.tasks.filter(t=>(!project||t.value.engagementId===project)&&(!client||d.engagements.some(p=>p.id===t.value.engagementId&&p.value.clientId===client))&&(view!=='mine'||t.value.assigneeId===a.personId))
- const filters=`<section class="g-card"><h2>Task views</h2><form class="g-form" method="get" action="/app/engagements">${engagementId?`<input type="hidden" name="edit" value="${e(engagementId)}">`:''}${c('taskView','View',['list','board','mine'],view)}${s('taskClient','Client filter',d.clients,client,true)}${s('taskProject','Project filter',d.engagements,project,true)}<div class="g-actions"><button class="g-btn g-btn--secondary">Show tasks</button></div></form><p class="g-note">Mine shows tasks assigned to you. Recorded time includes the work records you may read. Each task's estimate is its own effort; subtask effort is additional. Recurrence creates the next task tree when its root completes, shifting calendar dates and resetting progress.</p></section>`
+ const filters=`<section class="g-card"><h2>Task views</h2><form class="g-form" method="get" action="/app/engagements">${engagementId?`<input type="hidden" name="edit" value="${e(engagementId)}">`:''}${c('taskView','View',['list','board','mine'],view)}${s('taskClient','Client filter',activeClients(d.clients),client,true)}${s('taskProject','Project filter',d.engagements,project,true)}<div class="g-actions"><button class="g-btn g-btn--secondary">Show tasks</button></div></form><p class="g-note">Mine shows tasks assigned to you. Recorded time includes the work records you may read. Each task's estimate is its own effort; subtask effort is additional. Recurrence creates the next task tree when its root completes, shifting calendar dates and resetting progress.</p></section>`
  const lists=view==='board'?taskBoard(a,report,rows):taskTable(a,report,view==='mine'?'My work':'Tasks',rows)
  return `<div id="delivery-tasks">${filters}${lists}</div>`
 }

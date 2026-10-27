@@ -1,3 +1,5 @@
+import { filters } from './custom-values'
+import { phaseFor } from './budget-phases'
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, integer, date, flag } from './model'
 import { type Actor, Transaction, finance, access, get } from './store'
@@ -5,8 +7,9 @@ import { resourceCandidates } from './resource-candidates'
 
 export async function resourceCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null>{
  if(!['save:resourceRequests','resource:fill'].includes(action))return null
- need(finance(a)||a.role==='lead','Lead or finance access required',403)
+ need(finance(a)||['lead','resource-manager'].includes(a.role),'Lead or finance access required',403)
  const previous=input.id?await get(env,'resourceRequests',text(input.id,'Resource request')):undefined
+ if(previous&&a.role==='resource-manager')need(!Object.keys(previous.value.customFilters??{}).length,'This request needs finance review',403)
  if(previous){need(previous.revision===input.revision,'Request changed; reload before deciding',409);need(previous.value.status==='open','Request is already filled',409)}
  if(action==='save:resourceRequests'){
   const engagement=await access(env,a,text(input.engagementId,'Engagement'),true);tx.observe('engagements',engagement)
@@ -16,7 +19,8 @@ export async function resourceCommand(env:Bindings,a:Actor,tx:Transaction,action
   const employmentType=input.employmentType??'';need(['','employee','contractor'].includes(employmentType),'Choose employee, contractor or either')
   const billable=input.billable===undefined?engagement.value.type!=='internal':flag(input.billable)
   need(engagement.value.type!=='internal'||!billable,'Internal requests cannot be billable')
-  return tx.record('resourceRequests',{engagementId:engagement.id,role:text(input.role,'Role needed',200),skill:text(input.skill,'Required skill',100),minProficiency:integer(input.minProficiency,'Minimum proficiency',1,5),from,to,dailySeconds:integer(input.dailySeconds,'Requested seconds per date',1,86400),service:text(input.service,'Service',200),billable,team:input.team?text(input.team,'Team filter',200):'',location:input.location?text(input.location,'Location filter',200):'',employmentType,status:'open',...(previous?.value.opportunityId?{opportunityId:previous.value.opportunityId}:{})},previous)
+  const phase=await phaseFor(env,tx,engagement.id,input.phaseKey??previous?.value.phaseKey,undefined,input.service)
+  return tx.record('resourceRequests',{customFilters:filters(a,input.nativeFilters??input.customFilters??previous?.value.customFilters,undefined,!!input.nativeFilters),...(phase?{phaseKey:phase.key}:{}),engagementId:engagement.id,role:text(input.role,'Role needed',200),skill:text(input.skill,'Required skill',100),minProficiency:integer(input.minProficiency,'Minimum proficiency',1,5),from,to,dailySeconds:integer(input.dailySeconds,'Requested seconds per date',1,86400),service:text(input.service,'Service',200),billable,team:input.team?text(input.team,'Team filter',200):'',location:input.location?text(input.location,'Location filter',200):'',employmentType,status:'open',...(previous?.value.opportunityId?{opportunityId:previous.value.opportunityId}:{})},previous)
  }
  need(previous,'Choose an open request')
  const found=await resourceCandidates(env,a,previous,tx)
@@ -24,7 +28,8 @@ export async function resourceCommand(env:Bindings,a:Actor,tx:Transaction,action
  const candidate=found.candidates.find(c=>c.personId===input.personId)
  need(candidate,'This person does not meet the request or dated availability',409)
  const engagement=await access(env,a,previous.value.engagementId,true),v=previous.value
- const allocation=await tx.record('staffing',{engagementId:engagement.id,personId:candidate.personId,from:v.from,to:v.to,dailySeconds:v.dailySeconds,commitment:'committed',service:v.service,billable:v.billable,resourceRequestId:previous.id})
+ const phase=await phaseFor(env,tx,engagement.id,v.phaseKey,undefined,v.service)
+ const allocation=await tx.record('staffing',{...(phase?{phaseKey:phase.key}:{}),engagementId:engagement.id,personId:candidate.personId,from:v.from,to:v.to,dailySeconds:v.dailySeconds,commitment:'committed',service:v.service,billable:v.billable,resourceRequestId:previous.id})
  if(!engagement.value.members?.includes(candidate.personId))await tx.record('engagements',{...engagement.value,members:[...(engagement.value.members??[]),candidate.personId]},engagement,undefined,'resource:assign')
- return tx.record('resourceRequests',{...v,status:'filled',personId:candidate.personId,staffingId:allocation.id,staffingRevision:allocation.revision,filledBy:a.session.operator.id,filledAt:Date.now()},previous,undefined,action)
+ return tx.record('resourceRequests',{customFilters:filters(a,input.nativeFilters??input.customFilters??previous?.value.customFilters,undefined,!!input.nativeFilters),...v,status:'filled',personId:candidate.personId,staffingId:allocation.id,staffingRevision:allocation.revision,filledBy:a.session.operator.id,filledAt:Date.now()},previous,undefined,action)
 }

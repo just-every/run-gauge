@@ -1,3 +1,4 @@
+import { phaseFor } from './budget-phases'
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, integer, date, flag } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
@@ -30,11 +31,12 @@ async function save(env: Bindings, tx: Transaction, value: Value, old: Row | und
    from:row.value.from?shift(row.value.from,value.repeatEveryDays):null,to:row.value.to?shift(row.value.to,value.repeatEveryDays):null,
    parentId:ids.get(row.value.parentId) ?? row.value.parentId ?? null,previousOccurrenceId:row.id}
   delete v.nextOccurrenceId
-  await tx.record('tasks',v,undefined,ids.get(row.id))
+  await tx.record('tasks',v,undefined,ids.get(row.id),'task:repeat',row.value)
  }
  result.value.nextOccurrenceId=ids.get(result.id)
  // The row is still being created in this batch; update without a second stale observation.
  tx.sql('UPDATE g_tasks SET data=? WHERE id=? AND revision=?',JSON.stringify(result.value),result.id,result.revision)
+ tx.sql("UPDATE g_audit SET data=? WHERE kind='tasks' AND record_id=? AND revision=? AND hash IS NULL",JSON.stringify(result.value),result.id,result.revision)
  return result
 }
 export async function taskCommand(env: Bindings,a: Actor,tx: Transaction,action: string,input: Value): Promise<Row|null> {
@@ -57,8 +59,10 @@ export async function taskCommand(env: Bindings,a: Actor,tx: Transaction,action:
   checklist:checklist(input.checklist??old?.value.checklist??[],old?.value.checklist),
   repeatEveryDays:integer(input.repeatEveryDays??old?.value.repeatEveryDays??0,'Repeat interval days',0,366),
   repeatUntil:input.repeatUntil?date(input.repeatUntil):null,
+  ...(old?.value.estimateId?{estimateId:old.value.estimateId,estimateLineKey:old.value.estimateLineKey}:{}),
   ...(old?.value.previousOccurrenceId?{previousOccurrenceId:old.value.previousOccurrenceId}:{}),
   ...(old?.value.nextOccurrenceId?{nextOccurrenceId:old.value.nextOccurrenceId}:{})}
+ if(!progress){const phase=await phaseFor(env,tx,engagement.id,input.phaseKey??old?.value.phaseKey);if(phase)v.phaseKey=phase.key}
  v.status=input.status??old?.value.status??'todo';need(taskStates.includes(v.status),'Choose a task status')
  if(progress) {
   v.remainingSeconds=integer(input.remainingSeconds??v.remainingSeconds,'Remaining effort seconds')

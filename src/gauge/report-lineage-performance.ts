@@ -28,12 +28,12 @@ export function performanceLineage(c: Lineage) {
   }
   if (!Array.isArray(row.money)) continue
   for (const m of row.money) {
-   const money = (): Evidence => { const e = c.evidence(); for (const id of m.time) { const r = c.row(e, 'time', id); if (r) c.timeEvidence(e, r) } for (const id of m.packets) c.row(e, 'packets', id); for (const id of m.missingBillRate) e.unknown.push(`time:${id}: approved billable time has no bill rate`); return e }
+   const money = (): Evidence => { const e = c.evidence(); for (const id of m.time) { const r = c.row(e, 'time', id); if (r) c.timeEvidence(e, r) } for (const id of m.packets){const packet=c.row(e,'packets',id);for(const line of packet?.value.lines??[])if(line.kind==='timeSlices')c.row(e,'timeSlices',line.sourceId)} for (const id of m.missingBillRate) e.unknown.push(`time:${id}: approved billable time has no bill rate`); return e }
    const at = `${prefix}${m.currency}:`
-   c.add(at + 'standardMinor', `${row.name}: standard value of billed time`, m.standardMinor, 'minor', 'SUM(frozen approved bill amount of each billed approved billable hourly entry).', money(), m.currency)
+   c.add(at + 'standardMinor', `${row.name}: standard value of billed time`, m.standardMinor, 'minor', 'SUM(frozen approved bill value of each billed hourly entry or exact not-to-exceed portion).', money(), m.currency)
    c.add(at + 'billedMinor', `${row.name}: billed value`, m.billedMinor, 'minor', 'SUM(current approved billing amount of each billed entry after every approved correction on its packet branch).', money(), m.currency)
    c.add(at + 'writeOffMinor', `${row.name}: write-offs`, m.writeOffMinor, 'minor', 'Standard value − billed value (negative is a write-up).', money(), m.currency)
-   c.add(at + 'realizationPercent', `${row.name}: realization`, m.realizationPercent, 'percent', 'Billed value ÷ standard value × 100, over billed entries only.', money(), m.currency)
+   c.add(at + 'realizationPercent', `${row.name}: realization`, m.realizationPercent, 'percent', 'Billed value ÷ frozen standard value × 100, over billed entries and exact portions only.', money(), m.currency)
    c.add(at + 'effectiveRateMinor', `${row.name}: effective bill rate per hour`, m.effectiveRateMinor, 'minor', 'Billed value × 3600 ÷ billed approved seconds, rounded half up to a cent.', money(), m.currency)
    c.add(at + 'unbilledStandardMinor', `${row.name}: approved standard value not yet billed`, m.unbilledStandardMinor, 'minor', 'SUM(frozen approved bill amount of approved billable hourly entries in no approved packet).', money(), m.currency)
   }

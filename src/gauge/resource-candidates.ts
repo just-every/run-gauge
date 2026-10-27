@@ -2,23 +2,28 @@ import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Kind, type Row, type Value, charge, sum, need } from './model'
 import { type Actor, type Transaction, access, all, finance, fence } from './store'
-import { capacity } from './reports'
+import { personMatches } from './custom-resource'
+import { filters,visibleCustom } from './custom-values'
+import { capacity,visible } from './reports'
 import { explain, costCurrencyOf } from './rate-cards'
 
 const same=(a:string,b:string)=>a.trim().toLowerCase()===b.trim().toLowerCase()
 export async function resourceCandidates(env:Bindings,a:Actor,request:Row,tx?:Transaction) {
- need(finance(a)||a.role==='lead','Lead or finance access required',403)
+ need(finance(a)||['lead','resource-manager'].includes(a.role),'Lead or finance access required',403)
  const engagement=await access(env,a,request.value.engagementId,true)
+ if(a.role==='resource-manager')need(!Object.keys(request.value.customFilters??{}).length,'This request needs finance review',403)
  const observed=await Promise.all((['people','calendars','leave','staffing',...(finance(a)?['rates']:[])] as Kind[]).map(async k=>({kind:k,rows:await all(env,k)})))
  if(tx){
   tx.observe('engagements',engagement)
   for(const {kind,rows} of observed){for(const row of rows)tx.observe(kind,row);tx.guard(`(SELECT COUNT(*) FROM g_${kind})=?`,rows.length)}
  }
  const rows=(kind:Kind)=>observed.find(o=>o.kind===kind)!.rows
- const people=rows('people'),calendars=rows('calendars'),leave=rows('leave'),staffing=rows('staffing')
+ const people=rows('people').filter(p=>a.role!=='resource-manager'||a.resourceScope?.personIds.includes(p.id)),calendars=rows('calendars'),leave=rows('leave'),staffing=rows('staffing')
+ const customFilters=filters(a,request.value.customFilters),customData=Object.keys(customFilters).length?await visible(env,a):null
  const {from,to,dailySeconds}=request.value
  const cap=capacity({people,calendars,leave,staffing},from,to),candidates:Value[]=[],unavailable:Value[]=[]
  for(const person of people){
+  if(customData&&!personMatches(customData,{...person,value:visibleCustom(a,'people',person.value)},customFilters))continue
   const p=person.value,employmentType=p.employmentType??(p.contractor?'contractor':'employee')
   if(!(p.skills??[]).some((s:Value)=>same(s.name,request.value.skill)&&s.proficiency>=request.value.minProficiency))continue
   if(request.value.team&&!same(p.team??'',request.value.team)||request.value.location&&!same(p.location??'',request.value.location)||request.value.employmentType&&employmentType!==request.value.employmentType)continue
@@ -45,7 +50,8 @@ export async function resourceCandidates(env:Bindings,a:Actor,request:Row,tx?:Tr
  }
  // The opaque fingerprint binds the exact eligibility read, including private
  // competing bookings, without revealing their projects or leave reasons.
- const fingerprint=sha256(canonicalJson({request,engagement,observed,role:a.role,operator:a.session.operator.id}))
+ if(tx&&customData)for(const k of ['clients','engagements','tasks','customFields'] as const)for(const r of customData[k])tx.observe(k,r)
+ const fingerprint=sha256(canonicalJson({customData,request,engagement,observed,role:a.role,operator:a.session.operator.id}))
  await fence(env,a)
  return {request,candidates,unavailable,fingerprint}
 }

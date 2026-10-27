@@ -52,7 +52,9 @@ export async function milestoneClientResponse(request:Request,env:Bindings):Prom
   const session=await operatorAuth(env).getSession(request)
   if(session)access.actor=session.operator.id
   need(session&&session.kind==='native','Confirm the invited email through native sign-in',401)
-  const a:Actor={...await actor(env,session),role:'client',clientMilestone:{id:match[1],reviewId:match[2],tokenHash:sha256(request.headers.get('x-gauge-review-token')??'')}}
+  const token=request.headers.get('x-gauge-review-token')??''
+  const portal=!token?await env.DB.prepare("SELECT c.id,c.revision FROM g_client_portal_authority c JOIN g_milestones m ON c.engagement_id=json_extract(m.data,'$.engagementId') WHERE m.id=? AND c.recipient_id=?").bind(match[1],session.operator.id).first<{id:string;revision:string}>():null
+  const a:Actor={...await actor(env,session),role:'client',clientMilestone:{id:match[1],reviewId:match[2],tokenHash:sha256(token),...(portal?{portal}: {})}}
   await fence(env,a)
   const row=await get(env,'milestones',match[1]),review=row.value.delivery.clientReviews.find((r:Value)=>r.id===match[2])
   need(review,'Review unavailable',404)

@@ -1,3 +1,4 @@
+import { changeClientResponse } from './scope-review'
 import { clientPortalResponse } from './client-portal'
 import { clientDeliveryResponse, clientDeliveryPage } from './ui-client-delivery'
 import { escape as escapeHtml } from './ui-forms'
@@ -42,6 +43,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  if(path==='/api/gauge/stripe/webhook')return stripeWebhook(request,runtimeBindings(original))
  if(path.startsWith('/app/client-projects/')||path.startsWith('/api/gauge/client-projects/'))return clientPortalResponse(request,runtimeBindings(original))
  if(path.startsWith('/app/client-milestones/'))return clientDeliveryResponse(request,runtimeBindings(original))
+ if(path.startsWith('/api/gauge/client-changes/'))return changeClientResponse(request,runtimeBindings(original))
  if(path.startsWith('/api/gauge/client-milestones/'))return milestoneClientResponse(request,runtimeBindings(original))
  // Resolve complete declared paths before admitting a command or reading its body.
  if(path.startsWith('/app/client-invoices/'))return invoiceClientResponse(request,runtimeBindings(original))

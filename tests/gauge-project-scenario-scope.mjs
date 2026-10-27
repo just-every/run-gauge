@@ -215,7 +215,7 @@ export async function acceptedChangeJourney(h,browser){
  const before=await state(),originalBudget=before.data.budgets.find(r=>r.id===budget.id),baseline=before.forecast.engagements.find(r=>r.engagementId===project.id)
  assert.equal(baseline.eacFeesMinor,72000);assert.equal(baseline.marginMinor,36000)
  const source={type:'scope',...project,scope:'Original delivery plus prototype',allocations:[{...booking,effectiveFrom:day(1),dailySeconds:14400}],tasks:[{...task,remainingSeconds:43200}],terms:{mode:'hourly',amountMinor:260000,effortSeconds:115200,roundingSeconds:60,reason:'Additional prototype'}}
- const prepare=async(change,previousId)=>{const input={asOf,changes:[change]},preview=await cmd('change:preview',input);let row=await cmd('change:prepare',{...input,fingerprint:preview.fingerprint,previousId,name:'Prototype scope change',reason:'Client requested extra work'});await cmd('change:adopt',{...row,reason:'Pending review cannot change anything'},owner,409);row=await cmd('change:review',{...row,outcome:'approved',reason:'Independent internal review'},finance.cookie);return row}
+ const prepare=async(change,previousId)=>{const input={asOf,changes:[change]},preview=await cmd('change:preview',input);let row=await cmd('change:prepare',{...input,fingerprint:preview.fingerprint,previousId,name:'Prototype scope change',reason:'Client requested extra work'});await cmd('change:adopt',{...row,reason:'Pending review cannot change anything'},owner,409);row=await cmd('change:review',{...row,outcome:'approved',reason:'Independent internal review'},finance.cookie);await cmd('change:adopt',{...row,reason:'Internal approval cannot supply client consent'},owner,409);return row}
  const record=async id=>(await state()).data.projectScenarios.find(r=>r.id===id)
  const release=async row=>{const outbound=h.providerRequests.length,result=await cmd('change:release-review',{...row,contact:'synthetic-gauge-95502@example.test',description:'Review exact prototype scope, price and dates',reason:'Explicit owner release'});assert.equal(h.providerRequests.length,outbound);return result}
  let rejected=await prepare(source),released=await release(rejected),row=await record(rejected.id)
@@ -286,6 +286,33 @@ export async function acceptedChangeJourney(h,browser){
   await cmd('change:revoke-review',{id:a.id,revision:a.revision,reviewId:signed.value.clientReview.id,reason:'End separately released review'})
   assert.equal((await request(readPath(signed),recipient.cookie,{headers:{'x-gauge-review-token':acceptedRelease.token}})).status,403)
 
+  const signedNext=async(label,releaseCookie=owner)=>{
+   const projectNow=(await state()).data.engagements.find(r=>r.id===project.id),latest=(await state()).data.projectScenarios.filter(r=>r.value.changeOrder&&r.value.engagementId===project.id).sort((a,b)=>a.value.number-b.value.number).at(-1)
+   let next=await prepare({type:'scope',...projectNow,scope:label},latest.id)
+   const issued=await cmd('change:release-review',{...next,contact:'synthetic-gauge-95502@example.test',description:label,reason:'Exact next version'},releaseCookie)
+   const released=await record(next.id),saved=await request(readPath(released),recipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':issued.token},body:JSON.stringify({key:randomUUID(),revision:released.revision,outcome:'accepted',reason:label,signatureName:'Synthetic Gauge Sponsor',consent:true})})
+   assert.equal(saved.status,200,await saved.clone().text());return record(next.id)
+  }
+  let stopped=await signedNext('Revoked consent cannot execute')
+  await cmd('change:revoke-review',{id:stopped.id,revision:stopped.revision,reviewId:stopped.value.clientReview.id,reason:'Withdraw before adoption'})
+  await cmd('change:adopt',{id:stopped.id,revision:stopped.revision,reason:'Revoked signature is only history'},owner,403)
+  stopped=await signedNext('Recipient lifecycle ends authority')
+  assert.equal((await h.post('/auth/operator/status',{operatorId:recipient.id,status:'inactive'},owner)).status,200)
+  await cmd('change:adopt',{id:stopped.id,revision:stopped.revision,reason:'Inactive recipient cannot authorize'},owner,403)
+  assert.equal((await h.post('/auth/operator/status',{operatorId:recipient.id,status:'active'},owner)).status,200)
+  await cmd('change:adopt',{id:stopped.id,revision:stopped.revision,reason:'Reactivation never revives the old signature'},owner,403)
+  await h.post('/auth/magic-link',{email:'synthetic-gauge-95502@example.test'})
+  const link=new URL(h.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0]),login=await h.post('/auth/confirm',{token:link.searchParams.get('token')});assert.equal(login.status,303);recipient.cookie=login.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+  const secondOwner=await h.invite('synthetic-gauge-95504','owner')
+  stopped=await signedNext('Releasing-owner lifecycle ends authority',secondOwner.cookie)
+  assert.equal((await h.post('/auth/operator/status',{operatorId:secondOwner.id,status:'inactive'},owner)).status,200)
+  await cmd('change:adopt',{id:stopped.id,revision:stopped.revision,reason:'Inactive releasing owner cannot authorize'},owner,403)
+  assert.equal((await h.post('/auth/operator/status',{operatorId:secondOwner.id,status:'active'},owner)).status,200)
+  await cmd('change:adopt',{id:stopped.id,revision:stopped.revision,reason:'Reactivation cannot revive release'},owner,403)
+  const stale=await signedNext('Changed baseline requires a fresh signature'),taskNow=(await state()).data.tasks.find(r=>r.id===task.id)
+  await cmd('save:tasks',{...taskNow,...taskNow.value,name:'Revised delivery description'})
+  await cmd('change:adopt',{id:stale.id,revision:stale.revision,reason:'No stale accepted effects'},owner,409)
+  assert.equal((await state()).forecast.engagements.find(r=>r.engagementId===project.id).eacFeesMinor,108000,'Stopped and stale signatures have no effects')
   console.log('PASS SALES-005 portal exact revision, rejection reason, signed consent, prior terms, independent forecast increment, once-only owner adoption and private-field refusals')
  }finally{await context.close()}
 }

@@ -4629,7 +4629,7 @@
       "executable": false
     },
     "tests/gauge-project-scenario-scope.mjs": {
-      "sha256": "6c3e970919493c80516a98fa761a78fb0458783354d637fbeebb9101e3c09057",
+      "sha256": "09e837c17d5913f9fb4dcd347751dd8df138233b24381daeb4ba8cc2107d3312",
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {

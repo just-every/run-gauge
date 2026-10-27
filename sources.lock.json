@@ -1744,7 +1744,7 @@
       "executable": false
     },
     "src/gauge/intake-http.ts": {
-      "sha256": "2af7d85032d2e1f92fa644ce063f46973ca5c89be1b974a035d899ae79896203",
+      "sha256": "30d17cfd224777dbfe4b14b41dfe968f4d743dfc0d10c5bded82cc705a1d88de",
       "executable": false
     },
     "src/gauge/intake.ts": {
@@ -2340,7 +2340,7 @@
       "executable": false
     },
     "src/gauge/ui-forms.ts": {
-      "sha256": "c32ea0513565f513cc9a4d0651b31dc482ce9afc531793a54ed35592d42345b3",
+      "sha256": "089c3ffa1815bc9f0047c8ef09dad2221d33ce41a999bda747bb654b64db0e7e",
       "executable": false
     },
     "src/gauge/ui-github.ts": {

@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { operatorAuth, type Bindings } from '../auth.server'
-import { actor, fence, access, get, type Actor } from './store'
+import { actor, fence, access, get, finance, type Actor } from './store'
 import { Fault, need } from './model'
 import { command } from './commands'
 import { clientDeliveryPage } from './ui-client-delivery'
@@ -22,7 +22,7 @@ export async function intakeResponse(request:Request,env:Bindings){
   if(a.role==='none'){
    const grant=await env.DB.prepare('SELECT id,revision FROM g_client_portal_authority WHERE engagement_id=? AND recipient_id=?').bind(project.id,session.operator.id).first<{id:string;revision:string}>()
    need(grant,'Project is not invited',403);a={...a,role:'client',clientPortal:grant};await fence(env,a)
-  }else{await fence(env,a);await access(env,a,project.id,true)}
+  }else{need(finance(a)||a.role==='lead','Only native finance or the project lead inspects intake files',403);await fence(env,a);await access(env,a,project.id,true)}
   if(download){
    need(request.method==='GET','Use GET',405)
    need(!a.clientPortal||row.value.submissions.some((s:any)=>s.by===session.operator.id&&s.file?.id===file.id),'File is outside your submission',403)

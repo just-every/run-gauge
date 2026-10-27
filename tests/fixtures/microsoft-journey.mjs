@@ -5,7 +5,7 @@ import {harness} from '../gauge-harness.mjs'
 export const tenantId='10000000-0000-4000-8000-000000000001',clientId='10000000-0000-4000-8000-000000000002',mailboxId='10000000-0000-4000-8000-000000000003'
 const credential=`${tenantId}:${clientId}:synthetic-gauge-900001`,mailbox='jordan@example.test',contact='casey@example.test'
 export function microsoftEdge(){
- const edge={roles:['User.Read.All','Calendars.Read','Mail.Read'],requests:[],users:[{id:mailboxId,mail:mailbox,userType:'Member',accountEnabled:true,assignedLicenses:[{skuId:'synthetic-gauge-2'}]}],events:[],messages:[],original:null,fail:null,next:null}
+ const edge={roles:['User.Read.All','Calendars.Read','Mail.Read','MailboxSettings.Read'],requests:[],users:[{id:mailboxId,mail:mailbox,userType:'Member',accountEnabled:true,assignedLicenses:[{skuId:'synthetic-gauge-2'}]}],purpose:'user',events:[],messages:[],original:null,fail:null,next:null}
  edge.handler=async(req,body)=>{
   const url=new URL(req.url)
   if(url.origin==='https://login.microsoftonline.com'){
@@ -21,6 +21,7 @@ export function microsoftEdge(){
   if(url.pathname==='/v1.0/users')return Response.json({value:edge.users})
   assert(url.pathname.startsWith(`/v1.0/users/${mailboxId}`),'Only the exact selected mailbox is contacted')
   if(url.pathname===`/v1.0/users/${mailboxId}`)return Response.json(edge.users[0])
+  if(url.pathname.endsWith('/mailboxSettings'))return Response.json({userPurpose:edge.purpose})
   if(url.pathname.endsWith('/calendar/calendarView'))return Response.json({value:edge.events,...(edge.next?{'@odata.nextLink':edge.next}:{})})
   if(url.pathname.endsWith('/messages/synthetic-gauge-20'))return Response.json(edge.original)
   if(url.pathname.endsWith('/mailFolders/inbox/messages')){assert.equal(url.searchParams.get('$filter'),"conversationId eq 'synthetic-gauge-21'");return Response.json({value:edge.messages})}
@@ -48,6 +49,7 @@ export async function microsoftJourney(browser){
   await cmd('graph:select',{...select,mailboxKind:'shared'},h.owner,403);assert.equal(edge.requests.length,before,'A shared mailbox never reaches the provider')
   await cmd('graph:select',{...select,confirm:''},h.owner,400)
   edge.users[0].assignedLicenses=[];await cmd('graph:select',select,h.owner,409);edge.users[0].assignedLicenses=[{skuId:'synthetic-gauge-2'}]
+  edge.purpose='shared';await cmd('graph:select',select,h.owner,403);assert.equal((await state()).data.graphSelections.length,0,'Provider-classified shared mailbox is refused even with staff selected');edge.purpose='user'
   await cmd('graph:select',select,other.cookie,403)
   console.log('Microsoft journey: tenant and mailbox refusals passed')
   // Select the exact mailbox through the built page, as the owner does.
@@ -74,7 +76,7 @@ export async function microsoftJourney(browser){
   const history=await(await request(`/api/gauge/history/graphEvidence/${original.id}`,h.owner)).json();assert(JSON.stringify(history).includes('Harbor planning'),'The previous observed event remains inspectable')
   edge.next=`https://graph.microsoft.com/v1.0/users/10000000-0000-4000-8000-000000000099/calendar/calendarView?$skiptoken=synthetic-gauge-31`
   assert.equal((await sync('calendar')).status,'exception');assert.equal((await state()).data.graphEvidence.length,2,'Unsafe pagination commits no partial snapshot');assert(!edge.requests.some(r=>r.path?.includes('000000000099')))
-  edge.next=null
+  edge.next=null;assert.equal((await sync('calendar')).status,'read')
 
   console.log('Microsoft journey: changed calendar and privacy passed')
   // Issue a real native invoice and bind its exact released recipient to the reviewed outgoing message.
@@ -115,7 +117,9 @@ export async function microsoftJourney(browser){
   const shots=process.env.GAUGE_MICROSOFT_SHOTS;if(shots)await mkdir(shots,{recursive:true})
   const capture=async(label)=>{for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/access');await page.evaluate(()=>document.fonts.ready)
-   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Microsoft context fits ${width}`)
+   if(shots)await page.locator('#microsoft-context').screenshot({path:`${shots}/microsoft-${label}-full-${width}.png`})
+   const fit=await page.evaluate(()=>({fits:document.documentElement.scrollWidth<=innerWidth+1,overflow:[...document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).slice(0,8).map(el=>({tag:el.tagName,class:el.className}))}))
+   assert(fit.fits,`Microsoft context fits ${width}: ${JSON.stringify(fit.overflow)}`)
    if(shots)for(const title of ['Tenant approval','Selected mailboxes','Microsoft context']){
     const card=page.locator('#microsoft-context section').filter({has:page.getByRole('heading',{name:title,exact:true})})
     await card.screenshot({path:`${shots}/microsoft-${label}-${title.replaceAll(' ','-').toLowerCase()}-${width}.png`})
@@ -134,7 +138,9 @@ export async function microsoftJourney(browser){
   await capture('stopped')
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/access');await page.evaluate(()=>document.fonts.ready)
-   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Microsoft context fits ${width}`)
+   if(shots)await page.locator('#microsoft-context').screenshot({path:`${shots}/microsoft-${label}-full-${width}.png`})
+   const fit=await page.evaluate(()=>({fits:document.documentElement.scrollWidth<=innerWidth+1,overflow:[...document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).slice(0,8).map(el=>({tag:el.tagName,class:el.className}))}))
+   assert(fit.fits,`Microsoft context fits ${width}: ${JSON.stringify(fit.overflow)}`)
    const section=page.locator('#microsoft-context');assert.match(await section.innerText(),/permission-revoked/);assert.match(await section.innerText(),/Re: October support invoice/)
    assert.equal(await section.getByRole('button',{name:'Read mail',exact:true}).count(),0)
    if(shots)await section.screenshot({path:`${shots}/microsoft-stopped-${width}.png`})

@@ -433,7 +433,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "41c11d869804ce23abc324b038211cd2e6907d795e226c5a6b07913899c742b1",
+      "sha256": "957ee705d902c750b0976540ca1a5877ac98711ed072dd16e8e0bc9340788141",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -445,7 +445,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "d3001d1e007a7142d73869416472b2a33635bde5f80ae74069b675d6b32cb084",
+      "sha256": "ef0b7e03002f791fd66b91207446543dec9bd3f44e2233293ae7a5ea0636a46d",
       "executable": false
     },
     "base-copies.json": {
@@ -457,7 +457,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "15d5d19211b759c450d5a29053044f49e419a0efef32a102962bd5c385403add",
+      "sha256": "935724ecf9017c5d7ab2d3ac9c82df200a0fbb895d256b214f7d1330b4aabb32",
       "executable": false
     },
     "DEMO.md": {
@@ -997,7 +997,7 @@
       "executable": false
     },
     "public/gauge.css": {
-      "sha256": "13e58457d387fd1de6ee4c860be1fd5b3af853cfce9b28e79674237c282f635d",
+      "sha256": "dcf192ae860623c617817a9fb7946ab5a8c3cb667859317198b4a5e8ab9ee27a",
       "executable": false
     },
     "public/move-in.html": {
@@ -1833,11 +1833,11 @@
       "executable": false
     },
     "src/gauge/microsoft-replies.ts": {
-      "sha256": "181d6fc717e42151437726aeff0e97186a983f3fbfca2df6f729eddcaa9a3931",
+      "sha256": "e4b2ea1675d8072119eb3d73d7dbe935c7714404ec22f8a8eb256b11eb67864c",
       "executable": false
     },
     "src/gauge/microsoft.ts": {
-      "sha256": "c20a89e1e0060894fb5730ebfc7f60d140ec24104f8d0e9d526d0f34054dc39a",
+      "sha256": "bbd94c9ebef25c52c08917f948b9a4fee244261e76e4b0ce7398baf03c5aa3d3",
       "executable": false
     },
     "src/gauge/milestone-delivery.ts": {
@@ -2449,7 +2449,7 @@
       "executable": false
     },
     "src/gauge/ui-provider-custody.ts": {
-      "sha256": "2490c1ea15f268e0252b17d184dfbfed803865cb39cbfb5d27d06ef9726cd6d7",
+      "sha256": "65ca4553e5366587e125167310a8900cd6f963cd9b28f21794dfeb848a63826f",
       "executable": false
     },
     "src/gauge/ui-provider-health.ts": {
@@ -4429,7 +4429,7 @@
       "executable": false
     },
     "tests/fixtures/microsoft-journey.mjs": {
-      "sha256": "50b95d5ff45c99f3689b06a4b7106d69666d1bd6b216058d5c726bf05545ca7b",
+      "sha256": "553cf3348d1f7a09f3d85d993163469e1b1dd6d1503efe5c18e15034d9876823",
       "executable": false
     },
     "tests/fixtures/productive.mjs": {
@@ -4737,7 +4737,7 @@
       "executable": false
     },
     "tests/live/microsoft.mjs": {
-      "sha256": "7a69b6e5657f98527cda456c9c2f12201b6deeb31231a28b8f9380e5372ecea8",
+      "sha256": "1633f7274d4654925869c610ba102c6469ac5aa6fb8770c7b64fcc8012b71958",
       "executable": false
     },
     "tests/runtime.mjs": {

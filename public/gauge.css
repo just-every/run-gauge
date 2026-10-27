@@ -272,3 +272,7 @@
 
 #specialist-handoffs .g-check { min-width: 0; max-width: 100%; }
 #specialist-handoffs .g-check > span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Microsoft configuration uses the existing cards and readable, wrapping context metadata. */
+#microsoft-context { min-width: 0; overflow-wrap: anywhere; }
+#microsoft-context :is(.g-sub, th) { font-size: 13px; }

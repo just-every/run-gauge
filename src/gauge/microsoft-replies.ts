@@ -4,7 +4,7 @@ import { type Row, type Value, need, text } from './model'
 import { sha256 } from '../modules/import-kit/src/d1/index'
 import { microsoftGet, microsoftPages } from './microsoft-api'
 import { graphId, replyContext } from './microsoft-context'
-import { graphToken } from './microsoft'
+import { graphToken, graphStaffMailbox } from './microsoft'
 import { dispatchCredential, recordProviderUse } from './provider-custody'
 import { assertInvoiceMailSource } from './invoice-mail-source'
 import { invoiceSubject } from './invoice-delivery'
@@ -19,6 +19,7 @@ export async function bindMicrosoftThread(env: Bindings, a: Actor, tx: Transacti
  const invoice = await assertInvoiceMailSource(env,tx,release)
  const messageId = graphId(input.messageId,'outgoing message id'), reason = text(input.reason,'Invoice thread review reason')
  const token = await graphToken(env,c,s.id,'mail')
+ await graphStaffMailbox(token.token,s.value.mailboxId)
  const message = await microsoftGet(token.token,`/users/${s.value.mailboxId}/messages/${encodeURIComponent(messageId)}?$select=id,conversationId,internetMessageId,isDraft,from,toRecipients,subject,sentDateTime`)
  need(message.id===messageId&&message.isDraft===false&&Number.isFinite(Date.parse(message.sentDateTime))&&message.from?.emailAddress?.address?.toLowerCase()===s.value.mailbox&&message.toRecipients?.length===1&&message.toRecipients[0].emailAddress?.address?.toLowerCase()===release.value.contact&&message.subject===invoiceSubject(invoice),'The message must match this exact invoice sender, recipient and subject',409)
  const conversationId = graphId(message.conversationId,'conversation id'), internetMessageId = text(message.internetMessageId,'Internet message id',512)

@@ -30,7 +30,7 @@ export async function providerCustodySection(env: Bindings, a: Actor): Promise<s
   {label: 'When', size: 'date', line: 2, cell: r => e(when(r.value.at))},
   {label: 'Connection', wrap: true, line: 1, cell: r => e(names.get(r.value.connectionId) ?? r.value.connectionId)},
   {label: 'Version', line: 2, cell: r => e(r.value.credentialVersion)},
-  {label: 'Job or request', wrap: true, line: 3, cell: r => e(r.value.jobId)},
+  {label: 'Job or request', wrap: true, line: 3, cell: r => `<span>${e(r.value.jobId)}</span>`},
   {label: 'Operation', wrap: true, line: 3, cell: r => e(r.value.operation)},
   {label: 'Outcome', size: 'status', line: 2, cell: r => e(r.value.outcome)},
  ], undefined, 'No provider use yet.')

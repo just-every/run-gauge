@@ -12,6 +12,7 @@ export const graphRoles: Record<string, string[]> = {
  directory: ['User.Read.All','Directory.Read.All','User.ReadWrite.All','Directory.ReadWrite.All'],
  calendar: ['Calendars.ReadBasic','Calendars.Read','Calendars.ReadWrite'],
  mail: ['Mail.Read','Mail.ReadWrite'],
+ settings: ['MailboxSettings.Read','MailboxSettings.ReadWrite'],
 }
 export async function microsoftOwner(env: Bindings, a: Actor) {
  need(a.role === 'owner' && a.session.operator.role === 'owner' && a.session.kind === 'native' && !a.appKey && !a.scheduled && !a.clientProposal, 'Only the native owner manages Microsoft work context', 403)
@@ -25,8 +26,12 @@ export async function graphConnection(env: Bindings, tx: Transaction, id: unknow
 export async function graphToken(env: Bindings, c: Row, job: string, scope: string) {
  const raw = await dispatchCredential(env, c.id, c.value.version, job, `graph:${scope}` as ProviderOperation)
  const result = await microsoftToken(raw)
- if (!graphRoles[scope].some(r => result.roles.includes(r))) throw new MicrosoftRefusal('permission-revoked')
+ if (!graphRoles[scope].some(r => result.roles.includes(r)) || scope!=='directory'&&!graphRoles.settings.some(r=>result.roles.includes(r))) throw new MicrosoftRefusal('permission-revoked')
  return result
+}
+export async function graphStaffMailbox(token: string, mailboxId: string) {
+ const settings=await microsoftGet(token,`/users/${mailboxId}/mailboxSettings?$select=userPurpose`)
+ if(settings.userPurpose!=='user')throw new MicrosoftRefusal('mailbox-unavailable')
 }
 export async function graphSelection(env: Bindings, a: Actor, tx: Transaction, input: Value, scope?: string) {
  const s = await get(env, 'graphSelections', text(input.id, 'Microsoft mailbox selection'))
@@ -75,8 +80,11 @@ export async function microsoftCommand(env: Bindings, a: Actor, action: string, 
   need(tenant,'Inspect tenant consent before selecting mailboxes',409); tx.observe('graphTenants',tenant)
   const token = await graphToken(env,c,c.id,'directory')
   need(scopes.every(s=>graphRoles[s].some(r=>token.roles.includes(r))),'Microsoft tenant approval is missing a selected scope',403)
+  need(graphRoles.settings.some(r=>token.roles.includes(r)),'Microsoft tenant approval needs MailboxSettings.Read to verify the mailbox boundary',403)
   const user = await microsoftGet(token.token,`/users/${mailboxId}?$select=id,mail,userType,accountEnabled,assignedLicenses`)
   need(user.id===mailboxId&&user.userType==='Member'&&user.accountEnabled===true&&Array.isArray(user.assignedLicenses)&&user.assignedLicenses.length>0&&typeof user.mail==='string'&&/^[^\s@]+@[^\s@]+$/.test(user.mail),'A licensed, enabled staff mailbox is required; shared and unlicensed accounts are refused',409)
+  const settings = await microsoftGet(token.token,`/users/${mailboxId}/mailboxSettings?$select=userPurpose`)
+  need(settings.userPurpose==='user','Shared, room and unknown mailbox purposes are refused',403)
   const active = (await all(env,'graphSelections')).filter(s=>s.value.connectionId===c.id&&s.value.mailboxId===mailboxId&&!s.value.stoppedAt)
   need(active.length===0,'This mailbox is already selected; stop its selection before changing consent',409)
   tx.guard("NOT EXISTS(SELECT 1 FROM g_graphSelections WHERE json_extract(data,'$.connectionId')=? AND json_extract(data,'$.mailboxId')=? AND json_extract(data,'$.stoppedAt') IS NULL)",c.id,mailboxId)
@@ -102,6 +110,7 @@ export async function microsoftCommand(env: Bindings, a: Actor, action: string, 
  let items: {id:string;value:Value}[] = []
  try {
   const token = await graphToken(env,c,s.id,scope)
+  await graphStaffMailbox(token.token,s.value.mailboxId)
   if(scope==='calendar') {
    const query = new URLSearchParams({startDateTime:s.value.from+'T00:00:00Z',endDateTime:s.value.to+'T23:59:59Z',$top:'100',$select:'id,subject,sensitivity,start,end,isCancelled,showAs'})
    const source = await microsoftPages(token.token,`/users/${s.value.mailboxId}/calendar/calendarView?${query}`)

@@ -26,8 +26,8 @@ try{
  const candidate=directory.find(u=>!u.assignedLicenses?.length)
  let unlicensedRefused=false,scopeUnavailable=false
  if(candidate){
-  const refused=await h.cmd('graph:select',{connectionId:connection.id,personId:person.id,mailboxId:candidate.id,mailboxKind:'staff',confirm:'reviewed-exact-mailbox',scopes:'calendar',from:'2026-10-01',to:'2026-10-31',reason:'Check live unlicensed mailbox refusal'},h.owner,observation.value.roles.some(r=>r.startsWith('Calendars.'))?409:403)
-  assert.equal((await h.state()).data.graphSelections.length,0);unlicensedRefused=/licensed, enabled staff mailbox/.test(refused.error);scopeUnavailable=/missing a selected scope/.test(refused.error);assert(unlicensedRefused||scopeUnavailable)
+  const refused=await h.cmd('graph:select',{connectionId:connection.id,personId:person.id,mailboxId:candidate.id,mailboxKind:'staff',confirm:'reviewed-exact-mailbox',scopes:'calendar',from:'2026-10-01',to:'2026-10-31',reason:'Check live unlicensed mailbox refusal'},h.owner,observation.value.roles.some(r=>r.startsWith('Calendars.'))&&observation.value.roles.some(r=>r.startsWith('MailboxSettings.'))?409:403)
+  assert.equal((await h.state()).data.graphSelections.length,0);unlicensedRefused=/licensed, enabled staff mailbox/.test(refused.error);scopeUnavailable=/missing a selected scope|needs MailboxSettings.Read/.test(refused.error);assert(unlicensedRefused||scopeUnavailable)
  }
  const beforeShared=touched.length
  await h.cmd('graph:select',{connectionId:connection.id,mailboxKind:'shared'},h.owner,403);assert.equal(touched.length,beforeShared)

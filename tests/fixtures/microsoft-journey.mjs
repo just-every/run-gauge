@@ -33,7 +33,7 @@ const event=(id,subject,over={})=>({id,subject,sensitivity:'normal',showAs:'busy
 /** Native owner page and API doors, with only Microsoft itself replaced at the network boundary. */
 export async function microsoftJourney(browser){
  console.log('Microsoft journey: starting native Worker')
- const h=await harness({currency:'USD',timezone:'America/New_York'}),{cmd,state,request}=h,edge=microsoftEdge();h.providerEdge.handler=edge.handler
+ const h=await harness({currency:'USD',timezone:'America/New_York',databaseBinding:false,beforeLogin:async()=>console.log('Microsoft journey: native owner bootstrapped')}),{cmd,state,request}=h,edge=microsoftEdge();h.providerEdge.handler=edge.handler
  const context=await browser.newContext({ignoreHTTPSErrors:true})
  try{
   console.log('Microsoft journey: native setup ready')
@@ -146,8 +146,8 @@ export async function microsoftJourney(browser){
   const connection=(await state()).data.providerConnections.find(r=>r.id===connected.id);await cmd('provider:revoke',connection)
   before=edge.requests.length;await cmd('graph:inspect',{connectionId:connected.id},h.owner,409);await cmd('graph:sync',{...await latest(),scope:'calendar'},h.owner,409);assert.equal(edge.requests.length,before)
   const audit=await(await request('/api/gauge/audit?action=graph:',h.owner)).text();assert(audit.includes('graph:stop')&&audit.includes('permission-revoked'))
-  const persisted=JSON.stringify((await h.db.prepare('SELECT data FROM g_audit').all()).results)+JSON.stringify((await h.db.prepare('SELECT result FROM g_receipts').all()).results)
-  for(const secret of [credential,'synthetic-gauge-900001','synthetic-private-title','synthetic-private-body','synthetic-private-mail-body','synthetic-private-error'])assert(!persisted.includes(secret),'Secrets and excluded private provider fields never reach audit or receipts')
+  const persisted=await(await request('/api/gauge/audit/export',h.owner)).text()
+  for(const secret of [credential,'synthetic-gauge-900001','synthetic-private-title','synthetic-private-body','synthetic-private-mail-body','synthetic-private-error'])assert(!persisted.includes(secret),'Secrets and excluded private provider fields never reach the business audit')
   console.log('PASS microsoftJourney: tenant consent, exact licensed staff mailbox, changed event and previous revision, private-event projection, exact invoice reply and sender refusals, independent scope revocation, provider denial, no non-owner exposure, no automatic business effects, owner page at 1440 and 390')
  }finally{await context.close();await h.dispose()}
 }

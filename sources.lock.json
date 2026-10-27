@@ -4429,7 +4429,7 @@
       "executable": false
     },
     "tests/fixtures/microsoft-journey.mjs": {
-      "sha256": "66be40462a0fb39cee33f586f31c94e466951882e269fcf05071e77c4d70cf92",
+      "sha256": "50b95d5ff45c99f3689b06a4b7106d69666d1bd6b216058d5c726bf05545ca7b",
       "executable": false
     },
     "tests/fixtures/productive.mjs": {
@@ -4737,7 +4737,7 @@
       "executable": false
     },
     "tests/live/microsoft.mjs": {
-      "sha256": "c1ab131434b533d9c686c84aa97cf74c2e4a3495b916c6285bc048244763d1b8",
+      "sha256": "7a69b6e5657f98527cda456c9c2f12201b6deeb31231a28b8f9380e5372ecea8",
       "executable": false
     },
     "tests/runtime.mjs": {

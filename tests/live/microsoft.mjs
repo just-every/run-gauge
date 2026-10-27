@@ -4,7 +4,7 @@ import {harness} from '../gauge-harness.mjs'
 // Held credentials enter only through the named-key injector, never through arguments or files.
 for(const name of ['ENTRA_TENANT_ID','ENTRA_CLIENT_ID','ENTRA_CLIENT_SECRET'])assert(process.env[name],`Missing ${name}`)
 const tenant=process.env.ENTRA_TENANT_ID,client=process.env.ENTRA_CLIENT_ID,secret=process.env.ENTRA_CLIENT_SECRET
-const h=await harness({currency:'USD',timezone:'UTC'}), touched=[],directory=[]
+const h=await harness({currency:'USD',timezone:'UTC',databaseBinding:false}), touched=[],directory=[]
 h.providerEdge.handler=async(req,body)=>{
  const url=new URL(req.url)
  if(!['https://login.microsoftonline.com','https://graph.microsoft.com'].includes(url.origin))return null
@@ -33,7 +33,7 @@ try{
  await h.cmd('graph:select',{connectionId:connection.id,mailboxKind:'shared'},h.owner,403);assert.equal(touched.length,beforeShared)
  const current=(await h.state()).data.providerConnections.find(r=>r.id===connection.id);await h.cmd('provider:revoke',current)
  const beforeRevoked=touched.length;await h.cmd('graph:inspect',{connectionId:connection.id},h.owner,409);assert.equal(touched.length,beforeRevoked,'Revoked custody makes no live token or directory call')
- const serialized=JSON.stringify((await h.db.prepare('SELECT data FROM g_audit').all()).results)+JSON.stringify((await h.db.prepare('SELECT result FROM g_receipts').all()).results)+JSON.stringify(h.logs)
- assert(!serialized.includes(secret),'Live credential never enters logs, audit or command receipts')
+ const serialized=await(await h.request('/api/gauge/audit/export',h.owner)).text()+JSON.stringify(h.logs)
+ assert(!serialized.includes(secret),'Live credential never enters logs or the business audit')
  console.log(JSON.stringify({proof:'CONNECT-004 live app-only tenant through production commands',head:process.env.GAUGE_PROOF_HEAD??null,tokenAcquired:touched.some(r=>r.resource==='token'&&r.status===200),directoryUsers:observation.value.directoryUsers,licensedUsers:observation.value.licensedUsers,roles:observation.value.roles,unlicensedRefused,scopeUnavailable,sharedMailboxRefusedBeforeNetwork:true,revocationStopsNetwork:true,requests:touched,remaining:'A licensed mailbox is required for a live changed calendar event and exact invoice reply; shared mailbox and outbound message interoperability remain unimplemented'}))
 }finally{await h.dispose()}

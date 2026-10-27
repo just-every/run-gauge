@@ -78,7 +78,7 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
  const shots=process.env.GAUGE_INTAKE_SHOTS??process.env.GAUGE_DELIVERY_SHOTS
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  const login=async cookie=>{await context.clearCookies();await context.addCookies(cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))}
- const capture=async name=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);if(shots){await mkdir(shots,{recursive:true});await page.screenshot({path:`${shots}/${name}-${width}.png`,fullPage:true})}}}
+ const capture=async name=>{const viewport=page.viewportSize();for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);if(shots){await mkdir(shots,{recursive:true});await page.screenshot({path:`${shots}/${name}-${width}.png`,fullPage:true})}}await page.setViewportSize(viewport)}
  const current=async id=>(await state()).data.intakeRequests.find(r=>r.id===id)
  const article=id=>page.locator(`[data-intake-id="${id}"]`)
  const portal=`/app/client-projects/${project.id}`
@@ -119,22 +119,28 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
   let escalated=await cmd('intake:escalate',{...reminded,reason:'Sponsor clarification needed'},manager.cookie)
   assert.equal((await current(row.id)).value.escalations[0].ownerId,lead.id)
   const reopened=await page.goto(h.origin+portal);assert.equal(reopened.status(),200,await page.locator('body').innerText());assert.equal(await upload().count(),1,JSON.stringify((await current(row.id)).value));await upload().getByLabel('Brand direction',{exact:true}).fill('Use the blue wordmark');await upload().getByLabel('Usage permission',{exact:true}).fill('Approved for this project');await upload().getByLabel('Logo package',{exact:true}).setInputFiles({name:'complete.txt',mimeType:'text/plain',buffer:Buffer.from('synthetic-gauge-2 complete assets')})
+  const missingFile=new FormData();missingFile.set('key',crypto.randomUUID());missingFile.set('revision',(await current(row.id)).revision);missingFile.set('answer0','Use the blue wordmark');missingFile.set('answer1','Approved for this project')
+  assert.equal((await request(`/app/client-intake/${project.id}/${row.id}`,recipient.cookie,{method:'POST',headers:{origin:h.origin},body:missingFile})).status,303)
+  const withoutFile=await current(row.id);assert.equal(withoutFile.value.submissions.at(-1).file,null)
+  await cmd('intake:review',{...withoutFile,outcome:'accepted',reason:'File is still missing'},manager.cookie,409)
+  await cmd('intake:review',{...withoutFile,outcome:'rejected',reason:'Logo package is missing'},manager.cookie)
+  await page.goto(h.origin+portal);await upload().getByLabel('Logo package',{exact:true}).setInputFiles({name:'complete.txt',mimeType:'text/plain',buffer:Buffer.from('synthetic-gauge-2 complete assets')})
   const replay={key:await upload().locator('[name=key]').inputValue(),revision:await upload().locator('[name=revision]').inputValue()}
   const replayForm=()=>{const f=new FormData();f.set('key',replay.key);f.set('revision',replay.revision);f.set('answer0','Use the blue wordmark');f.set('answer1','Approved for this project');f.set('file',new File(['synthetic-gauge-2 complete assets'],'complete.txt',{type:'text/plain'}));return f}
   const post=async(cookie,form=replayForm(),origin=h.origin)=>request(`/app/client-intake/${project.id}/${row.id}`,cookie,{method:'POST',headers:{origin},body:form})
   assert.equal((await post(recipient.cookie,replayForm(),'https://other.example.test')).status,403)
   assert.equal((await post(stranger.cookie)).status,403)
   await h.db.exec("CREATE TRIGGER intake_authority_race AFTER INSERT ON g_intake_files BEGIN DELETE FROM g_client_portal_authority; END")
-  try{assert.equal((await post(recipient.cookie)).status,409,'Authority changing in the committing batch rolls back the upload');assert.equal((await current(row.id)).value.submissions.length,1);assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM g_intake_files WHERE request_id=?').bind(row.id).first()).n,1)}finally{await h.db.exec('DROP TRIGGER intake_authority_race')}
+  try{assert.equal((await post(recipient.cookie)).status,409,'Authority changing in the committing batch rolls back the upload');assert.equal((await current(row.id)).value.submissions.length,2);assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM g_intake_files WHERE request_id=?').bind(row.id).first()).n,1)}finally{await h.db.exec('DROP TRIGGER intake_authority_race')}
   await Promise.all([page.waitForURL(/client-projects/),upload().getByRole('button',{name:'Submit inputs'}).click()])
   assert.equal((await post(recipient.cookie)).status,303,'Exact upload replay is once only')
   const changed=replayForm();changed.set('answer0','Changed');assert.equal((await post(recipient.cookie,changed)).status,409)
-  const complete=await current(row.id);assert.equal(complete.value.submissions.length,2);assert.equal(complete.value.status,'submitted')
+  const complete=await current(row.id);assert.equal(complete.value.submissions.length,3);assert.equal(complete.value.status,'submitted')
   await login(manager.cookie);await page.goto(h.origin+`/app/engagements?edit=${project.id}`)
   const review=article(row.id).locator('form').filter({has:page.locator('[name=action][value="intake:review"]')})
   await review.getByLabel('Review decision').selectOption('accepted');await review.getByLabel('Review reason').fill('Complete brand package approved');await capture('intake-lead-review')
   await Promise.all([page.waitForURL(/saved=1/),review.getByRole('button',{name:'Save review'}).click()])
-  const accepted=await current(row.id);assert.equal(accepted.value.status,'accepted');assert.deepEqual(accepted.value.decisions.map(d=>[d.outcome,d.reason]),[['rejected','Usage permission is missing'],['accepted','Complete brand package approved']]);assert.deepEqual(accepted.value.submissions[0],submitted.value.submissions[0])
+  const accepted=await current(row.id);assert.equal(accepted.value.status,'accepted');assert.deepEqual(accepted.value.decisions.map(d=>[d.outcome,d.reason]),[['rejected','Usage permission is missing'],['rejected','Logo package is missing'],['accepted','Complete brand package approved']]);assert.deepEqual(accepted.value.submissions[0],submitted.value.submissions[0])
   await cmd('intake:remind',{...accepted,on:'2026-11-11',reason:'Must stop'},manager.cookie,409)
   await cmd('intake:escalate',{...accepted,reason:'Closed request'},manager.cookie,409)
   await login(recipient.cookie);await page.goto(h.origin+portal);assert((await article(row.id).innerText()).includes('Accepted · No outstanding reminders.'));assert.equal(await article(row.id).getByRole('button',{name:'Submit inputs'}).count(),0);await capture('intake-accepted')

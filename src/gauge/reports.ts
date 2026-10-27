@@ -88,8 +88,9 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  const ids=new Set([...ordinaryIds,...delegatedIds])
  data.timeFavorites=data.timeFavorites.filter(r=>ids.has(r.value.engagementId)&&r.value.personId===(a.role==='owner'&&favoritePersonId?favoritePersonId:a.personId))
  data.engagements=data.engagements.filter(e=>ids.has(e.id))
- for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments','budgetAlertPolicies','budgetAlerts'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
+ for (const k of ['budgets','tasks','milestones','staffing','time','expenses','packets','proposals','resourceRequests','deliveryPlans','intakeRequests','retainers','retainerPeriods','retainerCloses','retainerAdjustments','budgetAlertPolicies','budgetAlerts'] as Kind[]) data[k]=data[k].filter(r=>ids.has(r.value.engagementId))
  if (!finance(a)) {
+  data.intakeRequests=data.intakeRequests.filter(r=>a.role==='lead'&&data.engagements.some(p=>p.id===r.value.engagementId&&p.value.leadId===a.personId))
   data.budgetAlertPolicies=[];data.budgetAlerts=data.budgetAlerts.filter(r=>a.role==='lead'&&r.value.leadId===a.personId);data.periodMatches=[];data.periodCloseDrafts=[];data.periodCloses=[];data.periodReopenRequests=[];data.periodReopens=[];data.timeSlices=[]; data.capWriteDowns=[]; data.retainerJobs=[];data.retainerSchedules=[]; data.retainerCharges=[]; data.retainerRuns=[]; data.fixedCharges=[]; data.rates=[]; data.rateWithdrawals=[]; data.demandScenarios=[]; data.projectScenarios=[]; data.paymentPromises=[]; data.invoices=[]; data.payments=[]; data.invoiceCorrections=[]; data.clientReceipts=[]; data.invoiceDisputes=[]; data.packets=[]; data.archives=[]; data.specialistHandoffs=[]; data.approvalPolicies=[]
   // Agency delivery templates are planning configuration for those who start projects.
   if(a.role!=='lead')data.deliveryTemplates=[]

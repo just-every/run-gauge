@@ -1,4 +1,5 @@
 import { changeClientResponse } from './scope-review'
+import { intakeResponse } from './intake-http'
 import { clientPortalResponse } from './client-portal'
 import { clientDeliveryResponse, clientDeliveryPage } from './ui-client-delivery'
 import { escape as escapeHtml } from './ui-forms'
@@ -40,6 +41,7 @@ function customOptions(url:URL,a:Actor){const parse=(name:string,defaultValue:an
 const headers={'cache-control':'no-store','referrer-policy':'strict-origin','x-content-type-options':'nosniff','x-robots-tag':'noindex','content-security-policy':"default-src 'self'; script-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"}
 export async function gaugeResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname;if(path!=='/api/gauge'&&!path.startsWith('/api/gauge/')&&path!=='/app'&&!path.startsWith('/app/'))return null
+ if(path.startsWith('/app/client-intake/')||path.startsWith('/api/gauge/intake-files/'))return intakeResponse(request,runtimeBindings(original))
  if(path==='/api/gauge/stripe/webhook')return stripeWebhook(request,runtimeBindings(original))
  if(path.startsWith('/app/client-projects/')||path.startsWith('/api/gauge/client-projects/'))return clientPortalResponse(request,runtimeBindings(original))
  if(path.startsWith('/app/client-milestones/'))return clientDeliveryResponse(request,runtimeBindings(original))

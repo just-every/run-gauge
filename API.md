@@ -1083,3 +1083,48 @@ The recipient opens `/app/client-projects/{engagementId}` or reads `GET /api/gau
 Owner milestone controls release one exact delivery under the existing `milestone:release-review` policy. The shown-once key and `/app/client-milestones/{milestoneId}/{reviewId}` link must be shared separately with the confirmed recipient; Gauge sends nothing. The key is entered in a POST body, never in the address. Native recipient review and reasoned acceptance or rejection reuse the exact API authority and transaction checks. Rejection opens its owned issue. Acceptance creates no packet or invoice and does not authorize finance billing. All new controls have visible text labels.
 
 CLIENT-001 remains partial solely pending ct approval of the adopted owner-only project invitation policy. The native journey now proves selected aggregate burn, permitted custom fields, nonzero retainer rollover, linked corrections and value statements, and full restore with no recipient authority. A fresh matching email remains refused after restore until the new installation owner issues a new invitation; monetary sharing starts off and requires a separate finance choice. The bounded direct-delivery carrier uses the existing ct-approved policy.
+
+
+## Client intake and follow-through
+
+On an engagement, the assigned lead or native finance opens **Request client inputs**,
+sets the questions, requested file, due date, first in-app reminder and repeat interval.
+The invited recipient opens the existing client project, fills the form and uploads
+one file per submission. Empty answers and a missing file may be submitted for review;
+acceptance refuses either omission. Rejection requires a reason and leaves the request
+due. Every new submission keeps the earlier answers, file and review decisions.
+
+Native commands use the normal request key and exact revision:
+
+- `intake:request`: engagementId, title, questions (an array or one question per line),
+  fileLabel, due, reminderOn and everyDays (one to 30 calendar days).
+- `intake:review`: id, revision, outcome (accepted or rejected) and reason.
+- `intake:remind`: id, revision, on and reason; advances the reminder by its interval.
+- `intake:escalate`: id, revision and reason; records the blocked input for its lead.
+
+The recipient form posts multipart data to
+`/app/client-intake/<engagementId>/<requestId>` with key, revision, answer0 onward and
+file. Only the current invited project recipient may submit; a native staff command
+cannot impersonate that person. Request-key replay creates one submission, changed
+content refuses, and revocation also refuses an already successful replay. Every
+write checks live authority inside its committing batch. Submitted intake remains
+due until its latest complete revision receives explicit lead or finance acceptance.
+
+Files are limited to 512 KiB. The submitting recipient while invited, the assigned
+lead and native finance can download exact retained bytes from
+`/api/gauge/intake-files/<fileId>`. Download always uses an opaque attachment with
+content sniffing disabled. Another project, unrelated staff and other recipients
+cannot read the file. No file executes and no invitation or intake command sends mail.
+Archives retain requests, file versions, decisions and reminders; restored data carries
+no project recipient authority.
+
+A delivery template accepts intakeForms with title, questions, fileLabel, everyDays
+and offsetDays. Applying the exact immutable template creates each requested intake
+on the agency business calendar. Later template versions do not rewrite requests
+already created. The template editor carries one intake form; the command may carry
+several.
+
+Optional chestUrl and blotterUrl retain a reference to broader shared-file work in
+Chest or accounting-practice requests in Blotter. They must be HTTPS links without
+embedded credentials, query data or fragments. Opening a reference leaves Gauge and
+uses the other product's permissions; Gauge neither fetches it nor grants access.

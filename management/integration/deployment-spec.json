@@ -489,6 +489,12 @@
     },
     {
       "binding": "DB",
+      "name": "0080_gauge_intake.sql",
+      "sha256": "ea400c3494be892db41187739b88ec1a4d77e957eada70bf07a43f9e5a7adb3a",
+      "sql": "CREATE TABLE g_intakeRequests (id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)));\nCREATE TABLE g_intake_files (id TEXT PRIMARY KEY, request_id TEXT NOT NULL REFERENCES g_intakeRequests(id), submission_id TEXT NOT NULL, name TEXT NOT NULL, digest TEXT NOT NULL, bytes BLOB NOT NULL);\n"
+    },
+    {
+      "binding": "DB",
       "name": "0080_gauge_portal_owner_version.sql",
       "sha256": "e2b1b7b526530ccce9849f09418ffece71e24742d4ae09d00c10088781fece15",
       "sql": "ALTER TABLE g_client_portal_authority ADD COLUMN owner_version INTEGER NOT NULL DEFAULT -1;\n"

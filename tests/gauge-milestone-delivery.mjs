@@ -737,6 +737,12 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
    const ordered=rows=>rows.map(r=>JSON.stringify(Object.fromEntries(Object.entries(r).sort()))).sort()
    assert.deepEqual(ordered(actual),ordered(expected),`${table} business history survives restore`)
   }
+  const intakeRows=await h.db.prepare('SELECT id,revision,data FROM g_intakeRequests ORDER BY id').all()
+  assert(intakeRows.results.length>=2,'Requested and accepted client intake exists before archive')
+  assert.deepEqual((await proxy.env.DB.prepare('SELECT id,revision,data FROM g_intakeRequests ORDER BY id').all()).results,intakeRows.results,'Complete intake submissions, decisions, reminders and template origin survive restore')
+  const intakeFiles=await h.db.prepare('SELECT id,request_id,submission_id,name,digest,hex(bytes) AS body FROM g_intake_files ORDER BY id').all()
+  assert(intakeFiles.results.length>=2,'Both requested input versions exist before archive')
+  assert.deepEqual((await proxy.env.DB.prepare('SELECT id,request_id,submission_id,name,digest,hex(bytes) AS body FROM g_intake_files ORDER BY id').all()).results,intakeFiles.results,'Every input file and digest survives without recipient authority')
   await proxy.dispose();proxy=undefined
   restored=await harness({persistenceDirectory:destination,beforeLogin:async({request})=>assert.equal((await request(path,alice.cookie)).status,401,'Pre-restore client session is invalid')})
   assert.equal((await restored.post('/auth/magic-link',{email:invite.contact})).status,202)

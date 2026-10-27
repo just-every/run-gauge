@@ -1,3 +1,4 @@
+import { scopeReviewCommand, currentScopeReview } from './scope-review'
 import { clientPortalCommand } from './client-portal'
 import { stripeCommand } from './stripe'
 import { milestoneReviewCommand } from './milestone-review'
@@ -69,6 +70,8 @@ import { agencyProfileCommand } from './agency-profile'
 import { fxCommand, consolidate } from './fx-rates'
 export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await fence(env,a)
+ if(a.clientScope)await currentScopeReview(env,a)
+ need(!a.clientScope||action==='change:respond','Change review authorizes only an unsigned response',403)
  need(!a.clientPortal,'Client projects are read only; use the exact delivery review for decisions',403)
  need(!a.clientMilestone||action==='milestone:respond','Client review authorizes only an exact delivery response',403)
  need(a.role!=='resource-manager'||resourceActions.includes(action),'Resource managers plan permitted staffing only',403)
@@ -140,6 +143,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await leaveCommand(env,a,tx,action,input)
  if(!result)result=await agencyProfileCommand(env,a,tx,action,input)
  if(!result)result=await fxCommand(env,a,tx,action,input)
+ if(!result)result=await scopeReviewCommand(env,a,tx,action,input)
  if(!result)result=await scopeChangeCommand(env,a,tx,action,input)
  if(!result)result=await projectScenarioCommand(env,a,tx,action,input)
  if(!result)result=await demandScenarioCommand(env,a,tx,action,input)

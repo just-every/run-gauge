@@ -21,6 +21,7 @@ async function basis(env: Bindings, tx?: Transaction) {
  if(tx) for(const k of basisKinds) { for(const row of data[k])tx.observe(k,row);tx.guard(`(SELECT COUNT(*) FROM g_${k})=?`,data[k].length) }
  return data
 }
+export async function scenarioBasisCurrent(env:Bindings,digest:string,tx?:Transaction) { return hash(await basis(env,tx))===digest }
 function normalize(input: unknown): Value[] {
  need(Array.isArray(input) && input.length > 0 && input.length <= 20, 'Choose between 1 and 20 alternatives')
  const changes = input.map(c => {

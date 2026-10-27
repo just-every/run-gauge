@@ -264,7 +264,16 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('change:review',{...portableChange,outcome:'declined',reason:'Review asks for a revised version'},scopeReviewer.cookie)
  const previousPortableChange=portableChange
  portableChange=await cmd('change:prepare',{...scopeInput,previousId:previousPortableChange.id,fingerprint:scopePreview.fingerprint,name:'Portable revised scope request',reason:'Retain the reviewed second version'})
- await cmd('change:review',{...portableChange,outcome:'approved',reason:'Independent internal review, no client acceptance'},scopeReviewer.cookie)
+ portableChange=await cmd('change:review',{...portableChange,outcome:'approved',reason:'Independent internal review, no client acceptance'},scopeReviewer.cookie)
+ const scopeRecipient=await h.invite('synthetic-gauge-8104')
+ const scopeRelease=await cmd('change:release-review',{...portableChange,contact:'synthetic-gauge-8104@example.test',description:'Portable unsigned change response',reason:'Retain response without authority'})
+ const scopeReleased=(await state()).data.projectScenarios.find(r=>r.id===scopeRelease.id),scopeReview=scopeReleased.value.clientReviews.at(-1)
+ const scopePath=`/api/gauge/client-changes/${scopeRelease.id}/${scopeReview.id}`
+ const scopeResponse={key:crypto.randomUUID(),revision:scopeRelease.revision,outcome:'accepted',reason:'Portable unsigned feedback only'}
+ assert.equal((await request(scopePath,scopeRecipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':scopeRelease.token},body:JSON.stringify(scopeResponse)})).status,200)
+ const scopeEvidence=(await state()).data.projectScenarios.find(r=>r.id===scopeRelease.id).value.clientResponses[0]
+ assert.equal(scopeEvidence.reason,scopeResponse.reason);assert.equal(scopeEvidence.recipientId,scopeRecipient.id)
+
  const before=await state()
  assert.equal(before.data.customImports.find(r=>r.id===fieldImport.id).value.package.records[0].values.office,'Austin')
  assert.equal(before.data.people.find(r=>r.id===person.id).value.customFields[officeField.id],'Austin')
@@ -329,6 +338,14 @@ export async function prepareCurrentPortability(h,{importJob}) {
    await restored.cmd('handoff:prepare',{purpose:'reimbursement',recipient:'Portable payroll desk',reason:'Restored replay must not reimburse twice',sources:[{kind:'expenses',id:portableClaim.id,revision:portableClaim.revision}]},restored.owner,409)
    const restoredChange=(await restored.state()).data.projectScenarios.find(r=>r.id===portableChange.id)
    assert.equal(restoredChange.value.reviewStatus,'approved');assert.equal(restoredChange.value.status,'prepared')
+   assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_scope_review_authority').first()).n,0,'Change review keys and hashes never travel')
+   assert.deepEqual(restoredChange.value.clientResponses[0],scopeEvidence,'Exact unsigned response evidence survives')
+   assert.equal((await restored.post('/auth/magic-link',{email:'synthetic-gauge-8104@example.test'})).status,202)
+   const scopeConfirmation=new URL(restored.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0])
+   const scopeConfirmed=await restored.post('/auth/confirm',{token:scopeConfirmation.searchParams.get('token')});assert.equal(scopeConfirmed.status,303)
+   const scopeCookie=scopeConfirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+   assert.equal((await restored.request(scopePath,scopeCookie,{headers:{'x-gauge-review-token':scopeRelease.token}})).status,403,'Fresh matching email cannot restore change review authority')
+
    assert.deepEqual(restoredChange.value.baseline,scopePreview.baseline);assert.deepEqual(restoredChange.value.scenario,scopePreview.scenario)
    await restored.cmd('projectScenario:adopt',{id:restoredChange.id,revision:restoredChange.revision,asOf:'2026-10-01',selectedIds:[engagement.id],fingerprint:scopePreview.fingerprint,reason:'Restored internal review grants no client acceptance'},restored.owner,409)
    const restoredBefore=await restored.state(),restoredRuns=restoredBefore.data.retainerRuns
@@ -385,7 +402,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
    if(process.env.GAUGE_BASE_SHOTS){
     const {chromium}=await import('@playwright/test')
     await mkdir(process.env.GAUGE_BASE_SHOTS,{recursive:true})
-    const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+    const browser=await chromium.launch({headless:true,...(process.env.GAUGE_CHROMIUM_PATH?{executablePath:process.env.GAUGE_CHROMIUM_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
     try{
      const context=await browser.newContext({ignoreHTTPSErrors:true})
      await context.addCookies(restored.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:restored.origin}}))

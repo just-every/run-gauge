@@ -1,3 +1,4 @@
+import {scopeReviewJourney} from './gauge-scope-review.mjs'
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
@@ -79,12 +80,10 @@ export async function scopeScenarioJourney(h,browser) {
    if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await approvalPage.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/internal-approval-${width}.png`,fullPage:true})}
   }
  }finally{await approvalContext.close()}
- const withdrawn=await cmd('change:withdraw',{...revised,reason:'Client review and signed evidence still needed'})
- assert.equal((await changeRecord(withdrawn.id)).value.status,'withdrawn')
- await cmd('change:review',{...withdrawn,outcome:'approved',reason:'Withdrawn versions cannot approve'},reviewer.cookie,409)
+ const nextVersion=await scopeReviewJourney(h,{change:revised,reviewer,person,read,input:revisedInput,preview:revisedPreview})
  const samePerson=await h.invite('synthetic-gauge-scope-second-role')
  await cmd('grant',{operatorId:samePerson.id,personId:person.id,role:'finance',enabled:true})
- const personPrepared=await cmd('change:prepare',{...changeInput,previousId:revised.id,fingerprint:changePreview.fingerprint,name:'Person-bound internal review',reason:'One person cannot review through another role'},reviewer.cookie)
+ const personPrepared=await cmd('change:prepare',{...changeInput,previousId:nextVersion.id,fingerprint:changePreview.fingerprint,name:'Person-bound internal review',reason:'One person cannot review through another role'},reviewer.cookie)
  await cmd('change:review',{...personPrepared,outcome:'approved',reason:'Second account for the same person'},samePerson.cookie,403)
  assert.equal((await h.post('/auth/operator/role',{operatorId:reviewer.id,role:'owner'},owner)).status,200)
  await h.post('/auth/magic-link',{email:'synthetic-gauge-scope-reviewer@example.test'})

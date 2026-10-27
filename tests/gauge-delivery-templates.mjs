@@ -75,9 +75,10 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
  const recipient=await h.invite('intake-recipient'),stranger=await h.invite('intake-stranger')
  const grant=await cmd('client:invite-project',{engagementId:project.id,contact:'intake-recipient@example.test',days:7,reason:'Brand sponsor access'})
  await cmd('client:invite-project',{engagementId:other.id,contact:'intake-stranger@example.test',days:7,reason:'Separate client'})
+ const shots=process.env.GAUGE_INTAKE_SHOTS??process.env.GAUGE_DELIVERY_SHOTS
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  const login=async cookie=>{await context.clearCookies();await context.addCookies(cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))}
- const capture=async name=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);if(process.env.GAUGE_DELIVERY_SHOTS){await mkdir(process.env.GAUGE_DELIVERY_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/${name}-${width}.png`,fullPage:true})}}}
+ const capture=async name=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);if(shots){await mkdir(shots,{recursive:true});await page.screenshot({path:`${shots}/${name}-${width}.png`,fullPage:true})}}}
  const current=async id=>(await state()).data.intakeRequests.find(r=>r.id===id)
  const article=id=>page.locator(`[data-intake-id="${id}"]`)
  const portal=`/app/client-projects/${project.id}`
@@ -122,6 +123,8 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
   const post=async(cookie,form=replayForm(),origin=h.origin)=>request(`/app/client-intake/${project.id}/${row.id}`,cookie,{method:'POST',headers:{origin},body:form})
   assert.equal((await post(recipient.cookie,replayForm(),'https://other.example.test')).status,403)
   assert.equal((await post(stranger.cookie)).status,403)
+  await h.db.exec("CREATE TRIGGER intake_authority_race AFTER INSERT ON g_intake_files BEGIN DELETE FROM g_client_portal_authority; END")
+  try{assert.equal((await post(recipient.cookie)).status,409,'Authority changing in the committing batch rolls back the upload');assert.equal((await current(row.id)).value.submissions.length,1);assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM g_intake_files WHERE request_id=?').bind(row.id).first()).n,1)}finally{await h.db.exec('DROP TRIGGER intake_authority_race')}
   await Promise.all([page.waitForURL(/client-projects/),upload().getByRole('button',{name:'Submit inputs'}).click()])
   assert.equal((await post(recipient.cookie)).status,303,'Exact upload replay is once only')
   const changed=replayForm();changed.set('answer0','Changed');assert.equal((await post(recipient.cookie,changed)).status,409)
@@ -136,6 +139,7 @@ export async function clientIntakeJourney(h,browser,{lead,worker,manager,staff,o
   await login(recipient.cookie);await page.goto(h.origin+portal);assert((await article(row.id).innerText()).includes('Accepted · No outstanding reminders.'));assert.equal(await article(row.id).getByRole('button',{name:'Submit inputs'}).count(),0);await capture('intake-accepted')
   assert.equal(h.providerRequests.length,providers,'Intake sends nothing')
   // Onboarding templates carry the complete form and apply relative due dates.
+  await login(h.owner);await page.goto(h.origin+'/app/engagements');const templateEditor=page.locator('#delivery-templates section.g-card').filter({has:page.getByRole('heading',{name:'New delivery template',exact:true})});await templateEditor.getByText('Client intake form',{exact:true}).click();await templateEditor.getByLabel('Intake title',{exact:true}).fill('Template brand assets');await templateEditor.getByLabel('Required questions, one per line').fill('Brand direction');await templateEditor.getByLabel('Requested file',{exact:true}).fill('Logo package');await templateEditor.getByLabel('Intake due after business days').fill('1');await templateEditor.getByLabel('Reminder interval in days').fill('3');await capture('intake-template-editor')
   const template=await cmd('template:save',{name:'Intake onboarding',purpose:'client-onboarding',items:[{key:'start',kind:'task',name:'Kickoff',durationDays:1,owner:'lead'}],intakeForms:[{title:'Template brand assets',questions:['Brand direction'],fileLabel:'Logo package',everyDays:3,offsetDays:1}],reason:'Reusable intake'})
   await cmd('template:apply',{templateId:template.id,engagementId:other.id,start:'2026-11-02',reason:'New engagement onboarding'},manager.cookie)
   const fromTemplate=(await state()).data.intakeRequests.filter(r=>r.value.engagementId===other.id)

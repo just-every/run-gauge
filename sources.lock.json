@@ -4496,7 +4496,7 @@
       "executable": false
     },
     "tests/gauge-delivery-templates.mjs": {
-      "sha256": "889359fabff0437149fbf6379b96e8c2ef7a8cf4909c1f825d1197229f6807ad",
+      "sha256": "91e7dac0f15aa9b5c8cdd15e3aa507d16086dbeb83a5a4fcfb6978c725af86ab",
       "executable": false
     },
     "tests/gauge-delivery.mjs": {

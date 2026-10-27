@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {randomUUID} from 'node:crypto'
+import {createHash,randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 
 // FINANCE-003 scope: explicit future effort and native replacement terms, not a
@@ -79,12 +79,53 @@ export async function scopeScenarioJourney(h,browser) {
    if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await approvalPage.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/internal-approval-${width}.png`,fullPage:true})}
   }
  }finally{await approvalContext.close()}
- const withdrawn=await cmd('change:withdraw',{...revised,reason:'Client review and signed evidence still needed'})
+ // SALES-005 conservative direct-review carrier: private comparisons never leave native finance.
+ const clientRecipient=await h.invite('synthetic-gauge-92502'),otherRecipient=await h.invite('synthetic-gauge-92503')
+ const clientRead=async(path,token,cookie=clientRecipient.cookie)=>request(path,cookie,{headers:{'x-gauge-review-token':token}})
+ const directReview=async(record,outcome)=>{
+  const releaseInput={...record,key:randomUUID(),contact:'synthetic-gauge-92502@example.test',description:'Extra prototype only; no automatic business effects',days:7,reason:'Owner explicitly releases this exact internally reviewed version'}
+  for(const cookie of [clientRecipient.cookie,otherRecipient.cookie])await cmd('change:release-review',releaseInput,cookie,403)
+  await cmd('change:release-review',{...releaseInput,contact:'synthetic-gauge-scope-second-role@example.test'},owner,409)
+  for(const days of [0,31])await cmd('change:release-review',{...releaseInput,days},owner,400)
+  const outbound=h.providerRequests.length,release=await cmd('change:release-review',releaseInput)
+  assert.equal((await cmd('change:release-review',releaseInput)).token,undefined)
+  const source=await changeRecord(record.id),review=source.value.clientReview,path=`/api/gauge/client-changes/${record.id}/${review.id}`
+  const stored=await h.db.prepare('SELECT token_hash FROM g_change_review_authority WHERE review_id=?').bind(review.id).first()
+  assert.equal(stored.token_hash,createHash('sha256').update(release.token).digest('hex'))
+  for(const cookie of [otherRecipient.cookie,owner,reviewer.cookie])assert.equal((await clientRead(path,release.token,cookie)).status,403)
+  assert.equal((await clientRead(path,'synthetic-gauge-wrong')).status,403)
+  const response=await clientRead(path,release.token);assert.equal(response.status,200)
+  const document=await response.json()
+  assert.deepEqual(Object.keys(document).sort(),['id','revision','reviewId','version','description','expiresAt','decision'].sort())
+  assert.equal(document.description,releaseInput.description);assert.equal(document.decision,null)
+  const input={key:randomUUID(),revision:source.revision,outcome,reason:`Client explicitly ${outcome} exact version ${source.value.number}`}
+  const respond=(body,origin=h.origin)=>request(path,clientRecipient.cookie,{method:'POST',headers:{origin,'content-type':'application/json','x-gauge-review-token':release.token},body:JSON.stringify(body)})
+  assert.equal((await respond(input,'https://untrusted.example.test')).status,403)
+  assert.equal((await respond({...input,reason:''})).status,400)
+  assert.equal((await respond({...input,revision:'stale'})).status,409)
+  const saved=await respond(input);assert.equal(saved.status,200,await saved.clone().text());const result=await saved.json()
+  assert.deepEqual(await(await respond(input)).json(),result)
+  assert.equal((await respond({...input,reason:'Different content under the same key'})).status,409)
+  const decision=(await changeRecord(record.id)).value.clientDecision
+  assert.deepEqual({outcome:decision.outcome,reason:decision.reason,operatorId:decision.operatorId,fingerprint:decision.fingerprint},{outcome,reason:input.reason,operatorId:clientRecipient.id,fingerprint:source.value.fingerprint})
+  assert.match(decision.notice,/unsigned and not adopted/)
+  assert.equal((await(await clientRead(path,release.token)).json()).decision.reason,input.reason)
+  assert.equal(h.providerRequests.length,outbound,'Change review sends nothing')
+  assert(!JSON.stringify((await read()).data).includes(release.token),'Shown-once token is absent from business records')
+  const audit=await(await request(`/api/gauge/audit?recordId=${record.id}`,owner)).json()
+  assert(audit.entries.some(e=>e.action==='change:respond'&&e.actor.id===clientRecipient.id&&e.requestKey===input.key&&e.previousRevision===source.revision&&e.revision===result.revision&&e.result.clientDecision.reason===input.reason))
+  await cmd('projectScenario:adopt',{...result,asOf,selectedIds:[projects[0].id],fingerprint:source.value.fingerprint,reason:'Direct response still grants no adoption'},owner,409)
+  await cmd('change:revoke-review',{...result,reviewId:review.id,reason:'Owner closes exact review'})
+  assert.equal((await clientRead(path,release.token)).status,403)
+  return result
+ }
+ revised=await directReview(revised,'rejected')
+ const withdrawn=await cmd('change:withdraw' ,{...revised,reason:'Client review and signed evidence still needed'})
  assert.equal((await changeRecord(withdrawn.id)).value.status,'withdrawn')
  await cmd('change:review',{...withdrawn,outcome:'approved',reason:'Withdrawn versions cannot approve'},reviewer.cookie,409)
  const samePerson=await h.invite('synthetic-gauge-scope-second-role')
  await cmd('grant',{operatorId:samePerson.id,personId:person.id,role:'finance',enabled:true})
- const personPrepared=await cmd('change:prepare',{...changeInput,previousId:revised.id,fingerprint:changePreview.fingerprint,name:'Person-bound internal review',reason:'One person cannot review through another role'},reviewer.cookie)
+ let personPrepared=await cmd('change:prepare',{...changeInput,previousId:revised.id,fingerprint:changePreview.fingerprint,name:'Person-bound internal review',reason:'One person cannot review through another role'},reviewer.cookie)
  await cmd('change:review',{...personPrepared,outcome:'approved',reason:'Second account for the same person'},samePerson.cookie,403)
  assert.equal((await h.post('/auth/operator/role',{operatorId:reviewer.id,role:'owner'},owner)).status,200)
  await h.post('/auth/magic-link',{email:'synthetic-gauge-scope-reviewer@example.test'})
@@ -92,6 +133,9 @@ export async function scopeScenarioJourney(h,browser) {
  const signed=await h.post('/auth/confirm',{token:confirmation.searchParams.get('token')});assert.equal(signed.status,303)
  reviewer.cookie=signed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
  await cmd('change:review',{...personPrepared,outcome:'approved',reason:'Same preparing person now also holds owner role'},reviewer.cookie,403)
+ personPrepared=await cmd('change:review',{...personPrepared,outcome:'approved',reason:'A different owner independently approves this revised version'})
+ personPrepared=await directReview(personPrepared,'accepted')
+ for(const kind of ['engagements','budgets','tasks','staffing','rates','time'])assert.deepEqual((await read()).data[kind],before[kind],`Client response changes no ${kind}`)
  await cmd('change:withdraw',{...personPrepared,reason:'Identity refusal proved without business effects'})
  const pending=await cmd('change:prepare',{...changeInput,previousId:personPrepared.id,fingerprint:changePreview.fingerprint,name:'Stale review candidate',reason:'Exercise current basis fence'})
  const prepared=await cmd('projectScenario:prepare',{...input,fingerprint:preview.fingerprint,name:'Acorn focused scope',reason:'Compare smaller delivery'})

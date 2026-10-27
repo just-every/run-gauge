@@ -56,6 +56,27 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   do{const response=await app(token,'/api/gauge/v1/projects?limit=1'+(cursor?'&cursor='+encodeURIComponent(cursor):''));assert.equal(response.status,200,await response.clone().text());assert.equal(response.headers.get('gauge-api-version'),'1');const body=await response.json();projects.push(...body.projects);cursor=body.nextCursor;if(!firstCursor)firstCursor=cursor}while(cursor)
   assert.deepEqual(projects,native.sort((a,b)=>a.id.localeCompare(b.id)));assert(!projects.some(r=>r.id===hidden.id));assert.equal(new Set(projects.map(r=>r.id)).size,projects.length)
   const filtered=await(await app(token,'/api/gauge/v1/projects?clientId='+client.id+'&q=App%20project')).json();assert.equal(filtered.projects.length,3)
+  const detail=await app(token,'/api/gauge/v1/projects/'+engagement.id);assert.equal(detail.status,200);assert.equal(detail.headers.get('gauge-api-version'),'1')
+  assert.deepEqual((await detail.json()).project,(await h.state(staff.cookie)).data.engagements.find(r=>r.id===engagement.id))
+  for(const path of ['/api/gauge/v1/projects/'+hidden.id,'/api/gauge/v1/projects/'+hidden.id+'/tasks'])assert.equal((await app(token,path)).status,403,'Project detail and task selection enforce captured scope')
+  const taskField=await cmd('field:define',{scope:'tasks',name:'App private task context',type:'text',visibility:'finance-only',reason:'Keep private task context out of project reads'})
+  const secondTask=await cmd('save:tasks',{engagementId:engagement.id,name:'App selectable task',remainingSeconds:3600,customFields:{[taskField.id]:'synthetic-gauge-7001'}})
+  const otherTask=await cmd('save:tasks',{engagementId:assigned[0].id,name:'Other project task',remainingSeconds:0})
+  const taskPath='/api/gauge/v1/projects/'+engagement.id+'/tasks',selectedTasks=[];let taskCursor=null,firstTaskCursor
+  do{const response=await app(token,taskPath+'?limit=1'+(taskCursor?'&cursor='+encodeURIComponent(taskCursor):''));assert.equal(response.status,200);const body=await response.json();selectedTasks.push(...body.tasks);taskCursor=body.nextCursor;if(!firstTaskCursor)firstTaskCursor=taskCursor}while(taskCursor)
+  assert.deepEqual(selectedTasks.map(r=>r.id).sort(),[task.id,secondTask.id].sort(),'Task pages contain every task on exactly the selected project')
+  assert.deepEqual(selectedTasks,(await h.state(staff.cookie)).data.tasks.filter(r=>r.value.engagementId===engagement.id).sort((a,b)=>a.id.localeCompare(b.id)))
+  assert(!JSON.stringify(selectedTasks).includes('synthetic-gauge-7001'));assert(!selectedTasks.some(r=>r.id===otherTask.id))
+  assert.deepEqual((await(await app(token,taskPath+'?q=SELECTABLE')).json()).tasks.map(r=>r.id),[secondTask.id])
+  assert.equal((await app(token,taskPath+'?cursor='+encodeURIComponent(firstCursor))).status,409,'A project cursor cannot page tasks')
+  assert.equal((await app(token,'/api/gauge/v1/projects/'+assigned[0].id+'/tasks?cursor='+encodeURIComponent(firstTaskCursor))).status,409,'Task cursors bind the selected project')
+  for(const value of [null,[],1,{}, {fingerprint:1,after:task.id}]){
+   const malformed=Buffer.from(JSON.stringify(value)).toString('base64url')
+   for(const path of ['/api/gauge/v1/projects',taskPath])assert.equal((await app(token,path+'?cursor='+malformed)).status,400,'Malformed cursors are client refusals')
+  }
+  await cmd('save:tasks',{...secondTask,engagementId:engagement.id,name:'App revised task',remainingSeconds:1800})
+  assert.equal((await app(token,taskPath+'?cursor='+encodeURIComponent(firstTaskCursor))).status,409,'Changed task revisions require restarting pagination')
+
   assert.equal((await app(token,'/api/gauge/v1/projects?limit=101')).status,400)
   assert.equal((await app(token,'/api/gauge/v1/projects?cursor=invalid')).status,400)
   assert.equal((await app(token,'/api/gauge/v1/projects?q=changed&cursor='+encodeURIComponent(firstCursor))).status,409)
@@ -67,6 +88,17 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   const sent=await app(token,'/api/gauge/v1/time',input);assert.equal(sent.status,200,await sent.clone().text());const saved=await sent.json()
   const second=await app(token,'/api/gauge/v1/time',input);assert.equal(second.status,200);assert.deepEqual(await second.json(),saved)
   assert.equal((await h.state()).data.time.length,before+1);assert.equal((await h.state()).data.time.find(r=>r.id===saved.id).value.status,'draft')
+  const edit={...input,...saved,key:randomUUID(),end:'2026-10-04T09:45:00+10:00',notes:'Revised through the scoped API',status:'approved',economics:{costMinor:1}}
+  const editResponse=await app(token,'/api/gauge/v1/time',edit);assert.equal(editResponse.status,200,await editResponse.clone().text());const edited=await editResponse.json()
+  const editedRow=(await h.state()).data.time.find(r=>r.id===saved.id);assert.equal(editedRow.value.durationSeconds,2700);assert.equal(editedRow.value.notes,edit.notes);assert.equal(editedRow.value.status,'draft');assert(!editedRow.value.economics)
+  assert.deepEqual(await(await app(token,'/api/gauge/v1/time',edit)).json(),edited,'An identical edit replays one revision')
+  assert.equal((await app(token,'/api/gauge/v1/time',{...edit,key:randomUUID()})).status,409,'A stale draft revision cannot overwrite the edit')
+  assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),taskId:otherTask.id})).status,400,'A task on another project cannot receive this time')
+  const someoneElse=await cmd('time:save',{...input,key:randomUUID(),personId:hiddenPerson.id,start:'2026-10-04T15:00:00+10:00',end:'2026-10-04T15:30:00+10:00'})
+  assert.equal((await app(token,'/api/gauge/v1/time',{...input,...someoneElse,key:randomUUID()})).status,403,'A known entry identity cannot edit another person’s draft')
+  const submitted=await cmd('time:submit',edited,staff.cookie)
+  assert.equal((await app(token,'/api/gauge/v1/time',{...input,...submitted,key:randomUUID()})).status,409,'A submitted entry cannot be overwritten through the draft API')
+
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,end:'2026-10-04T10:00:00+10:00'})).status,409,'A changed request cannot replay the same key')
   for(const data of [{...input,key:randomUUID(),personId:hiddenPerson.id},{...input,key:randomUUID(),engagementId:hidden.id},...['time:submit','time:approve','packet:create','grant','providerJob:dispatch'].map(action=>({...input,key:randomUUID(),action}))])assert.equal((await app(token,'/api/gauge/v1/time',data)).status,403)
   const widened=await cmd('save:engagements',{...hidden,...(await h.state()).data.engagements.find(r=>r.id===hidden.id).value,members:[hiddenPerson.id,person.id]})
@@ -84,6 +116,7 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   const narrowed=await cmd('save:engagements',{...removed,...removed.value,members:[]})
   assert.equal((await app(token,'/api/gauge/v1/time',input)).status,403,'Native removal also refuses an exact successful replay')
   assert.deepEqual((await(await app(selected.token)).json()).projects,[],'Captured scope never overrides a native removal')
+  for(const path of ['/api/gauge/v1/projects/'+engagement.id,'/api/gauge/v1/projects/'+engagement.id+'/tasks'])assert.equal((await app(selected.token,path)).status,403,'Native removal also closes detail and task reads')
   assert.equal((await app(selected.token,'/api/gauge/v1/time',{...input,key:randomUUID()})).status,403)
   await cmd('save:engagements',{...narrowed,...removed.value})
   const audit=await(await request('/api/gauge/audit',owner)).json();assert(audit.entries.some(e=>e.action==='appkey:use'));assert(!JSON.stringify(audit).includes(token))
@@ -139,6 +172,6 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.equal((await app(liveBound.token)).status,403,'A changed principal operator version invalidates the credential')
   await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${liveBound.id}"]`).innerText(),/operator changed/)
   if(process.env.GAUGE_UTILIZATION_SHOTS)for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('section.g-card--table').filter({has:page.getByRole('heading',{name:'App credentials',exact:true})}).screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/app-credential-register-${width}.png`})}
-  console.log('PASS CONNECT-020 appApiJourney: scoped native project pagination and filters, stale cursor refusal, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, finite expiry and expired replay refusal, captured scope non-widening, visible lifecycle, grant change and revoked replay refusal, Access at 1440 and 390')
+  console.log('PASS CONNECT-020 appApiJourney: scoped native project and task pagination and filters, individual project projection, malformed and stale cursor refusal, native draft edits and refusal boundaries, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, finite expiry and expired replay refusal, captured scope non-widening, visible lifecycle, grant change and revoked replay refusal, Access at 1440 and 390')
  }finally{await context.close()}
 }

@@ -1,3 +1,4 @@
+import { sha256 } from '../modules/import-kit/src/d1/index'
 import { webhookCredential, webhookEvent, signedWebhookHeaders, webhookResult } from './provider-job-webhook'
 import { assertInvoiceMailSource } from './invoice-mail-source'
 import { latestCommercial } from './commercial-proposals'
@@ -8,7 +9,7 @@ import { dispatchCredential, ProviderDispatchError, recordProviderUse, type Prov
 import { crankEndpoint, crankResult } from './provider-job-crank'
 
 export interface ProviderJobSource { kind: 'invoiceAccess' | 'budgetAlerts' | 'commercialProposals' | 'engagements' | 'time' | 'invoices' | 'payments'; id: string; revision: string }
-export interface ProviderJobSpec { connectionId: string; operation: ProviderOperation; source: ProviderJobSource; endpoint?: string; eventType?: 'gauge.project.created'|'gauge.project.changed' }
+export interface ProviderJobSpec { connectionId: string; operation: ProviderOperation; source: ProviderJobSource; endpoint?: string; eventType?: 'gauge.project.created'|'gauge.project.changed'; eventId?:string; payloadDigest?:string }
 export type ProviderJobException = 'credential-rotated' | 'credential-revoked' | 'credential-disconnected' | 'provider-rejected' | 'uncertain' | 'provider-rate-limit' | 'retry-exhausted' | 'source-changed'
 export interface ProviderJobResult { status: 'submitted' | 'held' | 'retry-wait' | 'exception' | 'revoked'; exceptionClass?: ProviderJobException; providerMessageId?: string; providerRunId?: string; providerHoldId?: string }
 const acknowledgement = (row: Row) => ({id: row.id, revision: row.revision, saved: true})
@@ -55,6 +56,34 @@ async function connection(env: Bindings, tx: Transaction, connectionId: string, 
  return row
 }
 
+/** A native-owner preview retains only its authority bindings and digest, never the body. */
+export async function previewWebhook(env:Bindings,a:Actor,input:Value){
+ const tx=new Transaction(env,a);await owner(env,a,tx)
+ const [kind,id,revision]=String(input.sourceRef??'').split(':')
+ const src=await source(env,tx,{kind:kind as ProviderJobSource['kind'],id,revision})
+ need(['budgetAlerts','engagements','time','invoices','payments'].includes(kind),'Choose a supported automation event source')
+ const connected=await connection(env,tx,input.connectionId,'trigger:submit')
+ need(['zapier','webhook'].includes(connected.value.provider),'Choose a signed webhook connection')
+ const prior=kind==='engagements'?await env.DB.prepare("SELECT COUNT(*) AS n FROM g_history WHERE kind='engagements' AND record_id=?").bind(src.id).first<{n:number}>():null
+ const eventType=kind==='engagements'?(prior?.n?'gauge.project.changed':'gauge.project.created'):undefined
+ const previewId=uuid();let eventId=previewId
+ if(input.jobId){const job=await get(env,'providerJobs',text(input.jobId,'Provider job'));await authority(env,a,job,tx);need(job.revision===input.jobRevision&&job.value.connectionId===connected.id&&job.value.source.kind===kind&&job.value.source.id===id&&job.value.source.revision===revision,'Review the exact current job',409);eventId=job.value.eventId}
+ const body=JSON.stringify({event_id:eventId,...webhookEvent({kind},src,eventType)}),digest=sha256(body),expiresAt=Date.now()+900000
+ tx.sql('DELETE FROM g_webhook_previews WHERE expires_at<=?',Date.now())
+ tx.sql('INSERT INTO g_webhook_previews(id,event_id,owner_id,owner_version,connection_id,credential_version,source_ref,event_type,payload_digest,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?)',previewId,eventId,a.session.operator.id,a.session.operator.version,connected.id,connected.value.version,input.sourceRef,eventType??null,digest,expiresAt)
+ await tx.commit()
+ return {previewId,connectionId:connected.id,accountLabel:connected.value.accountLabel,credentialVersion:connected.value.version,sourceRef:input.sourceRef,body,payloadDigest:digest,expiresAt,...(input.jobId?{jobId:input.jobId,jobRevision:input.jobRevision}:{})}
+}
+
+async function reviewWebhookRetry(env:Bindings,a:Actor,tx:Transaction,job:Row,connected:Row,input:Value){
+ if(['zapier','webhook'].includes(connected.value.provider)){
+  const preview=await env.DB.prepare('SELECT * FROM g_webhook_previews WHERE id=?').bind(text(input.previewId,'Exact payload preview')).first<any>()
+  need(preview&&preview.owner_id===a.session.operator.id&&preview.owner_version===a.session.operator.version&&preview.event_id===job.value.eventId&&preview.connection_id===connected.id&&preview.credential_version===connected.value.version&&preview.source_ref===`${job.value.source.kind}:${job.value.source.id}:${job.value.source.revision}`&&preview.payload_digest===job.value.payloadDigest&&preview.expires_at>Date.now(),'Review this exact event under the current credential',409)
+  need(input.confirm==='release-exact-event','Confirm the exact signed payload')
+  tx.guard("EXISTS(SELECT 1 FROM g_webhook_previews WHERE id=? AND expires_at>CAST(unixepoch('subsec')*1000 AS INTEGER))",preview.id)
+ }
+}
+
 /** Queues only: no network calls, including during setup or restore. Jobs retain source references rather than request bodies. */
 export async function queueProviderJob(tx: Transaction, spec: ProviderJobSpec, sourceRow?: Row): Promise<Row> {
  const {env, actor: a} = tx
@@ -64,7 +93,7 @@ export async function queueProviderJob(tx: Transaction, spec: ProviderJobSpec, s
  // That caller supplies the tx.record result, whose previous revision is already observed.
  if (sourceRow) need(sourceRow.id === spec.source.id && sourceRow.revision === spec.source.revision, 'Provider job source does not match the transaction result', 409)
  else await source(env, tx, spec.source)
- const connected = await connection(env, tx, spec.connectionId, spec.operation), id = uuid()
+ const connected = await connection(env, tx, spec.connectionId, spec.operation), id = spec.eventId??uuid()
  need(spec.source.kind!=='commercialProposals'||connected.value.provider==='resend','Proposal mail requires its Resend connection',409)
  need(connected.value.provider!=='crank'||['budgetAlerts','engagements','time','invoices','payments'].includes(spec.source.kind),'Crank accepts only the declared native trigger sources')
  const endpoint = spec.operation === 'trigger:submit' && connected.value.provider==='crank' ? crankEndpoint(spec.endpoint) : null
@@ -76,7 +105,7 @@ export async function queueProviderJob(tx: Transaction, spec: ProviderJobSpec, s
  const job = await tx.record('providerJobs', {
   provider: connected.value.provider, operation: spec.operation, connectionId: connected.id, credentialVersion: connected.value.version,
   ownerId: a.session.operator.id, source: {kind: spec.source.kind, id: spec.source.id, revision: spec.source.revision},
-  endpoint, eventType:spec.eventType??null, eventId: id, status: 'queued', exceptionClass: null, attempts: 0,
+  endpoint, eventType:spec.eventType??null, eventId: id, payloadDigest:spec.payloadDigest??null, status: 'queued', exceptionClass: null, attempts: 0,
   createdAt: Date.now(), leaseUntil: null, nextAttemptAt: null, retryLimit: 3, completedAt: null,
  }, undefined, id, 'providerJob:queue')
  tx.sql('INSERT INTO g_provider_job_authority(job_id,operator_id) VALUES(?,?)', id, a.session.operator.id)
@@ -100,9 +129,18 @@ export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, actio
   const reason=text(input.reason,'Explicit event release reason')
   const prior=kind==='engagements'?await env.DB.prepare("SELECT COUNT(*) AS n FROM g_history WHERE kind='engagements' AND record_id=?").bind(src.id).first<{n:number}>():null
   const eventType=kind==='engagements'?(prior?.n?'gauge.project.changed':'gauge.project.created'):undefined
-  const job=await queueProviderJob(tx,{connectionId:connected.id,operation:'trigger:submit',eventType,...(endpoint?{endpoint}:{}),source:{kind:kind as ProviderJobSource['kind'],id:src.id,revision:src.revision}})
+  let preview:any
+  if(!crank){
+   preview=await env.DB.prepare('SELECT * FROM g_webhook_previews WHERE id=?').bind(text(input.previewId,'Exact payload preview')).first<any>()
+   need(preview&&preview.owner_id===a.session.operator.id&&preview.owner_version===a.session.operator.version&&preview.connection_id===connected.id&&preview.credential_version===connected.value.version&&preview.source_ref===input.sourceRef&&preview.expires_at>Date.now(),'Payload preview changed or expired; review it again',409)
+   need(input.confirm==='release-exact-event','Confirm the exact signed payload')
+   const body=JSON.stringify({event_id:preview.event_id,...webhookEvent({kind},src,eventType)})
+   need(sha256(body)===preview.payload_digest,'Payload changed; review it again',409)
+   tx.guard("EXISTS(SELECT 1 FROM g_webhook_previews WHERE id=? AND owner_id=? AND credential_version=? AND payload_digest=? AND expires_at>CAST(unixepoch('subsec')*1000 AS INTEGER))",preview.id,a.session.operator.id,connected.value.version,preview.payload_digest)
+  }
+  const job=await queueProviderJob(tx,{connectionId:connected.id,operation:'trigger:submit',eventType,...(preview?{eventId:preview.event_id,payloadDigest:preview.payload_digest}:{}),...(endpoint?{endpoint}:{}),source:{kind:kind as ProviderJobSource['kind'],id:src.id,revision:src.revision}})
   // The exact native source is the payload authority, never caller-supplied data.
-  tx.audit(action,'providerJobs',job.id,{releaseReason:reason,source:job.value.source})
+  tx.audit(action,'providerJobs',job.id,{releaseReason:reason,source:job.value.source,connectionId:connected.id,credentialVersion:connected.value.version,eventId:job.value.eventId,payloadDigest:job.value.payloadDigest})
   return job
  }
  if (action === 'providerJob:queue-crank') {
@@ -122,11 +160,13 @@ export async function jobCommand(env: Bindings, a: Actor, tx: Transaction, actio
   need(rounds.length<10,'Create a reviewed new source after ten refused-work review rounds',409)
   await source(env,tx,job.value.source)
   const connected=await connection(env,tx,job.value.connectionId,job.value.operation)
+  await reviewWebhookRetry(env,a,tx,job,connected,input)
   return tx.record('providerJobs',{...job.value,credentialVersion:connected.value.version,status:'queued',exceptionClass:null,attempts:0,nextAttemptAt:null,leaseUntil:null,completedAt:null,refusedRounds:[...rounds,{attempts:job.value.attempts,reviewedAt:Date.now(),reviewedBy:a.session.operator.id,reason}]},job,undefined,action)
  }
  need(job.value.status === 'exception' && job.value.exceptionClass === 'credential-rotated', 'Only work refused after credential rotation can be re-queued', 409)
  await source(env, tx, job.value.source)
  const connected = await connection(env, tx, job.value.connectionId, job.value.operation)
+ await reviewWebhookRetry(env,a,tx,job,connected,input)
  return tx.record('providerJobs', {...job.value, credentialVersion: connected.value.version, status: 'queued', exceptionClass: null, leaseUntil: null, completedAt: null, requeuedAt: Date.now()}, job, undefined, action)
 }
 
@@ -199,6 +239,7 @@ export async function dispatchProviderJob(env: Bindings, a: Actor, input: Value)
    result=await crankResult(response,credential)
   }else{
    const {endpoint:hook,signingKey}=webhookCredential(credential,claimed.value.provider),body=JSON.stringify({event_id:claimed.value.eventId,...webhookEvent(claimed.value.source,row,claimed.value.eventType)})
+   need(claimed.value.payloadDigest&&sha256(body)===claimed.value.payloadDigest,'Signed payload requires fresh exact review',409)
    const response=await fetch(hook,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:await signedWebhookHeaders(signingKey,claimed.value.eventId,body),body})
    result=await webhookResult(response,claimed.value.provider,claimed.value.eventId)
   }

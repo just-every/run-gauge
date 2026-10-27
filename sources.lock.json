@@ -4642,7 +4642,7 @@
       "executable": false
     },
     "tests/gauge-scope-review.mjs": {
-      "sha256": "6a4ab43f2eddf7fe806be91497f10056c3fbec241097596788c4370264807e62",
+      "sha256": "5dc6b86db002bae8ffe4587b1b9b353a904b861a08c234ec93a6de14c7800a6a",
       "executable": false
     },
     "tests/gauge-scoro.mjs": {

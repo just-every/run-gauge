@@ -5,6 +5,7 @@ import {randomUUID,createHash} from 'node:crypto'
 export async function scopeReviewJourney(h,{change,reviewer,person,read,input,preview}) {
  const {cmd,request,owner}=h
  const external=await h.invite('synthetic-gauge-8101'),other=await h.invite('synthetic-gauge-8102')
+ const backup=await h.invite('synthetic-gauge-8199','owner')
  const roles=[]
  for(const role of ['finance','lead','staff','agent']) {
   const member=await h.invite(`synthetic-gauge-81-${role}`)
@@ -53,25 +54,30 @@ export async function scopeReviewJourney(h,{change,reviewer,person,read,input,pr
  await cmd('projectScenario:adopt',{...row,asOf:input.asOf,selectedIds:[input.changes[0].id],fingerprint:preview.fingerprint,reason:'Unsigned response is not adoption'},owner,409)
  const audit=(await(await request(`/api/gauge/audit?recordId=${change.id}`,owner)).json()).entries
  const decisionAudit=audit.find(e=>e.action==='change:respond')
- assert.equal(decisionAudit.actor.id,external.id);assert.equal(decisionAudit.requestKey,body.key);assert.equal(decisionAudit.previousRevision,body.revision);assert.equal(decisionAudit.revision,receipt.revision)
+ assert.equal(decisionAudit.actor.id,external.id);assert.equal(decisionAudit.requestKey,body.key);assert.equal(decisionAudit.previousRevision,body.revision);assert.equal(decisionAudit.revision,receipt.revision);assert.equal(decisionAudit.result.clientResponses.at(-1).reason,body.reason)
  const accesses=audit.filter(e=>e.action==='change:review-access')
+ assert(!JSON.stringify(audit).includes(issued.token),'Access and business audits exclude the key')
  assert(accesses.some(e=>e.result.status===200&&e.actor.id===external.id));assert(accesses.some(e=>e.result.status===403&&e.actor.id===other.id))
  await cmd('change:revoke-review',{...row,reviewId:review.id,reason:'End exact review'})
  assert.equal((await call()).status,403);assert.equal((await call(external.cookie,issued.token,body)).status,403)
  // Every new release replaces the preceding key, including replay requests.
  let replacement=await cmd('change:release-review',await releaseInput({days:30})),replacementRow=await current(),replacementReview=replacementRow.value.clientReviews.at(-1)
  assert.equal(replacementReview.expiresAt-replacementReview.releasedAt,30*86400000)
+ assert.equal((await call(external.cookie,replacement.token,undefined,replacementReview.id)).status,200)
  const requestInput={...await releaseInput(),key:randomUUID()}
- const renewed=await cmd('change:release-review',requestInput)
+ let renewed=await cmd('change:release-review',requestInput)
  assert.equal((await cmd('change:release-review',requestInput)).token,undefined,'Replay never reissues the secret')
  assert.equal((await call(external.cookie,replacement.token,undefined,replacementReview.id)).status,403)
+ assert.equal((await call(external.cookie,replacement.token,{key:randomUUID(),revision:replacementRow.revision,outcome:'accepted',reason:'Replaced key'},replacementReview.id)).status,403)
  row=await current();review=row.value.clientReviews.at(-1)
  const active=async(body)=>call(external.cookie,renewed.token,body)
  assert.equal((await active()).status,200)
  await h.db.prepare('UPDATE g_scope_review_authority SET expires_at=0 WHERE review_id=?').bind(review.id).run()
  assert.equal((await active()).status,403);assert.equal((await active({key:randomUUID(),revision:row.revision,outcome:'accepted',reason:'Expired'})).status,403)
  await h.db.prepare('UPDATE g_scope_review_authority SET expires_at=? WHERE review_id=?').bind(Date.now()+86400000,review.id).run()
- const ownerId=(await(await request('/auth/session',owner)).json()).operator.id
+ renewed=await cmd('change:release-review',await releaseInput(),backup.cookie)
+ row=await current();review=row.value.clientReviews.at(-1)
+ const ownerId=backup.id
  await h.db.prepare("UPDATE oa_operators SET status='inactive' WHERE id=?").bind(ownerId).run()
  assert.equal((await active()).status,403);assert.equal((await active({key:randomUUID(),revision:row.revision,outcome:'accepted',reason:'Stopped owner'})).status,403)
  await h.db.prepare("UPDATE oa_operators SET status='active' WHERE id=?").bind(ownerId).run()

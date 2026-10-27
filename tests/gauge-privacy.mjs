@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
+import { randomUUID,createHash } from 'node:crypto'
 import { mkdir,mkdtemp,rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join,resolve } from 'node:path'
@@ -30,6 +30,10 @@ export async function privacyJourney(){
   await cmd('leave:decide',{...await cmd('save:leave',{personId:person.id,from:'2020-10-06',to:'2020-10-06',dailySeconds:3600,note:'Personal time',timezone:'America/New_York'}),outcome:'approved'})
   const staff=await h.invite('retention-staff'),finance=await h.invite('retention-finance')
   await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd('grant',{operatorId:finance.id,personId:lead.id,role:'finance',enabled:true})
+  const appKey=await cmd('appkey:create',{label:'synthetic-gauge-4103',operatorId:staff.id,projectIds:[project.id],expiryDays:1,scope:'projects:read time:read time:write'})
+  const appRead=path=>request(path,'',{headers:{authorization:`Bearer ${appKey.token}`}})
+  assert.equal((await appRead('/api/gauge/v1/projects/'+project.id)).status,200)
+  assert.equal((await appRead('/api/gauge/v1/time')).status,200)
   for(const cookie of [staff.cookie,finance.cookie]){await cmd('privacy:policy',{personalDays:0,fileDays:0,evidenceDays:0,reason:'Denied'},cookie,403);await cmd('privacy:preview',{personId:person.id},cookie,403);assert.equal((await request('/api/gauge/privacy/journal',cookie)).status,403)}
   let policy=await cmd('privacy:policy',{personalDays:36500,fileDays:36500,evidenceDays:36500,reason:'Explicit owner retention'})
   await cmd('privacy:policy',{...policy,revision:'stale',personalDays:0,fileDays:0,evidenceDays:0,reason:'Stale'},owner,409)
@@ -47,6 +51,7 @@ export async function privacyJourney(){
   const exportText=async()=>{const id=await service.exports.create();while((await service.exports.advance(id,{maxParts:16})).phase==='building'){}return new Response(await service.exports.download(id)).text()}
   const beforeExportPreview=await cmd('privacy:preview',{personId:person.id})
   const oldArchive=await exportText(),before=await h.state(),oldPacket=await(await request('/api/gauge/packets/'+packet.id,owner)).text()
+  for(const secret of [appKey.token,createHash('sha256').update(appKey.token).digest('hex')])assert(!oldArchive.includes(secret),'App credential and hash never enter an old archive')
   assert(oldArchive.includes(Buffer.from('synthetic-gauge-4102 private receipt').toString('base64')))
   await cmd('privacy:erase',{personId:person.id,fingerprint:beforeExportPreview.fingerprint,reason:'A new export invalidates the reviewed consequences',confirm:'erase-reviewed-native-scope',lawfulReceiptRemoval:'authorized'},owner,409)
   browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
@@ -61,6 +66,7 @@ export async function privacyJourney(){
   const erase=page.locator('form').filter({has:page.locator('[name=action][value="privacy:erase"]')});await erase.locator('[name=confirm]').check();await erase.locator('[name=lawfulReceiptRemoval]').check();await erase.getByLabel('Erasure authorization reason').fill('Owner authorizes only the displayed native scope');await erase.getByRole('button',{name:'Erase reviewed scope'}).click();await capture('completion')
   const after=await h.state();assert.equal(after.data.privacyErasures.length,1,JSON.stringify({alert:await page.locator('[role=alert]').allTextContents(),diagnostics:h.logs.filter(s=>s.includes('privacy '))}));assert.equal(after.data.privacyErasures[0].value.status,'native-scope-complete');assert.match(after.data.privacyErasures[0].value.meaning,/Not a certificate/)
   assert.equal(after.data.people.find(p=>p.id===person.id).value.name,'Erased worker');assert(after.data.people.find(p=>p.id===person.id).value.privacyErased)
+  for(const path of ['/api/gauge/v1/projects/'+project.id,'/api/gauge/v1/time','/api/gauge/v1/time/'+time.id])assert.equal((await appRead(path)).status,403,'Exited and erased principals retain no app access')
   const anonymized=after.data.people.find(p=>p.id===person.id).value.name
   assert(previewText.includes(anonymized),'The preview named the anonymized form the held records keep');assert.equal(after.data.privacyErasures[0].value.retained.anonymizedAs,anonymized,'The completion record names the same anonymized form')
   assert.equal((await request('/api/gauge/files/'+receiptId,owner)).status,404)
@@ -81,8 +87,10 @@ export async function privacyJourney(){
    const old=await read(oldArchive),id=await restore.imports.create(old[0]);for(const p of old.filter(r=>r.kind==='part'))await restore.imports.uploadPart(id,p.index,p)
    await assert.rejects(()=>restore.imports.finalize(id,{...old.at(-1),laterJournal:journal}),/erasure_epoch/)
    assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_people').first()).n,0,'An old archive publishes no rows behind the later erasure fence');await restore.imports.abort(id)
+   assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_app_keys').first()).n,0,'A refused old restore cannot install app authority')
    const current=await read(newArchive),fresh=await restore.imports.create(current[0]);for(const p of current.filter(r=>r.kind==='part'))await restore.imports.uploadPart(fresh,p.index,p);await restore.imports.finalize(fresh,current.at(-1))
    assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_files WHERE id=?').bind(receiptId).first()).n,0);assert.equal(JSON.parse((await proxy.env.DB.prepare('SELECT data FROM g_people WHERE id=?').bind(person.id).first()).data).name,'Erased worker')
+   assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_app_keys').first()).n,0,'The permitted current restore also imports no app authority')
   }finally{await proxy?.dispose();await rm(dir,{recursive:true,force:true});await rm('dist/server/.wrangler',{recursive:true,force:true})}
   await context.close();console.log('PASS GOVERN-006 bounded native retention/erasure, lawful money hold, exact preview, owner authority and trusted later restore fence (PARTIAL)')
  }finally{await browser?.close();await h.dispose()}

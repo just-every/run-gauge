@@ -432,7 +432,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "91d1c40f319f9981d9ef8c5dbc035a7e53081275c8fc6be9c41c47be8177be29",
+      "sha256": "40dad805f305eae59cc84d9e1515b59fa93edc65542fbcef448c08e7a3a33607",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -444,7 +444,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "2cee16c9ea5cf42905189feb4f55113a7782da05cd79836816ecbf73b9aafc8a",
+      "sha256": "69714c612b04ee5e9cca8b9b1cecdc6ef2d4b23265102b9d206fd207818e4632",
       "executable": false
     },
     "base-copies.json": {
@@ -456,7 +456,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e72b48c178692b63b7d814565c6861931b9ddb9457314ed0b6d72f9594047f0f",
+      "sha256": "545e0463d31fcb6087294ac5f6c463953ddceec39eb2b5b023bdeee8443f852e",
       "executable": false
     },
     "DEMO.md": {
@@ -1684,7 +1684,7 @@
       "executable": false
     },
     "src/gauge/form-input.ts": {
-      "sha256": "adbd072d5bc2b4a7ffaa1448e1ec02adbfef450bacb00616e759c4aeb5611827",
+      "sha256": "4e7bf4783cc324acbb6c5db08e12ff30ca16f4c29af4b4973b870dd55da1daed",
       "executable": false
     },
     "src/gauge/fx-rates.ts": {
@@ -1748,7 +1748,7 @@
       "executable": false
     },
     "src/gauge/intake.ts": {
-      "sha256": "a0f84ad327a45e41503501418a86c333783c37c2e55d5786e3c91be01fff16a6",
+      "sha256": "cba09e10ecdcd0c6aaa1769ee878208221ca177c3e660cbfa757ced596751019",
       "executable": false
     },
     "src/gauge/invoice-access.ts": {
@@ -2296,7 +2296,7 @@
       "executable": false
     },
     "src/gauge/ui-delivery-templates.ts": {
-      "sha256": "c0eaf49b38449706d0d9d8802f4d61e128110b8b335f5d8078a4eb19e4ea2dd2",
+      "sha256": "4bab889d90851a6e7aaf916e306f7ab46f37e992a5b23846441e1f5a68cb7102",
       "executable": false
     },
     "src/gauge/ui-demand.ts": {
@@ -4496,7 +4496,7 @@
       "executable": false
     },
     "tests/gauge-delivery-templates.mjs": {
-      "sha256": "91e7dac0f15aa9b5c8cdd15e3aa507d16086dbeb83a5a4fcfb6978c725af86ab",
+      "sha256": "94641e30e6684a987067fb430e64b32ad94d182d5a0851665cf679f5c1d630b9",
       "executable": false
     },
     "tests/gauge-delivery.mjs": {
@@ -4556,7 +4556,7 @@
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
-      "sha256": "ecdd489b9885296f0b1016f3e30ccc3622cf55723abd02d1ee0861acc74e009c",
+      "sha256": "c7fc29e25998dde7b1fd4150609eef9bc15927052a53e06c528121c4b6a5beaf",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

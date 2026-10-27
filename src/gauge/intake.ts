@@ -4,10 +4,17 @@ import { type Value, type Row, need, text, integer, date, uuid, workDate } from 
 import { sha256 } from '../modules/import-kit/src/d1/index'
 import { escape as e, form, input as i, area, choices } from './ui-forms'
 
+function relatedLink(value:unknown){
+ if(value==null||value==='')return null
+ const raw=text(value,'Related product link',2000);let link:URL
+ try{link=new URL(raw)}catch{need(false,'Use an HTTPS product link')}
+ need(link.protocol==='https:'&&!link.username&&!link.password&&!link.search&&!link.hash,'Use an HTTPS product link without credentials or query data')
+ return link.href
+}
 export function normalizeIntake(input:Value){
  const questions=Array.isArray(input.questions)?input.questions:String(input.questions??'').split(/\r?\n/).filter(s=>s.trim())
  need(questions.length>=1&&questions.length<=12,'Use one to twelve required questions')
- return {title:text(input.title,'Intake title',200),questions:questions.map(q=>text(q,'Question',200)),fileLabel:text(input.fileLabel,'Requested file',200),everyDays:integer(input.everyDays??1,'Reminder interval',1,30)}
+ return {chestUrl:relatedLink(input.chestUrl),blotterUrl:relatedLink(input.blotterUrl),title:text(input.title,'Intake title',200),questions:questions.map(q=>text(q,'Question',200)),fileLabel:text(input.fileLabel,'Requested file',200),everyDays:integer(input.everyDays??1,'Reminder interval',1,30)}
 }
 export async function createIntake(tx:Transaction,project:Row,input:Value){
  return tx.record('intakeRequests',{...normalizeIntake(input),engagementId:project.id,clientId:project.value.clientId,due:date(input.due),reminderOn:date(input.reminderOn??input.due),status:'requested',submissions:[],decisions:[],reminders:[],escalations:[],templateId:input.templateId??null,requestedBy:tx.actor.session.operator.id},undefined,undefined,'intake:request')
@@ -66,7 +73,7 @@ export async function intakeSection(env:Bindings,a:Actor,project:Row){
  if(!manage&&!a.clientPortal)return ''
  const rows=(await all(env,'intakeRequests')).filter(r=>r.value.engagementId===project.id&&r.value.clientId===project.value.clientId).map(r=>intakeProjection(r,a))
  const today=workDate(Date.now(),a.timezone)
- const editor=manage?`<details><summary>Request client inputs</summary>${form('intake:request','New client intake',`<input type="hidden" name="engagementId" value="${e(project.id)}">`+i('title','Intake title')+area('questions','Required questions, one per line')+i('fileLabel','Requested file')+i('due','Due date',today,'date')+i('reminderOn','First in-app reminder',today,'date')+i('everyDays','Reminder interval in days',1,'number'),undefined,'Request inputs')}</details>`:''
+ const editor=manage?`<details><summary>Request client inputs</summary>${form('intake:request','New client intake',`<input type="hidden" name="engagementId" value="${e(project.id)}">`+i('title','Intake title')+area('questions','Required questions, one per line')+i('fileLabel','Requested file')+i('due','Due date',today,'date')+i('reminderOn','First in-app reminder',today,'date')+i('everyDays','Reminder interval in days',1,'number')+`<details><summary>Related product requests</summary>${i('chestUrl','Chest shared-file link','','url',false)}${i('blotterUrl','Blotter practice-request link','','url',false)}</details>`,undefined,'Request inputs')}</details>`:''
  return `<section id="client-intake" class="g-card"><h2>Client intake</h2><p>Project inputs and in-app reminders. Files download as attachments. Do not submit passwords or authentication keys. No notification is sent.</p>${editor}${rows.map(row=>{
   const v=row.value,last=v.submissions.at(-1),latestDecision=v.decisions.at(-1),open=v.status!=='accepted'
   const history=v.submissions.map((s:Value)=>`<details><summary>Submission · ${e(new Date(s.at).toISOString())}</summary>${v.questions.map((q:string,n:number)=>`<p>${e(q)}: ${e(s.answers[n]||'Missing answer')}</p>`).join('')}${s.file?`<p><a href="/api/gauge/intake-files/${e(s.file.id)}">Download ${e(s.file.name)}</a></p>`:'<p>Requested file missing.</p>'}</details>`).join('')
@@ -74,6 +81,6 @@ export async function intakeSection(env:Bindings,a:Actor,project:Row){
   const review=manage&&v.status==='submitted'?form('intake:review','Review submitted inputs',choices('outcome','Review decision',['rejected','accepted'])+area('reason','Review reason'),row,'Save review'):''
   const reminders=open?`<p role="status">Action due ${e(v.due)} · Next in-app reminder ${e(v.reminderOn)} · every ${e(v.everyDays)} days · ${e(v.status)}</p>`:'<p role="status">Accepted · No outstanding reminders.</p>'
   const controls=manage&&open?`<details><summary>Follow through</summary>${form('intake:remind','Record in-app reminder',i('on','Reminder date',today,'date')+area('reason','Reminder reason'),row,'Record reminder')}${form('intake:escalate','Escalate blocked inputs',area('reason','Blocked input reason'),row,'Escalate to project lead')}</details>`:''
-  return `<article data-intake-id="${e(row.id)}"><h3>${e(v.title)}</h3>${reminders}<p>Requested file: ${e(v.fileLabel)}</p>${latestDecision?`<p>${e(latestDecision.outcome)}: ${e(latestDecision.reason)}</p>`:''}${v.escalations.map((x:Value)=>`<p>Blocked · ${e(x.reason)}</p>`).join('')}${history}${submit}${review}${controls}</article>`
+  return `<article data-intake-id="${e(row.id)}"><h3>${e(v.title)}</h3>${reminders}${v.chestUrl?`<p><a href="${e(v.chestUrl)}" rel="noreferrer">Open shared files in Chest</a></p>`:''}${v.blotterUrl?`<p><a href="${e(v.blotterUrl)}" rel="noreferrer">Open practice request in Blotter</a></p>`:''}<p>Requested file: ${e(v.fileLabel)}</p>${latestDecision?`<p>${e(latestDecision.outcome)}: ${e(latestDecision.reason)}</p>`:''}${v.escalations.map((x:Value)=>`<p>Blocked · ${e(x.reason)}</p>`).join('')}${history}${submit}${review}${controls}</article>`
  }).join('')||'<p>No inputs requested.</p>'}</section>`
 }

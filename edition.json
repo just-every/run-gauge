@@ -78,7 +78,8 @@
           "migrations/core/0070_gauge_float_adoption.sql",
           "migrations/core/0073_gauge_milestone_review.sql",
           "migrations/core/0074_gauge_milestone_review_tokens.sql",
-          "migrations/core/0078_gauge_client_portal.sql"
+          "migrations/core/0078_gauge_client_portal.sql",
+          "migrations/core/0079_gauge_app_key_lifecycle.sql"
         ]
       }
     },

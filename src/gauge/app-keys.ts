@@ -1,6 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
-import { actor, type Actor, Transaction, fence, get } from './store'
+import { actor, type Actor, Transaction, fence, get, access } from './store'
 import { need, text, uuid } from './model'
 import { visible } from './reports'
 import { command, publicResult } from './commands'
@@ -68,6 +68,8 @@ export async function appKeyRequest(env:Bindings,request:Request,url:URL,headers
  let input:any;try{input=JSON.parse(new TextDecoder().decode(bytes))}catch{need(false,'Use a JSON object')}
  need(input&&typeof input==='object'&&!Array.isArray(input),'Use a JSON object')
  need(!input.action||input.action==='time:save','App credentials save draft time only',403)
+ need(input.personId===a.personId,'App credentials write only their named person',403)
+ await access(env,a,text(input.engagementId,'Engagement'))
  const requestKey=text(input.key,'Unique request key',120)
  // Namespace receipts by credential, so another app cannot receive its outcome.
  const result=await command(env,a,'time:save',{...input,key:'app:'+key.id+':'+requestKey})

@@ -6,7 +6,7 @@ import {mkdir} from 'node:fs/promises'
 export async function appApiJourney(h,browser,{staff,person,client,task,engagement}) {
  const {cmd,owner,request}=h
  const app=(token,path='/api/gauge/v1/projects',input)=>request(path,'',{...(input?{method:'POST',body:JSON.stringify(input)}:{}),headers:{authorization:`Bearer ${token}`,'content-type':'application/json'}})
-  for(let i=0;i<3;i++)await cmd('save:engagements',{name:`App project ${i}`,clientId:client.id,leadId:person.id,members:[person.id],scope:'Assigned app work',timezone:'Australia/Brisbane'})
+ for(let i=0;i<3;i++)await cmd('save:engagements',{name:`App project ${i}`,clientId:client.id,leadId:person.id,members:[person.id],scope:'Assigned app work',timezone:'Australia/Brisbane'})
  const captured=(await h.state(staff.cookie)).data.engagements.map(r=>r.id).sort()
  const create={expiryDays:30,engagementIds:captured,label:'Scoped timesheet app',operatorId:staff.id,scope:'projects:read time:write'}
  await cmd('appkey:create',create,staff.cookie,403)
@@ -21,7 +21,7 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`App credential screen fits ${width}`)
    // Access uses text buttons. Any icon-only control must retain the shared tooltip.
    for(const control of await page.locator('button.g-btn--icon,a.g-btn--icon').all())assert(await control.getAttribute('data-tooltip'))
-   if(process.env.GAUGE_UTILIZATION_SHOTS){await mkdir(process.env.GAUGE_UTILIZATION_SHOTS,{recursive:true});await page.locator('#app-keys').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`,fullPage:true});await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`})}
+   if(process.env.GAUGE_UTILIZATION_SHOTS){await mkdir(process.env.GAUGE_UTILIZATION_SHOTS,{recursive:true});await page.locator('#app-keys').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`,fullPage:true,mask:[page.locator('[name=createdKey]')]});await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`,mask:[page.locator('[name=createdKey]')]})}
   }
  }
  try{
@@ -31,10 +31,12 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   const token=await page.locator('[name=createdKey]').inputValue();assert.match(token,/^gauge_app_/)
   const key=await h.db.prepare('SELECT * FROM g_app_keys WHERE label=?').bind(create.label).first();assert.equal(key.hash,createHash('sha256').update(token).digest('hex'));assert(!JSON.stringify(key).includes(token))
   assert.deepEqual(JSON.parse(key.engagement_ids),captured);assert.equal(key.person_id,person.id);assert.equal(key.expires_at-key.created_at,30*86400000)
-  const lifecycle=page.locator(`tr[id="${key.id}"]`);assert.match(await lifecycle.innerText(),/Expires/);assert.match(await lifecycle.innerText(),/Credential version 1/);assert.match(await lifecycle.innerText(),/grant/);for(const id of captured)assert((await lifecycle.innerText()).includes(id))
+  const lifecycle=page.locator(`tr[id="${key.id}"]`),lifecycleText=await lifecycle.innerText();assert(lifecycleText.includes(new Date(key.expires_at).toISOString().slice(0,16).replace('T',' ')+' UTC'));assert(lifecycleText.includes(person.id));assert(lifecycleText.includes('operator '+key.operator_version));assert(lifecycleText.includes('grant '+key.grant_version));for(const id of captured)assert((await lifecycle.innerText()).includes(id))
   await capture('app-credential-shown-once');await page.reload();assert.equal(await page.locator('[name=createdKey]').count(),0)
   const repeated={...create,key:randomUUID()},first=await cmd('appkey:create',repeated),replay=await cmd('appkey:create',repeated);assert.equal(replay.id,first.id);assert(!replay.token)
   await cmd('appkey:create',{...repeated,scope:'projects:read'},owner,409)
+  await cmd('appkey:create',{...repeated,expiryDays:31},owner,409)
+  await cmd('appkey:create',{...repeated,engagementIds:[engagement.id]},owner,409)
   const hiddenPerson=await cmd('save:people',{name:'Other app principal',timezone:'Australia/Brisbane'})
   const hidden=await cmd('save:engagements',{name:'Hidden app project',clientId:client.id,leadId:hiddenPerson.id,members:[hiddenPerson.id],scope:'Private project',timezone:'Australia/Brisbane'})
   const native=(await h.state(staff.cookie)).data.engagements,projects=[];let cursor=null,firstCursor
@@ -65,9 +67,11 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   const removed=await cmd('save:engagements',{...current.value,id:current.id,revision:current.revision,members:[]})
   assert.deepEqual((await(await app(subset.token)).json()).projects,[],'Captured scope still intersects current native membership')
   assert.equal((await app(subset.token,'/api/gauge/v1/time',{...input,key:randomUUID()})).status,403)
+  assert.equal((await app(token,'/api/gauge/v1/time',input)).status,403,'Removed native membership also refuses a successful write replay')
   await cmd('save:engagements',{...current.value,id:removed.id,revision:removed.revision})
   const readOnly=await cmd('appkey:create',{...create,label:'Read-only app',scope:'projects:read'})
   assert.equal((await app(readOnly.token,'/api/gauge/v1/time',{...input,key:randomUUID()})).status,403)
+  for(const action of ['time:submit','time:approve','packet:create','grant','providerJob:dispatch'])assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),action})).status,403)
   assert.equal((await app(token,'/api/gauge/v1/audit')).status,403)
   assert.equal((await app(token,'/api/gauge/state?from=2026-10-01&to=2026-10-31')).status,401,'App credential cannot use the utilization door')
   const audit=await(await request('/api/gauge/audit',owner)).json();assert(audit.entries.some(e=>e.action==='appkey:use'));assert(!JSON.stringify(audit).includes(token))
@@ -78,13 +82,13 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.equal((await app(expiring.token)).status,401,'Expiry refuses the next read')
   assert.equal((await app(expiring.token,'/api/gauge/v1/time',expiringInput)).status,401,'Expiry refuses a previously successful write replay')
   assert.equal((await app(expiring.token,'/api/gauge/v1/time',{...expiringInput,key:randomUUID()})).status,401,'Expiry refuses a fresh write')
-  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${expiring.id}"]`).innerText(),/expired/);assert.match(await page.locator(`tr[id="${key.id}"]`).innerText(),/Last used/);assert.equal(await page.locator('[name=createdKey]').count(),0);await capture('app-credential-expired')
+  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${expiring.id}"]`).innerText(),/expired/);const used=await h.db.prepare('SELECT last_used_at FROM g_app_keys WHERE id=?').bind(key.id).first();assert(used.last_used_at);assert((await page.locator(`tr[id="${key.id}"]`).innerText()).includes(new Date(used.last_used_at).toISOString().slice(0,16).replace('T',' ')+' UTC'));assert((await page.getByRole('heading',{name:'App credential activity',exact:true}).locator('..').innerText()).includes('appkey:use'));assert.equal(await page.locator('[name=createdKey]').count(),0);await capture('app-credential-expired')
   await page.locator(`tr[id="${key.id}"]`).getByRole('button',{name:'Revoke app credential',exact:true}).click()
   await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${key.id}"]`).innerText(),/revoked/);await capture('app-credential-revoked')
   assert.equal((await app(token)).status,401);assert.equal((await app(token,'/api/gauge/v1/time',input)).status,401,'Revocation also refuses an exact write replay')
   await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true})
   assert.equal((await app(readOnly.token)).status,403,'A changed native grant invalidates existing credentials')
   await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${readOnly.id}"]`).innerText(),/principal or grant changed/);await capture('app-credential-invalidated')
-  console.log('PASS CONNECT-020 appApiJourney: scoped native project pagination and filters, stale cursor refusal, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, grant change and revoked replay refusal, Access at 1440 and 390')
+  console.log('PASS CONNECT-020 appApiJourney: scoped native project pagination and filters, stale cursor refusal, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, grant change and revoked replay refusal, finite expiry including write replays, exact captured scope non-widening and native membership intersection, visible lifecycle and safe activity, Access at 1440 and 390')
  }finally{await context.close()}
 }

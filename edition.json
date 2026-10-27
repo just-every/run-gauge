@@ -54,6 +54,7 @@
           "migrations/core/0045_gauge_phase_alerts.sql",
           "migrations/core/0046_gauge_agency_close.sql",
           "scripts/gauge-tests.mjs",
+          "scripts/integrations/webhook-receiver.mjs",
           "migrations/core/0047_gauge_custom_fields.sql",
           "migrations/core/0048_gauge_estimates.sql",
           "migrations/core/0049_gauge_commercial_proposals.sql",
@@ -82,7 +83,9 @@
           "migrations/core/0079_gauge_portal_choices.sql",
           "migrations/core/0080_gauge_portal_owner_version.sql",
           "migrations/core/0079_gauge_change_review.sql",
-          "migrations/core/0080_gauge_intake.sql"
+          "migrations/core/0080_gauge_intake.sql",
+          "migrations/core/0079_gauge_app_key_scope.sql",
+          "migrations/core/0080_gauge_webhook_previews.sql"
         ]
       }
     },

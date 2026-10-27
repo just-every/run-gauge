@@ -107,7 +107,7 @@ export async function operations(env:Bindings,a:Actor,section:string,options:Val
   ],r=>r.value.enabled?form('grant','Revoke access',`<input type="hidden" name="operatorId" value="${e(r.id)}"><input type="hidden" name="role" value="${e(r.value.role)}"><input type="hidden" name="personId" value="${e(r.value.person_id ?? '')}">`,undefined,'Revoke access','g-bare'):'','No grants yet. The owner holds finance authority without one.')
   body+=await approvalPolicySection(env,a,d.people,d.approvalPolicies)
   body+=await providerCustodySection(env,a)+stripeSetupSection(report,env.AUTH_ORIGIN)
-  body+=await providerJobsSection(env,a,report)
+  body+=await providerJobsSection(env,a,report,options.webhookPreview)
   body+=await apiKeysSection(env,options.createdKey)
  }
  return body

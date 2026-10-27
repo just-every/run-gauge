@@ -13,7 +13,7 @@ export async function clientPortalCommand(env:Bindings,a:Actor,tx:Transaction,ac
  if(!['client:invite-project','client:renew-project','client:revoke-project','client:share-money'].includes(action))return null
  need(a.session.kind==='native'&&finance(a),'Native finance authority required',403)
  const reason=text(input.reason,'Client access reason')
- const expiry=()=>{if(input.months!==undefined){const months=integer(input.months,'Access duration in months',1,12),now=new Date(),day=now.getUTCDate();now.setUTCDate(1);now.setUTCMonth(now.getUTCMonth()+months);const last=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()+1,0)).getUTCDate();now.setUTCDate(Math.min(day,last));return now.getTime()}return Date.now()+integer(input.days??7,'Access duration',1,30)*86400000}
+ const expiry=()=>{need(input.months===undefined||input.days===undefined,'Choose days or months, not both');if(input.months!==undefined){const months=integer(input.months,'Access duration in months',1,12),now=new Date(),day=now.getUTCDate();now.setUTCDate(1);now.setUTCMonth(now.getUTCMonth()+months);const last=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()+1,0)).getUTCDate();now.setUTCDate(Math.min(day,last));return now.getTime()}return Date.now()+integer(input.days??7,'Access duration',1,30)*86400000}
  if(action==='client:invite-project'){
   need(a.role==='owner','Only the owner invites project recipients',403)
   const project=await get(env,'engagements',text(input.engagementId,'Project'));tx.observe('engagements',project)
@@ -55,8 +55,9 @@ export async function clientPortalResponse(request:Request,env:Bindings):Promise
   need(url.origin===env.AUTH_ORIGIN&&(!request.headers.has('host')||request.headers.get('host')===url.host),'Invalid host',403)
   const session=await operatorAuth(env).getSession(request);need(session&&session.kind==='native','Sign in with your invited email',401)
   if(!match[2]){
-   const invitations=(await env.DB.prepare('SELECT * FROM g_client_portal_authority WHERE recipient_id=?').bind(session.operator.id).all<any>()).results,projects:Value[]=[]
-   for(const invitation of invitations){const a:Actor={...await actor(env,session),role:'client',clientPortal:{id:invitation.id,revision:invitation.revision}};try{await fence(env,a)}catch{continue}const project=await get(env,'engagements',invitation.engagement_id);projects.push({id:project.id,name:project.value.name,href:`/app/client-projects/${project.id}`})}
+   const invitations=(await env.DB.prepare('SELECT * FROM g_client_portal_authority WHERE recipient_id=?').bind(session.operator.id).all<any>()).results,projects:Value[]=[],actors:Actor[]=[]
+   for(const invitation of invitations){const a:Actor={...await actor(env,session),role:'client',clientPortal:{id:invitation.id,revision:invitation.revision}};try{await fence(env,a)}catch{continue}const project=await get(env,'engagements',invitation.engagement_id);actors.push(a);projects.push({id:project.id,name:project.value.name,href:`/app/client-projects/${project.id}`})}
+   for(const current of actors)await fence(env,current)
    if(match[1]!=='app')return Response.json({projects},{headers})
    return clientDeliveryPage(`<section class="g-card"><h2>Your invited projects</h2>${projects.map(p=>`<p><a href="${e(p.href)}">${e(p.name)}</a></p>`).join('')||'<p>No current project invitations.</p>'}</section>`,200,'Client projects')
   }

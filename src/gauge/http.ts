@@ -75,7 +75,9 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    return Response.json(await utilizationKeyRead(env,token,url.searchParams.get('from'),url.searchParams.get('to')),{headers})
   }
   const session=await operatorAuth(env).getSession(request);if(!session&&path.startsWith('/app'))return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});need(session,'Sign in required',401)
-  const a=await actor(env,session);await fence(env,a)
+  const a=await actor(env,session)
+  if(a.role==='none'&&path==='/app'&&request.method==='GET')return new Response(null,{status:303,headers:{...headers,location:'/app/client-projects'}})
+  await fence(env,a)
   if(a.role==='resource-manager')need(mutation||path==='/api/gauge/state'||resourceRoute||path==='/app'||path==='/app/capacity','Resource managers read scoped planning only',403)
   if(a.role==='accountant')need(!mutation&&(path==='/api/gauge/accountant'||path==='/app'||path==='/app/review'||download?.[1]==='handoffs'||download?.[1]==='closes'),'Accountants read reviewed accounting exports and close evidence only',403)
   if(a.role==='agent')need(mutation||historyRoute||path==='/api/gauge/state'||path==='/app'||path==='/app/review','Agent read door is outside its purpose',403)

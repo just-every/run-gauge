@@ -226,7 +226,7 @@ export async function acceptedChangeJourney(h,browser){
  const read=await request(path,recipient.cookie);assert.equal(read.status,200);const document=await read.json()
  assert.deepEqual(document.document.scope,{before:'Original delivery',after:'Original delivery plus prototype'})
  assert.equal(document.document.terms.before.amountMinor,200000);assert.equal(document.document.terms.after.amountMinor,260000)
- assert.equal(document.document.terms.after.currency,'USD');assert.deepEqual(document.document.dates.after[0].tasks,[{id:task.id,from:day(1),to:day(3)}])
+ assert.equal(document.document.terms.after.currency,'USD');assert.deepEqual(document.document.dates.after[0].tasks,[{id:task.id,from:day(1),to:day(3),name:'Prototype'}])
  const serialized=JSON.stringify(document);for(const field of ['costMinor','marginMinor','preparedBy','reviewReason','token_hash'])assert(!serialized.includes(field),field)
  const response=async(r,input,cookie=recipient.cookie)=>request(readPath(r),cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json'},body:JSON.stringify(input)})
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
@@ -280,6 +280,12 @@ export async function acceptedChangeJourney(h,browser){
   const audit=await(await request(`/api/gauge/audit?recordId=${signed.id}`,owner)).json();assert.equal(audit.entries.filter(r=>r.action==='change:adopt').length,1)
   assert(audit.entries.some(r=>r.action==='change:respond'&&r.actor.id===recipient.id&&r.result.clientDecision.reason===exact.reason))
   assert.equal((await request(readPath(signed),recipient.cookie)).status,200,'Signed adopted terms remain inspectable')
+  await cmd('client:revoke-project',{...invitation,reason:'Project access ends now'})
+  assert.equal((await request(readPath(signed),recipient.cookie)).status,403,'Portal withdrawal stops the keyless change door')
+  assert.equal((await request(readPath(signed),recipient.cookie,{headers:{'x-gauge-review-token':acceptedRelease.token}})).status,200,'Separately released exact key remains independently scoped')
+  await cmd('change:revoke-review',{id:a.id,revision:a.revision,reviewId:signed.value.clientReview.id,reason:'End separately released review'})
+  assert.equal((await request(readPath(signed),recipient.cookie,{headers:{'x-gauge-review-token':acceptedRelease.token}})).status,403)
+
   console.log('PASS SALES-005 portal exact revision, rejection reason, signed consent, prior terms, independent forecast increment, once-only owner adoption and private-field refusals')
  }finally{await context.close()}
 }

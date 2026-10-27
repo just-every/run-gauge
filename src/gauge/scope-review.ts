@@ -18,7 +18,7 @@ const pick=(v:Value,keys:string[])=>Object.fromEntries(keys.filter(k=>v[k]!==und
 /** The agency releases a closed customer projection, never its private financial comparison. */
 export function changeDocument(row:Row):Value {
  const v=row.value,terms=(t:Value|null)=>t?{currency:v.baseline.projects.find((p:Value)=>p.engagementId===v.engagementId)?.currency,...pick(t.value??t,['currency','mode','amountMinor','effortSeconds','roundingSeconds','expenseBudgetMinor','expenseDate'])}:null
- const dates=(set:Value)=>set.dates.filter((p:Value)=>p.engagementId===v.engagementId).map((p:Value)=>({finish:p.finish,tasks:p.tasks,milestones:p.milestones}))
+ const dates=(set:Value)=>set.dates.filter((p:Value)=>p.engagementId===v.engagementId).map((p:Value)=>({finish:p.finish,tasks:p.tasks.map((t:Value)=>({...t,name:v.customerNames?.tasks[t.id]??'Deliverable'})),milestones:p.milestones.map((m:Value)=>({...m,name:v.customerNames?.milestones[m.id]??'Milestone'}))}))
  return {engagementId:v.engagementId,changeId:row.id,version:v.number,fingerprint:v.fingerprint,scope:v.scopeDifference,terms:{before:terms(v.termsDifference.before),after:terms(v.termsDifference.after)},dates:{before:dates(v.baseline),after:dates(v.scenario)}}
 }
 /** Client consent and native-owner adoption are separate explicit decisions. */
@@ -41,13 +41,13 @@ export async function changeReviewCommand(env:Bindings,a:Actor,tx:Transaction,ac
   const clientDecision={signature,documentDigest,changeRevision:row.revision,outcome:input.outcome,reason:text(input.reason,'Client decision reason'),reviewId:a.clientChange.reviewId,fingerprint:row.value.fingerprint,operatorId:a.session.operator.id,contact:a.session.operator.email,at:Date.now(),notice:signature?'Identity-bound client acceptance of the exact terms; not adopted. No invoice is authorized.':'Client rejection of the exact terms; not adopted.'}
   return tx.record('projectScenarios',{...row.value,clientDecision,notice:'Internal review remains separate. Client evidence is retained; native-owner adoption is required before the forecast changes. Billing remains separate.'},row,undefined,action)
  }
- need(a.role==='owner'&&a.session.kind==='native','Only the native owner releases or revokes client change review',403)
+ need(a.role==='owner'&&a.session.kind==='native','Only the native owner releases review, revokes it or adopts an accepted change',403)
  const reason=text(input.reason,'Review authorization reason')
  if(action==='change:adopt'){
   await current(env,row,tx)
   const decision=row.value.clientDecision,review=row.value.clientReview
   need(decision?.outcome==='accepted'&&decision.signature?.consent===true&&decision.signature?.method==='native-email-confirmed','Exact signed client acceptance is required',409)
-  need(decision.documentDigest===review?.documentDigest&&review.documentDigest===sha256(canonicalJson(changeDocument(row)))&&decision.fingerprint===row.value.fingerprint,'Client acceptance does not bind these exact terms',409)
+  need(decision.signature.documentDigest===decision.documentDigest&&decision.signature.operatorId===decision.operatorId&&decision.reviewId===review?.id&&decision.documentDigest===review?.documentDigest&&review.documentDigest===sha256(canonicalJson(changeDocument(row)))&&decision.fingerprint===row.value.fingerprint,'Client acceptance does not bind these exact terms',409)
   const live="EXISTS(SELECT 1 FROM g_change_review_authority c JOIN oa_operators recipient ON recipient.id=c.recipient_id JOIN oa_operators owner ON owner.id=c.owner_id WHERE c.change_id=? AND c.review_id=? AND c.recipient_id=? AND lower(recipient.email)=c.contact AND recipient.status='active' AND recipient.role='member' AND owner.status='active' AND owner.role='owner' AND owner.version=c.owner_version AND recipient.version=c.recipient_version AND c.expires_at>CAST(unixepoch('subsec')*1000 AS INTEGER) AND NOT EXISTS(SELECT 1 FROM g_grants g WHERE g.operator_id=recipient.id AND g.enabled=1))"
   const params=[row.id,review.id,decision.operatorId]
   need((await env.DB.prepare(`SELECT (${live}) AS ok`).bind(...params).first<{ok:number}>())?.ok===1,'Client acceptance authority stopped; obtain fresh acceptance',403)
@@ -67,7 +67,7 @@ export async function changeReviewCommand(env:Bindings,a:Actor,tx:Transaction,ac
  const recipient=await env.DB.prepare("SELECT id,version FROM oa_operators WHERE lower(email)=? AND status='active' AND role='member'").bind(contact).first<{id:string;version:number}>()
  need(recipient,'Invite the recipient and confirm their native email first',409)
  need(!await env.DB.prepare('SELECT 1 FROM g_grants WHERE operator_id=? AND enabled=1').bind(recipient.id).first(),'An internal grant cannot receive client review',409)
- tx.guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND lower(email)=? AND status='active' AND role='member') AND NOT EXISTS(SELECT 1 FROM g_grants WHERE operator_id=? AND enabled=1)",recipient.id,contact,recipient.id)
+ tx.guard("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND lower(email)=? AND version=? AND status='active' AND role='member') AND NOT EXISTS(SELECT 1 FROM g_grants WHERE operator_id=? AND enabled=1)",recipient.id,contact,recipient.version,recipient.id)
  const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join(''),id=uuid(),expiresAt=Date.now()+integer(input.days??7,'Review duration',1,30)*86400000
  const document=changeDocument(row),documentDigest=sha256(canonicalJson(document))
  const clientReview={document,documentDigest,id,contact,recipientId:recipient.id,ownerId:a.session.operator.id,expiresAt,description:text(input.description,'Client change description'),reason,releasedAt:Date.now()}

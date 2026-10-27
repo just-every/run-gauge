@@ -456,7 +456,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8341858e0914ad4d8189323f672edcf8c8d90f17e46542c5b1ee2df5bf92bdb7",
+      "sha256": "a4d513550a03f6581158d984d5ff2fb06268633ce258794a819ce83d7476266c",
       "executable": false
     },
     "DEMO.md": {
@@ -992,7 +992,7 @@
       "executable": false
     },
     "public/gauge.css": {
-      "sha256": "5ab03828e3c64b433ebb7379111f0a8aa07d2fd38aa9edeb81c46f28e95f0457",
+      "sha256": "ab451fce34ae976714e56b79ab0658b9ae9426a65a422efa4725490441db22c6",
       "executable": false
     },
     "public/move-in.html": {

@@ -418,7 +418,7 @@ The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 20
 
 ## Status
 
-Historical baseline judgment: 27 October 2026. Current CLIENT-001 evidence is the named public-door journey below; exact candidate execution and landing receipts are reported separately.
+Judged from the code and tests at commit `7f95b27c0a56e0a5ec9da7c9cbac87b74a48ffef` (27 October 2026).
 
 CLIENT-001 now distinguishes the current approved budget from superseded approved history, asserts renewal expiry and billing separation on the reviewed project, and restores phone fit checks. Other clauses are not rejudged; exact candidate receipts accompany the guarded landing.
 

@@ -2,6 +2,41 @@ import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 
+// Run the public portal handler with the real database and native session. Only
+// the D1 transport is wrapped to renew authority after its initial read fence.
+export async function portalRevisionRace(h,path,cookie,grant){
+ const {createRequire}=await import('node:module'),{realpath}=await import('node:fs/promises')
+ const {build}=createRequire(await realpath('node_modules/wrangler/package.json'))('esbuild')
+ const bundled=await build({entryPoints:['src/gauge/client-portal.ts'],bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent',loader:{'.ttf':'dataurl'},banner:{js:"import {createRequire as nodeRequire} from 'node:module';const require=nodeRequire(import.meta.url);"}})
+ const {mkdtemp,writeFile,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
+ const directory=await mkdtemp(join(tmpdir(),'gauge-portal-handler-')),modulePath=join(directory,'handler.mjs')
+ await writeFile(modulePath,bundled.outputFiles[0].text)
+ const {clientPortalResponse}=await import(modulePath)
+ await rm(directory,{recursive:true,force:true})
+ let changed=false
+ const database={prepare(sql){
+  const statement=h.db.prepare(sql)
+  const wrap=statement=>new Proxy(statement,{get(target,key){
+   if(key==='bind')return(...args)=>wrap(target.bind(...args))
+   if(key==='first')return async(...args)=>{
+    const value=await target.first(...args)
+    if(!changed&&sql.startsWith('SELECT (EXISTS')&&sql.includes('g_client_portal_authority')){
+     assert.equal(value.ok,1,'Race starts after a successful invitation fence')
+     changed=true
+     await h.cmd('client:renew-project',{...grant,months:12,reason:'Renew during an in-flight project read'})
+    }
+    return value
+   }
+   const value=target[key];return typeof value==='function'?value.bind(target):value
+  }})
+  return wrap(statement)
+ },batch:statements=>h.db.batch(statements)}
+ const response=await clientPortalResponse(new Request(h.origin+path,{headers:{cookie}}),{...h.vars,DB:database})
+ assert(changed,'The invitation revision changed inside the public handler')
+ assert.equal(response.status,403,'An in-flight invitation revision change refuses the old projection')
+ assert.equal((await h.request(path,cookie)).status,200,'A fresh request observes renewed authority')
+}
+
 const pick=(value,keys)=>Object.fromEntries(keys.map(key=>[key,value[key]]))
 
 // Match submitted commands to the searchable business audit, including exact keys and revisions.
@@ -409,40 +444,92 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
 }
 
 export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financePerson}) {
- const {cmd,state,request}=h
+ const {state,request}=h
+ const allMoney=Object.fromEntries(['shareBudget','shareBurn','shareRemaining','shareValue','shareFields'].map(k=>[k,'yes'])),noMoney=Object.fromEntries(Object.keys(allMoney).map(k=>[k,'no']))
+ const cmd=async(action,input={},cookie=h.owner,expected=200)=>{
+  const key=input.key??randomUUID(),before=h.providerRequests.length,result=await h.cmd(action,{...input,key},cookie,expected)
+  if(action.startsWith('client:')){
+   assert.equal(h.providerRequests.length,before,'Client invitation, renewal, sharing and revocation send nothing')
+   if(expected===200){
+    const entries=(await h.db.prepare('SELECT actor,request_key,action,kind,record_id,data FROM g_audit WHERE request_key=?').bind(key).all()).results
+    assert.equal(entries.length,1,'Each successful client command records exactly one complete business audit entry')
+    const entry=entries[0],session=await(await request('/auth/session',cookie)).json(),data=JSON.parse(entry.data)
+    assert.equal(entry.actor,session.operator.id);assert.equal(entry.request_key,key);assert.equal(entry.action,action);assert.equal(entry.kind,'engagements')
+    assert.equal(data.id,result.id);assert.equal(data.revision,result.revision);assert.equal(data.reason,input.reason)
+    if(action==='client:invite-project'){assert.equal(entry.record_id,input.engagementId);assert.equal(data.contact,input.contact.toLowerCase());assert.equal(data.shareMoney,false)}
+    if(action==='client:invite-project'||action==='client:renew-project')assert.equal(data.expiresAt,(await h.db.prepare('SELECT expires_at FROM g_client_portal_authority WHERE id=?').bind(result.id).first()).expires_at)
+    if(action==='client:share-money')assert.deepEqual(Object.fromEntries(Object.keys(allMoney).map(k=>[k,data[k]])),Object.fromEntries(Object.keys(allMoney).map(k=>[k,input[k]==='yes'])))
+   }
+  }
+  return result
+ }
  const alice=await h.invite('synthetic-gauge-91401'),bob=await h.invite('synthetic-gauge-91402')
+ const signInAlice=async()=>{
+  assert.equal((await h.post('/auth/magic-link',{email:'synthetic-gauge-91401@example.test'})).status,202)
+  const link=new URL(h.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0]),response=await h.post('/auth/confirm',{token:link.searchParams.get('token')})
+  assert.equal(response.status,303)
+  alice.cookie=response.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+ }
  const make=async(name)=>{const c=await cmd('save:clients',{name});return cmd('save:engagements',{name,clientId:c.id,leadId:lead.id,members:[worker.id],scope:'Agreed design deliverables',timezone:'UTC'})}
  const project=await make('synthetic-gauge-91403'),other=await make('synthetic-gauge-91404')
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:other.id,mode:'hourly',amountMinor:800000,effortSeconds:144000,roundingSeconds:60,reason:'Other sponsor budget'}))
  await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:500000,effortSeconds:144000,roundingSeconds:60,reason:'Agreed budget'}))
  const task=await cmd('save:tasks',{engagementId:project.id,name:'Design deliverable',remainingSeconds:3600})
  const invite={engagementId:project.id,contact:'synthetic-gauge-91401@example.test',reason:'Sponsor project access',days:7}
  for(const cookie of [manager.cookie,staff.cookie,financePerson.cookie,alice.cookie])await cmd('client:invite-project',invite,cookie,403)
- let grant=await cmd('client:invite-project',invite)
+ await cmd('client:invite-project',{...invite,contact:'delivery-worker@example.test'},h.owner,409)
+ assert.equal((await h.post('/auth/invite',{email:'synthetic-gauge-unconfirmed@example.test',displayName:'Unconfirmed recipient'},h.owner)).status,202)
+ await cmd('client:invite-project',{...invite,contact:'synthetic-gauge-unconfirmed@example.test'},h.owner,409)
+ for(const days of [0,31])await cmd('client:invite-project',{...invite,days},h.owner,400)
+ for(const months of [0,13])await cmd('client:invite-project',{...invite,days:undefined,months},h.owner,400)
+ let grant=await cmd('client:invite-project',{...invite,days:undefined,months:12})
+ const longGrant=await h.db.prepare('SELECT expires_at FROM g_client_portal_authority WHERE id=?').bind(grant.id).first()
+ assert(longGrant.expires_at>Date.now()+360*86400000&&longGrant.expires_at<=Date.now()+366*86400000,'Twelve calendar months, including leap years')
+ await cmd('client:renew-project',{...grant,months:12,reason:'Only owner renewal'},financePerson.cookie,403)
+ await h.db.prepare('UPDATE g_client_portal_authority SET expires_at=0 WHERE id=?').bind(grant.id).run()
+ grant=await cmd('client:renew-project',{...grant,months:12,reason:'Continue standing sponsor relationship'})
+ const renewedExpiry=await h.db.prepare('SELECT expires_at FROM g_client_portal_authority WHERE id=?').bind(grant.id).first()
+ assert(renewedExpiry.expires_at>Date.now()+360*86400000&&renewedExpiry.expires_at<=Date.now()+366*86400000,'Renewal replaces expired access with twelve calendar months')
+
  const replacement=await cmd('client:invite-project',invite)
  await cmd('client:revoke-project',{...grant,reason:'An older invitation cannot alter its replacement'},h.owner,409)
  grant=replacement
  await cmd('client:invite-project',{...invite,engagementId:other.id,contact:'synthetic-gauge-91402@example.test'})
+ for(const cookie of [manager.cookie,staff.cookie,alice.cookie])await cmd('client:share-money',{...grant,...allMoney,reason:'Refuse non-finance monetary publication'},cookie,403)
  const path=`/api/gauge/client-projects/${project.id}`
  const read=async(cookie=alice.cookie)=>{const response=await request(path,cookie);assert.equal(response.status,200,await response.clone().text());return response.json()}
  assert.deepEqual((await read()).budgets,[],'No monetary exposure on issuance');assert.equal((await read()).burn,null)
+ assert.equal((await read()).scope,'Agreed design deliverables');assert.deepEqual((await read()).tasks.map(t=>[t.id,t.name,t.status]),[[task.id,'Design deliverable','todo']])
  for(const cookie of [bob.cookie,staff.cookie,h.owner])assert.equal((await request(path,cookie)).status,403)
  assert.equal((await request(`/api/gauge/client-projects/${other.id}`,alice.cookie)).status,403)
  assert.equal((await request(`/app/client-projects/${other.id}`,alice.cookie)).status,403)
  for(const door of ['/api/gauge/state','/app/rates',`/api/gauge/history/engagements/${project.id}`,'/api/gauge/rates/explain'])assert.equal((await request(door,alice.cookie)).status,403)
  const field=async(scope,name,visibility='everyone',type='text')=>cmd('field:define',{scope,name,type,visibility,...(type==='currency'?{currency:'USD'}:{}),reason:'Explicit field visibility'})
  const publicField=await field('engagements','Client progress'),privateField=await field('engagements','Private commercial strategy','finance-only'),narrowed=await field('engagements','Restricted after publication'),historical=await field('engagements','Historical private value','finance-only'),currencyField=await field('engagements','Selected contract amount','everyone','currency'),taskField=await field('tasks','Client task action'),clientField=await field('clients','Client reference')
+ const leadField=await field('engagements','Lead-only delivery strategy','lead-finance'),savedLeadField=await field('engagements','Previously lead-only strategy','lead-finance')
  const yen=await cmd('field:define',{scope:'engagements',name:'Yen allowance',type:'currency',currency:'JPY',visibility:'everyone',reason:'Explicit currency field'}),dinar=await cmd('field:define',{scope:'engagements',name:'Dinar allowance',type:'currency',currency:'BHD',visibility:'everyone',reason:'Explicit currency field'})
  const setFields=async(scope,id,values)=>{const row=(await state()).data[scope].find(r=>r.id===id);return cmd('field:values',{scope,id,revision:row.revision,customFields:values})}
- await setFields('engagements',project.id,{[publicField.id]:'Ready for client',[privateField.id]:'Never share strategy',[narrowed.id]:'Withdrawn publication',[historical.id]:'Originally private',[currencyField.id]:678900,[yen.id]:1234,[dinar.id]:1234})
+ await setFields('engagements',project.id,{[leadField.id]:'Current lead secret',[savedLeadField.id]:'Saved lead secret',[publicField.id]:'Ready for client',[privateField.id]:'Never share strategy',[narrowed.id]:'Withdrawn publication',[historical.id]:'Originally private',[currencyField.id]:678900,[yen.id]:1234,[dinar.id]:1234})
  await setFields('tasks',task.id,{[taskField.id]:'Approve design'});await setFields('clients',(await state()).data.engagements.find(r=>r.id===project.id).value.clientId,{[clientField.id]:'Sponsor reference'})
  await cmd('field:define',{...narrowed,visibility:'finance-only',reason:'Narrow current policy'})
  const broadened=await cmd('field:define',{...historical,visibility:'everyone',reason:'Broaden definition without publishing old value'})
+ await cmd('field:define',{...savedLeadField,visibility:'everyone',reason:'Broaden without publishing saved lead-only value'})
  const flatFields=d=>d.customFields.flatMap(r=>r.fields)
  assert.deepEqual(flatFields(await read()).map(f=>f.id).sort(),[publicField.id,taskField.id,clientField.id].sort(),'Only current and original public values; currency also needs finance sharing')
  assert(!JSON.stringify(await read()).includes('Originally private'))
+ assert(!JSON.stringify(await read()).includes('Current lead secret'),'Current lead-and-finance visibility excludes recipients')
+ assert(!JSON.stringify(await read()).includes('Saved lead secret'),'Saved lead-and-finance visibility excludes recipients after broadening')
  await setFields('engagements',project.id,{[historical.id]:'Explicitly published value'})
- const shared=await cmd('client:share-money',{...grant,shareMoney:'yes',reason:'Finance authorizes sponsor budget'},financePerson.cookie)
+ const budgetOnly=await cmd('client:share-money',{...grant,...noMoney,shareBudget:'yes',reason:'Share only approved budget'},financePerson.cookie)
+ assert.equal((await read()).budgets[0].amountMinor,500000);assert.equal((await read()).burn,null);assert.deepEqual((await read()).remainingBudgets,[])
+ const otherResponse=await request(`/api/gauge/client-projects/${other.id}`,bob.cookie);assert.equal(otherResponse.status,200);const otherDocument=await otherResponse.json();assert.deepEqual(otherDocument.budgets,[]);assert.equal(otherDocument.burn,null);assert.deepEqual(otherDocument.remainingBudgets,[])
+ const projects=async cookie=>{const response=await request('/api/gauge/client-projects',cookie);assert.equal(response.status,200);return (await response.json()).projects}
+ assert.equal((await request('/app',alice.cookie)).headers.get('location'),'/app/client-projects')
+ assert.deepEqual((await projects(alice.cookie)).map(p=>p.id),[project.id]);assert.deepEqual((await projects(bob.cookie)).map(p=>p.id),[other.id])
+ const shared=await cmd('client:share-money',{...budgetOnly,...allMoney,reason:'Finance authorizes sponsor budget'},financePerson.cookie)
  assert.equal((await read()).budgets[0].amountMinor,500000)
+ await cmd('client:share-money',{...grant,...noMoney,reason:'Stale existing invitation sharing'},financePerson.cookie,409)
+ await cmd('client:renew-project',{...grant,months:12,reason:'Stale existing invitation renewal'},h.owner,409)
  const terms={name:'Client hour statement',frequency:'monthly',unit:'hours',allowance:144000,services:['Design'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:28800,carryPeriods:1,deficit:false,overage:'bill',overageRate:12000}}
  const preview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms})
  const retainer=await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Agreed retainer'})
@@ -492,39 +579,139 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  assert.equal(valueStatement.rollover,20000);assert.equal(valueStatement.opening,120000);assert.equal(valueStatement.consumed,25000);assert.equal(valueStatement.remaining,95000);assert.equal(valueStatement.pending,null);assert.equal(valueStatement.pendingSeconds,3600);assert.equal(valueStatement.projectedRemaining,null)
  assert.equal(valueStatement.sources.find(t=>t.id===valueApproved.id).revision,valueApproved.revision)
  assert.deepEqual(richDocument.burn,{approvedSeconds:12600,pendingSeconds:10800,hourlyValueMinor:79186,knownHourlyValueMinor:79186,unknownHourlyValues:0,currency:'USD'})
+ assert.deepEqual(richDocument.remainingBudgets,[{id:richDocument.budgets[0].id,currency:'USD',amountMinor:420814}])
+ // A change order replaces the current budget; earlier approved terms are history.
+ const priorBudget=richDocument.budgets[0]
+ const change=await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:800000,effortSeconds:144000,roundingSeconds:60,reason:'Approved expanded scope'})
+ await cmd('budget:approve',change)
+ const changed=await read()
+ assert.deepEqual(changed.budgets.map(b=>[b.id,b.amountMinor]),[[change.id,800000]],'Only current approved terms are shared as the budget')
+ assert.deepEqual(changed.remainingBudgets,[{id:change.id,currency:'USD',amountMinor:720814}],'Remaining budget deducts burn from current terms once')
+ assert.deepEqual(changed.budgetHistory,[priorBudget],'Superseded approved terms remain labelled history')
+
  assert.deepEqual(flatFields(richDocument).map(f=>[f.id,f.value]).sort(),[[publicField.id,'Ready for client'],[historical.id,'Explicitly published value'],[currencyField.id,678900],[yen.id,1234],[dinar.id,1234],[taskField.id,'Approve design'],[clientField.id,'Sponsor reference']].sort())
  assert.equal(flatFields(richDocument).find(f=>f.id===historical.id).valueRevision,broadened.revision)
  let unknown=await cmd('time:save',{personId:worker.id,engagementId:project.id,taskId:task.id,service:'synthetic-gauge-unpriced',timezone:'UTC',start:'2026-09-06T09:00:00Z',end:'2026-09-06T10:00:00Z',notes:'Private unpriced work',billable:true},staff.cookie)
  unknown=await cmd('time:submit',unknown,staff.cookie);await cmd('time:approve',unknown,manager.cookie)
  assert.deepEqual((await read()).burn,{approvedSeconds:16200,pendingSeconds:10800,hourlyValueMinor:null,knownHourlyValueMinor:79186,unknownHourlyValues:1,currency:'USD'},'An unpriced approval is unknown, never zero')
+ assert.equal((await read()).remainingBudgets[0].amountMinor,null,'Remaining budget preserves unknown approved value')
  assert(!/"(?:costMinor|billMinor|billRateMinor|overageRate|economics|notes|personId)":/.test(JSON.stringify(await read())),'Closed projection excludes private economics and staff details')
- const hidden=await cmd('client:share-money',{...shared,shareMoney:'no',reason:'Finance withdraws monetary sharing'},financePerson.cookie)
+ const hidden=await cmd('client:share-money',{...shared,...noMoney,reason:'Finance withdraws monetary sharing'},financePerson.cookie)
  assert.equal((await read()).burn,null);assert.deepEqual((await read()).budgets,[]);assert(!(await read()).statements.some(b=>b.unit==='value'));assert(!flatFields(await read()).some(f=>f.id===currencyField.id))
- const reshared=await cmd('client:share-money',{...hidden,shareMoney:'yes',reason:'Finance reauthorizes selected figures'},financePerson.cookie)
+ let selected=hidden
+ for(const detail of ['shareBudget','shareBurn','shareRemaining','shareValue','shareFields']){
+  selected=await cmd('client:share-money',{...selected,...noMoney,[detail]:'yes',reason:`Selected detail ${detail}`},financePerson.cookie)
+  const projection=await read()
+  assert.equal(projection.budgets.length,detail==='shareBudget'?1:0)
+  assert.equal(projection.budgetHistory.length,detail==='shareBudget'?1:0,'Historical money follows explicit budget sharing')
+  assert.equal(projection.burn!==null,detail==='shareBurn')
+  assert.equal(projection.remainingBudgets.length,detail==='shareRemaining'?1:0)
+  assert.equal(projection.statements.some(b=>b.unit==='value'),detail==='shareValue')
+  assert.equal(flatFields(projection).some(f=>f.id===currencyField.id),detail==='shareFields')
+  const entry=await h.db.prepare("SELECT data FROM g_audit WHERE action='client:share-money' ORDER BY seq DESC LIMIT 1").first(),choice=JSON.parse(entry.data)
+  assert.equal(choice.reason,`Selected detail ${detail}`)
+  assert.deepEqual(Object.fromEntries(Object.keys(allMoney).map(k=>[k,choice[k]])),Object.fromEntries(Object.keys(allMoney).map(k=>[k,k===detail])))
+ }
+ const reshared=await cmd('client:share-money',{...selected,...allMoney,reason:'Finance reauthorizes selected figures'},financePerson.cookie)
  const leaves=[];(function walk(v){if(v&&typeof v==='object')Object.values(v).forEach(walk);else leaves.push(String(v))})(document)
  for(const privateValue of ['Private internal time detail','12347','23457'])assert(!leaves.some(v=>v===privateValue),'Private staff economics and notes excluded')
+ // A portal recipient opens and decides an exact released delivery without its review key.
+ const reviewProject=await make('synthetic-gauge-portal-handover')
+ await cmd('budget:approve',await cmd('save:budgets',{engagementId:reviewProject.id,mode:'fixed',amountMinor:10000,effortSeconds:3600,roundingSeconds:60,reason:'Exact fixed handover'}))
+ const reviewInvitation=await cmd('client:invite-project',{...invite,engagementId:reviewProject.id,months:12,days:undefined})
+ let portalMilestone=await cmd('save:milestones',{engagementId:reviewProject.id,name:'Portal handover',due:'2026-10-01',amountMinor:10000})
+ portalMilestone=await cmd('milestone:approve',portalMilestone)
+ portalMilestone=await cmd('milestone:deliver',{...portalMilestone,date:'2026-10-01',reason:'Exact portal handover delivered'},manager.cookie)
+ portalMilestone=await cmd('milestone:release-review',{...portalMilestone,contact:invite.contact,days:7,description:'Review the delivered design',reason:'Release to project sponsor'})
+ const portalReview=(await state()).data.milestones.find(m=>m.id===portalMilestone.id).value.delivery.clientReviews.at(-1)
+ const reviewPath=`/api/gauge/client-milestones/${portalMilestone.id}/${portalReview.id}`
+ assert.equal((await request(reviewPath,bob.cookie)).status,403)
+ assert.equal((await request(reviewPath,alice.cookie)).status,200,'Current project access opens the exact released review without a key')
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  try{
   const login=async cookie=>{await context.clearCookies();await context.addCookies(cookie.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))}
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await login(alice.cookie)
    await page.goto(`${h.origin}/app/client-projects/${project.id}`)
-   assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Approved hourly work value Unknown/);assert.match(await page.locator('main').innerText(),/2026-08-01 to 2026-08-31/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Yen allowance · ¥1,234/);assert.match(await page.locator('main').innerText(),/Dinar allowance · BHD\s*1\.234/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)
+   if(width===1440){assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Earlier approved budgets/);await page.getByText('Earlier approved budgets',{exact:true}).click();assert.match(await page.locator('main').innerText(),/Superseded · \$5,000\.00/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Approved hourly work value Unknown/);assert.match(await page.locator('main').innerText(),/2026-08-01 to 2026-08-31/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Yen allowance · ¥1,234/);assert.match(await page.locator('main').innerText(),/Dinar allowance · BHD\s*1\.234/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)}
    for(const control of await page.getByText('Sources and rule versions',{exact:true}).all())await control.click()
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client project fits ${width}`)
    if(width===1440)assert((await page.locator('main').boundingBox()).width>800,'Desktop portal uses the workspace content column')
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-${width}.png`,fullPage:true})
+   await page.goto(`${h.origin}/app/client-projects`)
+   if(width===1440){assert.deepEqual((await page.locator('main a').allTextContents()).sort(),['synthetic-gauge-91403','synthetic-gauge-portal-handover'].sort())}
+   if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-list-${width}.png`,fullPage:true})
+   await page.goto(`${h.origin}/app/client-projects/${reviewProject.id}`)
+   if(width===1440)assert.equal(await page.getByRole('link',{name:'Review Portal handover',exact:false}).count(),1,'Exactly one released delivery opens from its invited project')
+   await page.getByRole('link',{name:'Review Portal handover',exact:false}).click()
+   if(width===1440){await page.getByLabel('Your decision').selectOption('rejected');await page.getByLabel('Decision reason').fill('Please finish the final illustration');await page.getByRole('button',{name:'Submit decision',exact:true}).click()}
+   if(width===1440){assert.match(await page.locator('main').innerText(),/Response saved: rejected/)}
+   if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-portal-decision-${width}.png`,fullPage:true})
    await login(h.owner);await page.goto(`${h.origin}/app/engagements?edit=${project.id}`)
-   assert.equal(await page.getByRole('button',{name:'Invite to project',exact:true}).count(),1)
+   if(width===1440){assert.equal(await page.getByRole('button',{name:'Invite to project',exact:true}).count(),1)}
+   if(width===1440){const navigation=page.locator('nav .g-menu a').first();await navigation.focus();assert.equal(await navigation.evaluate(el=>getComputedStyle(el,'::after').opacity),'1','Navigation tooltip appears on keyboard focus');assert((await navigation.getAttribute('data-tooltip')).split(' ').length>=2)}
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client access controls fit ${width}`)
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-access-${width}.png`,fullPage:true})
   }
  }finally{await context.close()}
- await cmd('client:share-money',{...grant,shareMoney:'no',reason:'Stale choice'},financePerson.cookie,409)
- await cmd('client:revoke-project',{...reshared,reason:'Recipient no longer authorized'})
+ const decided=(await state()).data.milestones.find(m=>m.id===portalMilestone.id)
+ assert.equal(decided.value.delivery.decisions.at(-1).reason,'Please finish the final illustration');assert.equal(decided.value.delivery.decisions.at(-1).confirmedByClient,true)
+ assert.equal(decided.value.delivery.issues.at(-1).reason,'Please finish the final illustration')
+ await cmd('milestone:authorize',decided,alice.cookie,403)
+ const rejection=structuredClone(decided.value.delivery.deliveries[0]),issue=decided.value.delivery.issues.at(-1)
+ let resolved=await cmd('milestone:issue',{...decided,itemId:issue.id,name:issue.name,ownerId:lead.id,mitigation:'Final illustration completed',status:'resolved',reason:'Sponsor rejection resolved'},manager.cookie)
+ assert.equal((await request(reviewPath,alice.cookie)).status,403,'Changed delivery invalidates its old portal review')
+ let deliveredAgain=await cmd('milestone:deliver',{...resolved,date:'2026-10-01',reason:'Completed replacement handover'},manager.cookie)
+ deliveredAgain=await cmd('milestone:release-review',{...deliveredAgain,contact:invite.contact,days:7,description:'Final illustration is complete',reason:'Release replacement to current project recipient'})
+ const replacementReview=(await state()).data.milestones.find(m=>m.id===portalMilestone.id).value.delivery.clientReviews.at(-1)
+ const replacementPath=`/api/gauge/client-milestones/${portalMilestone.id}/${replacementReview.id}`
+ const response=await request(replacementPath,alice.cookie);assert.equal(response.status,200);const exact=await response.json()
+ const decisionInput={key:randomUUID(),revision:exact.revision,outcome:'accepted',reason:'Final illustration now complete'}
+ assert.equal((await h.post(replacementPath,decisionInput,alice.cookie)).status,200)
+ const accepted=(await state()).data.milestones.find(m=>m.id===portalMilestone.id)
+ assert.deepEqual(accepted.value.delivery.deliveries[0],rejection);assert.equal(accepted.value.delivery.issues.at(-1).status,'resolved')
+ assert.deepEqual(accepted.value.delivery.decisions.map(d=>[d.outcome,d.reason]),[['rejected','Please finish the final illustration'],['accepted','Final illustration now complete']])
+ assert.equal((await state()).data.packets.filter(p=>p.value.engagementId===reviewProject.id).length,0);assert.equal((await state()).data.invoices.filter(p=>p.value.engagementId===reviewProject.id).length,0)
+ await cmd('packet:create',{engagementId:reviewProject.id,title:'Acceptance still requires finance',sources:[`milestones:${portalMilestone.id}`]},financePerson.cookie,409)
+ await cmd('milestone:authorize',accepted,financePerson.cookie)
+ await cmd('client:revoke-project',{...reviewInvitation,reason:'End project-based review access'})
+ assert.equal((await request(replacementPath,alice.cookie)).status,403,'Revoked project access cannot reopen a review without its key')
+ assert.equal((await h.post(replacementPath,decisionInput,alice.cookie)).status,403,'Revocation also fences a successful decision replay')
+
+ // Owner changes stop existing project access visibly until a current owner renews it.
+ const secondOwner=await h.invite('synthetic-gauge-portal-owner','owner')
+ let stopped=await cmd('client:invite-project',invite,secondOwner.cookie)
+ assert.equal((await h.post('/auth/operator/status',{operatorId:secondOwner.id,status:'inactive'},h.owner)).status,200)
+ assert.equal((await request(path,alice.cookie)).status,403);assert.deepEqual(await projects(alice.cookie),[])
+ assert.match(await(await request(`/app/engagements?edit=${project.id}`,h.owner)).text(),/Stopped: releasing owner lost owner authority/)
+ assert.equal((await h.post('/auth/operator/status',{operatorId:secondOwner.id,status:'active'},h.owner)).status,200)
+ assert.equal((await request(path,alice.cookie)).status,403,'Reactivating a former owner cannot revive an old invitation')
+ const ownerContext=await browser.newContext({ignoreHTTPSErrors:true}),ownerPage=await ownerContext.newPage()
+ try{
+  await ownerContext.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  for(const width of [1440,390]){
+   await ownerPage.setViewportSize({width,height:1000});await ownerPage.goto(`${h.origin}/app/engagements?edit=${project.id}`)
+   if(width===1440)assert.match(await ownerPage.locator('main').innerText(),/Stopped: releasing owner lost owner authority/)
+   if(process.env.GAUGE_DELIVERY_SHOTS)await ownerPage.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-stopped-access-${width}.png`,fullPage:true})
+  }
+  await ownerPage.setViewportSize({width:1440,height:1000})
+  const renewal=ownerPage.locator('form').filter({has:ownerPage.locator('[name=action][value="client:renew-project"]')})
+  assert.equal(await renewal.locator('[name=contact]').count(),0,'Renewal selects the existing recipient')
+  await renewal.getByLabel('Renewal duration in months').fill('12');await renewal.getByLabel('Client access reason').fill('Current owner renews stopped access')
+  const before=h.providerRequests.length;await renewal.getByRole('button',{name:'Renew project access',exact:true}).click();assert.equal(h.providerRequests.length,before)
+  const current=await h.db.prepare('SELECT id,revision,owner_id,expires_at FROM g_client_portal_authority WHERE id=?').bind(stopped.id).first()
+  assert.equal(current.owner_id,(await(await request('/auth/session',h.owner)).json()).operator.id);assert.notEqual(current.revision,stopped.revision)
+  assert(current.expires_at>Date.now()+360*86400000&&current.expires_at<=Date.now()+366*86400000,'Owner renewal grants twelve calendar months after the stop')
+  stopped={id:current.id,revision:current.revision}
+ }finally{await ownerContext.close()}
+ assert.equal((await request(path,alice.cookie)).status,200)
+ const audit=(await h.db.prepare("SELECT action,data FROM g_audit WHERE action IN ('client:renew-project','client:share-money')").all()).results
+ assert(audit.some(r=>r.action==='client:renew-project'&&JSON.parse(r.data).reason==='Current owner renews stopped access'))
+ await cmd('client:share-money',{...grant,...noMoney,reason:'Stale choice'},financePerson.cookie,409)
+ await cmd('client:revoke-project',{...stopped,reason:'Recipient no longer authorized'})
  assert.equal((await request(path,alice.cookie)).status,403)
  const liveInvitation=await cmd('client:invite-project',invite)
- await cmd('client:share-money',{...liveInvitation,shareMoney:'yes',reason:'Restore must drop currently active permission'},financePerson.cookie)
+ await cmd('client:share-money',{...liveInvitation,...allMoney,reason:'Restore must drop currently active permission'},financePerson.cookie)
  const portableDocument=await read()
  const {createPortability,readArchive}=await import('@runeditrun/rer/modules/portability')
  const {portabilityPolicy}=await import('../scripts/installer/portability-policy.mjs')
@@ -566,13 +753,44 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
   const fresh=await restored.cmd('client:invite-project',invite)
   const restoredRead=async()=>{const response=await restored.request(path,freshCookie);assert.equal(response.status,200);return response.json()}
   assert.equal((await restoredRead()).burn,null,'Fresh invitation starts without restored monetary consent')
-  await restored.cmd('client:share-money',{...fresh,shareMoney:'yes',reason:'New installation finance explicitly shares again'})
+  await restored.cmd('client:share-money',{...fresh,...allMoney,reason:'New installation finance explicitly shares again'})
   const stable=v=>Array.isArray(v)?v.map(stable).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).sort().map(([k,x])=>[k,stable(x)])):v
   assert.deepEqual(stable(await restoredRead()),stable(portableDocument),'Fresh explicit authority reveals identical business projections and source versions')
  }finally{await proxy?.dispose();await restored?.dispose();await rm(destination,{recursive:true,force:true})}
 
+ // Each lifecycle probe starts with usable native recipient authority.
+ let lifecycle=await cmd('client:invite-project',invite)
+ assert.equal((await request(path,alice.cookie)).status,200)
+ const currentProject=(await state()).data.engagements.find(r=>r.id===project.id)
+ const foreignClient=(await state()).data.engagements.find(r=>r.id===other.id).value.clientId
+ await cmd('save:engagements',{...currentProject.value,...currentProject,clientId:foreignClient})
+ assert.equal((await request(path,alice.cookie)).status,403,'Changed project-client identity invalidates the captured invitation')
+ assert.deepEqual(await projects(alice.cookie),[])
+ const changedProject=(await state()).data.engagements.find(r=>r.id===project.id)
+ await cmd('save:engagements',{...changedProject.value,...changedProject,clientId:currentProject.value.clientId})
+ assert.equal((await request(path,alice.cookie)).status,200)
+ await h.db.prepare("UPDATE oa_operators SET email=? WHERE id=?").bind('synthetic-gauge-changed@example.test',alice.id).run()
+ assert.equal((await request(path,alice.cookie)).status,403,'Changed recipient email cannot retain invitation access')
+ await h.db.prepare('UPDATE oa_operators SET email=? WHERE id=?').bind(invite.contact,alice.id).run()
+ await h.db.prepare("UPDATE oa_operators SET role='owner' WHERE id=?").bind(alice.id).run()
+ assert.equal((await request(path,alice.cookie)).status,401,'Changed recipient role invalidates its prior native session')
+ await signInAlice()
+ assert.equal((await request(path,alice.cookie)).status,403,'A fresh owner session cannot use its former recipient invitation')
+ await h.db.prepare("UPDATE oa_operators SET role='member' WHERE id=?").bind(alice.id).run()
+ await signInAlice()
+ assert.equal((await request(path,alice.cookie)).status,200)
+ assert.equal((await h.post('/auth/operator/status',{operatorId:alice.id,status:'inactive'},h.owner)).status,200)
+ assert.equal((await request(path,alice.cookie)).status,401,'Deactivated recipient loses its session immediately')
+ assert.equal((await h.post('/auth/operator/status',{operatorId:alice.id,status:'active'},h.owner)).status,200)
+ assert.equal((await request(path,alice.cookie)).status,401,'Reactivation never revives the old recipient session')
+ await signInAlice()
+ assert.equal((await request(path,alice.cookie)).status,200)
+ await portalRevisionRace(h,path,alice.cookie,lifecycle)
  const renewed=await cmd('client:invite-project',invite)
  await h.db.prepare('UPDATE g_client_portal_authority SET expires_at=0 WHERE id=?').bind(renewed.id).run()
  assert.equal((await request(path,alice.cookie)).status,403)
+ await cmd('grant',{operatorId:bob.id,personId:worker.id,role:'staff',enabled:true})
+ assert.equal((await request(`/api/gauge/client-projects/${other.id}`,bob.cookie)).status,403,'An acquired internal grant ends client projection access')
+ assert.deepEqual(await projects(bob.cookie),[])
  console.log('PASS CLIENT-001 scoped project: selected burn and unknown values, current and original field visibility and ISO currencies, nonzero rollover and linked corrections and value parity, authority-free restore, two-client refusal, revocation, expiry and 1440/390')
 }

@@ -80,7 +80,9 @@
           "migrations/core/0074_gauge_milestone_review_tokens.sql",
           "migrations/core/0078_gauge_client_portal.sql",
           "migrations/core/0079_gauge_change_review.sql",
-          "migrations/core/0080_gauge_intake.sql"
+          "migrations/core/0079_gauge_portal_choices.sql",
+          "migrations/core/0080_gauge_intake.sql",
+          "migrations/core/0080_gauge_portal_owner_version.sql"
         ]
       }
     },

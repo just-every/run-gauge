@@ -4,10 +4,10 @@ import { mkdir } from 'node:fs/promises'
 
 // Run the public portal handler with the real database and native session. Only
 // the D1 transport is wrapped to renew authority after its initial read fence.
-async function portalRevisionRace(h,path,cookie,grant){
+export async function portalRevisionRace(h,path,cookie,grant){
  const {createRequire}=await import('node:module'),{realpath}=await import('node:fs/promises')
  const {build}=createRequire(await realpath('node_modules/wrangler/package.json'))('esbuild')
- const bundled=await build({entryPoints:['src/gauge/client-portal.ts'],bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent'})
+ const bundled=await build({entryPoints:['src/gauge/client-portal.ts'],bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent',loader:{'.ttf':'dataurl'},banner:{js:"import {createRequire as nodeRequire} from 'node:module';const require=nodeRequire(import.meta.url);"}})
  const {mkdtemp,writeFile,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
  const directory=await mkdtemp(join(tmpdir(),'gauge-portal-handler-')),modulePath=join(directory,'handler.mjs')
  await writeFile(modulePath,bundled.outputFiles[0].text)

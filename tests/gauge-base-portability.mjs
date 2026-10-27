@@ -99,7 +99,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('target:set',{scope:'person',personId:person.id,percent:'72.5',effectiveFrom:'2026-10-01'})
  // CONNECT-020 / BASE-002: a live utilization key is installation authority and never travels.
  assert.match((await cmd('apikey:create',{label:'Portability source key'})).token,/^gauge_util_/)
- assert.match((await cmd('appkey:create',{label:'Portability app credential',operatorId:favoriteUser.id,scope:'projects:read time:write'})).token,/^gauge_app_/)
+ assert.match((await cmd('appkey:create',{label:'Portability app credential',operatorId:favoriteUser.id,expiryDays:30,engagementIds:[internal.id],scope:'projects:read time:write'})).token,/^gauge_app_/)
  await cmd('time:policy',{lockThrough:'2020-12-31',reason:'Historical migration cutoff; current work remains open'})
  await cmd('save:staffing',{personId:person.id,engagementId:internal.id,from:'2026-10-09',to:'2026-10-09',dailySeconds:3600,commitment:'tentative',service:'Research',billable:false})
  const agent=await h.invite('portability-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'staffing',engagementIds:[engagement.id]})

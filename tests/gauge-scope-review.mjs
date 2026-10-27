@@ -20,7 +20,7 @@ export async function scopeReviewJourney(h,{change,reviewer,person,read,input,pr
  await cmd('change:release-review',await releaseInput({contact:'synthetic-gauge-81-staff@example.test'}),owner,409)
  const app=await cmd('appkey:create',{label:'Scope release refusal',operatorId:roles[2].id,scope:'projects:read'})
  assert.equal((await request('/api/gauge/v1/change:release-review','',{method:'POST',headers:{authorization:'Bearer '+app.token,'content-type':'application/json'},body:JSON.stringify(await releaseInput())})).status,403)
- assert.equal((await request('/api/gauge/command','',{method:'POST',headers:{authorization:'Bearer '+app.token,origin:h.origin,'content-type':'application/json'},body:JSON.stringify({action:'change:release-review',key:randomUUID(),...await releaseInput()})})).status,401)
+ assert.equal((await request('/api/gauge/command','',{method:'POST',headers:{authorization:'Bearer '+app.token,origin:h.origin,'content-type':'application/json'},body:JSON.stringify({action:'change:release-review',key:randomUUID(),...await releaseInput()})})).status,403)
  assert.equal((await h.post('/auth/invite',{email:'synthetic-gauge-8103@example.test',displayName:'Unconfirmed',role:'member'},owner)).status,202)
  await cmd('change:release-review',await releaseInput({contact:'synthetic-gauge-8103@example.test'}),owner,409)
  for(const days of [0,31])await cmd('change:release-review',await releaseInput({days}),owner,400)

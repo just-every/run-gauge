@@ -474,6 +474,12 @@
       "name": "0078_gauge_client_portal.sql",
       "sha256": "13a18b0fecb75a639a31899ecd36576928ddf8638cee6d03c284b076beac7742",
       "sql": "-- Installation-local recipient authority is deliberately absent from business archives.\nCREATE TABLE g_client_portal_authority (\n id TEXT PRIMARY KEY, revision TEXT NOT NULL, engagement_id TEXT NOT NULL,\n client_id TEXT NOT NULL, recipient_id TEXT NOT NULL, contact TEXT NOT NULL,\n owner_id TEXT NOT NULL, expires_at INTEGER NOT NULL, share_money INTEGER NOT NULL DEFAULT 0\n);\nCREATE INDEX g_client_portal_recipient ON g_client_portal_authority(recipient_id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0079_gauge_scope_review.sql",
+      "sha256": "a8ac34dbfc4b4139e2b14509407749b217da98bee55887ef78d8216a2a8fa17e",
+      "sql": "-- Installation authority is excluded from business archives.\nCREATE TABLE g_scope_review_authority (\n review_id TEXT PRIMARY KEY,\n change_id TEXT NOT NULL UNIQUE,\n recipient_id TEXT NOT NULL,\n contact TEXT NOT NULL,\n owner_id TEXT NOT NULL,\n expires_at INTEGER NOT NULL,\n token_hash TEXT NOT NULL,\n fingerprint TEXT NOT NULL\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

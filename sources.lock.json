@@ -430,7 +430,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5f2d453d10d95ddfc4abd2f93bdfe5a9af55bb4083a67d25ccb7ac190c5715e1",
+      "sha256": "00f361d3bbcbbc7614a7f35f0751c387a23c1192936bbf9494a1b1806086b801",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -454,7 +454,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ef584700f9038bd8a244bfd81fb8fd0bb73718a91af876b8274dbc44efd663ef",
+      "sha256": "80c966c9cca7ce71303b0c3fe68854539f5f064a7b406937e39bdb9bed0515c8",
       "executable": false
     },
     "DEMO.md": {
@@ -542,7 +542,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "91dfd0994ea8fa0589e9b12d9952ec06f69c4a5bc9d817f12ae5333c0c28eef9",
+      "sha256": "d1721235b33db70643b4e4efccaaebbc6c74af90bf00672300ec3954a87fb140",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -855,6 +855,10 @@
     },
     "migrations/core/0078_gauge_client_portal.sql": {
       "sha256": "13a18b0fecb75a639a31899ecd36576928ddf8638cee6d03c284b076beac7742",
+      "executable": false
+    },
+    "migrations/core/0079_gauge_scope_review.sql": {
+      "sha256": "a8ac34dbfc4b4139e2b14509407749b217da98bee55887ef78d8216a2a8fa17e",
       "executable": false
     },
     "MOVE-IN.md": {
@@ -2123,6 +2127,10 @@
     },
     "src/gauge/scope-changes.ts": {
       "sha256": "bee8f9053fc84d94d6aa7ed04ddf60fd68e6d1abf8bd5039fdde37e7a144fead",
+      "executable": false
+    },
+    "src/gauge/scope-review.ts": {
+      "sha256": "bfdd6176390d1f998c16063aa32d1c9c3c1d453acfab8b32910611c6f7636ce3",
       "executable": false
     },
     "src/gauge/scoro-common.ts": {
@@ -4631,6 +4639,10 @@
     },
     "tests/gauge-schedule.mjs": {
       "sha256": "f0d0b5db87f62786feede95ac141bd201d1ad66e8c7a9812c6c893e68f9b93fe",
+      "executable": false
+    },
+    "tests/gauge-scope-review.mjs": {
+      "sha256": "6a4ab43f2eddf7fe806be91497f10056c3fbec241097596788c4370264807e62",
       "executable": false
     },
     "tests/gauge-scoro.mjs": {

@@ -337,7 +337,11 @@ export async function providerCustodyJourney(browser){
      assert.equal(requests(),1,'Refused and uncertain signed deliveries never resend automatically')
     }
     const history=await(await request('/api/gauge/history/providerJobs/'+queued.id,owner)).json()
-    assert(history.history.some(r=>r.value.status==='dispatching'&&r.value.attempts===1));assert(history.history.some(r=>r.value.status===expected.state&&r.value.exceptionClass===expected.exception))
+    assert(history.history.some(r=>r.value.status==='dispatching'&&r.value.attempts===1),'The prior durable claim remains in revision history')
+    const audit=await(await request('/api/gauge/audit?kind=providerJobs&recordId='+queued.id,owner)).json()
+    const outcomeEntry=audit.entries.find(e=>e.action==='providerJob:result')
+    assert(outcomeEntry);assert.equal(outcomeEntry.result.status,expected.state);assert.equal(outcomeEntry.result.exceptionClass,expected.exception);assert.equal(outcomeEntry.result.attempts,1);assert.equal(outcomeEntry.actor.id,ownerId);assert(outcomeEntry.requestKey)
+    if(expected.status===429)assert(history.history.some(r=>r.value.status==='retry-wait'&&r.value.exceptionClass==='provider-rate-limit'),'Cancellation retains the earlier refusal')
     for(const path of ['/api/gauge/state','/api/gauge/audit/export'])assert(!(await(await request(path,owner)).text()).includes(privateBody),'Provider failure bodies stay outside inspection and audit')
    }
   }finally{h.providerEdge.handler=previousEdge}

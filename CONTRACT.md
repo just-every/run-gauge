@@ -420,7 +420,7 @@ The homepage (`src/site/landing/`, the design desk's page s1, approved 18 Oct 20
 
 ## Status
 
-Historical ct judgment: DELIVERY-006 remained PARTIAL at `47b862d1ce99cf7ed238a4235455404f0fb8b8f7` on 27 October 2026. The current proof patch is a builder claim awaiting fresh independent judgment.
+Judged from the code and tests at commit `47b862d1ce99cf7ed238a4235455404f0fb8b8f7` (27 October 2026). This names the historical ct judgment of DELIVERY-006 as PARTIAL. The current proof patch is a builder claim awaiting fresh independent judgment.
 
 The status rows describe the current committed tree and its named public-door assertions. DELIVERY-006 extends the existing journey with same-project submission-owner isolation in both directions, native upload refusals without writes, and the applied template requested-file label. No production behavior or original acceptance sentence changes. Exact-candidate Verify, publication scan and Run site receipts are supplied by the guarded lander before completion is counted.
 

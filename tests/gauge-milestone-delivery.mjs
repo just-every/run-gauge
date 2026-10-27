@@ -226,6 +226,7 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
    for(const width of widths){
     await page.setViewportSize({width,height:1000})
     assert.match(await page.getByRole('status').innerText(),new RegExp(`Response saved: ${input.outcome}`))
+    assert((await page.getByRole('status').innerText()).includes(input.reason),'The saved client form displays the exact submitted reason')
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
     if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-${input.outcome}-saved-${width}.png`,fullPage:true})
    }
@@ -369,6 +370,8 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
    await ownerPage.goto(`${h.origin}/app/engagements?edit=${engagement.id}`)
    const revoke=ownerPage.locator('form').filter({has:ownerPage.locator('[name=action][value="milestone:revoke-review"]')}).filter({has:ownerPage.locator(`[name=reviewId][value="${ownerReview.id}"]`)})
    await revoke.getByLabel('Revocation reason',{exact:true}).fill('Owner withdraws exact delivery access')
+   await revoke.scrollIntoViewIfNeeded()
+   if(process.env.GAUGE_DELIVERY_SHOTS)await ownerPage.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/owner-revocation-form-${width}.png`})
    await h.deliveryAudit.form(revoke,h.owner,()=>revoke.getByRole('button',{name:'Revoke client review',exact:true}).click())
    assert.equal((await request(reviewPath,recipient.cookie)).status,403,`Owner revocation form fences access at ${width}`)
    assert(await ownerPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))

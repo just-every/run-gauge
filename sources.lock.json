@@ -433,7 +433,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "957ee705d902c750b0976540ca1a5877ac98711ed072dd16e8e0bc9340788141",
+      "sha256": "fa5c1161550f62de72047d7565ce32e6df9abde01efb8c298adf8948cd96f7d5",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -457,7 +457,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "935724ecf9017c5d7ab2d3ac9c82df200a0fbb895d256b214f7d1330b4aabb32",
+      "sha256": "5f8c130baa9aa70e116407857e2cdaa7347964502482ba565bc432e30c63641c",
       "executable": false
     },
     "DEMO.md": {
@@ -2401,7 +2401,7 @@
       "executable": false
     },
     "src/gauge/ui-microsoft.ts": {
-      "sha256": "293d2730b03430450bb43737524922c59e1b6e320c52bd3eaf0fb3e5e5b76134",
+      "sha256": "8a6d11ccc3c6fec7c88768833d63b55fdb04e7c1a8e6db0a45fc2f90f5a252f7",
       "executable": false
     },
     "src/gauge/ui-milestone-delivery.ts": {

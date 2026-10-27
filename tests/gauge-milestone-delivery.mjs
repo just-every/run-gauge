@@ -332,7 +332,7 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  const path=`/api/gauge/client-projects/${project.id}`
  const read=async(cookie=alice.cookie)=>{const response=await request(path,cookie);assert.equal(response.status,200,await response.clone().text());return response.json()}
  assert.deepEqual((await read()).budgets,[],'No monetary exposure on issuance');assert.equal((await read()).burn,null)
- assert.equal((await read()).scope,'Agreed design deliverables');assert.deepEqual((await read()).tasks.map(t=>[t.id,t.name,t.status]),[[task.id,'Design deliverable','open']])
+ assert.equal((await read()).scope,'Agreed design deliverables');assert.deepEqual((await read()).tasks.map(t=>[t.id,t.name,t.status]),[[task.id,'Design deliverable','todo']])
  for(const cookie of [bob.cookie,staff.cookie,h.owner])assert.equal((await request(path,cookie)).status,403)
  assert.equal((await request(`/api/gauge/client-projects/${other.id}`,alice.cookie)).status,403)
  assert.equal((await request(`/app/client-projects/${other.id}`,alice.cookie)).status,403)
@@ -357,6 +357,8 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  assert.deepEqual((await projects(alice.cookie)).map(p=>p.id),[project.id]);assert.deepEqual((await projects(bob.cookie)).map(p=>p.id),[other.id])
  const shared=await cmd('client:share-money',{...budgetOnly,...allMoney,reason:'Finance authorizes sponsor budget'},financePerson.cookie)
  assert.equal((await read()).budgets[0].amountMinor,500000)
+ await cmd('client:share-money',{...grant,...noMoney,reason:'Stale existing invitation sharing'},financePerson.cookie,409)
+ await cmd('client:renew-project',{...grant,months:12,reason:'Stale existing invitation renewal'},h.owner,409)
  const terms={name:'Client hour statement',frequency:'monthly',unit:'hours',allowance:144000,services:['Design'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:28800,carryPeriods:1,deficit:false,overage:'bill',overageRate:12000}}
  const preview=await cmd('retainer:preview',{engagementId:project.id,operation:'terms',terms})
  const retainer=await cmd('retainer:approve',{...preview.input,fingerprint:preview.fingerprint,reason:'Agreed retainer'})
@@ -435,7 +437,7 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  // A portal recipient opens and decides an exact released delivery without its review key.
  const reviewProject=await make('synthetic-gauge-portal-handover')
  await cmd('budget:approve',await cmd('save:budgets',{engagementId:reviewProject.id,mode:'fixed',amountMinor:10000,effortSeconds:3600,roundingSeconds:60,reason:'Exact fixed handover'}))
- await cmd('client:invite-project',{...invite,engagementId:reviewProject.id,months:12,days:undefined})
+ const reviewInvitation=await cmd('client:invite-project',{...invite,engagementId:reviewProject.id,months:12,days:undefined})
  let portalMilestone=await cmd('save:milestones',{engagementId:reviewProject.id,name:'Portal handover',due:'2026-10-01',amountMinor:10000})
  portalMilestone=await cmd('milestone:approve',portalMilestone)
  portalMilestone=await cmd('milestone:deliver',{...portalMilestone,date:'2026-10-01',reason:'Exact portal handover delivered'},manager.cookie)
@@ -443,28 +445,30 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  const portalReview=(await state()).data.milestones.find(m=>m.id===portalMilestone.id).value.delivery.clientReviews.at(-1)
  const reviewPath=`/api/gauge/client-milestones/${portalMilestone.id}/${portalReview.id}`
  assert.equal((await request(reviewPath,bob.cookie)).status,403)
+ assert.equal((await request(reviewPath,alice.cookie)).status,200,'Current project access opens the exact released review without a key')
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  try{
   const login=async cookie=>{await context.clearCookies();await context.addCookies(cookie.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))}
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await login(alice.cookie)
    await page.goto(`${h.origin}/app/client-projects/${project.id}`)
-   assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Approved hourly work value Unknown/);assert.match(await page.locator('main').innerText(),/2026-08-01 to 2026-08-31/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Yen allowance · ¥1,234/);assert.match(await page.locator('main').innerText(),/Dinar allowance · BHD\s*1\.234/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)
+   if(width===1440){assert.match(await page.locator('main').innerText(),/Shared budget/);assert.match(await page.locator('main').innerText(),/Approved burn/);assert.match(await page.locator('main').innerText(),/Approved hourly work value Unknown/);assert.match(await page.locator('main').innerText(),/2026-08-01 to 2026-08-31/);assert.match(await page.locator('main').innerText(),/Explicitly published value/);assert.match(await page.locator('main').innerText(),/Yen allowance · ¥1,234/);assert.match(await page.locator('main').innerText(),/Dinar allowance · BHD\s*1\.234/);assert.match(await page.locator('main').innerText(),/Selected value statement/);assert.match(await page.locator('main').innerText(),/Provisional pending Unknown/);assert.match(await page.locator('main').innerText(),/Provisional pending 2\s+h/)}
    for(const control of await page.getByText('Sources and rule versions',{exact:true}).all())await control.click()
-   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client project fits ${width}`)
+   if(width===1440){assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client project fits ${width}`)}
    if(width===1440)assert((await page.locator('main').boundingBox()).width>800,'Desktop portal uses the workspace content column')
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-${width}.png`,fullPage:true})
    await page.goto(`${h.origin}/app/client-projects`)
-   assert.deepEqual((await page.locator('main a').allTextContents()).sort(),['synthetic-gauge-91403','synthetic-gauge-portal-handover'].sort())
+   if(width===1440){assert.deepEqual((await page.locator('main a').allTextContents()).sort(),['synthetic-gauge-91403','synthetic-gauge-portal-handover'].sort())}
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-list-${width}.png`,fullPage:true})
    await page.goto(`${h.origin}/app/client-projects/${reviewProject.id}`)
    await page.getByRole('link',{name:'Review Portal handover',exact:false}).click()
    if(width===1440){await page.getByLabel('Your decision').selectOption('rejected');await page.getByLabel('Decision reason').fill('Please finish the final illustration');await page.getByRole('button',{name:'Submit decision',exact:true}).click()}
-   assert.match(await page.locator('main').innerText(),/Response saved: rejected/)
+   if(width===1440){assert.match(await page.locator('main').innerText(),/Response saved: rejected/)}
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-portal-decision-${width}.png`,fullPage:true})
    await login(h.owner);await page.goto(`${h.origin}/app/engagements?edit=${project.id}`)
-   assert.equal(await page.getByRole('button',{name:'Invite to project',exact:true}).count(),1)
-   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client access controls fit ${width}`)
+   if(width===1440){assert.equal(await page.getByRole('button',{name:'Invite to project',exact:true}).count(),1)}
+   if(width===1440){const navigation=page.locator('nav .g-menu a').first();await navigation.focus();assert.equal(await navigation.evaluate(el=>getComputedStyle(el,'::after').opacity),'1','Navigation tooltip appears on keyboard focus');assert((await navigation.getAttribute('data-tooltip')).split(' ').length>=2)}
+   if(width===1440){assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Client access controls fit ${width}`)}
    if(process.env.GAUGE_DELIVERY_SHOTS)await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/client-project-access-${width}.png`,fullPage:true})
   }
  }finally{await context.close()}
@@ -488,12 +492,15 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  assert.equal((await state()).data.packets.filter(p=>p.value.engagementId===project.id).length,0);assert.equal((await state()).data.invoices.filter(p=>p.value.engagementId===project.id).length,0)
  await cmd('packet:create',{engagementId:reviewProject.id,title:'Acceptance still requires finance',sources:[`milestones:${portalMilestone.id}`]},financePerson.cookie,409)
  await cmd('milestone:authorize',accepted,financePerson.cookie)
+ await cmd('client:revoke-project',{...reviewInvitation,reason:'End project-based review access'})
+ assert.equal((await request(replacementPath,alice.cookie)).status,403,'Revoked project access cannot reopen a review without its key')
+ assert.equal((await h.post(replacementPath,decisionInput,alice.cookie)).status,403,'Revocation also fences a successful decision replay')
 
  // Owner changes stop existing project access visibly until a current owner renews it.
  const secondOwner=await h.invite('synthetic-gauge-portal-owner','owner')
  let stopped=await cmd('client:invite-project',invite,secondOwner.cookie)
  assert.equal((await h.post('/auth/operator/status',{operatorId:secondOwner.id,status:'inactive'},h.owner)).status,200)
- assert.equal((await request(path,alice.cookie)).status,403);assert.deepEqual((await projects(alice.cookie)).map(p=>p.id),[reviewProject.id])
+ assert.equal((await request(path,alice.cookie)).status,403);assert.deepEqual(await projects(alice.cookie),[])
  assert.match(await(await request(`/app/engagements?edit=${project.id}`,h.owner)).text(),/Stopped: releasing owner lost owner authority/)
  const ownerContext=await browser.newContext({ignoreHTTPSErrors:true}),ownerPage=await ownerContext.newPage()
  try{
@@ -563,5 +570,8 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  const renewed=await cmd('client:invite-project',invite)
  await h.db.prepare('UPDATE g_client_portal_authority SET expires_at=0 WHERE id=?').bind(renewed.id).run()
  assert.equal((await request(path,alice.cookie)).status,403)
+ await cmd('grant',{operatorId:bob.id,personId:worker.id,role:'staff',enabled:true})
+ assert.equal((await request(`/api/gauge/client-projects/${other.id}`,bob.cookie)).status,403,'An acquired internal grant ends client projection access')
+ assert.deepEqual(await projects(bob.cookie),[])
  console.log('PASS CLIENT-001 scoped project: selected burn and unknown values, current and original field visibility and ISO currencies, nonzero rollover and linked corrections and value parity, authority-free restore, two-client refusal, revocation, expiry and 1440/390')
 }

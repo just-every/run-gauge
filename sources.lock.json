@@ -4553,7 +4553,7 @@
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
-      "sha256": "607256b043b792a94697a5e95684bf66e1409d5b18c5f5178582356cec22d9a2",
+      "sha256": "79252735993644f10a45e45c314daf1b40aa1e78565e054feebe55d59837fb64",
       "executable": false
     },
     "tests/gauge-pipeline.mjs": {

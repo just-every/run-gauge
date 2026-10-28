@@ -3,26 +3,12 @@ import { need, type Value } from './model'
 import { reports } from './reports'
 import { fence, finance, type Actor } from './store'
 import type { Report } from './ui-describe'
-import type { LineageFigure } from './report-lineage'
 
-type Snapshot = { from: string; to: string; asOf: string; forecastAsOf: string | null; fingerprint: string }
-export type AnalystFigure = Omit<LineageFigure, 'sources'> & { period: 'current' | 'comparison'; sources: { kind: string; id: string; revision: string }[] }
-export interface AnalystAnswer {
- status: 'answered' | 'restricted' | 'unsupported' | 'incomplete'
- subject: 'utilization' | 'margin' | null
- summary: string
- scope: string
- snapshots: Snapshot[]
- figures: AnalystFigure[]
- unknowns: string[]
- observations: string[]
- suggestion: { label: string; href: string; requires: string } | null
-}
-const snapshot = (r: Report): Snapshot => ({ from: r.from, to: r.to, asOf: r.asOf, forecastAsOf: r.forecast?.asOf ?? null, fingerprint: r.fingerprint })
-const cite = (r: Report, id: string, period: AnalystFigure['period']): AnalystFigure | undefined => {
- const f = r.lineage.find(f => f.id === id)
- return f ? { ...f, period, sources: f.sources.map(({ kind, id, revision }) => ({ kind, id, revision })) } : undefined
-}
+import { cite, snapshot, analystIntent, type AnalystAnswer, type AnalystFigure } from './analyst-types'
+import { timePolicyAnswer, billingAnswer } from './analyst-discrepancies'
+import { compareMargin } from './analyst-snapshots'
+export type { AnalystAnswer, AnalystFigure } from './analyst-types'
+
 const percent = (n: number) => `${n.toFixed(2)}%`
 
 /** Native read-only analysis. Text selects a bounded calculation; it never becomes a command. */
@@ -35,13 +21,15 @@ export async function analystAnswer(env: Bindings, a: Actor, input: Value, curre
  if (input.fingerprint) need(input.fingerprint === r.fingerprint, 'Report inputs changed; refresh before asking again', 409)
  const project = r.data.engagements.find(p => p.id === input.engagementId)
  need(project, 'Project unavailable to this session', 403)
- const answer: AnalystAnswer = { status: 'unsupported', subject: null, summary: 'I can compare recorded billable utilization between two periods or reconcile current project margin. This question is outside those supported calculations.', scope: `${project.value.name}: only records permitted to this session.`, snapshots: [snapshot(r)], figures: [], unknowns: [], observations: [], suggestion: null }
- const utilization = /\b(utili[sz]ation|billable capacity)\b/i.test(question)
- const margin = /\b(margin|profit|profitability)\b/i.test(question)
- // No billing, policy, outbound or execution promises are inferred from a question.
- const outside = /\b(send|email|delete|approve|execute|pay|refund|invoice|billing|policy|policies)\b/i.test(question)
- if (outside || utilization === margin) { await fence(env, a); return answer }
- if (margin) {
+ const answer: AnalystAnswer = { status: 'unsupported', subject: null, summary: 'I can compare utilization, reconcile project margin or billing, and review time-policy discrepancies. This question is outside those supported calculations; ask one question at a time.', scope: `${project.value.name}: only records permitted to this session.`, snapshots: [snapshot(r)], figures: [], unknowns: [], observations: [], suggestion: null, actions: [] }
+ const intent = analystIntent(question)
+ if (!intent) { await fence(env, a); return answer }
+ if (intent === 'time-policy' || intent === 'billing') {
+  if (intent === 'time-policy') timePolicyAnswer(answer, r, a, project.id)
+  else billingAnswer(answer, r, a, project.id)
+  await fence(env, a); return answer
+ }
+ if (intent === 'margin') {
   answer.subject = 'margin'
   if (!finance(a)) {
    answer.status = 'restricted'; answer.summary = 'Project margin and private costs require finance authority. Ask finance to review this project in its own native session.'
@@ -60,7 +48,7 @@ export async function analystAnswer(env: Bindings, a: Actor, input: Value, curre
   answer.summary = actual === null ? 'Actual project margin is unknown; missing inputs must be reviewed before drawing a conclusion.' : actual < 0 ? 'Approved costs exceed earned operational value; the project currently has negative actual margin.' : 'Earned operational value covers approved costs; current actual margin is nonnegative.'
   answer.observations = ['Actual margin = earned operational value − approved cost. Submitted provisional cost is shown separately and is not deducted from actual margin.', 'Forecast margin = committed EAC fees − committed cost EAC. These are whole-project calculations, not totals limited to the report period. Earned operational value is not recognized accounting revenue.']
   if (actual !== null && forecast !== null) answer.observations.push(`Forecast margin − actual margin = ${forecast - actual} integer minor units of ${project.value.currency}; this compares remaining-work expectations with approved actuals, not two historical snapshots.`)
-  answer.unknowns.push('No historical margin snapshot or causal evidence is retained by this answer; it cannot establish when or why margin fell. No provider settlement is inferred.')
+  compareMargin(answer, r, project.id, input.comparisonSnapshotId)
   answer.suggestion = { label: 'Review project sources', href: `/app/engagements?edit=${encodeURIComponent(project.id)}`, requires: 'Finance must inspect the exact sources and use the ordinary authorized correction or approval. This answer writes nothing and grants no authority.' }
  } else {
   answer.subject = 'utilization'
@@ -89,6 +77,7 @@ export async function analystAnswer(env: Bindings, a: Actor, input: Value, curre
   if (previousCapacity !== null && currentCapacity !== null) answer.observations.push(`Available capacity changed by ${currentCapacity - previousCapacity} seconds.`)
   answer.suggestion = { label: 'Review recorded time', href: '/app/time', requires: 'The time owner or authorized reviewer must inspect and correct exact records through the ordinary time workflow. This answer makes no changes.' }
  }
+ if (answer.suggestion && !answer.actions.length) answer.actions.push({ ...answer.suggestion, sources: [...new Map(answer.figures.flatMap(f => f.sources).map(s => [s.kind + ':' + s.id, s])).values()] })
  await fence(env, a)
  return answer
 }

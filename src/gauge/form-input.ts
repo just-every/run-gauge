@@ -41,6 +41,16 @@ function readCustomForm(form:FormData,input:Value,prefix:string,destination:stri
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
+ if(form.has('recoveryInput')){Object.assign(input,JSON.parse(String(form.get('recoveryInput'))));for(const n of [0,1])input[`scopeSeconds${n}`]=Math.round(decimal(String(form.get(`scopeHours${n}`)),'Remaining scope hours')*3600)}
+ if(form.has('recoveryDeclarations')){
+  const previous=JSON.parse(String(form.get('recoveryDeclarations')));input.declarations={}
+  for(const option of previous){
+   input.declarations[option.id]={commercialChanges:[],capacityCosts:[]}
+   for(const r of option.requirements??[])if(form.has(`nameCommercial:${option.id}:${r.key}`))input.declarations[option.id].commercialChanges.push({key:r.key,amountMinor:cents(String(form.get(`changeAmount:${option.id}:${r.key}`))),reason:String(form.get(`changeReason:${option.id}:${r.key}`)??'')})
+   for(const c of option.capacityCosts??[])if(form.has(`nameCapacity:${option.id}:${c.key}`))input.declarations[option.id].capacityCosts.push({key:c.key,seconds:c.seconds,currency:c.currency,amountMinor:c.amountMinor})
+  }
+ }
+
  if(input.action==='template:save'&&form.has('intakeTitle'))input.intakeForms=String(input.intakeTitle).trim()?[{title:input.intakeTitle,questions:input.intakeQuestions,fileLabel:input.intakeFileLabel,offsetDays:input.intakeOffsetDays,everyDays:input.intakeEveryDays,chestUrl:input.intakeChestUrl,blotterUrl:input.intakeBlotterUrl}]:[];if(input.action==='template:save'&&form.has('intakeExtraForms'))input.intakeForms=[...input.intakeForms,...JSON.parse(String(form.get('intakeExtraForms')))]
  if(['kantataAdopt:','floatAdopt:'].some(prefix=>String(input.action).startsWith(prefix))&&typeof input.config==='string')input.config=JSON.parse(input.config||'{}')
  if(form.has('closeInput'))Object.assign(input,JSON.parse(String(form.get('closeInput'))))

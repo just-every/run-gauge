@@ -19,3 +19,23 @@ An agent uses the same HTTP API as the app (see `API.md` in the repository). It 
 ## Deciding
 
 Proposals appear on **Review** for the person who can decide them, with their evidence and assumptions. A time draft can be adjusted before approving; a staffing proposal asks which alternative to take. **Approve exact proposal** writes the effect through the ordinary command, as you, and records who decided and when. **Decline proposal** asks for a reason. Text inside evidence or imported notes is never treated as an instruction.
+
+## Company policy and MCP
+
+Gauge does not yet expose the shared company MCP door or accept Business agent
+access tokens. The native proposal API described above remains the supported
+agent interface, with its existing purpose grants and personal decisions.
+
+The shared door and Business settings source are recorded at Base commit
+`d555e789cffb744a9f83d76ebe42a2e3bdd7a055`, with additive migrations
+`0083_business_settings.sql`, `0084_business_people.sql` and
+`0085_agent_door.sql`. They are not mounted in the production Worker. Before
+activating company agents, native queued work must retain the verified consent
+that authorized it and recheck that consent before its next effect. This Base
+pin retains consent in its internal principal but does not expose it in the
+native tool context or accept it in embedded invocation. Recording only the
+agent and sponsor would lose the distinction between revoked and current
+consents for the same agent and person. Provider dispatch and scheduled billing
+must retain their current native authority until that continuation interface is
+available; possession of a company token never substitutes for a native browser
+session.

@@ -1,3 +1,5 @@
+import { normalizePhases } from './budget-phases'
+import { estimateLineage } from './estimate-attestation'
 import { type Kind, type Row, type Value, need, text, integer, money, date } from './model'
 import type { Actor } from './store'
 import type { Alternative, ScenarioEffect } from './project-scenario-effects'
@@ -45,10 +47,12 @@ export function scopeAlternative(data: Record<Kind, Row[]>, change: Value, asOf:
   need(t.currency === undefined || t.currency === source.value.currency,'Terms currency differs; no implicit FX')
   const value: Value = {engagementId:source.id,currency:source.value.currency,mode:t.mode,amountMinor:money(t.amountMinor),effortSeconds:integer(t.effortSeconds,'Estimated effort seconds'),roundingSeconds:integer(t.roundingSeconds,'Billing rounding seconds',1,3600),reason:text(t.reason,'Scope terms reason'),status:'approved',createdAt:0,approvedAt:Math.max(0,...data.budgets.map(b=>b.value.approvedAt ?? 0))+1,approvedBy:actor.session.operator.id}
   const prior = data.budgets.filter(b=>b.value.engagementId===source.id&&b.value.status==='approved').sort((a,b)=>b.value.approvedAt-a.value.approvedAt)[0]
+  if(t.expenseBudgetMinor !== undefined && t.expenseBudgetMinor !== '') {value.expenseBudgetMinor=money(t.expenseBudgetMinor);if(t.expenseDate)value.expenseDate=date(t.expenseDate)} else need(!t.expenseDate,'An expense date needs an expense budget')
+  Object.assign(value,estimateLineage(prior?.value),{notToExceed:prior?.value.notToExceed??false,phases:normalizePhases(t.phases??prior?.value.phases,value)})
+  need(!value.notToExceed||t.mode==='hourly','A change order must preserve the hourly not-to-exceed policy',409)
   need(!prior || prior.value.mode===t.mode || !data.time.some(r=>r.value.engagementId===source.id&&r.value.status==='approved'),'Replacement terms cannot reclassify approved actuals into a different billing mode',409)
   const milestones = data.milestones.filter(m=>m.value.engagementId===source.id&&m.value.status==='approved')
   need(!milestones.length || (t.mode==='fixed' && value.amountMinor >= milestones.reduce((n,m)=>n+m.value.amountMinor,0)),'Replacement terms must preserve approved milestone commitments',409)
-  if(t.expenseBudgetMinor !== undefined && t.expenseBudgetMinor !== '') {value.expenseBudgetMinor=money(t.expenseBudgetMinor);if(t.expenseDate)value.expenseDate=date(t.expenseDate)} else need(!t.expenseDate,'An expense date needs an expense budget')
   effects.push({kind:'budgets',value})
  }
  // Include unchanged bookings too: descriptive/terms-only changes still show

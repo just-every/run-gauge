@@ -1,3 +1,4 @@
+import { assertBudgetTerms } from './catalog'
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Kind, type Row, type Value, need, text, date, workDate } from './model'
@@ -115,14 +116,22 @@ export async function projectScenarioCommand(env: Bindings, a: Actor, tx: Transa
  const reason = text(input.reason,'Adoption reason'), stored = await get(env,'projectScenarios',input.id), data = await basis(env,tx)
  need(hash(data) === preview.basisDigest, 'Scenario baseline changed; review again', 409)
  const candidate = await compare(env,a,data,preview.changes,preview.asOf,tx), effects: Value[] = []
+ effects.push(...await applyEffects(a,tx,candidate,data,reason))
+ return tx.record('projectScenarios',{...stored.value,status:'adopted',adoptedBy:a.session.operator.id,adoptedAt:Date.now(),adoptionReason:reason,selectedIds:preview.changes.map(c => c.id),approvedComparison:preview,effects},stored,undefined,action)
+}
+
+async function applyEffects(a:Actor,tx:Transaction,candidate:Awaited<ReturnType<typeof compare>>,data:Record<Kind,Row[]>,reason:string,acceptance?:Value) {
+ const effects:Value[]=[]
  // All guards above precede every write. A selected alternative is one atomic effect set.
+ for(const effect of candidate.effects)if(effect.kind==='budgets')await assertBudgetTerms(tx.env,tx,data.engagements.find(e=>e.id===effect.value.engagementId)!,effect.value)
  for(const effect of candidate.effects) {
   let value = effect.kind === 'budgets' ? {...effect.value,createdAt:Date.now(),approvedAt:Date.now(),approvedBy:a.session.operator.id} : effect.kind === 'deliveryPlans' ? {...effect.value,reason,approvedBy:a.session.operator.id,approvedAt:Date.now()} : effect.value
   if(effect.kind === 'engagements') {
    const additions = candidate.effects.filter(p=>p.kind==='staffing'&&p.value.engagementId===effect.source?.id).map(p=>p.value.personId)
    value = {...value,members:[...new Set([...(value.members ?? []),...additions])]}
   }
-  const row = await tx.record(effect.kind,value,effect.source,effect.id,'projectScenario:adopt')
+  if(acceptance&&effect.kind==='budgets')value={...value,acceptedChange:acceptance}
+  const row = await tx.record(effect.kind,value,effect.source,effect.id,acceptance?'change:adopt':'projectScenario:adopt')
   effects.push({kind:effect.kind,sourceId:effect.source?.id ?? null,id:row.id,revision:row.revision})
  }
  for(const e of data.engagements) {
@@ -131,5 +140,14 @@ export async function projectScenarioCommand(env: Bindings, a: Actor, tx: Transa
   if(current)continue
   if(additions.length && members.length !== (e.value.members ?? []).length)await tx.record('engagements',{...e.value,members},e,undefined,'projectScenario:assign')
  }
- return tx.record('projectScenarios',{...stored.value,status:'adopted',adoptedBy:a.session.operator.id,adoptedAt:Date.now(),adoptionReason:reason,selectedIds:preview.changes.map(c => c.id),approvedComparison:preview,effects},stored,undefined,action)
+ return effects
+}
+/** Exact accepted changes use the same native effect planner, without a scenario bypass. */
+export async function adoptAcceptedChange(env:Bindings,a:Actor,tx:Transaction,row:Row,reason:string) {
+ need(row.value.asOf===workDate(Date.now(),a.timezone),'Review as of today before adopting future work',409)
+ const data=await basis(env,tx)
+ need(hash(data)===row.value.basisDigest,'Change baseline changed; prepare a new version',409)
+ const candidate=await compare(env,a,data,row.value.changes,row.value.asOf,tx)
+ const acceptance={changeId:row.id,version:row.value.number,fingerprint:row.value.fingerprint,documentDigest:row.value.clientReview.documentDigest,priorTermsId:row.value.termsDifference.before?.id??null}
+ return applyEffects(a,tx,candidate,data,reason,acceptance)
 }

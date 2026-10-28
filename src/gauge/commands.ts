@@ -1,4 +1,5 @@
 import { recoveryBaseline, recoveryFormPreview } from './recovery-feasibility'
+import { learningPreview, learningCommand } from './learning'
 import { analystCapture } from './analyst-snapshots'
 import { changeReviewCommand } from './scope-review'
 import { intakeCommand } from './intake'
@@ -91,6 +92,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='commercial:delivery-readback')return readCommercialDelivery(env,a,input)
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
+ if(action==='learning:preview')return learningPreview(env,a,input)
  if(action==='estimate:compare')return estimateCompare(env,a,input)
  if(action==='fx:consolidate')return consolidate(env,a,input)
  if(action==='floatAdopt:deletion-preview')return floatDeletionPreview(env,a,input)
@@ -121,6 +123,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  const alertInputs=await observeBudgetAlerts(env,tx,action)
  let result:Value|null=action.startsWith('privacy:')?await privacyCommand(env,a,tx,action,input):followupProof?await applyProviderFollowup(env,a,tx,input,followupProof):await retainerCommand(env,a,tx,action,input)
  if(!result)result=await analystCapture(env,a,tx,action,input)
+ if(!result)result=await learningCommand(env,a,tx,action,input)
  if(!result)result=await floatDeletionCommand(env,a,tx,action,input)
  if(!result)result=await floatAdoptionCommand(env,a,tx,action,input)
  if(!result)result=await nativeAdoptionCommand(env,a,tx,action,input)

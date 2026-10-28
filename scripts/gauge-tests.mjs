@@ -6,6 +6,7 @@ import { basename } from 'node:path'
 // required jobs; local invocation without a shard retains the full suite.
 const suites = [
  ["node", "tests/gauge-recovery-feasibility.mjs"],
+ ["node", "tests/gauge-learning.mjs"],
  ["node", "tests/gauge-analyst.mjs"],
  ["node", "tests/gauge-float.mjs"],
  ["node", "tests/gauge-rocketlane.mjs"],
@@ -128,6 +129,7 @@ const groups = [
   "gauge-forecast.mjs"
  ],
  [
+  "gauge-learning.mjs",
   "gauge-analyst.mjs",
   "gauge-teamwork.mjs",
   "gauge-agent.mjs",

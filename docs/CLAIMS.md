@@ -139,7 +139,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `RECOVER-003` | missing |  |
 | `RECOVER-004` | missing |  |
 | `RECOVER-005` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
-| `RECOVER-006` | partial | `src/gauge/reports.ts`; `src/gauge/proposals.ts` |
+| `RECOVER-006` | partial | `tests/gauge-learning.mjs`; `tests/gauge.mjs`; `tests/gauge-base-portability.mjs`; `src/gauge/learning.ts`; `src/gauge/learning-score.ts`; `src/gauge/ui-learning.ts` |
 | `RECOVER-007` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
 | `RECOVER-008` | partial | `tests/gauge-analyst.mjs`; `tests/fixtures/analyst-portability.mjs`; `src/gauge/analyst.ts`; `src/gauge/analyst-discrepancies.ts`; `src/gauge/analyst-snapshots.ts`; `src/gauge/ui-analyst.ts` |
 | `RECOVER-009` | partial | `src/gauge/imports.ts`; `src/gauge/harvest.ts`; `tests/gauge.mjs` |

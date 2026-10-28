@@ -233,7 +233,7 @@ async function retainerAutomaticExceptions(h,browser,{project,term,policy,client
  const locked=await make('Locked service')
  const oldTimePolicy=(await state()).data.timePolicies[0]
  const lock=await cmd('time:policy',{...oldTimePolicy,lockThrough:'2026-08-31',reason:'Finance locks August'})
- await draft(locked.s,'2026-08-01',/TIME-003 locked period/)
+ await draft(locked.s,'2026-08-01',/TIME-007 locked period/)
  await cmd('time:policy',{...lock,lockThrough:null,reason:'Finance reopens August with recorded reason'})
  // Disabling even an owner-consented schedule stops the next real cron.
  const enabled=await make('Disabled service')

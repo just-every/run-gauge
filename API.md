@@ -30,22 +30,60 @@ The current dates follow the Review period; comparison dates are selected in the
 question form. An old fingerprint returns 409 rather than silently reusing a
 changed snapshot.
 
-The bounded native calculation recognizes utilization and project-margin
-questions. Utilization compares recorded billable seconds against participating
-people’s available calendar seconds in two nonoverlapping periods. Margin
-reconciles whole-project earned operational value, approved and provisional
-cost, and actual and forecast margin. It does not reconstruct historical margin
-from a forecast date. A lead receives only permitted project totals and an
-explicit finance boundary; private margin calculations run inside finance’s
-native session. No data is sent to a model or other provider.
+The bounded native calculation recognizes utilization, project margin, time-policy
+and billing questions, including ordinary phrases such as “less billable time”
+and “losing money”. Questions combining subjects or requesting execution return
+an explicit unsupported answer. No data is sent to a model or other provider.
+
+Utilization compares recorded billable seconds against participating people’s
+available calendar seconds in two nonoverlapping periods. Margin reconciles
+whole-project earned operational value, approved and provisional cost, and actual
+and forecast margin. Time-policy review checks visible project entries against
+the current entry and notes limits, cites the policy revision, identifies changed
+submission policy and distinguishes current findings from historical approval.
+A lead’s visible day subtotal never establishes full-day compliance. The ordinary
+time submission and approval commands still check all native time.
+
+Billing reconciliation is finance-only: earned operational value, approved
+preparation, issued invoices net of credits, recorded receipts and reviewed
+source amounts along the approved correction branch remain distinct. Missing
+receipts are unknown rather than zero cash, and user-recorded receipts never
+establish processor settlement. Draft correction packets do not affect billed
+totals. Consolidated packet review shows only lines tagged to the selected project.
 
 Answers include status, scope, snapshot fingerprints and read times, formulas,
 exact source kinds, IDs and revisions, explicit missing inputs and limits. Raw
 source payloads are omitted. Unknown costs, absent activity and missing capacity
-remain unknown. Unsupported questions return an explicit unsupported answer.
-Suggestions link to ordinary review screens, write nothing, and confer no
-correction, approval or execution authority. Answers are recalculated on every
-request and are not saved or replayed as commands.
+remain unknown. Leads receive permitted project totals and an explicit finance
+boundary; private calculations run inside finance’s native session. Agent grants
+receive no additional data or authority.
+
+`actions` contains proposed review steps with a label, ordinary review link,
+required human decisions and exact source revisions. Questions, suggestions and
+review links write nothing. A time correction still requires the authorized
+reviewer to reopen the exact approved revision with a reason, then the time owner
+or finance edits and resubmits it for ordinary approval. A billing adjustment
+still requires finance to choose the exact approved packet and source, supply a
+reviewed replacement amount and reason, then separately approve the draft delta.
+Locks, immutable originals, independent approval and all existing guards remain.
+No correction amount or business cause is invented from an arithmetic difference.
+
+Finance can explicitly retain an immutable margin observation through
+`analyst:capture` on `POST /api/gauge/command`, with a unique `key`, `engagementId`,
+`from`, `to`, optional `asOf`, the exact current `fingerprint` and a `label` of at
+most 120 characters. The Review form calls the same command. Capture is a separate
+audited human action; asking never captures. Changed inputs refuse with 409.
+Only financial figures, formulas, unknowns, capture metadata and source revision
+references are retained; source text, credentials and execution authority are not.
+
+An optional `comparisonSnapshotId` on the analyst question selects a captured
+observation for the same project and currency. Margin change reconciles earned
+value change minus approved cost change against that exact earlier observation.
+The capture time stays visible; an old forecast date never manufactures a past
+observation. Missing inputs keep the comparison incomplete. Captured observations
+travel with the complete installation archive, while restored sessions confer no
+access and no correction is replayed. Current finance authority is required for
+every read, capture and comparison, including after revocation or native erasure.
 
 ## Utilization keys (CONNECT-020)
 

@@ -438,7 +438,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "39350f02fcf2054dae2f43269a218ddce8c96623012d152a1a2c64bd38ae7401",
+      "sha256": "f349c8bfb69ab432520c5de0316526b549d8b774da81ba7d053fee9b889aff15",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -450,7 +450,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "5b497075fbcf44d2089f9937f5b28dda30af35ae24887c61eb25d52b6e1045f4",
+      "sha256": "0645c83559de220d6d48231ff0929b35815de6bee01915dd498c219a1b7d031a",
       "executable": false
     },
     "base-copies.json": {
@@ -462,7 +462,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4e2e0f8a3d26d7b5eac8d1d4d9873cc35a8b059468ab07d19adf1cdbb4232ab6",
+      "sha256": "8fe147ee8c5c4aee3c93bb57fae3a59b8fd77b191e5bb3247abbb2fd80b580f1",
       "executable": false
     },
     "DEMO.md": {
@@ -502,7 +502,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "d38f90f7312d8e0cddcf1bf8fd39a015feb354c2fd30b4cabb3406b252e3d63d",
+      "sha256": "71ec84d92b472ba9269030b730af1761373e1ba54f3e2a8ef531e0c0e4438254",
       "executable": false
     },
     "docs/engagements.md": {
@@ -4414,7 +4414,7 @@
       "executable": false
     },
     "tests/fixtures/analyst-portability.mjs": {
-      "sha256": "813cb96c8787048d6e12574efb5dcc2fca71b70f324a6dda68e2166964d00fe9",
+      "sha256": "a0a2c8d9e1ce81a446273b43b21210a528c5505424caef7599346a6babfb4dab",
       "executable": false
     },
     "tests/fixtures/float-deletion-journey.mjs": {
@@ -4530,7 +4530,7 @@
       "executable": false
     },
     "tests/gauge-analyst.mjs": {
-      "sha256": "6b8ac4a525e8ee4828617796b4497f27a34774ed2c26beb4068b9d4ce22e26e1",
+      "sha256": "3f0601ac54f80c4604a4a565772da8900a930fc010e7c982f3c27912451cc9ac",
       "executable": false
     },
     "tests/gauge-app-api.mjs": {

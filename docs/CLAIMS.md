@@ -141,7 +141,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `RECOVER-005` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
 | `RECOVER-006` | partial | `src/gauge/reports.ts`; `src/gauge/proposals.ts` |
 | `RECOVER-007` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
-| `RECOVER-008` | partial | `tests/gauge-analyst.mjs`; `src/gauge/analyst.ts`; `src/gauge/ui-analyst.ts` |
+| `RECOVER-008` | partial | `tests/gauge-analyst.mjs`; `tests/fixtures/analyst-portability.mjs`; `src/gauge/analyst.ts`; `src/gauge/analyst-discrepancies.ts`; `src/gauge/analyst-snapshots.ts`; `src/gauge/ui-analyst.ts` |
 | `RECOVER-009` | partial | `src/gauge/imports.ts`; `src/gauge/harvest.ts`; `tests/gauge.mjs` |
 | `BOUNDARY-001` | done | `src/gauge/specialist-handoff.ts`; `src/gauge/ui-specialist-handoff.ts`; `tests/gauge-handoffs.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-invoices.mjs` |
 | `BOUNDARY-002` | partial | `tests/fixtures/stripe-journey.mjs`; `tests/gauge-invoices.mjs`; `tests/fixtures/stripe-archive.mjs` |

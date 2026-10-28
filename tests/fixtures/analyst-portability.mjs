@@ -20,7 +20,7 @@ export async function restoreAnalyst(h, verify) {
  const directory = await mkdtemp(join(tmpdir(), 'gauge-analyst-restored-'))
  let proxy, restored
  try {
-  execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'DB', '--local', '--persist-to', directory, '--config', 'wrangler.jsonc'], { stdio: 'pipe', env: { ...process.env, CI: 'true', WRANGLER_SEND_METRICS: 'false' } })
+  execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'DB', '--local', '--persist-to', directory, '--config', 'wrangler.jsonc'], { stdio: 'pipe', maxBuffer: 8 * 1024 * 1024, env: { ...process.env, CI: 'true', WRANGLER_SEND_METRICS: 'false' } })
   proxy = await getPlatformProxy({ configPath: 'wrangler.jsonc', persist: { path: join(directory, 'v3') }, remoteBindings: false })
   const target = await createPortability({ db: proxy.env.DB, policy: portabilityPolicy })
   const imported = await target.imports.create(records[0])

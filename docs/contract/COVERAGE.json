@@ -2,7 +2,7 @@
   "schema": 1,
   "seed": "gauge",
   "old": {
-    "commit": "b81df50c7d28e9eb84d56327fcfaa379248fa955",
+    "commit": "0601c58153f76620309a42081332f34aa941e060",
     "files": [
       "CONTRACT.md",
       "ACCEPTANCE.md"

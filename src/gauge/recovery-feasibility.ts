@@ -16,6 +16,8 @@ import { quoteBill } from './quote-pricing'
 import { allocationPricing } from './forecast-allocation-pricing'
 
 type Data = Record<Kind, Row[]>
+// Only native inputs used by delivery, pricing, entitlement and expected-cash calculations.
+const sourceKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments','estimates','estimateConversions','resourceRequests','packets','invoices','payments','paymentPromises','invoiceCorrections','invoiceDisputes','fixedCharges','retainerSchedules','retainerCharges','timeSlices','capWriteDowns','processorPayments']
 const hash = (value: unknown) => sha256(canonicalJson(value))
 const shift = (day: string, n: number) => new Date(Date.parse(day) + n * 86400000).toISOString().slice(0, 10)
 const days = (from: string, to: string) => { const out: string[] = []; for (let d = from; d <= to; d = shift(d, 1)) out.push(d); return out }
@@ -27,7 +29,7 @@ async function readBasis(env: Bindings, a: Actor, input: Value) {
  await fence(env, a)
  const asOf = date(input.asOf), ids = list(input.projectIds, 'Projects', 2).map(id => text(id, 'Project'))
  need(ids.length === 2 && new Set(ids).size === 2, 'Choose two distinct native projects')
- const data = Object.fromEntries(await Promise.all(kinds.map(async k => [k, await all(env, k)]))) as Data
+ const data = Object.fromEntries(await Promise.all(kinds.map(async k => [k, sourceKinds.includes(k) ? await all(env, k) : []]))) as Data
  need(ids.every(id => data.engagements.some(e => e.id === id && e.value.type !== 'internal')), 'Choose two existing client projects', 404)
  const digest = hash({ asOf, ids, data })
  return { data, asOf, ids, digest }

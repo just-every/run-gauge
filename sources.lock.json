@@ -434,7 +434,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2e6f882c8fc25035645bb14992984e3722cb5ca437910223b1baf0f01a81a6f2",
+      "sha256": "a789eb2378da12b43268ee5beceb7ddeb7af3b8542281232b71914ce3c20a1c3",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -454,7 +454,7 @@
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "a61cccc3827a6f52979286c16a82c7d4615efd07fa816fdac4bb57ea49931309",
+      "sha256": "7c042bc242c526f38346aedee4f1017effc3bf3723f351ee94357b7db805d11f",
       "executable": false
     },
     "CLAUDE.md": {
@@ -462,7 +462,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "98c38e8c0b32c6b0577087b11b4bd5ddb52eef8c49846e4da4f64d02a11ae064",
+      "sha256": "024116db921b890f09add8082ac0864fcbaafa3df83fd58f92ded7f0dde46ace",
       "executable": false
     },
     "DEMO.md": {
@@ -509,8 +509,76 @@
       "sha256": "b9df3e6023f5237b7832d7b91885b9fd0e4fa1c7461e87f0ad9c7d20a3ff056a",
       "executable": false
     },
+    "docs/contract/DONE-AUDIT.md": {
+      "sha256": "9f201ccd2067f697364e7fcebb72db01170dfad4810c9a09eac22e8ed4b31cc8",
+      "executable": false
+    },
     "docs/contract/ID-MAP.json": {
       "sha256": "75cec119d34836c804560c3c995c89d156305d12be6cba8992d869077892108d",
+      "executable": false
+    },
+    "docs/contract/mechanism-base.md": {
+      "sha256": "50514897a17c0069e12ce2260a6d9389106a73cc06fedf2afe27945034b9e551",
+      "executable": false
+    },
+    "docs/contract/mechanism-boundary.md": {
+      "sha256": "f61a968b77fc6a3e8cd2fd2be7eae6c865eb75133b8dca533e8809bebade702d",
+      "executable": false
+    },
+    "docs/contract/mechanism-budget.md": {
+      "sha256": "afd54f7c3450d247f5146265e57e71b808d4f786284b15b18fd3de51f8a9bd5e",
+      "executable": false
+    },
+    "docs/contract/mechanism-connect.md": {
+      "sha256": "c63278e401c24068a109ffc023134dd8f378330ed54cb9a2f795e746cb27de4a",
+      "executable": false
+    },
+    "docs/contract/mechanism-delivery.md": {
+      "sha256": "5f7f5ac8f03d06db318d7e71fb29031593f4abfd60131c20f6a60c376e1fe450",
+      "executable": false
+    },
+    "docs/contract/mechanism-finance.md": {
+      "sha256": "424d7a224c739bdf45cadb044e5b73703fc83bbb65602e4974625ecf2db31379",
+      "executable": false
+    },
+    "docs/contract/mechanism-followup.md": {
+      "sha256": "66712a5205bccd061cd37aa26853a5048481a10e987f9888d1134ce4992cfab0",
+      "executable": false
+    },
+    "docs/contract/mechanism-govern.md": {
+      "sha256": "608d626058283ee72679e689a7ae0ac574e3eb8aed60debaacb8319631593e00",
+      "executable": false
+    },
+    "docs/contract/mechanism-invoice.md": {
+      "sha256": "7b071b9dc0689e3cf27638a943b0fdb80530cd53f7528e39fea74d791727e832",
+      "executable": false
+    },
+    "docs/contract/mechanism-migrate.md": {
+      "sha256": "97872cde3d2c4f088d9dcd115cd5d4f39d6743c3ce1d5bcbc4c1030b71ac6dfc",
+      "executable": false
+    },
+    "docs/contract/mechanism-move.md": {
+      "sha256": "f1199529686fe3a357980c08e964d681cbac558b8dd4d0b68ab53c4c2abd1d7c",
+      "executable": false
+    },
+    "docs/contract/mechanism-report.md": {
+      "sha256": "5ab2a46dba1386402cfd6dba4cd02ec6b8096cf2807f9b109a2b24ca2a1eabf9",
+      "executable": false
+    },
+    "docs/contract/mechanism-retainer.md": {
+      "sha256": "2b7e92207e0cd84646a5dfcadf7777da011c8035fd116e1f52cd0751ec1798e1",
+      "executable": false
+    },
+    "docs/contract/mechanism-sales.md": {
+      "sha256": "b5fbf477604d3d51c5cfd02e19e8e9aa3298c6270fe9f69d3f9163e7ede95336",
+      "executable": false
+    },
+    "docs/contract/mechanism-setup.md": {
+      "sha256": "757e676419234f80e250a1a15dbfc9c5842be9061eb943bf6bc952c288e9b937",
+      "executable": false
+    },
+    "docs/contract/migration-formats.md": {
+      "sha256": "59648887c587a82ecc197821502e51cf5443cfc2d22f1d270075377b9a2db664",
       "executable": false
     },
     "docs/engagements.md": {
@@ -1174,7 +1242,7 @@
       "executable": false
     },
     "RULINGS.md": {
-      "sha256": "1c1eefffd8b739d8841dd1a89e23c4427c699e862ac15ac415c3e34f39337609",
+      "sha256": "14812d9e4783575c510c9cbb7b9d52550abc0e92de02e3bf782cad623597b0f0",
       "executable": false
     },
     "RUN-LOCALLY.md": {

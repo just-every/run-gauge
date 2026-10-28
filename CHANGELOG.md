@@ -1114,3 +1114,15 @@ Pre-rewrite Status note: No embedded natural-language reporting, financial polic
 ### RECOVER-009
 
 Pre-rewrite Status note: Reviewed import planning exists; configuration/migration agents, case resolution and settled-cycle verification do not.
+
+## 28 October 2026 — Scope54 history placement
+
+The 21 October scope54 reference describes working-day service-fee arithmetic; the source does not name a separate ruler. Its outcome remains in RETAINER-007, while its history stays here. No new ruling is inferred. RL-9 remains reserved.
+
+
+### Working-day service fee earning
+
+Date: 2026-10-21 · Source record: scope54 · Governs: `RETAINER-001`, `RETAINER-006`, `RETAINER-007`.
+
+Service fees prorate on saved working days, earn through inclusive as-of day and reconcile via cumulative month slices.
+

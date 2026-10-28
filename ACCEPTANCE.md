@@ -668,7 +668,7 @@ Core · target · **done** · From BUDGET-002 · Rules D-3
 
 Core · target · **partial** · From RETAINER-001 · Cites BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-002 · Rules D-3
 
-**Requirement.** Set monthly, quarterly or annual retainers with included hours or value, services, start/end and renewal terms; SETUP-005 carries billing currency. Allowances and commercial periods remain separate from ad hoc budgets. The recorded outcome is RL-7. The recorded outcome is RL-8. The recorded outcome is RL-9.
+**Requirement.** Set monthly, quarterly or annual retainers with included hours or value, services, start/end and renewal terms; SETUP-005 carries billing currency. Allowances and commercial periods remain separate from ad hoc budgets. The recorded outcome is RL-7. The recorded outcome is RL-8.
 
 **Acceptance.**
 1. Terms choose all, billable or nonbillable approved work. Calendar periods begin on month, quarter or year boundaries. Immutable commercial versions start after every saved period; saving/opening exact periods is replay-safe.
@@ -683,7 +683,7 @@ Core · target · **partial** · From RETAINER-001 · Cites BASE-AGENT-005, BASE
 
 Core · target · **done** · From RETAINER-001 · Rules D-3
 
-**Requirement.** Mid-period starts/ends prorate allowance by calendar days unless terms select agency working days; value rounds half up to cents and hours to the nearest whole minute. The recorded outcome is RL-7. The recorded outcome is RL-8. The recorded outcome is RL-9.
+**Requirement.** Mid-period starts/ends prorate allowance by calendar days unless terms select agency working days; value rounds half up to cents and hours to the nearest whole minute. The recorded outcome is RL-7. The recorded outcome is RL-8.
 
 **Acceptance.**
 1. A $10,000 monthly retainer beginning 16 October receives $5,161.29 for 16/31 calendar days and renews 1 November.
@@ -697,7 +697,7 @@ Core · target · **done** · From RETAINER-001 · Rules D-3
 
 Core · target · **done** · From RETAINER-001 · Cites BASE-ROLE-001 · Rules D-3
 
-**Requirement.** Optional finance-only service fees are integer cents per full commercial period on immutable versions, separate from allowance. FINANCE-001 / FINANCE-008/006 use earned fees; FINANCE-007’s advance-start assumption is replaced by RETAINER-005 contractual scheduling without double billing. The recorded outcome is RL-7. The recorded outcome is RL-8. The recorded outcome is RL-9.
+**Requirement.** Optional finance-only service fees are integer cents per full commercial period on immutable versions, separate from allowance. FINANCE-001 / FINANCE-008/006 use earned fees; FINANCE-007’s advance-start assumption is replaced by RETAINER-005 contractual scheduling without double billing. The recorded outcome is RL-7. The recorded outcome is RL-8.
 
 **Acceptance.**
 1. Prorate fees by the version’s saved working weekdays/holidays independently of allowance proration. Earn ratably through inclusive as-of day only for opened periods; cumulative half-up cent rounding and differences of cumulative monthly amounts reconcile exactly.
@@ -747,7 +747,7 @@ Core · target · **done** · From RETAINER-003 · Cites BASE-ROLE-001 · Rules 
 3. Linked RETAINER-004 adjustments show source/rule versions and posted/projected effects. Finance/leads see aggregate hours/value but private costs/rates remain finance-only.
 4. Assigned staff see hour statements and only their own source work; other supporting work is restricted. Value statements and commercial monetary rates never enter staff pages, state, history or exports.
 
-**Evidence.** `tests/gauge-retainer-statements.mjs` — "retainerStatementJourney"
+**Evidence.** `tests/gauge-retainer-statements.mjs` — "retainerStatementsJourney"
 **Gap.** None.
 
 #### RETAINER-009 — Resolve ambiguous retainer allocation
@@ -1345,7 +1345,7 @@ Core · target · **done** · From FINANCE-002 · Rules D-4
 4. A month is incomplete when any engagement forecast in that currency is incomplete. Client terms, days late and probability remain finance-only; every cash figure links to milestones or committed-fee sources, assumptions and as-of day.
 5. Delay a milestone two weeks: the shifted cash curve equals an independent FINANCE-007 recomputation month by month while booked revenue and settled cash remain distinct.
 
-**Evidence.** `tests/gauge-cash-forecast.mjs` — "cashForecastJourney"
+**Evidence.** `tests/gauge-cash-forecast.mjs` — "FINANCE-002 / FINANCE-009 / FINANCE-010 milestone delay moves expected cash as an independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only"
 **Gap.** None.
 
 #### FINANCE-009 — Schedule unissued invoices and expected receipts
@@ -1360,7 +1360,7 @@ Core · target · **done** · From FINANCE-002 · Rules D-4
 3. Expected receipt equals invoice date plus finance-set client Net N terms, from 0 to 365 days. Only unset terms use 30 days with Net 30 assumed. Finance-approved average days late, from 0 to 365 with the approver retained, adds the historical-timing date.
 4. A receipt date before the as-of day moves to the as-of month flagged past due. Expected cash equals open amount times collection probability, rounded half up to cents, beside full open amount; probability is 100% unless finance sets 0–100.
 
-**Evidence.** `tests/gauge-cash-forecast.mjs` — "cashForecastJourney"
+**Evidence.** `tests/gauge-cash-forecast.mjs` — "FINANCE-002 / FINANCE-009 / FINANCE-010 milestone delay moves expected cash as an independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only"
 **Gap.** None.
 
 #### FINANCE-010 — Forecast payment promises
@@ -1373,7 +1373,7 @@ Core · target · **done** · From FINANCE-002 · Rules D-4
 1. A promise moves up to its stated amount of remaining open balance to its date without adding days late and supersedes earlier promises.
 2. Once the promise date is before the as-of day it is broken; its amount returns to the as-of month flagged overdue. Changing a promise shifts only the corresponding cash curve and reconciles month by month to FINANCE-007.
 
-**Evidence.** `tests/gauge-cash-forecast.mjs` — "cashForecastJourney"
+**Evidence.** `tests/gauge-cash-forecast.mjs` — "FINANCE-002 / FINANCE-009 / FINANCE-010 milestone delay moves expected cash as an independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only"
 **Gap.** None.
 
 #### FINANCE-003 — Project scenarios and baseline comparison

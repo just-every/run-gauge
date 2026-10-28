@@ -584,7 +584,7 @@ The primary journey: Move in the agency record, agree scope and retainers, staff
 
 *Tier:* Core · *From:* RETAINER-001 · *Cites:* BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-002 · *Rules:* D-3
 
-**Requirement.** Set monthly, quarterly or annual retainers with included hours or value, services, start/end and renewal terms; SETUP-005 carries billing currency. Allowances and commercial periods remain separate from ad hoc budgets. The recorded outcome is RL-7. The recorded outcome is RL-8. The recorded outcome is RL-9.
+**Requirement.** Set monthly, quarterly or annual retainers with included hours or value, services, start/end and renewal terms; SETUP-005 carries billing currency. Allowances and commercial periods remain separate from ad hoc budgets. The recorded outcome is RL-7. The recorded outcome is RL-8.
 
 **Acceptance.**
 1. Terms choose all, billable or nonbillable approved work. Calendar periods begin on month, quarter or year boundaries. Immutable commercial versions start after every saved period; saving/opening exact periods is replay-safe.
@@ -596,7 +596,7 @@ The primary journey: Move in the agency record, agree scope and retainers, staff
 
 *Tier:* Core · *From:* RETAINER-001 · *Rules:* D-3
 
-**Requirement.** Mid-period starts/ends prorate allowance by calendar days unless terms select agency working days; value rounds half up to cents and hours to the nearest whole minute. The recorded outcome is RL-7. The recorded outcome is RL-8. The recorded outcome is RL-9.
+**Requirement.** Mid-period starts/ends prorate allowance by calendar days unless terms select agency working days; value rounds half up to cents and hours to the nearest whole minute. The recorded outcome is RL-7. The recorded outcome is RL-8.
 
 **Acceptance.**
 1. A $10,000 monthly retainer beginning 16 October receives $5,161.29 for 16/31 calendar days and renews 1 November.
@@ -607,7 +607,7 @@ The primary journey: Move in the agency record, agree scope and retainers, staff
 
 *Tier:* Core · *From:* RETAINER-001 · *Cites:* BASE-ROLE-001 · *Rules:* D-3
 
-**Requirement.** Optional finance-only service fees are integer cents per full commercial period on immutable versions, separate from allowance. FINANCE-001 / FINANCE-008/006 use earned fees; FINANCE-007’s advance-start assumption is replaced by RETAINER-005 contractual scheduling without double billing. The recorded outcome is RL-7. The recorded outcome is RL-8. The recorded outcome is RL-9.
+**Requirement.** Optional finance-only service fees are integer cents per full commercial period on immutable versions, separate from allowance. FINANCE-001 / FINANCE-008/006 use earned fees; FINANCE-007’s advance-start assumption is replaced by RETAINER-005 contractual scheduling without double billing. The recorded outcome is RL-7. The recorded outcome is RL-8.
 
 **Acceptance.**
 1. Prorate fees by the version’s saved working weekdays/holidays independently of allowance proration. Earn ratably through inclusive as-of day only for opened periods; cumulative half-up cent rounding and differences of cumulative monthly amounts reconcile exactly.
@@ -3182,7 +3182,7 @@ Judged from the code and tests at commit `47b862d1ce99cf7ed238a4235455404f0fb8b8
 | `RETAINER-007` | Retainer service fee and earned revenue | target | done | `tests/gauge-retainers.mjs` — "RETAINER-001 / RETAINER-006 / RETAINER-007: native USD value/hours terms, monthly/quarterly/annual periods, exact calendar/working proration, inclusive ends and renewal, immutable commercial versions/calendar snapshots, eligible approved-work policy, lineage and scoped authority" |  |
 | `RETAINER-002` | Aged FIFO carry and deficits | target | done | `tests/gauge-retainer-rules.mjs` — "retainerRulesJourney" |  |
 | `RETAINER-008` | Eligible retainer overage billing | target | done | `tests/gauge-retainer-rules.mjs` — "retainerRulesJourney" |  |
-| `RETAINER-003` | Retainer balance and provisional projection | target | done | `tests/gauge-retainer-statements.mjs` — "retainerStatementJourney" |  |
+| `RETAINER-003` | Retainer balance and provisional projection | target | done | `tests/gauge-retainer-statements.mjs` — "retainerStatementsJourney" |  |
 | `RETAINER-009` | Resolve ambiguous retainer allocation | target | partial | `tests/gauge-retainer-statements.mjs` | Missing a company-policy journey for resolve ambiguous retainer allocation that runs the granted action under held and all-autonomous policies. The cited legacy journey shows the native purpose/role gates and exact business effects, without selecting policy dispositions. |
 | `RETAINER-004` | Close retainer periods permanently | target | done | `tests/gauge-retainer-close.mjs` — "retainerCloseJourney" |  |
 | `RETAINER-010` | Post late work to an open period | target | done | `tests/gauge-retainer-close.mjs` — "retainerCloseJourney" |  |
@@ -3222,9 +3222,9 @@ Judged from the code and tests at commit `47b862d1ce99cf7ed238a4235455404f0fb8b8
 | `COST-003` | Track purchase commitments and actual costs | target | missing |  | Vendor commitments, purchase orders, expected-cost ledger and accounting bill readback remain to be built. |
 | `FINANCE-001` | Explain actual and forecast margin | target | done | `tests/gauge-finance-forecast.mjs` — "FINANCE-001 / FINANCE-008 actual/forecast margin with unknown cost traced to sources, billed net of credits not invoiced, no payments recorded; FINANCE-006 / FINANCE-018 / FINANCE-019 committed ETC/EAC at effective rates, monthly split, tentative and weighted pipeline additions, unpriced incompleteness, fixed-fee milestone schedule, rate withdrawal and finance-only lineage"; `tests/gauge-invoices.mjs` — "invoiceDashboardJourney" |  |
 | `FINANCE-008` | Distinguish issued billing and paid cash | target | done | `tests/gauge-finance-forecast.mjs` — "FINANCE-001 / FINANCE-008 actual/forecast margin with unknown cost traced to sources, billed net of credits not invoiced, no payments recorded; FINANCE-006 / FINANCE-018 / FINANCE-019 committed ETC/EAC at effective rates, monthly split, tentative and weighted pipeline additions, unpriced incompleteness, fixed-fee milestone schedule, rate withdrawal and finance-only lineage"; `tests/gauge-invoices.mjs` — "invoiceDashboardJourney" |  |
-| `FINANCE-002` | Revenue and cash forecast | target | done | `tests/gauge-cash-forecast.mjs` — "cashForecastJourney" |  |
-| `FINANCE-009` | Schedule unissued invoices and expected receipts | target | done | `tests/gauge-cash-forecast.mjs` — "cashForecastJourney" |  |
-| `FINANCE-010` | Forecast payment promises | target | done | `tests/gauge-cash-forecast.mjs` — "cashForecastJourney" |  |
+| `FINANCE-002` | Revenue and cash forecast | target | done | `tests/gauge-cash-forecast.mjs` — "FINANCE-002 / FINANCE-009 / FINANCE-010 milestone delay moves expected cash as an independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only" |  |
+| `FINANCE-009` | Schedule unissued invoices and expected receipts | target | done | `tests/gauge-cash-forecast.mjs` — "FINANCE-002 / FINANCE-009 / FINANCE-010 milestone delay moves expected cash as an independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only" |  |
+| `FINANCE-010` | Forecast payment promises | target | done | `tests/gauge-cash-forecast.mjs` — "FINANCE-002 / FINANCE-009 / FINANCE-010 milestone delay moves expected cash as an independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only" |  |
 | `FINANCE-003` | Project scenarios and baseline comparison | target | done | `tests/gauge-project-scenarios.mjs` — "FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 isolated two-project contractor comparison, exact cost/margin/cash/utilization, named selected future adoption, history, replay and stale/access refusals; capacity browser 1440/390" |  |
 | `FINANCE-011` | Compare future staffing replacements | target | done | `tests/gauge-project-scenarios.mjs` — "FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 isolated two-project contractor comparison, exact cost/margin/cash/utilization, named selected future adoption, history, replay and stale/access refusals; capacity browser 1440/390" |  |
 | `FINANCE-012` | Compare prospective rates and billing adjustments | target | done | `tests/gauge-project-scenarios.mjs` — "FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 isolated two-project contractor comparison, exact cost/margin/cash/utilization, named selected future adoption, history, replay and stale/access refusals; capacity browser 1440/390" |  |

@@ -1,6 +1,6 @@
 # Gauge rulings
 
-The entries below retain ct's numbers and wording. They change no clause status.
+The entries below retain ct's numbers and wording. They change no clause status. RL-9 is reserved: the legacy scope54 mechanism record is retained in CHANGELOG.md rather than treated as a ruling.
 
 ### RL-101 — Payments use the agency merchant account
 
@@ -241,7 +241,7 @@ Only the owner records reported external acceptance; client identity remains unv
 
 ### RL-4 — Native confirmed-email client carrier
 
-Date: 2026-10-22 · Ruled by: brief · Governs: `SALES-003`, `SALES-008`, `SALES-009`, `SALES-010`.
+Date: 2026-10-22 · Ruled by: ct (the approved 22 October brief) · Governs: `SALES-003`, `SALES-008`, `SALES-009`, `SALES-010`.
 
 The owner prepares, explicitly sends or revokes complete immutable proposals; an invited confirmed-email recipient supplies deliberate exact-version decisions.
 
@@ -268,12 +268,6 @@ Lead/finance setup rights and manager-visible terms are preserved; the legacy ag
 Date: 2026-10-21T00:30:00Z · Ruled by: ct · Governs: `RETAINER-001`, `RETAINER-006`, `RETAINER-007`.
 
 Fees are immutable integer-cent amounts per full commercial period, separate from allowance and finance-only.
-
-### RL-9 — Working-day service fee earning
-
-Date: 2026-10-21 · Ruled by: scope54 · Governs: `RETAINER-001`, `RETAINER-006`, `RETAINER-007`.
-
-Service fees prorate on saved working days, earn through inclusive as-of day and reconcile via cumulative month slices.
 
 ### RL-10 — Staff statement privacy
 

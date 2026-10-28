@@ -2553,7 +2553,7 @@
       "executable": false
     },
     "src/gauge/ui-scope-extraction.ts": {
-      "sha256": "77e029f08d46fbdbbe2e1fa146418b8cb60e1ff42bcce09e6b7243c964e3f755",
+      "sha256": "403d3332e16c5e92b95cacddc9ff2ff5b809643e4ee000397fce5243045db6d4",
       "executable": false
     },
     "src/gauge/ui-scoro.ts": {

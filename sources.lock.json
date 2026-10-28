@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "gauge-local/edition",
-  "manifest": "e623e19e76550d32284a301797441ecfde4c537d37cf17196016e4c1d1ffd8a8",
+  "manifest": "83cce6f76a2f31ed6629bdcddaf6a7ee5eb659cf05c16cf1a17cde15674a7bc4",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -54,6 +54,7 @@
           "migrations/core/0045_gauge_phase_alerts.sql",
           "migrations/core/0046_gauge_agency_close.sql",
           "scripts/gauge-tests.mjs",
+          "scripts/integrations/webhook-receiver.mjs",
           "migrations/core/0047_gauge_custom_fields.sql",
           "migrations/core/0048_gauge_estimates.sql",
           "migrations/core/0049_gauge_commercial_proposals.sql",
@@ -536,7 +537,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "e623e19e76550d32284a301797441ecfde4c537d37cf17196016e4c1d1ffd8a8",
+      "sha256": "83cce6f76a2f31ed6629bdcddaf6a7ee5eb659cf05c16cf1a17cde15674a7bc4",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -4496,7 +4497,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "f1a5775f3efa0e8a48b8e6e0088bc603615981a5ac8f55b4fca4c1c4f4d67e2d",
+      "sha256": "f26e97fb7489afd00da8d04b58b7f2d70ac550333feb8b51a86557c0b2726afa",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {

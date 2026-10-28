@@ -2023,7 +2023,7 @@
       "executable": false
     },
     "src/gauge/recovery-feasibility.ts": {
-      "sha256": "619590f8737a86de4d4284c373ca265c46134b1e7d2bbe00231fbdabec943fad",
+      "sha256": "2c5dd69f1194d662ff2d26b09a747b827c98700a735c6b8cbd9d4c5644029d07",
       "executable": false
     },
     "src/gauge/report-export.ts": {
@@ -2531,7 +2531,7 @@
       "executable": false
     },
     "src/gauge/ui-recovery-feasibility.ts": {
-      "sha256": "89a397ac5435a99305c04110cdea284b94398ae9b2506e4835dc94f10b8fc086",
+      "sha256": "0ef092331aa2e69949c47e4910d009f9d11a35716f52e2c8599e49ca5924441c",
       "executable": false
     },
     "src/gauge/ui-recovery.ts": {
@@ -4731,7 +4731,7 @@
       "executable": false
     },
     "tests/gauge-recovery-feasibility.mjs": {
-      "sha256": "0ae460cba384996f05a1f08a1bc4470fe1a5279379f40f35f07645692b009db6",
+      "sha256": "fac5ca3e53db46cf55f2ff0725714bb208fa260a89a8cd7d202dca294227840b",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {

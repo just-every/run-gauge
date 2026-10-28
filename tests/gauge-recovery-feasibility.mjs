@@ -137,6 +137,13 @@ try {
  assert(required.some(r => r.key === `client-date:${milestones[0].id}` && /2030-02-01.*2030-02-02/.test(r.description) && /Client acceptance/.test(r.requires)))
  assert(required.some(r => r.kind === 'budget' && r.key.includes(':delivery:hours') && r.quantity === 7200 && r.amountMinor === 20000))
  const held = required.filter(r => r.kind === 'retainer'); assert.equal(held.length, 2); assert(held.every(r => r.quantity === 10800 && r.amountMinor === 60000))
+ const nativePeriods = (await h.state()).data.retainerPeriods.filter(p => p.value.retainerId === savedRetainer.id)
+ for (const p of nativePeriods) {
+  const exception = held.find(r => r.period?.periodId === p.id)
+  assert.deepEqual(exception.period, { retainerId: savedRetainer.id, periodId: p.id, from: p.value.activeStart, to: p.value.activeEnd })
+  assert(exception.description.includes(p.value.activeStart) && exception.description.includes(p.value.activeEnd))
+ }
+
  assert.equal(exceptions.alternatives[0].status, 'refused')
  const exceptionsNamed = await compare([{ ...alternatives[0], commercialChanges: required.map(r => ({ key: r.key, amountMinor: r.amountMinor, reason: 'Client must separately accept the exact dated and commercial change' })) }])
  assert.equal(exceptionsNamed.alternatives[0].status, 'conditional')
@@ -155,6 +162,7 @@ try {
  for (const n of [0, 1]) { await panel.getByLabel(`Delivery to delay for project ${n + 1}`).selectOption(tasks[n].id); await panel.getByLabel(`Booking to compare for project ${n + 1}`).selectOption(bookings[n].id); await panel.getByLabel(`Remaining task hours for project ${n + 1}`).fill('4') }
  await panel.getByRole('button', { name: 'Compare recovery alternatives' }).click()
  assert.match(await panel.locator('#recovery-results').innerText(), /Client acceptance required/)
+ for (const p of nativePeriods) assert((await panel.locator('#recovery-results').innerText()).includes(`Recovery Beta · Change order for ${terms.name}, ${p.value.activeStart} through ${p.value.activeEnd}`))
  assert.match(await panel.locator('[data-recovery-option=contractor]').innerText(), /6.*excess.*360/)
  // Explicitly list the client decisions and priced excess; this grants no native approval.
  for (const box of await panel.locator('input[type=checkbox]').all()) await box.check()

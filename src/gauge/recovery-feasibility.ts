@@ -119,7 +119,7 @@ function candidateFor(data: Data, ids: string[], asOf: string, option: Value) {
  return candidate
 }
 
-type Requirement = { key: string; engagementId: string; kind: string; description: string; amountMinor: number | null; currency: string; quantity?: number }
+type Requirement = { key: string; engagementId: string; kind: string; description: string; amountMinor: number | null; currency: string; quantity?: number; period?: { retainerId: string; periodId: string; from: string; to: string } }
 function commercialRequirements(data: Data, candidate: Data, ids: string[], asOf: string, projected: ReturnType<typeof snapshot>) {
  const requirements: Requirement[] = [], unknowns: string[] = ids.filter(id => !latestPlan(candidate, id)).map(id => `Project ${id}: approved delivery baseline unavailable`)
  const add = (key: string, id: string, kind: string, description: string, amountMinor: number | null, quantity?: number) => requirements.push({ key, engagementId: id, kind, description, amountMinor, currency: data.engagements.find(e => e.id === id)!.value.currency, ...(quantity === undefined ? {} : { quantity }) })
@@ -174,7 +174,10 @@ function commercialRequirements(data: Data, candidate: Data, ids: string[], asOf
   if (balance.closed && demand.some(d => d.value.retainerRootId === period.value.rootId && d.value.workDate >= period.value.activeStart && d.value.workDate <= period.value.activeEnd)) unknowns.push(`Retainer ${family.id}: closed period cannot absorb proposed future work`)
   if (balance.remaining === null) { unknowns.push(`Retainer ${family.id}: projected allowance unknown`); continue }
   const excess = Math.max(0, -balance.remaining)
-  if (excess && balance.overagePolicy !== 'bill') add(`retainer:${period.id}`, balance.engagementId, 'retainer', `Change order for ${excess} ${t.unit === 'hours' ? 'seconds' : 'minor units'} beyond retainer allowance; ${balance.overagePolicy} overage remains held`, t.rules.overageRate > 0 ? overageCharge(excess, t.unit, t.rules.overageRate) : null, excess)
+  if (excess && balance.overagePolicy !== 'bill') {
+   add(`retainer:${period.id}`, balance.engagementId, 'retainer', `Change order for ${t.name}, ${period.value.activeStart} through ${period.value.activeEnd}: ${excess} ${t.unit === 'hours' ? 'seconds' : 'minor units'} beyond allowance; ${balance.overagePolicy} overage remains held`, t.rules.overageRate > 0 ? overageCharge(excess, t.unit, t.rules.overageRate) : null, excess)
+   requirements.at(-1)!.period = { retainerId: family.id, periodId: period.id, from: period.value.activeStart, to: period.value.activeEnd }
+  }
  }
  unknowns.push(...projected.projects.flatMap(p => p.incomplete), ...projected.cash.engagements.flatMap(p => p.incomplete))
  return { requirements, unknowns: [...new Set(unknowns)] }

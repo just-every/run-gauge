@@ -2184,6 +2184,14 @@
       "sha256": "c94bcf1bef245f00c16426263eba1d3f2486c947b1dbd376aef027f8f7e974d9",
       "executable": false
     },
+    "src/gauge/scope-extraction-source.ts": {
+      "sha256": "1875be774c4783c59d4e33d3601ee6d600db04e0b9b70f95d1b3bd2531078d0e",
+      "executable": false
+    },
+    "src/gauge/scope-extraction.ts": {
+      "sha256": "5e363033be9cdc3f809a4a3ed1599a6b1766e0c19db30f6630e18ce1c7e64a4e",
+      "executable": false
+    },
     "src/gauge/scope-review.ts": {
       "sha256": "cd0a2230028a776aad19acc16be55c720592db12044187336491a63694eac82b",
       "executable": false
@@ -2542,6 +2550,10 @@
     },
     "src/gauge/ui-schedule.ts": {
       "sha256": "6911f7a6987f3b105c814be6d00ccb0748be26f78b12a0bd2ce9b12befd42ddd",
+      "executable": false
+    },
+    "src/gauge/ui-scope-extraction.ts": {
+      "sha256": "77e029f08d46fbdbbe2e1fa146418b8cb60e1ff42bcce09e6b7243c964e3f755",
       "executable": false
     },
     "src/gauge/ui-scoro.ts": {
@@ -4706,6 +4718,10 @@
     },
     "tests/gauge-schedule.mjs": {
       "sha256": "f0d0b5db87f62786feede95ac141bd201d1ad66e8c7a9812c6c893e68f9b93fe",
+      "executable": false
+    },
+    "tests/gauge-scope-extraction.mjs": {
+      "sha256": "9e0f8842b9a7f0e88717b9e4a3c0757316bd125fe625d6327ab3b1b87732bb73",
       "executable": false
     },
     "tests/gauge-scoro.mjs": {

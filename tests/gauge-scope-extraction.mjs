@@ -45,7 +45,7 @@ export async function scopeExtractionJourney(h,browser,{signed,estimate,estimate
   assert.equal(x.retainerTerms.length,1);assert.equal(x.retainerTerms[0].field,'document.scope')
   const scope=readback.source.proposal.value.document.scope,citation=x.retainerTerms[0]
   assert.equal(scope.slice(citation.start,citation.end),citation.quote)
-  assert.match(citation.quote,/retainer.*monthly/i)
+  assert.match(citation.quote,/monthly retainer.*milestone payments/i)
   assert.equal(x.billingTriggers[0].field,'document.paymentSchedule[0]')
   assert.deepEqual(JSON.parse(x.billingTriggers[0].quote),{name:'Kickoff',due:'2026-11-02',amountMinor:75000,currency:'USD'})
   assert.equal(x.ambiguities[0].interpretations.length,3)

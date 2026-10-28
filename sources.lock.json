@@ -2189,7 +2189,7 @@
       "executable": false
     },
     "src/gauge/scope-extraction.ts": {
-      "sha256": "5e363033be9cdc3f809a4a3ed1599a6b1766e0c19db30f6630e18ce1c7e64a4e",
+      "sha256": "09de6c9417a34f257ee5fcb4aa356fc1dd29cd50dd058eb5eaa4f7a5f5f640da",
       "executable": false
     },
     "src/gauge/scope-review.ts": {
@@ -4721,7 +4721,7 @@
       "executable": false
     },
     "tests/gauge-scope-extraction.mjs": {
-      "sha256": "cfbc64f9b1b1e6454c2643e7acbed204f8762c6139e7243407727c31ea0c8424",
+      "sha256": "a051859f1ddb7cea396c8ed12a923222309b05cf21b9b406ff96bb21c834cdd3",
       "executable": false
     },
     "tests/gauge-scoro.mjs": {

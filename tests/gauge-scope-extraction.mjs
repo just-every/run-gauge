@@ -36,7 +36,8 @@ export async function scopeExtractionJourney(h,browser,{signed,estimate,estimate
   }
  }
  try {
-  await context.addCookies(cookies(finance.cookie));await page.goto(h.origin+pagePath)
+  await context.addCookies(cookies(finance.cookie));await page.goto(h.origin+'/app/engagements?estimate='+signed.value.estimateId)
+  await page.locator('#commercial-'+signed.id).getByRole('link',{name:'Review signed scope extraction',exact:true}).click()
   await page.getByLabel('Preview reason',{exact:true}).fill('Review signed milestone and retainer conflict')
   await page.getByRole('button',{name:'Prepare scope preview',exact:true}).click()
   const readback=await read(finance.cookie),preview=readback.previews.at(-1),x=preview.value.extraction
@@ -85,10 +86,13 @@ export async function scopeExtractionJourney(h,browser,{signed,estimate,estimate
   // Native erasure fences the same person's session and cannot be bypassed by replay.
   await cmd('privacy:policy',{personalDays:0,fileDays:0,evidenceDays:0,reason:'Owner reviewed native erasure'})
   await cmd('privacy:exit',{personId:financePerson.id,date:'2020-01-01',reason:'Former finance reviewer'})
+  const blockedErasure=await cmd('privacy:preview',{personId:financePerson.id});assert(blockedErasure.blockers.some(s=>s.includes('Revoke every Gauge grant')))
+  await cmd('grant',{operatorId:finance.id,personId:financePerson.id,role:'finance',enabled:false})
   const erasure=await cmd('privacy:preview',{personId:financePerson.id});assert.deepEqual(erasure.blockers,[])
   await cmd('privacy:erase',{personId:financePerson.id,fingerprint:erasure.fingerprint,reason:'Explicit native erasure',confirm:'erase-reviewed-native-scope',lawfulReceiptRemoval:'authorized'})
   assert.equal((await request(path,finance.cookie)).status,403)
   await cmd('scope:preview',replay,finance.cookie,403)
+  await cmd('grant',{operatorId:finance.id,personId:financePerson.id,role:'finance',enabled:true},owner,410)
   await cmd('estimate:save',{...estimateInput,opportunityId:estimate.value.opportunityId,previousId:estimate.id,reason:'Revise signed source effort after review',lines:estimateInput.lines.map(l=>({...l,effortSeconds:39600}))})
   assert.equal((await request(path,owner)).status,409)
   await cmd('scope:resolve',resolution,owner,409)

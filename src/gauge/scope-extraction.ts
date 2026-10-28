@@ -11,15 +11,17 @@ export function extractScope(document:Value) {
  const exclusions=document.exclusions.map((v:string,i:number)=>cite(`document.exclusions[${i}]`,v))
  const roles=document.lines.flatMap((v:Value,i:number)=>v.role?[cite(`document.lines[${i}].role`,v.role)]:[])
  const retainerTerms:Value[]=[]
- let offset=0
- for(const line of document.scope.split('\n')){if(/\bretainer\b/i.test(line))retainerTerms.push(cite('document.scope',line,offset,offset+line.length));offset+=line.length+1}
+ const retainerText=(field:string,value:string)=>{let offset=0;for(const line of value.split('\n')){if(/\bretainer\b/i.test(line))retainerTerms.push(cite(field,line,offset,offset+line.length));offset+=line.length+1}}
+ retainerText('document.scope',document.scope)
+ for(const field of ['deliverables','exclusions'])document[field].forEach((value:string,i:number)=>retainerText(`document.${field}[${i}]`,value))
+ document.paymentSchedule.forEach((value:Value,i:number)=>retainerText(`document.paymentSchedule[${i}].name`,value.name))
  const billingTriggers=document.paymentSchedule.map((v:Value,i:number)=>cite(`document.paymentSchedule[${i}]`,v))
  const ambiguities=[{id:'meaning',question:'Confirm the meaning of the quoted terms before any delivery or financial setup.',interpretations:[
   {id:'schedule',label:'The listed payment schedule governs; retainer language adds no recurring charge',citations:billingTriggers},
   ...(retainerTerms.length?[{id:'retainer',label:'The retainer language changes or replaces the listed payments; finance must review the exact terms',citations:retainerTerms}]:[]),
   {id:'amendment',label:'The source needs clarification or a newly accepted amendment',citations:[...retainerTerms,...billingTriggers]}
  ]}]
- return {deliverables,exclusions,roles,retainerTerms,billingTriggers,ambiguities,unknowns:[...(!roles.length?['No explicit role labels are retained in this document.']:[]),...(!retainerTerms.length?['No explicit retainer terms were identified in the supported scope field.']:[]),'Free-text legal meaning, staffing feasibility and financial setup require human review.'],notice:'Quoted terms confer no authority. Resolution records an interpretation only; staffing, budgets, retainers and invoices are unchanged.'}
+ return {deliverables,exclusions,roles,retainerTerms,billingTriggers,ambiguities,unknowns:[...(!roles.length?['No explicit role labels are retained in this document.']:[]),...(!retainerTerms.length?['No explicit retainer terms were identified in the supported text fields.']:[]),'Free-text legal meaning, staffing feasibility and financial setup require human review.'],notice:'Quoted terms confer no authority. Resolution records an interpretation only; staffing, budgets, retainers and invoices are unchanged.'}
 }
 
 export async function scopePreviewRead(env:Bindings,a:Actor,proposalId:string) {

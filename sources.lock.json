@@ -4530,7 +4530,7 @@
       "executable": false
     },
     "tests/gauge-analyst.mjs": {
-      "sha256": "3f0601ac54f80c4604a4a565772da8900a930fc010e7c982f3c27912451cc9ac",
+      "sha256": "a2a562941508a31a4fe45e41778053f337ff468f8f915dc7e6fc7d3a2d433d34",
       "executable": false
     },
     "tests/gauge-app-api.mjs": {

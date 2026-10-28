@@ -91,6 +91,13 @@ try {
   await context.addCookies(who.cookie.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
   await page.goto(h.origin + '/app/review?' + new URLSearchParams({ from: input.from, to: input.to, asOf: input.asOf }))
   const panel = page.locator('#operational-analyst')
+  if (role === 'finance') {
+   await panel.getByLabel('Snapshot project').selectOption(project.id)
+   await panel.getByLabel('Snapshot label').fill('Browser capture before rework')
+   await panel.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
+   assert((await h.state()).data.analystSnapshots.some(s => s.value.label === 'Browser capture before rework' && s.value.engagementId === project.id))
+   await page.goto(h.origin + '/app/review?' + new URLSearchParams({ from: input.from, to: input.to, asOf: input.asOf }))
+  }
   for (const [subject, question] of [['utilization', utilizationQuestion], ['margin', marginQuestion], ['unsupported', 'What is our tax liability?']]) {
    await panel.getByLabel('Project to analyze').selectOption(project.id)
    await panel.getByLabel('Comparison period from', { exact: true }).fill(input.compareFrom)

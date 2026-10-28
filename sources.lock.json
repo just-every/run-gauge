@@ -4701,6 +4701,10 @@
       "sha256": "3b7d4760c1b349f9d570384e3c28755777ad2e97951e864b97d533fe5748e456",
       "executable": false
     },
+    "tests/gauge-recovery-feasibility.mjs": {
+      "sha256": "0ae460cba384996f05a1f08a1bc4470fe1a5279379f40f35f07645692b009db6",
+      "executable": false
+    },
     "tests/gauge-report-lineage.mjs": {
       "sha256": "29db0674ca885bf0a10780fc7307481cad2511dcf508053bd1584983a302537d",
       "executable": false

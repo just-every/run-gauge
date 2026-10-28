@@ -82,7 +82,9 @@
           "migrations/core/0079_gauge_portal_choices.sql",
           "migrations/core/0080_gauge_portal_owner_version.sql",
           "migrations/core/0079_gauge_change_review.sql",
-          "migrations/core/0080_gauge_intake.sql"
+          "migrations/core/0080_gauge_intake.sql",
+          "migrations/core/0081_gauge_app_key_lifecycle.sql",
+          "migrations/core/0082_gauge_webhook_previews.sql"
         ]
       }
     },

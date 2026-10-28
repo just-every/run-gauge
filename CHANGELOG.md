@@ -1126,3 +1126,13 @@ Date: 2026-10-21 · Source record: scope54 · Governs: `RETAINER-001`, `RETAINER
 
 Service fees prorate on saved working days, earn through inclusive as-of day and reconcile via cumulative month slices.
 
+
+## 28 October 2026 — Main reconciliation of native change acceptance
+
+Main `72569cfa1261dd10fade3360dc4b3ab179d91dba` carries the native change carrier as a default adopted pending ct. SALES-005 keeps independent internal review; SALES-012 carries exact customer disclosure, native identity-bound consent and separate once-only native-owner adoption. The pending ct approval and publication gates remain in its Gap. Status stays partial.
+
+Main’s acceptance evidence record for the native change carrier at `72569cf`:
+
+`tests/gauge-project-scenario-scope.mjs` — scopeScenarioJourney through `tests/gauge-project-scenarios.mjs` (immutable scope, date, capacity, forecast, cash and margin comparisons; decline, revise, independent internal approval; same-person self-review refusal; internal labels; stale baseline and supersession fences; shown-once hashed review key, recipient and origin refusals, exact request replay and changed-content refusal, revocation and no automatic sending); acceptedChangeJourney in the same file and Verify suite (invited-project navigation with live reviews and explicit omission of superseded, withdrawn, expired, revoked and stale reviews; balanced nonzero phase expenses through scopeScenarioJourney; exact customer scope, terms and dates at 1440 and 390; exact rejection reason; required typed name and consent, exact signed document digest, revision and identity; pending and rejected forecast unchanged; native-owner-only adoption, concurrent once-only replay, preserved prior terms, exactly 36000 additional forecast cents and 18000 additional margin cents, no packet or invoice, independent key and portal revocation); `tests/gauge-base-portability.mjs` — prepareCurrentPortability through `tests/gauge.mjs` (signed native decision and exact customer document retained; review authority absent and restored adoption refused).
+
+Remaining at that commit: PARTIAL pending ct approval of the native change carrier stated above: explicit owner release of exact customer commercial terms, native identity-bound client consent and separate once-only native-owner adoption. All five planned native behaviors now have public-door assertions in acceptedChangeJourney: portal review, exact rejection, revision-bound acceptance, retained signed evidence beside prior terms and adoption of only the accepted increment. No external signature-provider or legal-compliance completion is claimed. Exact-SHA Verify and the guarded landing remain publication gates.

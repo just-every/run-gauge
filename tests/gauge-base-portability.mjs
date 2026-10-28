@@ -274,7 +274,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableChangeRelease=await cmd('change:release-review',{...portableChange,contact:'synthetic-gauge-92504@example.test',description:'Exact portable change description',reason:'Retain direct response history without authority'})
  const portableChangeRow=(await state()).data.projectScenarios.find(r=>r.id===portableChange.id),portableChangeReview=portableChangeRow.value.clientReview
  const portableChangePath=`/api/gauge/client-changes/${portableChange.id}/${portableChangeReview.id}`
- const portableChangeResponse=await request(portableChangePath,portableChangeRecipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':portableChangeRelease.token},body:JSON.stringify({key:crypto.randomUUID(),revision:portableChangeRow.revision,outcome:'accepted',reason:'Portable exact direct response, unsigned'})})
+ const portableChangeResponse=await request(portableChangePath,portableChangeRecipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':portableChangeRelease.token},body:JSON.stringify({key:crypto.randomUUID(),revision:portableChangeRow.revision,outcome:'accepted',signatureName:'Portable Client',consent:true,reason:'Portable exact signed native response'})})
  assert.equal(portableChangeResponse.status,200,await portableChangeResponse.clone().text())
  const before=await state()
  assert.equal(before.data.customImports.find(r=>r.id===fieldImport.id).value.package.records[0].values.office,'Austin')
@@ -340,6 +340,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
    await restored.cmd('handoff:prepare',{purpose:'reimbursement',recipient:'Portable payroll desk',reason:'Restored replay must not reimburse twice',sources:[{kind:'expenses',id:portableClaim.id,revision:portableClaim.revision}]},restored.owner,409)
    const restoredChange=(await restored.state()).data.projectScenarios.find(r=>r.id===portableChange.id)
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_change_review_authority').first()).n,0,'Change recipient authority never travels')
+   assert.equal(restoredChange.value.clientDecision.signature.method,'native-email-confirmed')
+   assert.equal(restoredChange.value.clientDecision.signature.documentDigest,restoredChange.value.clientReview.documentDigest)
+   const restoredAdoption=await restored.post('/api/gauge/command',{action:'change:adopt',key:crypto.randomUUID(),id:restoredChange.id,revision:restoredChange.revision,reason:'Restored signature never restores execution authority'},restored.owner)
+   assert([403,409].includes(restoredAdoption.status),'Restored signed evidence cannot authorize adoption')
    assert.deepEqual(restoredChange.value.clientDecision,before.data.projectScenarios.find(r=>r.id===portableChange.id).value.clientDecision,'Direct change evidence retains exact recipient, reason and fingerprint')
    assert.equal((await restored.post('/auth/magic-link',{email:'synthetic-gauge-92504@example.test'})).status,202)
    const changeConfirmation=new URL(restored.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0])

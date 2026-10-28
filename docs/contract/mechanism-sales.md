@@ -28,6 +28,4 @@ Document the command, link fields and service-list representation; atomic conver
 
 ## SALES-012
 
-shown-once hashed key; description-only projection; no outbound sending
-
-Document the adopted incomplete release carrier and its projection/transport boundary; full commercial disclosure remains required acceptance.
+The native owner explicitly releases one exact independently internally approved version to a confirmed non-staff recipient for one to 30 days. The recipient opens it from the invited project or with a separately shared shown-once key. The closed customer document preserves prior and proposed scope, currency, commercial allowances, effort, rounding, expenses and dates, without private cost or margin. Acceptance requires a typed name and explicit consent through the native email-confirmed account and records the exact document digest, version, revision, recipient, reason and time. Rejection retains its exact reason and never signs acceptance. Only the native owner deliberately adopts the current accepted version, once, after live authority and complete baseline checks in the committing transaction. Adoption changes only its exact native effects and retains prior terms and signature references; it never issues an invoice. Internal approval keeps its internal label. No message sends automatically, and restored evidence carries no review or adoption authority. Native identity-bound evidence is not an external signature-provider or legal-compliance claim.

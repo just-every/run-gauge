@@ -49,7 +49,7 @@ export async function appKeyRequest(env:Bindings,request:Request,url:URL,headers
  const a=await actor(env,{id:'app:'+key.id,kind:'native',operatorId:operator.id,createdAt:0,expiresAt:0,operator:{id:operator.id,email:operator.email,displayName:operator.display_name,role:operator.role,status:operator.status,version:operator.version,createdAt:operator.created_at}})
  a.appKey={id:key.id,hash:key.hash,ownerId:key.created_by,engagementIds:JSON.parse(key.engagement_ids)}
  await fence(env,a)
- const audit=new Transaction(env,a);audit.audit('appkey:use','appKeys',key.id,{label:key.label,scope:key.scope,method:request.method,path:url.pathname});audit.sql('UPDATE g_app_keys SET last_used_at=? WHERE id=?',Date.now(),key.id);await audit.commit()
+ const audit=new Transaction(env,a);audit.audit('appkey:use','appKeys',key.id,{label:key.label,scope:key.scope,method:request.method,path:url.pathname,personId:key.person_id,engagementIds:a.appKey.engagementIds,credentialVersion:key.credential_version,operatorVersion:key.operator_version,grantVersion:key.grant_version,expiresAt:key.expires_at});audit.sql('UPDATE g_app_keys SET last_used_at=? WHERE id=?',Date.now(),key.id);await audit.commit()
  const responseHeaders={...headers,'gauge-api-version':'1'}
  if(url.pathname==='/api/gauge/v1/projects'){
   need(request.method==='GET','Use GET for projects',405);need(key.scope.includes('projects:read'),'Project read scope required',403)

@@ -65,7 +65,7 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   const second=await app(token,'/api/gauge/v1/time',input);assert.equal(second.status,200);assert.deepEqual(await second.json(),saved)
   assert.equal((await h.state()).data.time.length,before+1);assert.equal((await h.state()).data.time.find(r=>r.id===saved.id).value.status,'draft')
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,end:'2026-10-04T10:00:00+10:00'})).status,409,'A changed request cannot replay the same key')
-  for(const data of [{...input,key:randomUUID(),personId:hiddenPerson.id},{...input,key:randomUUID(),engagementId:hidden.id},{...input,key:randomUUID(),action:'time:approve'}])assert.equal((await app(token,'/api/gauge/v1/time',data)).status,403)
+  for(const data of [{...input,key:randomUUID(),personId:hiddenPerson.id},{...input,key:randomUUID(),engagementId:hidden.id}])assert.equal((await app(token,'/api/gauge/v1/time',data)).status,403)
   const widened=await cmd('save:engagements',{name:'Later native assignment',clientId:client.id,leadId:person.id,members:[person.id],scope:'Not captured by existing credential',timezone:'Australia/Brisbane'})
   const widenedTask=await cmd('save:tasks',{engagementId:widened.id,name:'Later assigned task',remainingSeconds:0})
   assert((await h.state(staff.cookie)).data.engagements.some(r=>r.id===widened.id),'Native visibility really widens')
@@ -85,7 +85,7 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   for(const action of ['time:submit','time:approve','packet:create','grant','providerJob:dispatch'])assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),action})).status,403)
   assert.equal((await app(token,'/api/gauge/v1/audit')).status,403)
   assert.equal((await app(token,'/api/gauge/state?from=2026-10-01&to=2026-10-31')).status,401,'App credential cannot use the utilization door')
-  const audit=await(await request('/api/gauge/audit',owner)).json();assert(audit.entries.some(e=>e.action==='appkey:use'));assert(!JSON.stringify(audit).includes(token))
+  const audit=await(await request('/api/gauge/audit',owner)).json();const use=audit.entries.find(e=>e.action==='appkey:use'&&e.recordId===key.id);assert(use);const useDetail=use.result;assert.equal(useDetail.personId,person.id);assert.deepEqual(useDetail.engagementIds,captured);assert.equal(useDetail.expiresAt,key.expires_at);assert.equal(useDetail.operatorVersion,key.operator_version);assert.equal(useDetail.grantVersion,key.grant_version);assert(!JSON.stringify(audit).includes(token))
   const expiring=await cmd('appkey:create',{...create,label:'Expiring app'})
   const expiringInput={...input,key:randomUUID(),start:'2026-10-04T10:00:00+10:00',end:'2026-10-04T10:30:00+10:00'}
   assert.equal((await app(expiring.token,'/api/gauge/v1/time',expiringInput)).status,200)

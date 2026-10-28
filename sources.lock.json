@@ -1528,7 +1528,7 @@
       "executable": false
     },
     "src/gauge/app-keys.ts": {
-      "sha256": "61b377e67e2abf8c940b389b2fc246ce90cf25db2461c6d24b1344764fa7b84e",
+      "sha256": "eb208a458b3bde76241a2ea573773f2be093447fa07153d497dcd260a426ff07",
       "executable": false
     },
     "src/gauge/approval-policy.ts": {
@@ -4484,7 +4484,7 @@
       "executable": false
     },
     "tests/gauge-app-api.mjs": {
-      "sha256": "ae62adee232a6afd6741b1dcb9b4a0f4c2e11deaf00dc3a15af9fb3047502f6e",
+      "sha256": "745a3fa83886e74cf604639894bdeab03500b8e042759c9ece4c07efc0f1d6da",
       "executable": false
     },
     "tests/gauge-approvals.mjs": {

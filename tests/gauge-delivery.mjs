@@ -36,6 +36,25 @@ try {
  await context.addCookies(manager.cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
  const capture=async(name)=>{if(!process.env.GAUGE_DELIVERY_SHOTS)return;await mkdir(process.env.GAUGE_DELIVERY_SHOTS,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);await page.locator('#delivery-schedule').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/${name}-${width}.png`,fullPage:true});await page.screenshot({path:`${process.env.GAUGE_DELIVERY_SHOTS}/${name}-viewport-${width}.png`})}}
  const url=h.origin+`/app/engagements?edit=${project.id}`
+ const fixtureProject=await cmd('save:engagements',{name:'Stored baseline fixture',clientId:client.id,leadId:lead.id,members:[],scope:'Stored schedule rendering',timezone:zone})
+ const fixtureNodeId='x"><input type=hidden name=action value=grant><input type=hidden name=role value=owner><input type=hidden name=operatorId value=attacker><input name="x'
+ const fixtureSchedule={calendar:{weekdays:[1,2,3,4,5],holidays:[]},nodes:[{id:fixtureNodeId,kind:'phase',sourceId:null,name:'Stored phase',start:'2026-11-24',end:'2026-11-24',durationDays:1,predecessors:[],staffingIds:[],critical:true,slackDays:0}],finish:'2026-11-24'}
+ const fixturePlanId=randomUUID()
+ await h.db.prepare('INSERT INTO g_deliveryPlans(id,revision,data) VALUES(?,?,?)').bind(fixturePlanId,randomUUID(),JSON.stringify({engagementId:fixtureProject.id,previousId:null,number:1,schedule:fixtureSchedule,reason:'Direct fixture',approvedBy:'fixture',approvedAt:Date.now()})).run()
+ const fixtureContext=await browser.newContext({ignoreHTTPSErrors:true}),fixturePage=await fixtureContext.newPage()
+ try{
+  await fixtureContext.addCookies(h.owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
+  await fixturePage.goto(h.origin+`/app/engagements?edit=${fixtureProject.id}`)
+  await fixturePage.getByText('Plan a new baseline',{exact:true}).click()
+  const fixtureForm=fixturePage.locator('form').filter({has:fixturePage.getByRole('button',{name:'Preview baseline',exact:true})})
+  assert.equal(await fixtureForm.locator('[name=action]').count(),1,'Baseline form has one action control')
+  assert.equal(await fixtureForm.locator('[name=action]').inputValue(),'delivery:preview')
+  assert.equal(await fixtureForm.locator('[name=role], [name=operatorId]').count(),0,'Stored node IDs cannot add authority controls')
+ }finally{await fixtureContext.close();await h.db.prepare('DELETE FROM g_deliveryPlans WHERE id=?').bind(fixturePlanId).run()}
+ const injectedNodeId='x"><input type=hidden name=action value=grant><input name="x'
+ const invalidPlan={calendar:{weekdays:[1,2,3,4,5],holidays:[]},nodes:[{id:injectedNodeId,kind:'phase',sourceId:null,name:'Injected phase',start:'2026-11-24',durationDays:1,predecessors:[],staffingIds:[]}]}
+ const invalid=await h.post('/api/gauge/command',{key:randomUUID(),action:'delivery:preview',engagementId:project.id,previousId:null,operation:'baseline',plan:invalidPlan},manager.cookie)
+ assert.equal(invalid.status,400,'Schedule node IDs must be plain identifiers')
  await page.goto(url)
  await page.getByText('Plan a new baseline',{exact:true}).click()
  const planForm=page.locator('form').filter({has:page.locator('[name=action][value="delivery:preview"]')})

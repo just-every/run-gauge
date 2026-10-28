@@ -8,7 +8,7 @@ export function portfolioSection(report:Report) {
  const p=report.portfolio;if(!p)return ''
  const d=report.data
  const base=new URLSearchParams({customFilters:JSON.stringify(p.customFilters),customMeasures:JSON.stringify(p.customMeasureIds),from:report.from,to:report.to,asOf:p.asOf,portfolioGroup:p.group,...Object.fromEntries(Object.entries(p.filters).map(([k,v])=>['portfolio'+k.charAt(0).toUpperCase()+k.slice(1),v]))})
- const select=(name:string,label:string,values:[string,string][],value:string,all=true)=>`<label class="g-field"><span>${e(label)}</span><select name="${name}" aria-label="${e(label)}">${all?'<option value="">All</option>':''}${values.map(([id,label])=>`<option value="${e(id)}"${id===value?' selected':''}>${e(label)}</option>`).join('')}</select></label>`
+ const select=(name:string,label:string,values:[string,string][],value:string,all=true)=>`<label class="g-field"><span>${e(label)}</span><select name="${e(name)}" aria-label="${e(label)}">${all?'<option value="">All</option>':''}${values.map(([id,label])=>`<option value="${e(id)}"${id===value?' selected':''}>${e(label)}</option>`).join('')}</select></label>`
  const rows=(records:Report['data']['clients'])=>records.map(r=>[r.id,r.value.name] as [string,string])
  const teams=[...new Set(p.projects.flatMap(r=>r.teams))],services=[...new Set(p.projects.flatMap(r=>r.services))]
  // Filter options use every readable project, so a currently filtered result never traps the selection.

@@ -10,7 +10,7 @@ import { operatorNames } from './audit'
 import { conversionLines } from './ui-conversion'
 import type { Report } from './ui-describe'
 
-const hidden = (name: string, value: string) => `<input type="hidden" name="${name}" value="${e(value)}">`
+const hidden = (name: string, value: string) => `<input type="hidden" name="${e(name)}" value="${e(value)}">`
 const months: Row[] = Array.from({ length: 12 }, (_, n) => ({ id: String(n + 1), revision: '', value: { name: monthName(n + 1) } }))
 
 /** SETUP-001 on Access: the owner's agency profile, workweek, approved exchange rates and the consolidation they gate. */

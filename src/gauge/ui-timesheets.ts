@@ -6,7 +6,7 @@ import { escape as e, input as i, select as s, choices as c, area, check, form }
 import { reviewSettings } from './time-review'
 import { hours, day, chip, nameOf } from './ui-format'
 const shift=(day:string,n:number)=>new Date(Date.parse(day)+n*86400000).toISOString().slice(0,10)
-const hidden=(name:string,value:unknown)=>`<input type="hidden" name="${name}" value="${e(value)}">`
+const hidden=(name:string,value:unknown)=>`<input type="hidden" name="${e(name)}" value="${e(value)}">`
 
 export function timesheetSection(a:Actor,report:Report,options:Value) {
  const d=report.data,people=finance(a)?d.people:d.people.filter(p=>p.id===a.personId)

@@ -32,6 +32,11 @@ function exactDate(value: unknown): string {
   return value
 }
 
+function identifier(value: unknown, name: string): string {
+  need(typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value), `${name} must be a plain identifier of 1 to 64 letters, numbers, underscores or hyphens`)
+  return value
+}
+
 function identifiers(value: unknown, name: string): string[] {
   need(Array.isArray(value), `${name} must be a list`)
   const result = Array.from(value, id => text(id, name, 200))
@@ -59,7 +64,7 @@ function readPlan(input: unknown): Plan {
     const durationDays = integer(node.durationDays, 'Business-day duration', 1, 366)
     need(node.kind !== 'milestone' || durationDays === 1, 'A milestone lasts exactly one business day')
     return {
-      id: text(node.id, 'Node ID', 200), kind: node.kind, sourceId,
+      id: identifier(node.id, 'Node ID'), kind: node.kind, sourceId,
       name: text(node.name, 'Node name', 200), start: exactDate(node.start), durationDays,
       predecessors: identifiers(node.predecessors, 'Predecessor IDs'),
       staffingIds: identifiers(node.staffingIds, 'Staffing IDs'),

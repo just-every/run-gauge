@@ -11,6 +11,8 @@ import { latestBudget } from './budget-caps'
 import { phaseViews } from './budget-phases'
 import { activeRates, explain } from './rate-cards'
 import { normalizeSchedule, reschedule } from './delivery-engine'
+import { retainerCandidates } from './retainer-sources'
+import { quoteBill } from './quote-pricing'
 import { allocationPricing } from './forecast-allocation-pricing'
 
 type Data = Record<Kind, Row[]>
@@ -31,7 +33,14 @@ async function readBasis(env: Bindings, a: Actor, input: Value) {
  return { data, asOf, ids, digest }
 }
 function snapshot(data: Data, ids: string[], asOf: string, from: string, to: string) {
- const forecast = financeForecast(data, asOf, retainerStatements(data, data.time, undefined, data))
+ const native = financeForecast(data, asOf, retainerStatements(data, data.time, undefined, data))
+ const forecast = { ...native, engagements: native.engagements.map(p => {
+  const staffed = sum(data.staffing.filter(s => s.value.engagementId === p.engagementId && s.value.commitment === 'committed').map(s => days(s.value.from > asOf ? s.value.from : shift(asOf, 1), s.value.to).length * s.value.dailySeconds))
+  const remaining = sum(data.tasks.filter(t => t.value.engagementId === p.engagementId && t.value.status !== 'done').map(t => t.value.remainingSeconds))
+  const missing = remaining > staffed ? [`Project ${p.engagementId}: ${remaining - staffed} remaining task seconds have no committed priced allocation`] : []
+  return { ...p, complete: p.complete && !missing.length, incomplete: [...p.incomplete, ...missing] }
+ }) }
+
  const cash = cashForecast(data, { ...forecast, engagements: forecast.engagements.filter(p => ids.includes(p.engagementId)), pipeline: [] })
  return {
   projects: forecast.engagements.filter(p => ids.includes(p.engagementId)).map(p => ({ ...p, marginMinor: p.complete ? p.marginMinor : null, eacFeesMinor: p.complete ? p.eacFeesMinor : null, eacCostMinor: p.complete ? p.eacCostMinor : null })),
@@ -48,6 +57,7 @@ export async function recoveryBaseline(env: Bindings, a: Actor, input: Value) {
 
 /** Only explicit future planning fields are changed in memory. No native write planner is called. */
 function candidateFor(data: Data, ids: string[], asOf: string, option: Value) {
+ need(Object.keys(option).every(k => ['id','name','schedules','staffing','scopes','tasks','commercialChanges','capacityCosts'].includes(k)), 'Unsupported recovery change; use the explicit planning fields')
  const candidate = { ...data }, edits = new Set<string>()
  const put = (kind: Kind, row: Row, value: Value) => { candidate[kind] = candidate[kind].map(r => r.id === row.id ? { ...r, value } : r) }
  const source = (kind: Kind, edit: Value) => {
@@ -95,6 +105,11 @@ function candidateFor(data: Data, ids: string[], asOf: string, option: Value) {
   const dailySeconds = edit.dailySeconds === undefined ? current.value.dailySeconds : integer(edit.dailySeconds, 'Remaining seconds per day', 0, 86400)
   put('staffing', current, { ...current.value, personId, dailySeconds })
  }
+ for (const edit of list(option.tasks ?? [], 'Remaining tasks')) {
+  const row = source('tasks', edit), current = candidate.tasks.find(t => t.id === row.id)!
+  need(row.value.status !== 'done' && row.value.from > asOf, 'Revise remaining effort only on future open tasks', 409)
+  put('tasks', current, { ...current.value, remainingSeconds: integer(edit.remainingSeconds, 'Remaining task seconds') })
+ }
  for (const edit of list(option.scopes ?? [], 'Revised scopes', 2)) {
   const row = source('engagements', edit)
   put('engagements', row, { ...row.value, scope: text(edit.scope, 'Revised scope') })
@@ -104,11 +119,11 @@ function candidateFor(data: Data, ids: string[], asOf: string, option: Value) {
 
 type Requirement = { key: string; engagementId: string; kind: string; description: string; amountMinor: number | null; currency: string; quantity?: number }
 function commercialRequirements(data: Data, candidate: Data, ids: string[], asOf: string, projected: ReturnType<typeof snapshot>) {
- const requirements: Requirement[] = [], unknowns: string[] = []
+ const requirements: Requirement[] = [], unknowns: string[] = ids.filter(id => !latestPlan(candidate, id)).map(id => `Project ${id}: approved delivery baseline unavailable`)
  const add = (key: string, id: string, kind: string, description: string, amountMinor: number | null, quantity?: number) => requirements.push({ key, engagementId: id, kind, description, amountMinor, currency: data.engagements.find(e => e.id === id)!.value.currency, ...(quantity === undefined ? {} : { quantity }) })
  for (const id of ids) {
   const project = candidate.engagements.find(e => e.id === id)!, original = data.engagements.find(e => e.id === id)!
-  if (project.value.scope !== original.value.scope || candidate.staffing.some(s => s.value.engagementId === id && s.value.dailySeconds !== data.staffing.find(b => b.id === s.id)!.value.dailySeconds)) add(`scope:${id}`, id, 'scope', 'Client change order for the explicitly revised scope', 0)
+  if (project.value.scope !== original.value.scope || candidate.tasks.some(t => t.value.engagementId === id && t.value.remainingSeconds !== data.tasks.find(b => b.id === t.id)!.value.remainingSeconds) || candidate.staffing.some(s => s.value.engagementId === id && s.value.dailySeconds !== data.staffing.find(b => b.id === s.id)!.value.dailySeconds)) add(`scope:${id}`, id, 'scope', 'Client change order for the explicitly revised scope', 0)
   for (const m of candidate.milestones.filter(m => m.value.engagementId === id && m.value.status === 'approved')) {
    const before = data.milestones.find(b => b.id === m.id)!
    if (before.value.due !== m.value.due) add(`client-date:${m.id}`, id, 'client-date', `Client acceptance required: ${m.value.name} moves from ${before.value.due} to ${m.value.due}; approved milestone amount remains ${m.value.amountMinor}`, 0)
@@ -118,7 +133,10 @@ function commercialRequirements(data: Data, candidate: Data, ids: string[], asOf
   const groups = [{ key: '', data: candidate, cap: { hourBudgetSeconds: budget.value.effortSeconds, feeBudgetMinor: budget.value.amountMinor, expenseBudgetMinor: budget.value.expenseBudgetMinor ?? 0, mode: budget.value.mode } }, ...phaseViews(candidate).filter(v => v.engagementId === id).map(v => ({ key: v.phase.key, data: v.data as Data, cap: v.phase }))]
   for (const group of groups) {
    const f = financeForecast(group.data, asOf, retainerStatements(group.data, group.data.time, undefined, group.data)).engagements.find(p => p.engagementId === id)!
-   const hours = sum(group.data.time.filter(t => t.value.engagementId === id && t.value.status === 'approved').map(t => t.value.durationSeconds)) + sum(group.data.staffing.filter(s => s.value.engagementId === id && s.value.commitment === 'committed').map(s => days(s.value.from > asOf ? s.value.from : shift(asOf, 1), s.value.to).length * s.value.dailySeconds))
+   const actualHours = sum(group.data.time.filter(t => t.value.engagementId === id && t.value.status === 'approved').map(t => t.value.durationSeconds)) + sum(group.data.staffing.filter(s => s.value.engagementId === id && s.value.commitment === 'committed').map(s => days(s.value.from > asOf ? s.value.from : shift(asOf, 1), s.value.to).length * s.value.dailySeconds))
+   const remainingHours = sum(group.data.tasks.filter(t => t.value.engagementId === id && t.value.status !== 'done').map(t => t.value.remainingSeconds))
+   const actualSeconds = sum(group.data.time.filter(t => t.value.engagementId === id && t.value.status === 'approved').map(t => t.value.durationSeconds))
+   const hours = Math.max(actualHours, actualSeconds + remainingHours)
    const prefix = `budget:${budget.id}:${group.key || 'project'}`
    if (hours > group.cap.hourBudgetSeconds) add(`${prefix}:hours`, id, 'budget', `Change order for ${group.key || 'project'} effort above approved ${group.cap.hourBudgetSeconds} seconds`, f.complete ? Math.max(0, f.eacFeesMinor - group.cap.feeBudgetMinor) : null, hours - group.cap.hourBudgetSeconds)
    if (f.complete && f.eacFeesMinor > group.cap.feeBudgetMinor) add(`${prefix}:fees`, id, 'budget', `Change order for ${group.key || 'project'} fees above approved ${group.cap.feeBudgetMinor}`, f.eacFeesMinor - group.cap.feeBudgetMinor)
@@ -127,29 +145,34 @@ function commercialRequirements(data: Data, candidate: Data, ids: string[], asOf
    if (expense > group.cap.expenseBudgetMinor) add(`${prefix}:expenses`, id, 'budget', `Change order for ${group.key || 'project'} expense cap`, expense - group.cap.expenseBudgetMinor)
   }
  }
- const price = allocationPricing(candidate, asOf), rates = activeRates(candidate.rates, candidate.rateWithdrawals)
- const balances = retainerStatements(candidate, candidate.time, undefined, candidate)
- for (const family of candidate.retainers.filter(r => ids.includes(r.value.engagementId))) {
-  const t = family.value.terms, id = family.value.engagementId, project = candidate.engagements.find(e => e.id === id)!
-  const bookings = candidate.staffing.filter(s => s.value.engagementId === id && s.value.commitment === 'committed' && retainerMatches(t, { ...s.value, service: s.value.service ?? 'Unspecified', billable: s.value.billable !== false }))
-  for (const s of bookings) for (const day of days(s.value.from > asOf ? s.value.from : shift(asOf, 1), s.value.to)) {
-   const periods = candidate.retainerPeriods.filter(p => p.value.rootId === family.value.rootId && p.value.activeStart <= day && p.value.activeEnd >= day)
-   if (!periods.length) unknowns.push(`Retainer ${family.id}: no opened entitlement for ${day}`)
-  }
-  for (const balance of balances.filter(b => b.retainerId === family.id)) {
-   const period = candidate.retainerPeriods.find(p => p.id === balance.periodId)!, quantities: number[] = []
-   for (const s of bookings) for (const day of days([s.value.from, shift(asOf, 1), period.value.activeStart].sort().at(-1)!, s.value.to < period.value.activeEnd ? s.value.to : period.value.activeEnd)) {
-    if (t.unit === 'hours') quantities.push(s.value.dailySeconds)
-    else {
-     const person = candidate.people.find(p => p.id === s.value.personId)!, card = explain(rates, person, project, s.value.service ?? 'Unspecified', day).bill?.chosen
-     if (!card || card.value.currency !== t.currency) unknowns.push(`Retainer ${family.id}: value demand unpriced on ${day}`)
-     else quantities.push(price(s, day, card).billMinor)
-    }
+ const price = allocationPricing(candidate, asOf), rates = activeRates(candidate.rates, candidate.rateWithdrawals), demand: Row[] = []
+ for (const booking of candidate.staffing.filter(s => ids.includes(s.value.engagementId) && s.value.commitment === 'committed')) {
+  const project = candidate.engagements.find(e => e.id === booking.value.engagementId)!, families = candidate.retainers.filter(r => r.value.engagementId === project.id)
+  if (!families.length) continue
+  for (const day of days(booking.value.from > asOf ? booking.value.from : shift(asOf, 1), booking.value.to)) {
+   const value: Value = { ...booking.value, service: booking.value.service ?? 'Unspecified', billable: booking.value.billable !== false, workDate: day, status: 'approved', durationSeconds: booking.value.dailySeconds }
+   const eligible = retainerCandidates(candidate, value).filter(p => !value.retainerRootId || p.value.rootId === value.retainerRootId)
+   if (!eligible.length) {
+    // Work excluded by a retainer's service policy stays ad hoc; eligible work outside an opened period is unknown.
+    if (families.some(f => retainerMatches(f.value.terms, value))) unknowns.push(`Project ${project.id}: no opened retainer entitlement for ${day}`)
+    continue
    }
-   if (balance.remaining === null) { unknowns.push(`Retainer ${family.id}: remaining allowance unknown`); continue }
-   const excess = Math.max(0, sum(quantities) - Math.max(0, balance.remaining))
-   if (excess && (balance.overagePolicy !== 'bill' || balance.closed)) add(`retainer:${period.id}`, id, 'retainer', `Change order for ${excess} ${t.unit === 'hours' ? 'seconds' : 'minor units'} beyond retainer allowance; ${balance.overagePolicy} overage remains held`, t.rules.overageRate > 0 ? overageCharge(excess, t.unit, t.rules.overageRate) : null, excess)
+   if (eligible.length !== 1) { unknowns.push(`Staffing ${booking.id}: select one retainer family for ${day}`); continue }
+   const period = eligible[0], family = families.find(f => f.id === period.value.retainerId)!, person = candidate.people.find(p => p.id === booking.value.personId)!
+   const native = explain(rates, person, project, value.service, day).bill, card = native?.level === 'project' ? native.chosen : quoteBill(candidate, project.id, latestBudget(candidate.budgets, project.id), value) ?? native?.chosen
+   const billMinor = card && card.value.currency === project.value.currency ? price(booking, day, card).billMinor : null
+   if (family.value.terms.unit === 'value' && billMinor === null) unknowns.push(`Retainer ${family.id}: value demand unpriced on ${day}`)
+   demand.push({ id: `recovery-demand:${booking.id}:${day}`, revision: booking.revision, value: { ...value, retainerRootId: period.value.rootId, economics: { billMinor } } })
   }
+ }
+ const balances = retainerStatements(candidate, [...candidate.time, ...demand], undefined, candidate)
+ for (const balance of balances.filter(b => ids.includes(b.engagementId))) {
+  const family = candidate.retainers.find(r => r.id === balance.retainerId)!, t = family.value.terms
+  const period = candidate.retainerPeriods.find(p => p.id === balance.periodId)!
+  if (balance.closed && demand.some(d => d.value.retainerRootId === period.value.rootId && d.value.workDate >= period.value.activeStart && d.value.workDate <= period.value.activeEnd)) unknowns.push(`Retainer ${family.id}: closed period cannot absorb proposed future work`)
+  if (balance.remaining === null) { unknowns.push(`Retainer ${family.id}: projected allowance unknown`); continue }
+  const excess = Math.max(0, -balance.remaining)
+  if (excess && balance.overagePolicy !== 'bill') add(`retainer:${period.id}`, balance.engagementId, 'retainer', `Change order for ${excess} ${t.unit === 'hours' ? 'seconds' : 'minor units'} beyond retainer allowance; ${balance.overagePolicy} overage remains held`, t.rules.overageRate > 0 ? overageCharge(excess, t.unit, t.rules.overageRate) : null, excess)
  }
  unknowns.push(...projected.projects.flatMap(p => p.incomplete), ...projected.cash.engagements.flatMap(p => p.incomplete))
  return { requirements, unknowns: [...new Set(unknowns)] }
@@ -213,7 +236,15 @@ export async function recoveryPreview(env: Bindings, a: Actor, input: Value) {
    const complete = baseline.cash.engagements.filter(p => p.currency === currency).every(p => p.complete) && scenario.cash.engagements.filter(p => p.currency === currency).every(p => p.complete)
    return { currency, month, expectedMinor: complete ? (after?.expectedMinor ?? 0) - (before?.expectedMinor ?? 0) : null, historicalExpectedMinor: complete ? (after?.historicalExpectedMinor ?? 0) - (before?.historicalExpectedMinor ?? 0) : null }
   })
-  return { id, name, status: refusals.length ? 'refused' : unknowns.length ? 'incomplete' : requirements.length || cap.costs.length ? 'conditional' : 'feasible', offered: !refusals.length && !unknowns.length, scenario, deltas, cashDeltas: months, requirements, capacityCosts: cap.costs, unknowns, refusals }
+  const projectCashDeltas = ids.flatMap(engagementId => {
+   const before = baseline.cash.engagements.find(p => p.engagementId === engagementId)!, after = scenario.cash.engagements.find(p => p.engagementId === engagementId)!
+   const months = [...new Set([...before.items, ...after.items].flatMap(i => [i.cashMonth, i.historicalMonth ?? i.cashMonth]))].sort()
+   return months.map(month => {
+    const total = (p: typeof before, historical: boolean) => sum(p.items.filter(i => (historical ? i.historicalMonth ?? i.cashMonth : i.cashMonth) === month).map(i => i.expectedMinor))
+    return { engagementId, currency: after.currency, month, expectedMinor: before.complete && after.complete ? total(after, false) - total(before, false) : null, historicalExpectedMinor: before.complete && after.complete ? total(after, true) - total(before, true) : null }
+   })
+  })
+  return { id, name, status: refusals.length ? 'refused' : unknowns.length ? 'incomplete' : requirements.length || cap.costs.length ? 'conditional' : 'feasible', offered: !refusals.length && !unknowns.length, scenario, deltas, cashDeltas: months, projectCashDeltas, requirements, capacityCosts: cap.costs, unknowns, refusals }
  })
  await fence(env, a)
  return { asOf, from, to, projectIds: ids, basisDigest: digest, baseline, alternatives, sources: kinds.flatMap(kind => data[kind].map(r => ({ kind, id: r.id, revision: r.revision }))), assumptions: ['Read-only human-triggered native comparison; no staffing, terms, invoices or payments change', 'FINANCE-006 allocation pricing; capacity excess costs are already included, never added twice', 'FINANCE-007 supported expected receipts by currency and month; collection and timing assumptions are not settlement', 'Moved approved milestone dates require separate client acceptance; named exceptions grant no approval', 'Connected source completeness, model execution and provider settlement qualification remain unknown'] }
@@ -225,10 +256,16 @@ export async function recoveryFormPreview(env: Bindings, a: Actor, input: Value)
  const { data, ids } = await readBasis(env, a, input)
  const schedules = ids.map((id, n) => { const plan = latestPlan(data, id); need(plan, 'Approve a delivery baseline for each selected project first', 409); return { id: plan.id, revision: plan.revision, nodeId: input[`node${n}`], delayBusinessDays: integer(input.delayBusinessDays, 'Business-day delay', 1, 366) } })
  const bookings = ids.map((id, n) => { const row = data.staffing.find(s => s.id === input[`booking${n}`] && s.value.engagementId === id); need(row, 'Choose a booking on each selected project'); return row })
+ const tasks = ids.map((id, n) => {
+  const node = latestPlan(data, id)!.value.schedule.nodes.find((node: Value) => node.id === input[`node${n}`])
+  const row = data.tasks.find(t => t.id === node?.sourceId)
+  need(row, 'Select a delivery task for each project')
+  return { id: row.id, revision: row.revision, remainingSeconds: integer(input[`taskSeconds${n}`], 'Revised remaining task seconds') }
+ })
  const alternatives = [
   { id: 'dates', name: 'Move delivery dates', schedules },
   { id: 'contractor', name: 'Use the selected contractor', schedules, staffing: bookings.map(b => ({ id: b.id, revision: b.revision, personId: input.contractorId })) },
-  { id: 'scope', name: 'Revise remaining scope', schedules, staffing: bookings.map((b, n) => ({ id: b.id, revision: b.revision, dailySeconds: integer(input[`scopeSeconds${n}`], 'Remaining scope seconds', 0, 86400) })), scopes: ids.map((id, n) => ({ id, revision: data.engagements.find(e => e.id === id)!.revision, scope: input[`scope${n}`] })) }
+  { id: 'scope', name: 'Revise remaining scope', schedules, tasks, staffing: bookings.map((b, n) => ({ id: b.id, revision: b.revision, dailySeconds: integer(input[`scopeSeconds${n}`], 'Remaining scope seconds', 0, 86400) })), scopes: ids.map((id, n) => ({ id, revision: data.engagements.find(e => e.id === id)!.revision, scope: input[`scope${n}`] })) }
  ].map(option => ({ ...option, commercialChanges: input.declarations?.[option.id]?.commercialChanges ?? [], capacityCosts: input.declarations?.[option.id]?.capacityCosts ?? [] }))
  return recoveryPreview(env, a, { ...input, alternatives })
 }

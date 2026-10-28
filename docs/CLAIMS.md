@@ -134,7 +134,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `BASE-003` | partial | `base-copies.json`; `edition.json`; `src/modules/operator-auth/README.md`; `SEED-COMMAND-CONTRACT.md` |
 | `BASE-004` | partial | `MOVE-IN.md`; `src/gauge/imports.ts`; `tests/gauge.mjs` |
 | `BASE-005` | missing |  |
-| `RECOVER-001` | partial | `src/gauge/reports.ts`; `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
+| `RECOVER-001` | partial | `tests/gauge-recovery-feasibility.mjs`; `tests/gauge-agent.mjs`; `src/gauge/recovery-feasibility.ts`; `src/gauge/ui-recovery-feasibility.ts` |
 | `RECOVER-002` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
 | `RECOVER-003` | missing |  |
 | `RECOVER-004` | missing |  |

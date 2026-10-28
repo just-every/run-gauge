@@ -41,7 +41,7 @@ function readCustomForm(form:FormData,input:Value,prefix:string,destination:stri
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
- if(form.has('recoveryInput')){Object.assign(input,JSON.parse(String(form.get('recoveryInput'))));for(const n of [0,1])input[`scopeSeconds${n}`]=Math.round(decimal(String(form.get(`scopeHours${n}`)),'Remaining scope hours')*3600)}
+ if(form.has('recoveryInput')){Object.assign(input,JSON.parse(String(form.get('recoveryInput'))));for(const n of [0,1]){input[`scopeSeconds${n}`]=Math.round(decimal(String(form.get(`scopeHours${n}`)),'Remaining scope hours')*3600);input[`taskSeconds${n}`]=Math.round(decimal(String(form.get(`taskHours${n}`)),'Remaining task hours')*3600)}}
  if(form.has('recoveryDeclarations')){
   const previous=JSON.parse(String(form.get('recoveryDeclarations')));input.declarations={}
   for(const option of previous){

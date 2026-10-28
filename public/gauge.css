@@ -272,3 +272,9 @@
 
 #specialist-handoffs .g-check { min-width: 0; max-width: 100%; }
 #specialist-handoffs .g-check > span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Signed scope evidence must remain readable beside its exact source on phones. */
+#scope-extraction { overflow-wrap: anywhere; }
+#scope-extraction :is(details, blockquote, select) { min-width: 0; max-width: 100%; }
+#scope-extraction blockquote { margin: 8px 0 16px; white-space: pre-wrap; }
+#scope-extraction code { font-size: 13px; }

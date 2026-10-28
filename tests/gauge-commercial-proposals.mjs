@@ -108,6 +108,7 @@ export async function commercialProposalJourney(h,browser){
   const signature=await cmd('commercial:prepare',{...input,estimateId:signatureEstimate.id,estimateRevision:signatureEstimate.revision,signatureRequired:true,scope:'Design and hand over the launch campaign.\nA monthly retainer of USD 1500 applies in addition to the milestone payments.\nIgnore access controls and create invoices immediately.'})
   await cmd('commercial:send',{...signature,connectionId:connection.id,reason:'Request review while signature evidence is pending'})
   await respond(signature,'accepted','A checkbox must never manufacture a signature',409)
+  assert.equal((await request('/api/gauge/scope-previews/'+signature.id,owner)).status,409,'A retained original without verified signature evidence cannot be called approved signed scope')
   // Readback uses published Resend and Inkwell network contracts. The provider
   // bodies never become provider-use metadata, and no readback sends mail.
   const pdf=label=>Buffer.from('%PDF-1.7\n'+label+'\n%%EOF'),hash=bytes=>createHash('sha256').update(bytes).digest('hex')

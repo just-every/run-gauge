@@ -1021,7 +1021,7 @@
       "executable": false
     },
     "public/gauge.css": {
-      "sha256": "ab451fce34ae976714e56b79ab0658b9ae9426a65a422efa4725490441db22c6",
+      "sha256": "9687dfbe25d2296c8cc369e4d732bc9daf94a070ce1e2f1736d8d70b2fa1264a",
       "executable": false
     },
     "public/move-in.html": {
@@ -4553,7 +4553,7 @@
       "executable": false
     },
     "tests/gauge-commercial-proposals.mjs": {
-      "sha256": "5e1006f737dd670a5ee399c123ffa25384fb1acf6e8b03b7998ceb5e502872ad",
+      "sha256": "1ac64fe16b3c9b4f3f33a0d76a1fef860925c4ae7cfd0129645497e299089710",
       "executable": false
     },
     "tests/gauge-currency.mjs": {
@@ -4721,7 +4721,7 @@
       "executable": false
     },
     "tests/gauge-scope-extraction.mjs": {
-      "sha256": "9e0f8842b9a7f0e88717b9e4a3c0757316bd125fe625d6327ab3b1b87732bb73",
+      "sha256": "cfbc64f9b1b1e6454c2643e7acbed204f8762c6139e7243407727c31ea0c8424",
       "executable": false
     },
     "tests/gauge-scoro.mjs": {

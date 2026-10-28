@@ -29,9 +29,10 @@ export async function scopeExtractionJourney(h,browser,{signed,estimate,estimate
  const capture=async(name)=>{
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready)
-   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),name+' fits '+width)
-   assert(await page.locator('#scope-extraction input,#scope-extraction select,#scope-extraction textarea,#scope-extraction button,#scope-extraction p,#scope-extraction li,#scope-extraction code').evaluateAll(nodes=>nodes.every(n=>parseFloat(getComputedStyle(n).fontSize)>=13)))
    if(shots)await page.locator('#scope-extraction').screenshot({path:`${shots}/${name}-${width}.png`})
+   const overflow=await page.locator('body *').evaluateAll(nodes=>nodes.filter(n=>n.getBoundingClientRect().right>innerWidth+1&&n.getBoundingClientRect().width>0).slice(0,8).map(n=>({tag:n.tagName,id:n.id,class:n.className,width:n.getBoundingClientRect().width})))
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),name+' fits '+width+' '+JSON.stringify(overflow))
+   assert(await page.locator('#scope-extraction input,#scope-extraction select,#scope-extraction textarea,#scope-extraction button,#scope-extraction p,#scope-extraction li,#scope-extraction code').evaluateAll(nodes=>nodes.every(n=>parseFloat(getComputedStyle(n).fontSize)>=13)))
   }
  }
  try {

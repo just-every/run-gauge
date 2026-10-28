@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 import { workbook } from './fixtures/harvest-workbook.mjs'
 
-// MIGRATE-002: source raw/rounded time, historical rates, invoice and approval/lock evidence
+// MIGRATE-002 / MIGRATE-012 / MIGRATE-013: source raw/rounded time, historical rates, invoice and approval/lock evidence
 // through native preview, apply, state, retained originals, billing refusal and browser doors.
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
 let browser
@@ -157,7 +157,7 @@ try {
  const afterEdit = await cmd('import:preview', { package: xlsx })
  await cmd('import:create', { package: xlsx, fingerprint: afterEdit.fingerprint }, owner, 409)
  assert.deepEqual((await state()).data.time.find(r => r.id === final.id), final, 'Reimport preserves later native approval')
- console.log('PASS MIGRATE-002 XLSX bounded value-only decoding, worksheet selection, binary custody, cross-format replay; raw 7596 / rounded 8100 seconds, historical rates, invoice reference, source approval/lock evidence, independent controls, preview/apply, native approval, duplicate-billing refusal and original custody')
+ console.log('PASS MIGRATE-002 / MIGRATE-012 / MIGRATE-013 XLSX bounded value-only decoding, worksheet selection, binary custody, cross-format replay; raw 7596 / rounded 8100 seconds, historical rates, invoice reference, source approval/lock evidence, independent controls, preview/apply, native approval, duplicate-billing refusal and original custody')
 } finally { await browser?.close(); await h.dispose() }
 
 await (await import('./gauge-kantata.mjs')).kantataJourney()

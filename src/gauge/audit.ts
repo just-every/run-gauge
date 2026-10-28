@@ -4,13 +4,13 @@ import { type Actor, finance, fence } from './store'
 import { type Kind, type Value, date, kinds, need, workDate } from './model'
 import { redact } from './reports'
 
-// GOVERN-005 searchable business audit. g_audit holds one append-only row per native record write (people and
+// GOVERN-005 / GOVERN-011 searchable business audit. g_audit holds one append-only row per native record write (people and
 // agents), grant change, API key event, packet export, agency setup and import effect, in commit order. Each row
 // is sealed into one SHA-256 chain: hash = SHA-256(canonical JSON of {previous: the prior row's hash, or the
 // genesis label for the first row, entry: the row's fields}). Pending rows are sealed in sequence before every
 // command and every audit read, so at most the latest command's rows wait for the next one. Verification
 // recomputes the chain, reports edited rows, missing sequence numbers and unsealed rows, and compares an earlier
-// export's head (sequence and hash) as a checkpoint. Favorites are private to their person (TIME-003): their rows
+// export's head (sequence and hash) as a checkpoint. Favorites are private to their person (TIME-003 / TIME-007): their rows
 // are withheld as hash-only stubs so the chain still verifies. No row holds a key, token, password or session.
 export const GENESIS = 'gauge-audit-v1'
 interface AuditRow { seq: number; at: number; actor: string; role: string | null; person_id: string | null; request_key: string | null; action: string; kind: string; record_id: string; previous_revision: string | null; revision: string | null; data: string; reference: string | null; hash: string | null }

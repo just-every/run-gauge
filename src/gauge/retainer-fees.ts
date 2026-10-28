@@ -4,7 +4,7 @@ const DAY=86400000
 const halfUp=(minor:number,n:number,d:number)=>Number((2n*BigInt(minor)*BigInt(n)+BigInt(d))/(2n*BigInt(d)))
 const previous=(day:string)=>new Date(Date.parse(day)-DAY).toISOString().slice(0,10)
 
-/** REPORT-001: separate period fee, never the allowance's value. Cumulative rounding keeps month totals exact. */
+/** REPORT-001 / REPORT-006: separate period fee, never the allowance's value. Cumulative rounding keeps month totals exact. */
 export function retainerFees(data:Record<string,Row[]>,asOf:string) {
  return (data.retainerPeriods??[]).map(period=>{
   const p=period.value,version=(data.retainers??[]).find(r=>r.id===p.retainerId)

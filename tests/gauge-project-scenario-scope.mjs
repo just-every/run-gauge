@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {createHash,randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 
-// FINANCE-003 scope: explicit future effort and native replacement terms, not a
+// FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 scope: explicit future effort and native replacement terms, not a
 // percentage adjustment hiding unchanged staffing. Through built HTTP doors.
 export async function scopeScenarioJourney(h,browser) {
  const {cmd,request,owner}=h,asOf=new Date().toISOString().slice(0,10)
@@ -34,7 +34,7 @@ export async function scopeScenarioJourney(h,browser) {
  assert.equal(preview.scenario.capacity[0].utilizationPercent,25)
  assert.equal(preview.scenario.cash.months.reduce((n,m)=>n+m.expectedMinor,0),2*39000*.75)
  assert.deepEqual(preview.baseline.dates.map(p=>p.tasks),preview.scenario.dates.map(p=>p.tasks),'Scope effort does not silently move task dates')
- // SALES-005: exact internal change versions retain the financial comparison but
+ // SALES-005 / SALES-012: exact internal change versions retain the financial comparison but
  // never acquire live effect authority, including through the scenario door.
  const reviewer=await h.invite('synthetic-gauge-scope-reviewer')
  await cmd('grant',{operatorId:reviewer.id,personId:person.id,role:'finance',enabled:true})
@@ -79,7 +79,7 @@ export async function scopeScenarioJourney(h,browser) {
    if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await approvalPage.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/internal-approval-${width}.png`,fullPage:true})}
   }
  }finally{await approvalContext.close()}
- // SALES-005 conservative direct-review carrier: private comparisons never leave native finance.
+ // SALES-005 / SALES-012 conservative direct-review carrier: private comparisons never leave native finance.
  const clientRecipient=await h.invite('synthetic-gauge-92502'),otherRecipient=await h.invite('synthetic-gauge-92503')
  const clientRead=async(path,token,cookie=clientRecipient.cookie)=>request(path,cookie,{headers:{'x-gauge-review-token':token}})
  const directReview=async(record,outcome)=>{
@@ -193,5 +193,5 @@ export async function scopeScenarioJourney(h,browser) {
    if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/scope-adopted-${width}.png`,fullPage:false})}
   }
  } finally {await context.close()}
- console.log('PASS FINANCE-003 scope: two-project effort/terms/cost/margin/cash/utilization, isolated baseline, exact selected native adoption, historical and unselected preservation, fixed commitment/incomplete and invalid source checks; 1440/390')
+ console.log('PASS FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 scope: two-project effort/terms/cost/margin/cash/utilization, isolated baseline, exact selected native adoption, historical and unselected preservation, fixed commitment/incomplete and invalid source checks; 1440/390')
 }

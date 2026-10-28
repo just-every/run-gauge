@@ -37,7 +37,7 @@ export async function resourceCandidates(env:Bindings,a:Actor,request:Row,tx?:Tr
   if(finance(a)){
    const missingRateDates:string[]=[],costRates:Value[]=[],amounts:number[]=[],currencies=new Set<string>()
    for(const day of days){
-    // RATE-002 cost precedence; the engagement only matters for bill rates, so none is needed here.
+    // RATE-002 / RATE-003 cost precedence; the engagement only matters for bill rates, so none is needed here.
     const rate=explain(rows('rates'),person,{id:'',revision:'',value:{type:'internal'}},request.value.service,day.date).cost?.chosen
     if(rate?.value.costMinor==null){missingRateDates.push(day.date);continue}
     currencies.add(costCurrencyOf(rate));amounts.push(charge(dailySeconds,rate.value.costMinor));costRates.push({date:day.date,id:rate.id,revision:rate.revision,effective:rate.value.effective,costMinor:rate.value.costMinor,currency:costCurrencyOf(rate)})

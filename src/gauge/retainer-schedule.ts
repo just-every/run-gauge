@@ -92,7 +92,7 @@ async function runPeriod(env:Bindings,a:Actor,tx:Transaction,schedule:Row,asOf:s
  lines.push(...credits.lines);exceptions.push(...credits.exceptions)
  const ranges=[{from:period.value.activeStart,to:period.value.activeEnd},{from:issueDate,to:issueDate},...lines.filter(l=>l.kind==='retainerPeriods').map(l=>{const p=data.retainerPeriods.find(p=>p.id===l.sourceId)!;return {from:p.value.activeStart,to:p.value.activeEnd}})]
  const locks=await scheduleLocks(env,tx,ranges)
- if(schedule.value.autoIssue&&locks.time)exceptions.push({periodId:period.id,reason:'TIME-003 locked period through '+locks.time.value.lockThrough})
+ if(schedule.value.autoIssue&&locks.time)exceptions.push({periodId:period.id,reason:'TIME-007 locked period through '+locks.time.value.lockThrough})
  if(locks.close)exceptions.push({periodId:period.id,reason:'FINANCE-004 closed period '+locks.close.value.month})
  const deferred=(await all(env,'packets')).find(p=>p.value.scheduleId===schedule.id&&p.value.scheduledPeriodStart===period.value.periodStart&&p.value.deferredSources&&p.value.status==='draft')
  if(locks.close||latestLifecycle&&latestLifecycle.value.kind!=='renewal'){

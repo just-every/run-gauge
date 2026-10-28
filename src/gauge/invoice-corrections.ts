@@ -7,7 +7,7 @@ import { activeClient } from './clients'
 import { assertIndependentReview, needsIndependentReview, observedApprovalPolicy } from './approval-policy'
 import { plusDays, reserveNumber } from './invoices'
 
-// INVOICE-004. Finance corrects an issued invoice only by appending linked, immutable documents:
+// INVOICE-004 / INVOICE-013 / INVOICE-014. Finance corrects an issued invoice only by appending linked, immutable documents:
 // - a credit note (credit, approved discount or write-off) credits named invoice lines, each up to its billed amount,
 //   and never more in total than the invoice still owes after receipts and earlier credits;
 // - a void cancels an invoice with no receipts or credits; its reissue is a new, newly numbered invoice on the same

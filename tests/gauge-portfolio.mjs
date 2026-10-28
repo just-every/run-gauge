@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 
-// REPORT-001: disjoint client/lead identities reconcile within the same whole-engagement scope.
+// REPORT-001 / REPORT-006: disjoint client/lead identities reconcile within the same whole-engagement scope.
 export async function portfolioIdentityJourney(h) {
  const {cmd,request,owner}=h,timezone='America/New_York',team='Portfolio identity reconciliation'
  const cohorts=[]
@@ -44,7 +44,7 @@ export async function portfolioIdentityJourney(h) {
  }
 }
 
-// REPORT-001: public HTTP and native forms compare operational profit with a loss, not accounting revenue.
+// REPORT-001 / REPORT-006: public HTTP and native forms compare operational profit with a loss, not accounting revenue.
 export async function portfolioJourney(h,browser) {
  const {cmd,request,owner}=h,zone='America/New_York'
  const person=await cmd('save:people',{name:'Sam Rivera',timezone:zone,team:'Portfolio Creative'})
@@ -159,6 +159,6 @@ export async function portfolioJourney(h,browser) {
   const versionsBefore=(await read()).data.retainers.length
   await cmd('retainer:preview',{engagementId:hourly.id,operation:'terms',terms:{...terms,start:'2026-11-01',proration:'calendar'}},owner,400)
   assert.equal((await read()).data.retainers.length,versionsBefore,'REPORT-001 a fee period without working days is refused before saving')
-  console.log('PASS REPORT-001: profitable retainer vs fixed loss, day-earned fee, date/team/service/client/project/lead cohorts, monthly trends, frozen source drills/CSV, incomplete costs, immutable finance-only fees and assumed once-only cash schedule')
+  console.log('PASS REPORT-001 / REPORT-006: profitable retainer vs fixed loss, day-earned fee, date/team/service/client/project/lead cohorts, monthly trends, frozen source drills/CSV, incomplete costs, immutable finance-only fees and assumed once-only cash schedule')
  }finally{await context.close()}
 }

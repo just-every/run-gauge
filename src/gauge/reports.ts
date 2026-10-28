@@ -55,7 +55,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(k==='retainerCloses'||k==='retainerAdjustments')return correctionValue(a,k,value)
  if(a.role==='staff'&&k==='retainers'){const t=value.terms,r=t.rules??{};return {engagementId:value.engagementId,rootId:value.rootId,number:value.number,previousId:value.previousId,terms:{name:t.name,frequency:t.frequency,unit:t.unit,allowance:t.allowance,services:t.services,consumes:t.consumes,proration:t.proration,start:t.start,end:t.end,renewal:t.renewal,noticeDays:t.noticeDays,currency:t.currency,rules:{carryCap:r.carryCap??0,carryPeriods:r.carryPeriods??0,deficit:r.deficit??false}}}}
  if(a.role==='staff'&&k==='retainerPeriods'){const {reason,openedBy,openedAt,...period}=value;return period}
- // Cash assumptions (FINANCE-002/FINANCE-007) and the SETUP-002 client workspace are finance's: others see the client's name.
+ // Cash assumptions (FINANCE-002 / FINANCE-009 / FINANCE-010/FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022) and the SETUP-002 / SETUP-007 / SETUP-008 client workspace are finance's: others see the client's name.
  if(k==='clients')return Object.fromEntries(Object.entries(value).filter(([key])=>!privateClientKeys.includes(key)))
  const v: Value = { ...value }
  if(k==='expenses'){delete v.financeReviewNote;delete v.markupBasisPoints;delete v.clientRecoveryMinor;delete v.fx;delete v.unitRate;if(v.personId!==a.personId){delete v.policyException;delete v.attachmentIds}}
@@ -150,7 +150,7 @@ export function economics(data: Awaited<ReturnType<typeof visible>>,a: Actor) {
   const base={engagementId:e.id,name:e.value.name,currency:e.value.currency,budgetId:terms?.id ?? null,budgetMinor:terms?.value.amountMinor ?? null,approvedSeconds:sum(time.map(r=>r.value.durationSeconds)),remainingSeconds:sum(data.tasks.filter(r=>r.value.engagementId===e.id).map(r=>r.value.remainingSeconds))}
   if(!finance(a)){const view:Record<string,unknown>={...base,privateCosts:'Restricted to finance'};if(a.role==='agent')delete view.budgetMinor;return view as typeof base & {privateCosts:string}}
   need(time.every(r=>!r.value.economics || r.value.economics.currency===e.value.currency) && expenses.every(r=>r.value.currency===e.value.currency), 'Report source currencies differ from engagement; no implicit FX')
-  // Declared costs keep their own currency (RATE-002): each currency is its own bucket and a total across currencies is refused without SETUP-003 rates.
+  // Declared costs keep their own currency (RATE-002 / RATE-003): each currency is its own bucket and a total across currencies is refused without SETUP-003 rates.
   const costs=time.filter(r=>r.value.economics?.costMinor!=null),costCurrency=(r:Row)=>r.value.economics.costCurrency??r.value.economics.currency
   const costByCurrency:Record<string,number>={};for(const [currency,minor] of [...costs.map(r=>[costCurrency(r),r.value.economics.costMinor]),...expenses.map(r=>[r.value.currency,r.value.amountMinor])] as [string,number][])costByCurrency[currency]=sum([costByCurrency[currency]??0,minor])
   const otherCostCurrencies=Object.keys(costByCurrency).filter(c=>c!==e.value.currency).sort(),knownCostMinor=costByCurrency[e.value.currency]??0,knownBillableMinor=sum(time.filter(r=>r.value.billable).map(r=>r.value.economics?.billMinor??0))
@@ -181,7 +181,7 @@ export async function reports(env: Bindings,a: Actor,from: string,to: string,fav
  const reviewerIds=a.role==='lead'?(await env.DB.prepare("SELECT DISTINCT g.person_id FROM g_grants g JOIN oa_operators o ON o.id=g.operator_id WHERE g.enabled=1 AND g.role IN ('lead','finance') AND o.status='active'").all<{person_id:string}>()).results.map(r=>r.person_id):[]
  const timeReviewers=(await all(env,'people')).filter(p=>reviewerIds.includes(p.id)).map(p=>({...p,value:{name:p.value.name}}))
  const forecast=finance(a)?financeForecast(data,forecastDay,retainerBalances):null
- // RESOURCE-005 capacity runs from the day after the forecast day for a year, whatever window the state read shows.
+ // RESOURCE-005 / RESOURCE-008 capacity runs from the day after the forecast day for a year, whatever window the state read shows.
  const forecastCapacity=forecast?capacity(data,new Date(Date.parse(forecastDay)+86400000).toISOString().slice(0,10),new Date(Date.parse(forecastDay)+366*86400000).toISOString().slice(0,10)):[]
  portfolioOptions={...portfolioOptions,customFilters:filters(a,portfolioOptions.customFilters)};if(portfolioOptions.customGroup)need(data.customFields.some(f=>f.id===portfolioOptions.customGroup),'Custom group unavailable',403);need(Array.isArray(portfolioOptions.customMeasures??[])&&(portfolioOptions.customMeasures??[]).length<=100,'Choose at most 100 custom measures');for(const id of portfolioOptions.customMeasures??[])need(data.customFields.some(f=>f.id===id&&['number','currency'].includes(f.value.type)),'Custom measure unavailable',403)
  const customPerformanceReport=customPerformance(data,cap,from,to,finance(a),portfolioOptions)

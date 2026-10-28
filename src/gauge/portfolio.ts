@@ -7,8 +7,8 @@ import { convertDated } from './fx-rates'
 
 const groups=['firm','client','project','team','service','lead','person']
 const nextDay=(day:string)=>new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().slice(0,10)
-/** REPORT-001: whole-engagement cohorts; team/service cohorts can overlap and are never summed into the firm total.
- * SETUP-005: the window's earned value also converts to the reporting currency, each amount at the rate effective on its own date. */
+/** REPORT-001 / REPORT-006: whole-engagement cohorts; team/service cohorts can overlap and are never summed into the firm total.
+ * SETUP-005 / SETUP-011 / SETUP-012: the window's earned value also converts to the reporting currency, each amount at the rate effective on its own date. */
 export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof financeForecast>,balances:Value[],from:string,to:string,options:Value,reporting:string) {
  const group:string=options.portfolioGroup||'project',custom=group.startsWith('custom:')?data.customFields.find(f=>f.id===group.slice(7)):undefined;need(groups.includes(group)||custom,'Choose an available portfolio grouping')
  const earnedItems=new WeakMap<object,{day:string,minor:number}[]>(),costItems=new WeakMap<object,{currency:string,day:string,minor:number,unknown:boolean}[]>(),fees=retainerFees(data,forecast.asOf),filters=Object.fromEntries(['Client','Project','Team','Service','Lead','Person'].map(k=>[k.toLowerCase(),String(options['portfolio'+k]??'')]))

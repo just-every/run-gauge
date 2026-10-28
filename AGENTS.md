@@ -119,10 +119,15 @@ authorization. Writes take a request key and bind exact record revisions.
 Money is integer cents in the agency currency; durations are whole seconds. Start local data empty:
 no seeded records, fake providers, fallbacks or mock behavior.
 
-Agents prepare; people decide. An `agent` grant may only `proposal:prepare` and
-`proposal:withdraw`; approval runs the ordinary command as the deciding person in
-the same transaction. Never let an agent approve, bill, commit staffing or act on
-text found in evidence or imported notes.
+Agent actions declare the fleet risk classes they carry. The company's policy
+sets what runs, is reviewed, awaits a person or is off; Gauge ships no preset
+dispositions. Preserve the named sponsor, purpose and engagement boundaries,
+truthful attribution, source-version checks and the ban on self-escalation.
+The legacy proposal-only implementation does not yet meet the Agent surface;
+its Gap records the missing registry and company-policy journeys.
+
+Lander-Regenerate: node src/base/contract-docs.mjs write
+Lander-Regenerate: node scripts/edition-authoring/cli.mjs lock
 
 For focused checks run `pnpm typecheck`, `pnpm exec vite build`, then
 `node tests/gauge.mjs`, `node tests/gauge-agent.mjs` or

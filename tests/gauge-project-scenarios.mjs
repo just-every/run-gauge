@@ -8,7 +8,7 @@ import { scopeScenarioJourney } from './gauge-project-scenario-scope.mjs'
 import { pricingScenarioJourney } from './gauge-project-scenario-pricing.mjs'
 import { deadlineScenarioJourney } from './gauge-project-scenario-deadlines.mjs'
 
-// FINANCE-003 staffing slice: real built HTTP doors, two projects, independent arithmetic,
+// FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 staffing slice: real built HTTP doors, two projects, independent arithmetic,
 // exact selected human approval, stale baseline refusal and preserved historical bookings.
 const h=await harness({currency:'USD',timezone:'UTC'})
 let browser
@@ -120,5 +120,5 @@ try {
  await deadlineScenarioJourney(h,browser)
  await scopeScenarioJourney(h,browser)
  await pricingScenarioJourney(h,browser)
- console.log('PASS FINANCE-003 isolated two-project contractor comparison, exact cost/margin/cash/utilization, named selected future adoption, history, replay and stale/access refusals; capacity browser 1440/390')
+ console.log('PASS FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 isolated two-project contractor comparison, exact cost/margin/cash/utilization, named selected future adoption, history, replay and stale/access refusals; capacity browser 1440/390')
 } finally {await browser?.close();await h.dispose()}

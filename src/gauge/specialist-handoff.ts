@@ -73,7 +73,7 @@ async function prepare(env:Bindings,a:Actor,tx:Transaction,input:Value) {
     details:{basis:'Issued native pre-tax invoice; not recognized revenue',number:v.number,packetId:v.packetId,issueDate:v.issueDate,dueDate:v.dueDate,
      issuedBy:v.issuedBy,issuedAt:v.issuedAt,lines:v.lines}})
   }else if(source.kind==='invoiceCorrections'){
-   // INVOICE-004 under BOUNDARY-001: an issued credit note or void is a signed invoice-category row against its exact invoice.
+   // INVOICE-004 / INVOICE-013 / INVOICE-014 under BOUNDARY-001 / BOUNDARY-004 / BOUNDARY-005: an issued credit note or void is a signed invoice-category row against its exact invoice.
    const invoice=await get(env,'invoices',v.invoiceId);tx.observe('invoices',invoice)
    need(invoice.value.engagementId===e.id&&invoice.value.currency===v.currency,'Correction invoice identity or currency differs',409)
    lines.push({...base,id:identity,category:'invoice',personId:null,date:v.date,currency:currency(v.currency),amountMinor:-signedMoney(v.amountMinor),durationSeconds:null,

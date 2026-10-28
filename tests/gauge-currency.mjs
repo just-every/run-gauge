@@ -26,7 +26,7 @@ try {
  await page.goto(h.origin + '/setup')
  assert.equal(await page.locator('[name=currency]').inputValue(), 'USD')
  await page.getByLabel('Work timezone').fill('America/New_York')
- // SETUP-001: the New York agency's legal business, US address, EIN and fiscal year are saved with the first-run form.
+ // SETUP-001 / SETUP-006: the New York agency's legal business, US address, EIN and fiscal year are saved with the first-run form.
  await page.getByLabel('Legal business name').fill('Hudson Studio LLC'); await page.getByLabel('US billing address').fill('1 Pier Plaza')
  await page.getByLabel('City').fill('New York'); await page.getByLabel('State').fill('NY'); await page.getByLabel('ZIP code').fill('10001')
  await page.getByLabel('EIN (owner-only, never printed on documents)').fill('123456789'); await page.getByLabel('Fiscal year starts in').selectOption('1')
@@ -140,7 +140,7 @@ try {
  const history = await legacy.request(`/api/gauge/history/milestones/${milestone.id}`, legacy.owner, { headers: { accept: 'text/html' } })
  assert.equal(history.status, 200); assert((await history.text()).includes('A$12.34'))
  console.log('PASS legacy AUD milestone summaries and immutable history retain engagement currency')
- // RATE-002 (ct 19 Oct 12:00Z): a pre-RATE-002 card keeps its AUD cost; new declared costs are USD and never summed with AUD.
+ // RATE-002 / RATE-003 (ct 19 Oct 12:00Z): a pre-RATE-002 / RATE-003 card keeps its AUD cost; new declared costs are USD and never summed with AUD.
  const task = await legacy.cmd('save:tasks', { engagementId: engagement.id, name: 'Existing work', remainingSeconds: 36000 })
  await legacy.cmd('budget:approve', await legacy.cmd('save:budgets', { engagementId: engagement.id, mode: 'hourly', amountMinor: 500000, effortSeconds: 72000, roundingSeconds: 60, reason: 'Existing terms' }))
  // The stored shape RATE-001 wrote before cards declared a cost currency: one currency for bill and cost.
@@ -156,5 +156,5 @@ try {
  assert.deepEqual([econ.costMinor, econ.knownCostMinor, econ.costByCurrency, econ.otherCostCurrencies, econ.billableMinor], [null, 5000, { AUD: 5000, USD: 4000 }, ['USD'], 20000])
  const usd = mixed.lineage.find(f => f.id === `economics:${engagement.id}:costByCurrency:USD`)
  assert.deepEqual([usd.value, usd.currency], [4000, 'USD']); assert.equal(mixed.lineage.find(f => f.id === `economics:${engagement.id}:costMinor`).complete, false)
- console.log('PASS RATE-002 legacy AUD costs keep their currency; new USD-declared costs stay a separate bucket and mixed sums are refused')
+ console.log('PASS RATE-002 / RATE-003 legacy AUD costs keep their currency; new USD-declared costs stay a separate bucket and mixed sums are refused')
 } finally { await legacy.dispose() }

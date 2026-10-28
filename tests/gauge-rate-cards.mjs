@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { harness } from './gauge-harness.mjs'
 
-// RATE-002 through the public command, state, explain API and rates page doors.
+// RATE-002 / RATE-003 through the public command, state, explain API and rates page doors.
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' }), { cmd, state, request } = h
 const hour = 3600
 try {
@@ -33,7 +33,7 @@ try {
  await cmd('save:rates', { personId: ana.id, clientId: alpha.id, effective: '2026-02-01', billMinor: 1 }, h.owner, 400)
  await cmd('save:rates', { role: 'Designer', service: 'Design', effective: '2026-02-01', billMinor: 1 }, staff.cookie, 403)
  assert.deepEqual((await state(staff.cookie)).data.rates, [])
- console.log('PASS RATE-002 versioned client, role, person, service and project cards; bill-only client cards, USD-declared costs, finance-only')
+ console.log('PASS RATE-002 / RATE-003 versioned client, role, person, service and project cards; bill-only client cards, USD-declared costs, finance-only')
 
  // Identical service for two clients at different rates, across Alpha's effective date, with declared W-2 and 1099 costs.
  const alphaBefore = await approve(ana, ea, 'Design', '2026-10-05'), betaSame = await approve(ana, eb, 'Design', '2026-10-05', '11:00')
@@ -45,7 +45,7 @@ try {
  assert.deepEqual([contractor.billMinor, contractor.costMinor, contractor.costKind], [15000, 7000, '1099-contract'])
  const frozenTrace = alphaBefore.precedence.map(l => [l.level, l.chosen])
  assert.deepEqual(frozenTrace, [['project', null], ['client-role', alphaOld.id], ['client', null], ['role', roleCard.id], ['person', anaCard.id], ['service', serviceCard.id]])
- console.log('PASS RATE-002 identical services bill two clients differently, cross an effective date and freeze declared W-2/1099 USD costs')
+ console.log('PASS RATE-002 / RATE-003 identical services bill two clients differently, cross an effective date and freeze declared W-2/1099 USD costs')
 
  // Project card overtime and write-down: the second hour that day passes the 1 h threshold at 1.5×, then 10% is written down.
  const first = await approve(ana, eb, 'Strategy', '2026-10-06'), second = await approve(ana, eb, 'Strategy', '2026-10-06', '10:00')
@@ -60,7 +60,7 @@ try {
  await cmd('time:approve', await cmd('time:submit', overridden, staff.cookie))
  const negotiated = (await record('time', saved.id)).value.economics
  assert.deepEqual([negotiated.rateLevel, negotiated.rateId, negotiated.billRateMinor, negotiated.writeDownMinor, negotiated.billMinor, negotiated.entryOverride.reason], ['entry', null, 9000, 450, 8550, 'Negotiated launch rate'])
- console.log('PASS RATE-002 overtime rules, write-downs and negotiated entry overrides freeze at approval')
+ console.log('PASS RATE-002 / RATE-003 overtime rules, write-downs and negotiated entry overrides freeze at approval')
 
  // Explain view through the API and the rates page; a later card never rewrites an approved value.
  const explained = await (await request(`/api/gauge/rates/explain?personId=${ana.id}&engagementId=${ea.id}&service=Design&date=2026-10-12`, h.owner)).json()
@@ -75,5 +75,5 @@ try {
  assert.deepEqual(unchanged, [8550, 13000, 15000, 15000, 18000, 18000, 27000])
  const alphaEcon = (await state()).economics.find(x => x.engagementId === ea.id)
  assert.deepEqual([alphaEcon.billableMinor, alphaEcon.costMinor, alphaEcon.costByCurrency, alphaEcon.otherCostCurrencies], [15000 + 15000 + 18000 + 8550, 6000 + 7000 + 6000 + 6000, { USD: 25000 }, []])
- console.log('PASS RATE-002 explain view shows precedence; billed value and declared cost trace without changing historical approvals')
+ console.log('PASS RATE-002 / RATE-003 explain view shows precedence; billed value and declared cost trace without changing historical approvals')
 } finally { await h.dispose() }

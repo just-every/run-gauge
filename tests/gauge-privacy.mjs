@@ -84,7 +84,7 @@ export async function privacyJourney(){
    const current=await read(newArchive),fresh=await restore.imports.create(current[0]);for(const p of current.filter(r=>r.kind==='part'))await restore.imports.uploadPart(fresh,p.index,p);await restore.imports.finalize(fresh,current.at(-1))
    assert.equal((await proxy.env.DB.prepare('SELECT COUNT(*) n FROM g_files WHERE id=?').bind(receiptId).first()).n,0);assert.equal(JSON.parse((await proxy.env.DB.prepare('SELECT data FROM g_people WHERE id=?').bind(person.id).first()).data).name,'Erased worker')
   }finally{await proxy?.dispose();await rm(dir,{recursive:true,force:true});await rm('dist/server/.wrangler',{recursive:true,force:true})}
-  await context.close();console.log('PASS GOVERN-006 bounded native retention/erasure, lawful money hold, exact preview, owner authority and trusted later restore fence (PARTIAL)')
+  await context.close();console.log('PASS GOVERN-006 / GOVERN-012 / GOVERN-013 bounded native retention/erasure, lawful money hold, exact preview, owner authority and trusted later restore fence (PARTIAL)')
  }finally{await browser?.close();await h.dispose()}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)await privacyJourney()

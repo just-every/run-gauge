@@ -1,4 +1,4 @@
-// FINANCE-002 on Week in review: committed revenue, expected invoices and expected cash by month, with the
+// FINANCE-002 / FINANCE-009 / FINANCE-010 on Week in review: committed revenue, expected invoices and expected cash by month, with the
 // historical-timing range, nothing issued and no payments recorded shown as such.
 import { escape as e } from './ui-forms'
 import { money } from './ui-format'

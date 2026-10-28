@@ -11,7 +11,7 @@ const levelName: Record<string, string> = { entry: 'Entry override',estimate:'Ac
 const scopeOf = (d: Report['data'], r: Row) => { const v = r.value, level = levelOf(v); return `${levelName[level]}: ${level === 'project' ? nameOf(d.engagements, v.engagementId) : level === 'client' ? nameOf(d.clients, v.clientId) : level === 'client-role' ? `${nameOf(d.clients, v.clientId)} · ${v.role}` : level === 'role' ? v.role : level === 'person' ? nameOf(d.people, v.personId) : 'Everyone'}` }
 const policy = (v: Value) => [v.overtimeAfterSeconds !== undefined ? `${v.overtimeBps / 100}% after ${v.overtimeAfterSeconds / 3600} h/day` : '', v.writeDownBps ? `${v.writeDownBps / 100}% write-down` : ''].filter(Boolean).join(' · ') || '—'
 
-/** RATE-002: versioned client, project, role, person and service cards, their precedence and the explain view. */
+/** RATE-002 / RATE-003: versioned client, project, role, person and service cards, their precedence and the explain view. */
 export async function rateCardsSection(env: Bindings, a: Actor, report: Report, options: Value, today: string) {
  const d = report.data
  const services = [{ id: '*', revision: '', value: { name: 'All services' } }, ...[...new Set(['Delivery', ...d.time.map(r => r.value.service), ...d.rates.map(r => r.value.service)])].filter(x => x && x !== '*').sort().map(x => ({ id: x, revision: '', value: { name: x } }))]

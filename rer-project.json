@@ -11,7 +11,7 @@
   "operations": {
     "setup": "pnpm install --frozen-lockfile",
     "build": "pnpm run build",
-    "verify": "pnpm run source:check && pnpm run typecheck && pnpm run test:runtime && pnpm run test:gauge && pnpm run check:deployment-spec",
+    "verify": "node src/base/contract-docs.mjs check && pnpm run source:check && pnpm run typecheck && pnpm run test:runtime && pnpm run test:gauge && pnpm run check:deployment-spec",
     "artifact": "pnpm run delivery:artifact",
     "recovery": "Follow OPERATIONS.md: pause writes and scheduled work; retain source, private settings and an export; restore into fresh empty resources with unchanged migration names and bytes; establish a fresh owner and verify records, attachments and re-export before routing traffic."
   },

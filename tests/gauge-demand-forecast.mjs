@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 
-// RESOURCE-005 resource demand forecast as of 20 October 2026, through the command and state doors and Week in review.
+// RESOURCE-005 / RESOURCE-008 resource demand forecast as of 20 October 2026, through the command and state doors and Week in review.
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
 let browser
 try {
@@ -32,7 +32,7 @@ try {
  assert.equal(nov.weightedPipelineSeconds, 20 * hour, 'Weighted pipeline demand is a labelled addition outside committed demand')
  assert.equal(nov.employeeCapacitySeconds, 21 * 8 * hour); assert.equal(nov.contractorCapacitySeconds, 21 * 4 * hour, 'Contractor capacity is shown apart from employees')
  assert.equal(month(f.baseline.months, '2026-10').employeeCapacitySeconds, weekdays('2026-10-21', '2026-10-31') * 8 * hour, 'Capacity counts only days after the as-of date')
- // Priced on the FINANCE-006 basis: November committed fees and cost equal the committed forecast month; pipeline fees stay separate.
+ // Priced on the FINANCE-006 / FINANCE-018 / FINANCE-019 basis: November committed fees and cost equal the committed forecast month; pipeline fees stay separate.
  const forecastNov = data.forecast.engagements.find(x => x.engagementId === eng.id).months.find(m => m.month === '2026-11')
  assert.equal(nov.committedFeesMinor, 300000); assert.equal(nov.committedFeesMinor, forecastNov.committedFeesMinor); assert.equal(nov.committedCostMinor, 180000); assert.equal(nov.marginMinor, 120000)
  assert.equal(nov.weightedPipelineFeesMinor, 500000)
@@ -112,5 +112,5 @@ try {
  f = (await read()).demandForecast; nov = month(f.baseline.months, '2026-11')
  assert.equal(nov.wonSeconds, 0); assert.equal(nov.unfilledSeconds, 50 * hour); assert.equal(nov.committedDemandSeconds, 70 * hour, 'Converted demand counts once, as open roles')
  assert.deepEqual(f.unplaced, [])
- console.log('PASS RESOURCE-005 monthly committed, unfilled, contractor and weighted pipeline demand on the FINANCE-006 basis, owner-approved hire/contractor/delayed-start scenarios beside an untouched baseline, won demand moving to committed once')
+ console.log('PASS RESOURCE-005 / RESOURCE-008 monthly committed, unfilled, contractor and weighted pipeline demand on the FINANCE-006 / FINANCE-018 / FINANCE-019 basis, owner-approved hire/contractor/delayed-start scenarios beside an untouched baseline, won demand moving to committed once')
 } finally { await browser?.close(); await h.dispose() }

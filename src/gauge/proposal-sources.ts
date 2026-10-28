@@ -53,7 +53,7 @@ export async function proposalAvailability(env: Bindings, proposal: Row): Promis
 export async function fenceProposal(env: Bindings, a: Actor, tx: Transaction, p: Row) {
  const reason=await proposalAvailability(env,p)
  if(reason){
-  // The refused decision writes no effect, proposal revision or request receipt. GOVERN-005 requires its reason-class audit.
+  // The refused decision writes no effect, proposal revision or request receipt. GOVERN-005 / GOVERN-011 requires its reason-class audit.
   const refusal=new Transaction(env,a);refusal.key=tx.key
   refusal.audit('proposal:refused','proposals',p.id,{reason,revision:p.revision})
   await refusal.commit()

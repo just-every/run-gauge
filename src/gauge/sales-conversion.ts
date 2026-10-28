@@ -3,7 +3,7 @@ import { type Row, type Value, need, text, sum } from './model'
 import { type Actor, Transaction, finance, get } from './store'
 
 /**
- * SALES-004: finance converts one won opportunity into one client engagement with a draft fixed-fee
+ * SALES-004 / SALES-011: finance converts one won opportunity into one client engagement with a draft fixed-fee
  * budget for the won value and effort, and one open resource request per listed service. The
  * opportunity and its engagement link both ways; converting again returns the same engagement.
  * Demand splits evenly by service, then by every inclusive date of the won window, in whole seconds;

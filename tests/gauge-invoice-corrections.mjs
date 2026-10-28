@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
 
-// INVOICE-004: credit part of an issued expense, void an unpaid invoice and reissue the valid balance, and reconcile
+// INVOICE-004 / INVOICE-013 / INVOICE-014: credit part of an issued expense, void an unpaid invoice and reissue the valid balance, and reconcile
 // every source and original document through the production command, state, history, CSV and Billing doors.
 export async function invoiceCorrectionJourney(h,{worker}) {
  const {cmd,owner,request}=h,asOf='2026-10-19'
@@ -75,7 +75,7 @@ export async function invoiceCorrectionJourney(h,{worker}) {
  assert(!d.cash.engagements.find(x=>x.engagementId===project.id).items.some(x=>!x.issued&&x.revenueMonth==='2026-10'),'INVOICE-004 written-down work is never expected again')
  const margin=d.margin.find(x=>x.engagementId===project.id);assert.equal(margin.billedMinor,25000+30000);assert.match(margin.billedLabel,/net of credit notes/)
  const figure=d.lineage.find(x=>x.id==='revenue:USD:creditedMinor');assert.equal(figure.value,after.creditedMinor)
- // SALES-001 billed against booked value, FINANCE-001 billed and FINANCE-007 cash name the credit notes they net.
+ // SALES-001 / SALES-006 billed against booked value, FINANCE-001 / FINANCE-008 billed and FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 cash name the credit notes they net.
  assert.equal(d.pipeline.find(x=>x.currency==='USD').billedMinor-billedBefore,25000+30000)
  const credits=id=>d.lineage.find(x=>x.id===id).sources.filter(s=>s.kind==='invoiceCorrections').map(s=>s.id).sort()
  assert.deepEqual(credits('pipeline:USD:billedMinor'),[credit.id,writeOff.id].sort());assert.deepEqual(credits(`margin:${project.id}:billedMinor`),[credit.id,writeOff.id].sort())
@@ -83,13 +83,13 @@ export async function invoiceCorrectionJourney(h,{worker}) {
  for(const id of [credit.id,writeOff.id])assert(figure.sources.some(s=>s.kind==='invoiceCorrections'&&s.id===id))
  assert(figure.sources.some(s=>s.kind==='expenses'&&s.id===expense.id))
  const csv=await request('/api/gauge/report.csv?'+new URLSearchParams({from:d.from,to:d.to,asOf,fingerprint:d.fingerprint}),owner);assert.equal(csv.status,200);assert.match(await csv.text(),/revenue:USD:creditedMinor/)
- // INVOICE-006 aging and statements trace the same credits and void: invoiced = paid + credited + voided + open.
+ // INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017 aging and statements trace the same credits and void: invoiced = paid + credited + voided + open.
  const statement=await (await request('/api/gauge/receivables?'+new URLSearchParams({asOf,clientId:client.id}),owner)).json(),owed=statement.totals[0]
  assert.deepEqual([owed.invoicedMinor,owed.paidMinor,owed.creditedMinor,owed.voidedMinor,owed.openMinor],[145000,0,45000,45000,55000])
  assert.equal(owed.aging.reduce((n,b)=>n+b.amountMinor,0),55000);assert(statement.invoices.every(i=>i.invoicedMinor===i.paidMinor+i.creditedMinor+i.voidedMinor+i.openMinor))
  const statementCsv=await (await request('/api/gauge/receivables.csv?'+new URLSearchParams({asOf,clientId:client.id,fingerprint:statement.fingerprint}),owner)).text()
  assert.equal((statementCsv.match(/^"credit",/gm)??[]).length,2);assert.equal((statementCsv.match(/^"void",/gm)??[]).length,1)
- // BOUNDARY-001: signed invoice-category rows reconcile each document once; a rejection stays unresolved and changes nothing.
+ // BOUNDARY-001 / BOUNDARY-004 / BOUNDARY-005: signed invoice-category rows reconcile each document once; a rejection stays unresolved and changes nothing.
  const documents=[...d.data.invoices.filter(x=>[first.invoice.id,second.invoice.id,reissue.id].includes(x.id)).map(r=>({kind:'invoices',id:r.id,revision:r.revision})),...d.data.invoiceCorrections.filter(x=>[credit.id,writeOff.id,voided.id].includes(x.id)).map(r=>({kind:'invoiceCorrections',id:r.id,revision:r.revision}))]
  const handoff=await cmd('handoff:prepare',{purpose:'accounting',recipient:'Correction accountant',reason:'Reconcile issued invoices, credit notes and the void',sources:documents})
  const prepared=(await read()).data.specialistHandoffs.find(x=>x.id===handoff.id)
@@ -127,5 +127,5 @@ export async function invoiceCorrectionJourney(h,{worker}) {
   }
  }finally{await browser.close()}
  await cmd('approval:limit',{id:policy.id,revision:(await read()).data.approvalPolicies[0].revision,reviewAboveMinor:'',reason:'Limit test complete'})
- console.log('PASS INVOICE-004 credit part of an issued expense, independent write-off approval, void and reissue of the valid balance; originals immutable, sources reserved once, cash/margin/pipeline/dashboard/lineage/CSV and specialist handoff reconcile; finance-only; Billing form at 390 and 1440')
+ console.log('PASS INVOICE-004 / INVOICE-013 / INVOICE-014 credit part of an issued expense, independent write-off approval, void and reissue of the valid balance; originals immutable, sources reserved once, cash/margin/pipeline/dashboard/lineage/CSV and specialist handoff reconcile; finance-only; Billing form at 390 and 1440')
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 
-// RETAINER-004: completed July/August/September periods stand in for the
+// RETAINER-004 / RETAINER-010 / RETAINER-011 / RETAINER-012: completed July/August/September periods stand in for the
 // contract's October/November example, without advancing the real close clock.
 export async function retainerCloseJourney(h,browser,{client,lead,worker,staff,manager,agent}) {
  const {cmd,request}=h,zone='America/New_York',from='2026-07-01',to='2026-10-31'
@@ -184,6 +184,6 @@ export async function retainerCloseJourney(h,browser,{client,lead,worker,staff,m
   const agentState=await report(agent.cookie);assert.equal(agentState.data.retainerCloses.length,0);assert.equal(agentState.data.retainerAdjustments.length,0);assert.equal((await request(`/api/gauge/history/retainerCloses/${closed.id}`,agent.cookie)).status,403)
   await login(finance.cookie);await page.goto(url);await capture('close-final-state',page.locator(`#retainer-close-${aug.id}`))
   await login(staff.cookie);await page.goto(url);await capture('close-own-source-state',page.locator(`#retainers [id="${sep.id}"]`));await capture('close-own-closed-state',page.locator(`#retainers [id="${aug.id}"]`))
-  console.log('PASS RETAINER-004: single chronological close, frozen FIFO/source/rule versions, linked late work once, projected then posted effects, partial governed waiver, refunds, stale previews, pause/cancellation/renewal, unknown-value hold, scoped history and CSV')
+  console.log('PASS RETAINER-004 / RETAINER-010 / RETAINER-011 / RETAINER-012: single chronological close, frozen FIFO/source/rule versions, linked late work once, projected then posted effects, partial governed waiver, refunds, stale previews, pause/cancellation/renewal, unknown-value hold, scoped history and CSV')
  }finally{await context.close()}
 }

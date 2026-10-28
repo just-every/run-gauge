@@ -218,3 +218,89 @@ Date: 2026-10-28 · Ruled by: ct · Governs: `SETUP-001`.
 - [Harvest permits invoice operations to administrators and managers with invoice rights, with currency and payment state explicit.](https://help.getharvest.com/api-v2/invoices-api/invoices/invoices/)
 
 Main reference: `CONTRACT.md:71` at `28d35e67441b58375e1ff081c2a3f42c441431d8`; current Status Gap was read in full. Route: `round`.
+
+## Historical rulings moved from the legacy contract
+
+### RL-1 — Explicit merge terms choice
+
+Date: 2026-10-20T23:45:00Z · Ruled by: ct · Governs: `SETUP-002`, `SETUP-007`, `SETUP-008`.
+
+A merge keeps the surviving client’s payment terms; a terms conflict is an explicit finance choice, never silent.
+
+### RL-2 — Rate approval authority
+
+Date: 2026-10-23 · Ruled by: ct · Governs: `SETUP-003`.
+
+Owner-only rate approval is attributed to its approver.
+
+### RL-3 — Offline acceptance carrier
+
+Date: 2026-10-22 · Ruled by: ct · Governs: `SALES-002`, `SALES-007`.
+
+Only the owner records reported external acceptance; client identity remains unverified, with SALES-003 becoming primary for released proposals.
+
+### RL-4 — Native confirmed-email client carrier
+
+Date: 2026-10-22 · Ruled by: brief · Governs: `SALES-003`, `SALES-008`, `SALES-009`, `SALES-010`.
+
+The owner prepares, explicitly sends or revokes complete immutable proposals; an invited confirmed-email recipient supplies deliberate exact-version decisions.
+
+### RL-5 — Native won conversion
+
+Date: 2026-10-19T16:47:00Z · Ruled by: ct · Governs: `SALES-004`, `SALES-011`.
+
+Finance or owner converts a won native opportunity into one linked engagement, draft fixed terms and open role requests, with unplaced seconds visible.
+
+### RL-6 — Independent internal reviewer
+
+Date: 2026-10-25 · Ruled by: ct · Governs: `SALES-005`, `SALES-012`.
+
+A different owner or finance person reviews; one person cannot self-review through another role/account, and internal approval grants no client acceptance or business-effect authority.
+
+### RL-7 — Retainer setup authority
+
+Date: 2026-10-19T04:33:00Z · Ruled by: ct · Governs: `RETAINER-001`, `RETAINER-006`, `RETAINER-007`.
+
+Lead/finance setup rights and manager-visible terms are preserved; the legacy agent restriction is exercised under a company policy holding money/commitment writes and sensitive amount reads, not a shipped disposition.
+
+### RL-8 — Finance-only period fee
+
+Date: 2026-10-21T00:30:00Z · Ruled by: ct · Governs: `RETAINER-001`, `RETAINER-006`, `RETAINER-007`.
+
+Fees are immutable integer-cent amounts per full commercial period, separate from allowance and finance-only.
+
+### RL-9 — Working-day service fee earning
+
+Date: 2026-10-21 · Ruled by: scope54 · Governs: `RETAINER-001`, `RETAINER-006`, `RETAINER-007`.
+
+Service fees prorate on saved working days, earn through inclusive as-of day and reconcile via cumulative month slices.
+
+### RL-10 — Staff statement privacy
+
+Date: 2026-10-19T05:52:00Z · Ruled by: ct · Governs: `RETAINER-003`, `RETAINER-009`.
+
+Assigned staff receive hour-unit statements and their own source work, without commercial monetary values/rates.
+
+### RL-11 — Exact-family allocation
+
+Date: 2026-10-19T06:03:00Z · Ruled by: ct · Governs: `RETAINER-003`, `RETAINER-009`.
+
+Lead/finance resolves ambiguous approved work with an audited reason and exact revision; reserved or approved billing sources cannot move.
+
+### RL-12 — Correction review value
+
+Date: 2026-10-19T20:50:00Z · Ruled by: ct · Governs: `RETAINER-004`, `RETAINER-010`, `RETAINER-011`, `RETAINER-012`.
+
+GOVERN-001 applies to the greater of absolute cash and priced allowance change; unpriced changes require an independent approver whenever a limit exists.
+
+### RL-13 — Native automatic issue consent
+
+Date: 2026-10-22 · Ruled by: ct · Governs: `RETAINER-005`, `RETAINER-013`, `RETAINER-014`.
+
+Finance/owner enables one bounded schedule revision; batches recheck live authority and issue only valid exception-free native invoices.
+
+### RL-14 — Leave privacy and decision riders
+
+Date: 2026-10-23 · Ruled by: ct · Governs: `RESOURCE-003`, `RESOURCE-007`.
+
+Owner-only revision-bound audited decisions; private fixed categories, scoped in-app lead alerts, reviewed native/compatibility requests and redacted audit exports.

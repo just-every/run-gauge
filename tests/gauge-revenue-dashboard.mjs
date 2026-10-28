@@ -4,7 +4,7 @@ import {execFileSync} from 'node:child_process'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
 
-// REPORT-003 native slice, composed into the cash journey rather than a new suite.
+// REPORT-003 / REPORT-008 native slice, composed into the cash journey rather than a new suite.
 export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
  const {cmd,owner,request}=h,asOf='2026-10-19'
  const read=async(cookie=owner)=>{const response=await request(`/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=${asOf}`,cookie);assert.equal(response.status,200);return response.json()}
@@ -62,7 +62,7 @@ export async function revenueDashboardJourney(h,{worker,client,hourly,entry}) {
   const view=await read(person.cookie);assert.equal(view.revenueDashboard,null);assert(!view.lineage.some(f=>f.id.startsWith('revenue:')))
   assert(!(await(await request('/app/review',person.cookie)).text()).includes('id="revenue-dashboard"'))
  }
- console.log('PASS REPORT-003 native pipeline/won/conversion deduplication, exact hourly WIP and expense sources, as-of/retainer exclusions, packet distinction, unknown amounts, stale CSV and finance privacy; invoice/collection/provider acceptance remains partial')
+ console.log('PASS REPORT-003 / REPORT-008 native pipeline/won/conversion deduplication, exact hourly WIP and expense sources, as-of/retainer exclusions, packet distinction, unknown amounts, stale CSV and finance privacy; invoice/collection/provider acceptance remains partial')
 }
 
 export async function captureRevenueDashboard(h,name) {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { harness } from './gauge-harness.mjs'
 
-// RETAINER-002 / RETAINER-003: public commands, statement, draft/approve/download and immutable
+// RETAINER-002 / RETAINER-008 / RETAINER-003 / RETAINER-009: public commands, statement, draft/approve/download and immutable
 // versions. Called by the existing retainer journey, sharing its built app.
 export async function retainerRulesJourney(h,browser,{client,lead,worker,staff,manager}) {
  const {cmd,state,request}=h,zone='America/New_York'
@@ -77,7 +77,7 @@ export async function retainerRulesJourney(h,browser,{client,lead,worker,staff,m
   await cmd('packet:approve',stale,h.owner,409);await cmd('packet:cancel',stale)
   const refreshed=await cmd('packet:create',{engagementId:engagement.id,title:'Reviewed three-hour overage',sources:[`retainerPeriods:${freshPeriod.id}`]});await cmd('packet:approve',refreshed)
   assert.equal((await state()).data.packets.find(p=>p.id===refreshed.id).value.totalMinor,60000)
-  console.log('PASS RETAINER-002: capped 8-of-40 hour FIFO rollover, original expiry, deficit carry, versioned hour/value overage rates, exact three-hour $600 packet, source reservation, repeated download and stale approval refusal')
+  console.log('PASS RETAINER-002 / RETAINER-008: capped 8-of-40 hour FIFO rollover, original expiry, deficit carry, versioned hour/value overage rates, exact three-hour $600 packet, source reservation, repeated download and stale approval refusal')
  }finally{await context.close()}
 }
 
@@ -193,7 +193,7 @@ export async function retainerScheduleJourney(h,browser,{client,lead,manager,sta
  await retainerAutomaticExceptions(h,browser,{project,term,policy,clientId:client.id})
  await retainerRestartAndCloseJourney(browser)
  await retainerDurableJobJourney(browser)
- console.log('PASS RETAINER-005 bounded automatic issue: exact fee/overage invoices, consecutive numbers, exception drafts, cap, current consent, locks, terms, PO, audit and 1440/390')
+ console.log('PASS RETAINER-005 / RETAINER-013 / RETAINER-014 bounded automatic issue: exact fee/overage invoices, consecutive numbers, exception drafts, cap, current consent, locks, terms, PO, audit and 1440/390')
 }
 
 async function retainerAutomaticExceptions(h,browser,{project,term,policy,clientId}){

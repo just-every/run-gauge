@@ -2,11 +2,11 @@ import { type Row, sum } from './model'
 import { retainerCovers } from './retainer-eligibility'
 import { invoiceStanding } from './invoice-standing'
 
-// REPORT-003's current native slice. WIP is billing preparation, never an issued
+// REPORT-003 / REPORT-008's current native slice. WIP is billing preparation, never an issued
 // receivable. Fixed fees and retainer allowances cannot be valued as hourly WIP.
 export function revenueDashboard(data: Record<string, Row[]>, asOf: string) {
  // Every invoice issued through the day keeps its sources out of WIP, even once voided: a void never makes work billable
- // again. Receivables count live invoices only, less issued credit notes (INVOICE-004); a reissue is its own invoice.
+ // again. Receivables count live invoices only, less issued credit notes (INVOICE-004 / INVOICE-013 / INVOICE-014); a reissue is its own invoice.
  const invoices = data.invoices.filter(r => r.value.issueDate <= asOf), standings = invoiceStanding(data, asOf), live = standings.filter(s => !s.voided)
  const payments = data.payments.filter(r => r.value.date <= asOf && live.some(s => s.invoice.id === r.value.invoiceId))
  const issuedSources = new Set(invoices.flatMap(i => i.value.lines.map((l: any) => `${l.kind}:${l.sourceId}`)))

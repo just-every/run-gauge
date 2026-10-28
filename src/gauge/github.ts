@@ -9,7 +9,7 @@ import { startReadback, finishReadback } from './commercial-readback'
 import { githubFollowupCommand } from './github-followups'
 
 /**
- * CONNECT-007: read-only GitHub evidence for owner-selected repositories. Owner-only by default: every record
+ * CONNECT-007 / CONNECT-021: read-only GitHub evidence for owner-selected repositories. Owner-only by default: every record
  * here is private to the native owner, no client, agent, other staff role or archive credential reads it, a
  * commit alone is never billable, and a merged pull request only ever proposes a milestone delivery.
  */

@@ -8,7 +8,7 @@ const appScopeName=(scope:string)=>scope==='projects:read time:write'?'Read proj
 const when = (ms: number | null) => ms ? new Date(ms).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '—'
 const period = (detail: string) => { const d = JSON.parse(detail); return d.from ? `${d.from} to ${d.to}` : d.scope ?? '' }
 
-/** CONNECT-020 utilization keys on the owner's Access page: create, show once, revoke, audit. */
+/** CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032 utilization keys on the owner's Access page: create, show once, revoke, audit. */
 export async function apiKeysSection(env: Bindings, created?: { id: string; label: string; token: string }) {
  const { keys, activity } = await apiKeyRegister(env)
  let body = '<div class="g-titlebar" id="api-keys"><h2>Utilization API keys</h2></div><p class="g-lede">A key reads one thing: <code>GET /api/gauge/state?from=YYYY-MM-DD&amp;to=YYYY-MM-DD</code> with <code>Authorization: Bearer</code>, answering the agency\'s participant count, available seconds and approved billable seconds for those dates. It cannot write, names no person and carries no rates, costs or pay. Gauge keeps only its SHA-256 fingerprint, records every use, and an export never carries it.</p>'

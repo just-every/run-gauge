@@ -198,7 +198,7 @@ try {
  await cmd('leave:decide',{...await cmd('save:leave', { personId: person.id, from: '2026-10-07', to: '2026-10-07', dailySeconds: hour, note:'Personal time' }),outcome:'approved'})
  assert.equal((await request(csvPath(data), owner)).status, 409, 'Changed utilization denominator refuses an old export snapshot')
  assert.equal(row((await report()).utilization.byPerson, person.id).availableSeconds, 31 * hour)
- // CONNECT-020 utilization key (ct 19 Oct 12:43Z): owner-created, shown once, SHA-256 at rest, read-only,
+ // CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032 utilization key (ct 19 Oct 12:43Z): owner-created, shown once, SHA-256 at rest, read-only,
  // scoped to the aggregate state answer, audited and revocable.
  const keyed = (token, path = '/api/gauge/state?' + new URLSearchParams({ from, to }), options = {}) => request(path, '', { ...options, headers: { authorization: `Bearer ${token}`, ...options.headers } })
  await cmd('apikey:create', { label: 'Staff attempt' }, staff.cookie, 403)
@@ -248,8 +248,8 @@ try {
  assert.deepEqual(JSON.parse(audit[1].detail), { from, to }); assert.equal(audit[1].actor, 'key:Easel revenue model')
  assert(await page.getByRole('row').filter({ hasText: 'Read utilization' }).count() >= 2, 'The owner sees each keyed read')
  await capture('utilization-key-revoked')
- console.log('PASS CONNECT-020 utilization key: owner-only create shown once, SHA-256 at rest, aggregate-only participant/available/approved-billable figures equal to the owner report, read-only scope, audited reads, revocation')
- // CONNECT-020 self-revoke: the authenticated credential is the only revocation target.
+ console.log('PASS CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032 utilization key: owner-only create shown once, SHA-256 at rest, aggregate-only participant/available/approved-billable figures equal to the owner report, read-only scope, audited reads, revocation')
+ // CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032 self-revoke: the authenticated credential is the only revocation target.
  const survivor = await cmd('apikey:create', { label: 'Independent integration' })
  const revoke = (key, options = {}) => keyed(key, '/api/gauge/keys/revoke', { method: 'POST', ...options })
  assert.equal((await keyed(firstBody.token, '/api/gauge/keys/revoke')).status, 405)
@@ -267,7 +267,7 @@ try {
  assert(/revoked/i.test(await page.locator(`tr[id="${firstBody.id}"]`).innerText()))
  assert(/active/i.test(await page.locator(`tr[id="${survivor.id}"]`).innerText()))
  await capture('utilization-key-self-revoked')
- console.log('PASS CONNECT-020 self-revoke: presented-key-only, idempotent and unknown-key 200, concurrent single audit, other keys unaffected, immediate read refusal')
+ console.log('PASS CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032 self-revoke: presented-key-only, idempotent and unknown-key 200, concurrent single audit, other keys unaffected, immediate read refusal')
  await appApiJourney(h,browser,{staff,person,client,task,engagement})
  await realizationJourney(h, browser)
  console.log('PASS RESOURCE-004 scheduled/recorded/pending/approved utilization, 30/32 billable capacity, internal training, holiday and leave denominators, zero and missing capacity, service/project/detail grouping, scoped sources, CSV fingerprint and browser drills')

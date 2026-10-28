@@ -13,7 +13,7 @@ import type { Report } from './ui-describe'
 const hidden = (name: string, value: string) => `<input type="hidden" name="${name}" value="${e(value)}">`
 const months: Row[] = Array.from({ length: 12 }, (_, n) => ({ id: String(n + 1), revision: '', value: { name: monthName(n + 1) } }))
 
-/** SETUP-001 on Access: the owner's agency profile, workweek, approved exchange rates and the consolidation they gate. */
+/** SETUP-001 / SETUP-006 on Access: the owner's agency profile, workweek, approved exchange rates and the consolidation they gate. */
 export async function agencySection(env: Bindings, a: Actor, report: Report) {
  const profile = report.data.agencyProfiles[0] as Row | undefined, v = profile?.value, address = v?.billingAddress
  const calendar = report.data.agencyCalendars.at(-1) as Row | undefined, fy = v ? fiscalYear(workDate(Date.now(), a.timezone), v.fiscalYearStartMonth) : null

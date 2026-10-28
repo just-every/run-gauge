@@ -8,7 +8,7 @@ const formulas: Record<string, [string, string]> = {
  eacCostMinor: ['Committed cost EAC', 'SUM(frozen approved time costMinor) + approved expenses + future committed allocation days × cost rate effective that day + remaining expense budget at cost. Overtime bill premiums and write-downs do not change labor cost.'],
  marginMinor: ['Committed forecast margin', 'committed EAC fees − committed cost EAC.'],
 }
-/** FINANCE-006: each forecast figure links to its formula and the rows it was computed from. */
+/** FINANCE-006 / FINANCE-018 / FINANCE-019: each forecast figure links to its formula and the rows it was computed from. */
 export function forecastLineage(c: Lineage) {
  for (const f of c.report.forecast?.engagements ?? []) {
   for (const [field, [label, formula]] of Object.entries(formulas)) {

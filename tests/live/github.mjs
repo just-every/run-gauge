@@ -63,5 +63,5 @@ try{
  for(const secret of [sandbox,`Gauge live proof ${stamp}`,'github'])assert(!clientText.toLowerCase().includes(secret.toLowerCase()),'The client sees no repository or pull request context')
  // Sandbox tidy-up: close the proof issue and delete the proof branches with the same App.
  await gh(setup,'PATCH',`/repos/${sandbox}/issues/${sent.value.issueNumber}`,{state:'closed'});for(const ref of [branch,commitOnly])await gh(setup,'DELETE',`/repos/${sandbox}/git/refs/heads/${ref}`)
- console.log(JSON.stringify({receipt:'CONNECT-007 live GitHub App sandbox',pullRequest:opened.number,merged:true,evidenceItems:data.githubEvidence.length,milestoneEffect:data.githubEffects[0].value.status==='approved'?'approved':'proposed',unauthorizedRepositoryRefused:true,commitOnlyEvidence:0,issueFollowup:sent.value.issueNumber,requests:touched.length,paths:[...new Set(touched)]}))
+ console.log(JSON.stringify({receipt:'CONNECT-007 / CONNECT-021 live GitHub App sandbox',pullRequest:opened.number,merged:true,evidenceItems:data.githubEvidence.length,milestoneEffect:data.githubEffects[0].value.status==='approved'?'approved':'proposed',unauthorizedRepositoryRefused:true,commitOnlyEvidence:0,issueFollowup:sent.value.issueNumber,requests:touched.length,paths:[...new Set(touched)]}))
 }finally{await h.dispose()}

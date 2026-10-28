@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
 
-// REPORT-002: billability targets, utilization to target and realization through the
+// REPORT-002 / REPORT-007: billability targets, utilization to target and realization through the
 // command API, state, report CSV and the Staffing page. Called by the utilization journey.
 export async function realizationJourney(h, browser) {
  const { cmd, request, owner } = h, hour = 3600, from = '2026-09-07', to = '2026-09-11', zone = 'America/New_York'
@@ -108,6 +108,6 @@ export async function realizationJourney(h, browser) {
   assert(!leadText.includes('Realization') && !/\$|A\$/.test(leadText), 'The lead page shows no amounts')
   assert.equal(await page.locator('input[name=action][value="target:set"]').count(), 0, 'Only finance sees the target form')
   await capture('realization-lead')
-  console.log('PASS REPORT-002 effective-dated person/role billability targets (finance only), 28/40 = 70% vs 75% = −5 points, 10 h standard then 2 h write-down = 80% realization at 120.00/h, nonbillable and unbilled separate, role/client/period groups, traced CSV, lead view without amounts')
+  console.log('PASS REPORT-002 / REPORT-007 effective-dated person/role billability targets (finance only), 28/40 = 70% vs 75% = −5 points, 10 h standard then 2 h write-down = 80% realization at 120.00/h, nonbillable and unbilled separate, role/client/period groups, traced CSV, lead view without amounts')
  } finally { await browserContext?.close() }
 }

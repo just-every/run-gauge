@@ -13,7 +13,7 @@ const short = (hash: string | null) => hash ? `${hash.slice(0, 12)}…` : 'Pendi
 const whole = (hash: string) => (hash.match(/.{1,16}/g) ?? []).map(part => e(part)).join('<wbr>')
 const listing = (value: Value) => Object.entries(value).map(([k, v]) => `${e(k)}: ${e(typeof v === 'object' ? JSON.stringify(v) : v)}`).join('<br>')
 
-/** GOVERN-005: finance and the owner search the business audit, check its chain and export it. */
+/** GOVERN-005 / GOVERN-011: finance and the owner search the business audit, check its chain and export it. */
 export async function auditPage(env: Bindings, a: Actor, q: AuditQuery & { checkSeq?: string | null; checkHash?: string | null }) {
  const { today } = periods(a.timezone), found = await auditSearch(env, a, q)
  const checked = q.checkSeq || q.checkHash ? await auditVerify(env, a, q.checkSeq ?? null, q.checkHash ?? null) : null

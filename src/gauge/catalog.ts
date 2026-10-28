@@ -51,7 +51,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
  if (['clients','people'].includes(k)) {
   v.name = text(input.name, 'Name', 200)
   if (k === 'people') { v.timezone = zone(input.timezone); Object.assign(v,resourceProfile(input,previous?.value)) }
-  // FINANCE-002 cash basis (FINANCE-007): payment terms in days (Net N), an approved average days late and a collection probability.
+  // FINANCE-002 / FINANCE-009 / FINANCE-010 cash basis (FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022): payment terms in days (Net N), an approved average days late and a collection probability.
   if (k === 'clients') {
    need(!previous?.value.merge, 'This client was merged into another client; edit the surviving client', 409)
    const days = (key: string, label: string) => input[key] === undefined ? previous?.value[key] ?? null : input[key] === '' || input[key] === null ? null : integer(input[key], label, 0, 365)
@@ -60,7 +60,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
    v.paymentTermsDays = days('paymentTermsDays', 'Payment terms days'); v.daysLate = days('daysLate', 'Days late')
    v.daysLateApprovedBy = v.daysLate === null ? null : v.daysLate === (previous?.value.daysLate ?? null) ? previous?.value.daysLateApprovedBy ?? a.session.operator.id : a.session.operator.id
    v.collectionPercent = input.collectionPercent === undefined ? previous?.value.collectionPercent ?? 100 : input.collectionPercent === '' ? 100 : integer(input.collectionPercent, 'Collection probability percent', 0, 100)
-   // SETUP-002: the client and contact workspace beside those terms.
+   // SETUP-002 / SETUP-007 / SETUP-008: the client and contact workspace beside those terms.
    Object.assign(v, clientDetails(input, previous?.value)); await claimIdentities(env, tx, v, previous?.id)
   }
  }
@@ -104,7 +104,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   need(['hourly','fixed'].includes(input.mode),'Choose hourly or fixed terms')
   const prior=latestBudget(await all(env,'budgets'),v.engagementId);Object.assign(v,estimateLineage(prior?.value));v.notToExceed=input.notToExceed===undefined?prior?.value.notToExceed??false:flag(input.notToExceed);need(!v.notToExceed||input.mode==='hourly','A not-to-exceed cap applies to hourly terms')
   v.mode = input.mode; v.amountMinor = money(input.amountMinor); v.effortSeconds = integer(input.effortSeconds,'Estimated effort seconds'); v.roundingSeconds = integer(input.roundingSeconds,'Billing rounding seconds',1,3600); v.reason = text(input.reason,'Terms / change-order reason'); v.status = 'draft'; v.createdAt = Date.now()
-  // FINANCE-006: an optional billable expense budget, billed and costed at the same pass-through amount, with an optional forecast date.
+  // FINANCE-006 / FINANCE-018 / FINANCE-019: an optional billable expense budget, billed and costed at the same pass-through amount, with an optional forecast date.
   if (input.expenseBudgetMinor !== undefined && input.expenseBudgetMinor !== '') { v.expenseBudgetMinor = money(input.expenseBudgetMinor); if (input.expenseDate) v.expenseDate = date(input.expenseDate) } else need(!input.expenseDate,'An expense date needs an expense budget')
  }
  if(k==='budgets'){v.phases=normalizePhases(input.phases??latestBudget(await all(env,'budgets'),v.engagementId)?.value.phases,v);need(!v.notToExceed||v.phases.every((p:Value)=>p.mode==='hourly'),'Not-to-exceed engagement caps require hourly phases')}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 
-// RETAINER-003: a person opens a real statement, follows approved source work,
+// RETAINER-003 / RETAINER-009: a person opens a real statement, follows approved source work,
 // and sees pending work affect only its provisional projection.
 export async function retainerStatementsJourney(h,browser,{client,lead,worker,staff,manager,agent}) {
  const {cmd,state,request}=h,zone='America/New_York'
@@ -49,7 +49,7 @@ export async function retainerStatementsJourney(h,browser,{client,lead,worker,st
   const suggestion=await cmd('proposal:prepare',{kind:'time',engagementId:project.id,assumptions:'Unconfirmed calendar evidence',evidence:[{source:'Worker-supplied calendar',summary:'Possible workshop follow-up'}],plan:{personId:worker.id,taskId:task.id,service:'Design',start:'2026-10-07T09:00:00-04:00',end:'2026-10-07T10:00:00-04:00',timezone:zone,notes:'Possible follow-up',billable:true}},agent.cookie)
   const unconfirmed=(await state()).retainerBalances.find(b=>b.periodId===period.id);assert.equal(unconfirmed.consumed,14400);assert.equal(unconfirmed.pending,0)
   await login(staff.cookie);await page.goto(url);assert((await page.locator('#retainers').innerText()).includes('Unconfirmed evidence'));assert(await page.locator(`#retainers a[href="/app/review#${suggestion.id}"]`).count());await capture('statement-unconfirmed-evidence',page.locator('#retainers h3'))
-  // RETAINER-003: one explicit commercial family per exact source revision.
+  // RETAINER-003 / RETAINER-009: one explicit commercial family per exact source revision.
   const overflow=await save({...terms,name:'Design overflow allowance',allowance:1800,rules:{...terms.rules,carryCap:0,carryPeriods:0}})
   report=await state();const overflowPeriod=report.data.retainerPeriods.find(p=>p.value.retainerId===overflow.id)
   assert.equal(report.retainerBalances.find(b=>b.periodId===period.id).consumed,0);assert.equal(report.retainerBalances.find(b=>b.periodId===period.id).unallocatedSeconds,14400)
@@ -73,6 +73,6 @@ export async function retainerStatementsJourney(h,browser,{client,lead,worker,st
   assert(!(await state(outsider.cookie)).retainerBalances.some(b=>b.periodId===period.id));assert.equal((await request(`/api/gauge/history/retainers/${retained.id}`,outsider.cookie)).status,403)
   assert.equal((await state(agent.cookie)).retainerBalances.length,0)
   await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:false});assert.equal((await request('/api/gauge/state',staff.cookie)).status,403);await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:true})
-  console.log('PASS RETAINER-003: complete hours statement, own approved source drill, provisional draft/returned/submitted projection, exact approval posting, unconfirmed evidence exclusion, scoped staff/lead/agent visibility and private state/history/CSV')
+  console.log('PASS RETAINER-003 / RETAINER-009: complete hours statement, own approved source drill, provisional draft/returned/submitted projection, exact approval posting, unconfirmed evidence exclusion, scoped staff/lead/agent visibility and private state/history/CSV')
  }finally{await context.close()}
 }

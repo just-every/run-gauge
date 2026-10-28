@@ -35,7 +35,7 @@ const roleOf = (p: Row) => String(p.value.role ?? '').trim() || null
 
 interface Money { currency: string; standardMinor: number; billedMinor: number; billedSeconds: number; unbilledStandardMinor: number; time: string[]; packets: string[]; missingBillRate: string[] }
 
-/** REPORT-002: approved billable utilization against capacity and target, and (finance only) realization of
+/** REPORT-002 / REPORT-007: approved billable utilization against capacity and target, and (finance only) realization of
  * billed approved time against its standard value at the frozen approved bill rate. */
 export function targetPerformance(data: Data, cap: Capacity, from: string, to: string, money: boolean) {
  const engagement = (id: string) => data.engagements.find(e => e.id === id)

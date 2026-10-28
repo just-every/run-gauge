@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 
-// DELIVERY-001: a real lead assigns recurring delivery work, an assignee executes
+// DELIVERY-001 / DELIVERY-007: a real lead assigns recurring delivery work, an assignee executes
 // it through the board, and project/personal views reconcile the same work.
 const h=await harness({currency:'USD',timezone:'America/New_York'})
 let browser
@@ -110,5 +110,5 @@ try {
  await page.goto(h.origin+`/app/engagements?edit=${project.id}&taskView=mine`);await capture('task-completed-project')
  await cmd('grant',{operatorId:staff.id,personId:worker.id,role:'staff',enabled:false})
  assert.equal((await request('/api/gauge/state',staff.cookie)).status,403)
- console.log('PASS DELIVERY-001: assignment, task tree, board/personal filters, progress, time/expense links, exact recurrence, history and revocation')
+ console.log('PASS DELIVERY-001 / DELIVERY-007: assignment, task tree, board/personal filters, progress, time/expense links, exact recurrence, history and revocation')
 }finally{await browser?.close();await h.dispose()}

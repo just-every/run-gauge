@@ -1,6 +1,6 @@
 import { mergeCustomValues } from './custom-values'
-// SETUP-002 client and contact workspace. Finance keeps each client's legal name, billing and project contacts,
-// addresses, tax and exemption references, PO requirement and numbers, tags and external IDs beside the FINANCE-002
+// SETUP-002 / SETUP-007 / SETUP-008 client and contact workspace. Finance keeps each client's legal name, billing and project contacts,
+// addresses, tax and exemption references, PO requirement and numbers, tags and external IDs beside the FINANCE-002 / FINANCE-009 / FINANCE-010
 // payment terms, searches clients by name, PO or external ID, and merges a duplicate into a surviving client.
 import type { Bindings } from '../auth.server'
 import { type Value, type Row, need, text, flag } from './model'

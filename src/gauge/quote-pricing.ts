@@ -3,7 +3,7 @@ import { type Row,type Value,need } from './model'
 import { type Transaction,all,get } from './store'
 
 /** A real accepted estimate is the source of this transient bill-rate view.
- * It is never persisted as a fictitious RATE-002 card and carries its own kind. */
+ * It is never persisted as a fictitious RATE-002 / RATE-003 card and carries its own kind. */
 export function quoteBill(data:Record<string,Row[]>,engagementId:string,budget:Row|undefined,work:Value):Row|undefined{
  if(!budget?.value.estimateId)return undefined
  const quote=(data.estimates??[]).find(q=>q.id===budget.value.estimateId&&q.revision===budget.value.estimateRevision),conversion=(data.estimateConversions??[]).find(c=>c.value.engagementId===engagementId&&c.value.estimateId===budget.value.estimateId)

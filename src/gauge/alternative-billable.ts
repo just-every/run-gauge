@@ -5,7 +5,7 @@ import { allocationPricing } from './forecast-allocation-pricing'
 const DAY = 86400000
 
 /** AGENT-002: the estimated billable value finance sees for one staffing alternative. Every day of the alternative's
- * inclusive window is priced like a FINANCE-006 allocation day (bill rate effective that day under RATE-002 precedence,
+ * inclusive window is priced like a FINANCE-006 / FINANCE-018 / FINANCE-019 allocation day (bill rate effective that day under RATE-002 / RATE-003 precedence,
  * withdrawn cards excluded, overtime premium then write-down, round half up per day), after every other booking the
  * person already has. Internal work has no billable value; a day without a bill rate, or a rate in a currency other
  * than the engagement's, makes the figure unknown rather than zero. */

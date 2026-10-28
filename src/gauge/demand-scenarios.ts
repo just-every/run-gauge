@@ -3,7 +3,7 @@ import { type Row, type Value, need, text, integer, money, date } from './model'
 import { type Actor, Transaction, finance, get } from './store'
 
 /**
- * RESOURCE-005 scenarios: finance prepares a what-if for one open opportunity (a delayed start, a planned hire or a
+ * RESOURCE-005 / RESOURCE-008 scenarios: finance prepares a what-if for one open opportunity (a delayed start, a planned hire or a
  * contractor); the owner approves the exact revision before it is compared. A scenario never writes staffing, people,
  * rates or terms, so the baseline forecast is unchanged by preparing or approving it. Approved scenarios are immutable.
  */

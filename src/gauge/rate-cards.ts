@@ -5,7 +5,7 @@ import { type Actor, Transaction, finance, get, all } from './store'
 import { currencies } from './agency'
 import { activeClient } from './clients'
 
-// RATE-002 rate cards. One effective-dated, immutable `rates` row is one card version.
+// RATE-002 / RATE-003 rate cards. One effective-dated, immutable `rates` row is one card version.
 // Bill precedence, most specific first: an entry override, then project, client-role, client,
 // role, person and service cards. Cost precedence: person, role, service (costs describe the worker;
 // client and project cards carry bill rates only). Within a level a card naming the entry's service
@@ -13,7 +13,7 @@ import { activeClient } from './clients'
 export const billLevels = ['project','client-role','client','role','person','service'] as const
 export const costLevels = ['person','role','service'] as const
 export type Level = typeof billLevels[number]
-// New declared costs are USD (ct 19 Oct 12:00Z); rows saved before RATE-002 keep their single currency.
+// New declared costs are USD (ct 19 Oct 12:00Z); rows saved before RATE-002 / RATE-003 keep their single currency.
 export const costCurrencyOf = (r: Row) => r.value.costCurrency ?? r.value.currency
 export const levelOf = (v: Value): Level => v.engagementId ? 'project' : v.clientId ? (v.role ? 'client-role' : 'client') : v.personId ? 'person' : v.role ? 'role' : 'service'
 const half = (n: bigint, d: bigint) => (n + d / 2n) / d
@@ -110,7 +110,7 @@ export async function freeze(env: Bindings, tx: Transaction, row: Row, engagemen
 
 /** Finance's negotiated per-entry override, frozen at approval; staff never see it. */
 export async function rateCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Row | null> {
- // A withdrawn card leaves precedence for every later pricing (explain, new approvals, FINANCE-006 forecasts);
+ // A withdrawn card leaves precedence for every later pricing (explain, new approvals, FINANCE-006 / FINANCE-018 / FINANCE-019 forecasts);
  // approvals already frozen keep the card they used.
  if (action === 'rate:withdraw') {
   need(finance(a), 'Finance access required', 403)

@@ -578,3 +578,539 @@ The status rows describe the current committed tree and its named public-door as
 | `BOUNDARY-001` | Books payroll and tax remain specialist products | target | done | `src/gauge/specialist-handoff.ts`; `src/gauge/ui-specialist-handoff.ts`; `tests/gauge-handoffs.mjs`; `tests/gauge-base-portability.mjs` — BOUNDARY-001; `tests/gauge-invoices.mjs` | Exact approved labor, expense, billing-preparation, issued invoice and user-recorded payment handoff snapshots have immutable downloads and receiver acceptance/rejection reconciliation. Specialist execution, provider settlement and certification are never claimed; future document, reimbursement, recognition and live accounting capabilities inherit input/result reconciliation before shipping. |
 | `BOUNDARY-002` | Payments use the agency merchant account | target | partial | Merchant readiness, test-mode confirmation and explicit onboarding and restricted-business requirements, invoice payment and refund composition, fee and payout trace, and withholding payer details: `tests/fixtures/stripe-journey.mjs` — stripePaymentJourney through `tests/gauge-invoices.mjs`, with Billing and Access at 1440 and 390. `tests/fixtures/stripe-archive.mjs` — stripeArchiveJourney proves restored history has no execution authority. | The held-key run in `tests/artifacts/stripe-sandbox.json` proves hosted card payment, refund and an existing automatic payout reconciliation. This card charge remained processor-pending; its own settlement and payout composition remain unproved. ACH collection requires an enabled US bank account test merchant. No live merchant onboarding completion or independent bank reconciliation is claimed. Default ADOPTED pending ct: the native owner alone authorizes invoice collection and each refund; Stripe holds and moves funds under the agency agreement, and Gauge retains only safe outcome metadata. |
 | `BOUNDARY-003` | Products remain separate | target | missing |  | Named sibling/external handoffs for the complete PSA target are not implemented. |
+
+## 28 October 2026 — Contract rewrite placement
+
+The structural rewrite carries statuses downward only. Old Status descriptions and mechanism remain historical records.
+
+### SETUP-001
+
+Pre-rewrite Status note: Every acceptance point passes through public doors, including 1440/390: first-run and Access save the legal business, US billing address, EIN, fiscal-year start, agency currency (USD default) and IANA timezone; the owner versions the workweek and holidays; a USD quote converts to work across the 8 March 2026 spring-forward and issues one USD invoice equal to the quote; an AUD Harvest record imports only with an explicit keep-source-currency policy, stays AUD, and consolidates only at owner-approved effective-dated rates. PARTIAL until ct approves the adopted privacy default: the EIN is owner-only (finance sees no EIN in state, history or audit; leads, staff and agents see no profile) and no document prints it. Owner-only rate approval, attributed to its approver, is approved (ct, 23 October 2026). Invoice/quote documents printing the legal business and address (INVOICE-003) and SETUP-005's per-client currencies and report-wide conversion inherit the profile and SETUP-003's rate table.
+
+### SETUP-002
+
+Pre-rewrite Status note: Legal name, contacts, addresses, tax/exemption references, PO requirement and numbers, tags and external IDs on the client beside its Net N terms; finance search by PO, external ID, tag, name or contact; audited merge moving every engagement and opportunity with an explicit terms choice. SETUP-004 custom fields and INVOICE-001 bill-to details inherit.
+
+### SETUP-003
+
+Pre-rewrite Status note: Every acceptance point passes through public doors. Client currencies, their end-to-end carriage and report-wide conversion are SETUP-005.
+
+### SETUP-004
+
+Pre-rewrite Status note: Owner-versioned seven-type fields on clients, engagements, people and tasks; required direct, converted and template creation; original/current version visibility on state, pages, history, source CSV, saved reports and resource filters. The fields-only Kantata OX package retains source IDs, original package, reviewed native mappings and independent Practice/Office controls; undefined Legacy values refuse apply. Native numeric/currency measures, typed filters and grouped utilization/realization/profitability reconcile; option retirement and replay preserve stored/native values. BASE-002 restores all current field records/history. REPORT-004 inherits the same current checks for future scheduled/XLSX/PDF/BI doors; CLIENT-001 inherits them for its future portal; MIGRATE-004 retains broader OX/SX migration obligations.
+
+### SETUP-005
+
+Pre-rewrite Status note: Proved: client default currencies and the pre-commercial override, CAD and USD October invoices, the October portfolio earned value and approved burn converted amount by amount at labeled approved rates (GBP unconverted, unknown costs kept unknown) and unchanged by a later November rate, and expected cash by month converted at the rate in force on its expected day. Remaining: QBO multicurrency sandbox sync (account-blocked: needs a QBO sandbox and the owner's authority); a closed-October proof (October 2026 cannot close before it ends); conversion of portfolio budget and EAC, the FINANCE-006 forecast (its EAC has no dated components yet), the cash forecast's committed revenue and historical-timing figures and REPORT-003 figures, with their source drills and CSVs; the strict per-client USD default when a different agency currency was selected; and estimate, proposal, retainer, credit and payment-link currency carriage through every door.
+
+### SALES-002
+
+Pre-rewrite Status note: The ct 22 October offline acceptance carrier is complete. SALES-003 owns verified client-link and signature acceptance and will make that carrier primary when it ships.
+
+### SALES-003
+
+Pre-rewrite Status note: The native email-confirmed client-link carrier is approved (22 October brief). Resend readback reconciles the exact message and recipient without resending, distinguishes delivered from bounced/unconfirmed, and resumes after credential rotation. Inkwell intake verifies native completed status, exact recipient and original/signed/certificate PDF digests, retains signed artifacts and requires a deliberate client response; a mismatched original leaves acceptance unavailable. Signature originals are now complete Gauge-generated immutable PDFs, retaining the exact customer document fingerprint. The owner cannot substitute another PDF digest; Inkwell original bytes must match the native original before signed evidence can unlock a client response. The already-approved native email-confirmed carrier remains authoritative; no owner-attested original-to-proposal mapping is trusted. All acceptance points now pass through the named native public-door journeys, including generated originals, verified signed artifacts, delivery reconciliation, exact signed-decision linkage and authority-free restore. Inkwell supplies the clause’s signed-provider carrier; CONNECT-018 retains broader signature-provider handoffs.
+
+### SALES-011
+
+The legacy native opportunity carrier delegates accepted estimate, CRM and invoice-schedule conversion to SALES-002, CONNECT-011 and RETAINER-005/INVOICE-002 respectively.
+
+### SALES-005
+
+Pre-rewrite Status note: Immutable scope comparisons, independent internal approval or decline, revision chains and stale-input fences are proved. ct approved this PARTIAL boundary on 25 October 2026: native owner or finance prepares; a different owner or finance person reviews. Self-review is refused after a role change and through another account bound to the same person. Approval is labelled internal in state, history and audit views and exports. Internal review grants no client acceptance or business-effect authority. Gap: PARTIAL pending ct approval of the adopted default: native-owner-only explicit release of one exact internally approved change version to a confirmed non-staff recipient for one to 30 days; shown-once hashed key, immediate revocation, live owner and recipient authority, baseline and supersession fences, description-only projection, no outbound sending and no business-effect authority. Direct API rejection and acceptance retain exact reasons, recipient and fingerprint with audited request keys and revisions. Remaining: recipient forms at 1440 and 390, complete exact client commercial disclosure, signed change evidence and once-only adoption of only the accepted increment. Direct responses remain unsigned and do not change the forecast.
+
+### SALES-012
+
+The adopted native-owner-only release default is pending ct approval.
+
+### BUDGET-002
+
+Pre-rewrite Status note: Immutable balanced phase/service allowances, reviewed transfers and distinct hourly/fixed billing; owner thresholds count approved plus submitted actuals, with one in-app crossing per engagement/phase, metric and percentage for its lead and finance, and an overspend warning above 100%. Each phase exposes the full FINANCE-001 figures. Exact cumulative-priced capped slices preserve approved time and permanent reviewed write-downs. FOLLOWUP-003 inherits external delivery and further unattended rules; no external notification or accounting action is claimed.
+
+### RETAINER-001
+
+Pre-rewrite Status note: Exact monthly/quarterly/annual value/hour allowances, explicit agency calendar and proration, reviewed immutable versions/periods and renewal dates; eligible approved-time consumption with unknown values explicit. Retainer-covered work is held from ordinary hourly billing until reviewed retainer billing rules exist.
+
+### RETAINER-002
+
+Pre-rewrite Status note: Immutable rules, capped aged FIFO lots, original expiry, deficit carry and agreed hour/value rates; exact reviewed overage packets with duplicate/ambiguous/stale-input holds. Closed snapshots and invoice issuance are inherited explicitly by RETAINER-004/005 and INVOICE-001 before those capabilities ship.
+
+### RETAINER-003
+
+Pre-rewrite Status note: Opening allowance, FIFO rollover/deficit, approved consumption, provisional projection and remaining hours/value have source/rule lineage; assigned staff see hour statements with own sources only. Audited allocation resolves ambiguous work. RETAINER-004 linked allowance adjustments now show posted/projected effects and source/rule versions. Permitted-client parity remains inherited by CLIENT-001/003.
+
+### RETAINER-005
+
+Pre-rewrite Status note: Bounded native automatic issue follows the ct 22 October policy; explicit selected approved credits reduce an invoice once. INVOICE clauses and FOLLOWUP-004 inherit external sending and durable delivery/retry work.
+
+### RESOURCE-001
+
+Pre-rewrite Status note: Skills, proficiency, team, location, employment and role needs feed scoped dated candidate search with private effective costs. Exact lead approval atomically replaces unfilled demand with one named committed allocation, preserving competing work and refusing stale or duplicate fills.
+
+### RESOURCE-002
+
+Pre-rewrite Status note: Current calendar search, previewed atomic moves/splits, global conflict and unknown-capacity warnings, and unfilled demand reconcile. SETUP-004 must carry person-field search before shipping.
+
+### RESOURCE-003
+
+Pre-rewrite Status note: Every acceptance point passes through the named public-door journeys. ct approved the 23 October ruling and riders: decisions are owner-only, audited and revision-bound; only the person sees their private category; in-app conflict alerts stay within the responsible lead's scope, with no outbound delivery. Both native and compatibility submissions create reviewed requests. Categories are limited to Personal time, Vacation and Prefer not to say; medical and legal free text is refused, and decisions store fixed administrative text. Historical declared absences retain their existing capacity effect and use owner cancellation. Audit exports withhold other people's raw leave payloads with redacted decision views. HR-system synchronization is RESOURCE-006.
+
+### RESOURCE-004
+
+Pre-rewrite Status note: Person/service/project/detail comparisons reconcile committed, tentative, recorded, pending and approved hours. Every ratio states numerator and denominator with holiday/leave/calendar explanations and scoped sources; internal client-free work raises total utilization only.
+
+### RESOURCE-006
+
+Split from RESOURCE-003 by ct’s 23 October 2026 REST ruling.
+
+### RESOURCE-006
+
+Pre-rewrite Status note: Split from RESOURCE-003 by ct's REST ruling (23 October 2026). No HR-system connection, stable source IDs, replay or source cancellation exist. Needs a live BambooHR sandbox and the owner's authority to connect it (account-blocked).
+
+### DELIVERY-001
+
+Pre-rewrite Status note: Assigned task trees, statuses, priority, dated own-effort estimates, checklists and billability; exact recurring completion; client/project-filtered list, board and personal work; linked time and expenses; scoped progress, history and portable recurring records.
+
+### DELIVERY-002
+
+Pre-rewrite Status note: Phase/task/milestone DAG, explicit business calendar, Gantt and critical slack, immutable baselines, global capacity/client-date preview and exact atomic approval; source history and approved commercial terms remain intact.
+
+### DELIVERY-003
+
+Pre-rewrite Status note: Immutable versioned project/client-onboarding templates with phases, dependent owned tasks with effort and priced milestones; exact-version application on the agency business calendar creates tasks, draft milestones and the first baseline; later versions never change started projects. Phase budgets, intake forms and required custom fields are inherited by BUDGET-002, DELIVERY-006 and SETUP-004 before those ship.
+
+### DELIVERY-004
+
+Pre-rewrite Status note: Scope text and imported historical files exist; task discussions, document versioning, proofing annotations, notification inbox/digests, file-store links and project file rights are absent.
+
+### DELIVERY-005
+
+Pre-rewrite Status note: CLIENT-001 retains the full scoped project portal and retainer parity. CLIENT-004 retains recipient accounts and delivery notifications. No outbound notification is sent by the bounded exact-delivery review.
+
+### TIME-003
+
+Pre-rewrite Status note: Day/week interval grids; private favorites and recent-task defaults; atomic exact-revision bulk submission; daily net missing hours and approval status; fenced finance cutoff/reopening across native, agent-confirmation and import doors; original approval/duration/rounding history and portable preferences/policy.
+
+### TIME-004
+
+Pre-rewrite Status note: Versioned due/note/entry/day/billability policy, visible flags and aging, dated scoped revocable delegation and exact independent two-level review; no worker self-approval bypass and final-only frozen economics.
+
+### TIME-008
+
+Authority policy approved by ct on 19 October 2026 at 11:14Z.
+
+### TIME-005
+
+Pre-rewrite Status note: Manually cited time proposals and personal confirmation exist; live collection, consent management and evidence inbox are absent.
+
+### TIME-006
+
+Pre-rewrite Status note: Persistent web timer and parallel exclusion ship; cross-device clients, offline reconciliation and idle recovery do not.
+
+### COST-002
+
+ct approved the native manual reimbursement slice on 25 October 2026.
+
+### COST-002
+
+Pre-rewrite Status note: DONE for the ct-approved native manual reimbursement slice: exact user-recorded receiver outcomes, immutable approved inputs and bounded signed corrections; reimbursement and client recovery stay separate. Broader automatic payout and provider execution remain unimplemented and unclaimed. INVOICE-005 retains provider sales-tax calculation and reversal; COST-003 retains accounting bills.
+
+### COST-004
+
+Automatic payouts and provider execution remain outside the ct-approved native manual slice.
+
+### COST-003
+
+Pre-rewrite Status note: No vendor commitments, purchase orders, contractor bills, expected-cost ledger or accounting bill read-back. Required live QBO sandbox proof is blocked: QBO_CLIENT_ID is not provisioned for this cloud run.
+
+### FINANCE-002
+
+20 October 2026, ct 06:10Z: the unissued forecast basis was established.
+
+### FINANCE-003
+
+ct, 20 October 2026 18:03Z: private financial comparison and cross-project adoption are finance/owner-only.
+
+### FINANCE-003
+
+Pre-rewrite Status note: All current scope, staffing, rate/write-down/overtime and deadline alternatives asserted through built HTTP commands/state/history: isolated baseline, dates, global capacity/utilization, independent cost/margin/cash, exact selected future human adoption, immutable actual/prior/unselected records, replay and stale/access refusals. Named future capabilities inherit before shipping.
+
+### FINANCE-004
+
+ct, 20 October 2026 23:45Z: agency close composes TIME-003 and RETAINER-004.
+
+### FINANCE-004
+
+Pre-rewrite Status note: Agency operational period records compose TIME-003 cutoff and RETAINER-004 snapshot links, with explicit WIP/unbilled work and invoice reconciliation. Finance-recorded external controls are labelled unverified, not provider or statutory books. Closed snapshots and downloads are immutable; sensitive close/reopen follows GOVERN-001, binds current inputs and appends an audited reopening plus linked reclose. All supported dated financial facts hold against an active close.
+
+### FINANCE-005
+
+24 October 2026 bounded scope uses approved unphased budgets; phase schedules remain required.
+
+### FINANCE-005
+
+Pre-rewrite Status note: Native command schedules and reviewed journals ship for unphased fixed or hourly terms, with frozen deferred and unbilled snapshots. Corrections to milestone or time recognition, repeated corrections to the same delivery, phase schedules and live accounting posting remain absent. Owner-recorded accountant policy revisions preserve approved journals and invalidate outstanding drafts; one schedule per engagement is enforced atomically. Later-invoice reconciliation without new delivery and one immutable signed service-delivery correction now ship; correction approval always requires another active owner or finance reviewer, including when no review limit is set.
+
+### FINANCE-017
+
+ct, 24 October 2026 16:35Z approved owner-recorded accountant policy, finance-reviewed operational journals, independently reviewed corrections and manual inputs without provider authority or automatic posting.
+
+### FINANCE-007
+
+Pre-rewrite Status note: Unissued fixed milestones and monthly-arrears hourly fees follow client Net N terms, labelled approved days late, collection probability and the on-terms/historical range. Recorded period fees use an explicitly assumed in-advance date. Ordinary issued invoices, dated manual receipts and payment promises now replace their sources once. Contractual retainer schedules/issuance, scheduled-invoice probability overrides, dispute collection holds, processor pending versus settled cash and approved FX remain absent.
+
+### INVOICE-001
+
+Pre-rewrite Status note: Approved billing packets and immutable CSVs retain their source currency, including USD, and refuse mixed currencies. Native ordinary pre-tax invoice issuance freezes exact approved sources, client workspace/PO/Net N terms and unique sequential numbering; manual receipts distinguish unpaid, partially paid and paid; INVOICE-004 credit notes, voids and reissues keep credited and void states explicit. Retainer overage issuance, tax, delivery and client-currency payment links remain absent.
+
+### INVOICE-002
+
+Pre-rewrite Status note: Every acceptance point is proved by the named public-door journeys. Consolidation remains within one client and currency; fixed schedules never invent delivery or earned revenue. Native receipts remain user-recorded and provider settlement is not claimed.
+
+### INVOICE-003
+
+Pre-rewrite Status note: Explicit invoice delivery, sender verification, provider acceptance, exact-message readback, byte-identical received attachments, secure hosted access and actionable network-edge bounce reconciliation are implemented and proved by the named journeys. The live carrier is SendGrid transactional mail, as this clause permits; no live Resend invoice proof is claimed and Resend-specific proposal obligations are unchanged. PARTIAL under the 26 October brief pending ct confirmation that explicit invoice email inherits the approved exact-document boundary. Default ADOPTED: native owner only, separate audited exact-recipient mail consent and dispatch, one to thirty days of hosted access, live recipient and releasing-owner checks, immediate hosted revocation, no authority in archives and no automatic send. The 24 October ct ruling already approved hosted access; that earlier pending-approval sentence was stale.
+
+### INVOICE-005
+
+Pre-rewrite Status note: No sales-tax configuration, provider calculation, exemption workflow or tax reversal.
+
+### INVOICE-007
+
+Pre-rewrite Status note: No collection cadence, delivered reminder, reply handling or payment stop condition.
+
+### INVOICE-008
+
+Pre-rewrite Status note: Every acceptance point passes through the named native journeys. Finance-only agency and client defaults and draft overrides change presentation only; exact issued originals and optional detail attachments are retained on manual, scheduled and reissued invoices. Category and vendor labels freeze with approved expenses. Only PNG and JPEG logo bytes and limited formatting are accepted; rendering performs no remote asset fetch. Secure client delivery remains INVOICE-003; no send or settlement is claimed.
+
+### PAYMENT-001
+
+Pre-rewrite Status note: Real Stripe test card completion is proved by `tests/journeys/stripe-sandbox.mjs` — held-key hosted checkout and canonical readback, recorded in `tests/artifacts/stripe-sandbox.json`; its charge balance remained pending, so settlement is not yet proved. ACH sandbox payment and settlement are blocked: the held Australian Stripe test account has no activated US bank account capability. Default ADOPTED pending ct: only a native owner may release an exact invoice instruction; test mode must match canonical Stripe mode; no raw payer credentials, automatic collection or new recipient access.
+
+### PAYMENT-002
+
+Pre-rewrite Status note: The held-key run in `tests/artifacts/stripe-sandbox.json` proves the actual card refund and canonical payment readback, plus a 152-transaction automatic AUD payout with zero difference. Live signed Stripe delivery and ACH return remain unproved. ACH requires an enabled US bank account test merchant. Periodic readback is an explicit native-owner polling command, not an unattended schedule. Default ADOPTED pending ct: signed callbacks only record verified canonical metadata; they never allocate cash or issue refunds. Each refund needs a typed, exact, audited native-owner instruction.
+
+### PAYMENT-003
+
+Pre-rewrite Status note: No external payment reconciliation or ambiguous payment queue.
+
+### REPORT-003
+
+Pre-rewrite Status note: Native pipeline-to-issued-open-to-manual-receipt transfer, immutable pre-tax documents, exact source reservations, dated cash/receipts, races/replay, margin, lineage/CSV, specialist reconciliation and archive preservation are asserted. Full invoicing (including retainer overages, credits, tax, sending and client-currency links), provider settlement/accounting freshness and approved USD FX conversion remain unproven.
+
+### REPORT-004
+
+Pre-rewrite Status note: No report builder, saved reporting or scheduled report exports.
+
+### CLIENT-001
+
+ct, 26 October 2026 approved the scoped project invitation with riders; the reviewed pin is recorded in the original ruling.
+
+### CLIENT-001
+
+Pre-rewrite Status note: CLIENT-003 retains client financial self-service. CLIENT-004 retains client-specific account onboarding and explicit invitation, renewal and delivery notices; this project carrier sends nothing.
+
+### CLIENT-002
+
+Pre-rewrite Status note: No publishable client reports, client replies or budget-sharing policy.
+
+### CLIENT-003
+
+Pre-rewrite Status note: No client invoice/statement/retainer self-service or payment/dispute portal.
+
+### CLIENT-004
+
+Pre-rewrite Status note: No client-specific account onboarding or explicit invitation, renewal and delivery notices. Access confirmation and CLIENT-001 supply scoped project reads and decisions without sending notices.
+
+### CLIENT-009
+
+ct, 26 October 2026 assigned explicit audited owner invitation and renewal notices to CLIENT-004.
+
+### CONNECT-001
+
+Pre-rewrite Status note: No QBO OAuth, accounting writes, object mappings or reconciliation.
+
+### CONNECT-002
+
+Pre-rewrite Status note: No Xero connection, writes or payment reconciliation.
+
+### CONNECT-003
+
+Pre-rewrite Status note: No Google OAuth, calendar event sync or consent controls.
+
+### CONNECT-004
+
+Pre-rewrite Status note: No Microsoft Graph connection, mail context or calendar interoperability.
+
+### CONNECT-005
+
+Pre-rewrite Status note: No Jira connection or worklog/progress reconciliation.
+
+### CONNECT-006
+
+Pre-rewrite Status note: No Linear connection or issue evidence sync.
+
+### CONNECT-007
+
+RL102 adopts the bounded GitHub App source/project binding with current authority, no billability from commit or merge and no retry of an uncertain write.
+
+### CONNECT-007
+
+Pre-rewrite Status note: PARTIAL pending ct confirmation of the adopted owner-only default: only the native owner connects, selects repositories, reads, approves milestone effects and sends follow-ups, and no client, agent, lead, staff or finance role sees GitHub records. Not built: project-rights visibility for leads and staff, webhook-driven or scheduled ingestion (reads are owner-initiated and cover the latest 30 pull requests and issues per repository), a scoped personal token alternative, and automatic follow-ups from client decisions.
+
+### CONNECT-008
+
+Pre-rewrite Status note: No Asana connector or delivery reconciliation.
+
+### CONNECT-009
+
+Pre-rewrite Status note: No Slack delivery, signed interactions or reply routing.
+
+### CONNECT-010
+
+Pre-rewrite Status note: No Teams app, delivery or approval callbacks.
+
+### CONNECT-011
+
+Pre-rewrite Status note: No HubSpot or Orbit deal handoff or health sync.
+
+### CONNECT-012
+
+Pre-rewrite Status note: No Salesforce connector or opportunity mapping.
+
+### CONNECT-013
+
+Pre-rewrite Status note: Live Harvest/Forecast connections, continuous comparison and cutover write control are absent.
+
+### CONNECT-014
+
+Pre-rewrite Status note: No NetSuite integration or posting reconciliation.
+
+### CONNECT-015
+
+Pre-rewrite Status note: No Sage Intacct integration or batch/payment reconciliation.
+
+### CONNECT-016
+
+RL103 adopts exact current release and bounded authorized subscription with source/destination/event/action binding, durable deduplication and current authority.
+
+### CONNECT-016
+
+Pre-rewrite Status note: The Crank budget-exception trigger submits an owner-authorized exact source as a durable version-bound job; pending or held admission is never downstream completion. Native owner release now supports sealed Zapier Catch Hooks and general signed hooks for exact project changes, time approvals, budget exceptions, issued invoices and recorded payments. `tests/gauge-provider-custody.mjs` — providerCustodyJourney proves HMAC-SHA-256 over exact event bytes, stable event IDs, one source/revision delivery on replay/concurrent dispatch, credential rotation/requeue, revocation sending no new data, no private costs/notes or hook secrets on public surfaces and native 1440/390. Provider admission is not downstream completion. The same journey proves created/changed project, approved-time, issued-invoice and recorded-payment projections through native sources for both Crank and signed hooks; a domain-separated workflow receipt and explicit original-owner approval create exactly one ordinary nonbillable task, honoring current custom fields and phase rules. Wrong signatures, stale sources, revoked keys, other actors and changed replays cannot write. PARTIAL: unattended subscriptions/callback execution remain disabled pending ct approval of the adopted owner-review boundary. Signed receipt verification proves the permitted native follow-up; whole-run Crank status readback is not claimed. Dependency for whole-run health: Crank’s published trigger credential cannot read runs; a minimally scoped event-status door must be supplied by Crank. Default ADOPTED for new unattended/outbound policy: explicit native-owner release only, no automatic outbound subscriptions or remote write callbacks until ct rules.
+
+### CONNECT-017
+
+Pre-rewrite Status note: No business mail delivery/reply routing; the existing mail module handles operator authentication only.
+
+### CONNECT-018
+
+Pre-rewrite Status note: No commercial-document or signature integrations.
+
+### CONNECT-019
+
+RL104 adopts existing-bound source reconciliation with scope/last-success/cursor/lag/differences, failed-page checkpoint fencing and current resumed rights.
+
+### CONNECT-019
+
+Pre-rewrite Status note: GOVERN-008 supplies encrypted per-connection custody, rotation/revocation, owner use inspection and disconnected restore. Owner Access now shows current scopes, source mapping, last successful readback, checkpoint age and unresolved jobs. `tests/gauge-provider-custody.mjs` — connectorHealthJourney proves a two-source Resend reconciliation snapshot, token expiry mid-page, actual Worker restart, reauthorization and exact once-only source counts/30000 USD cents with source currency retained; provider message content must match the exact version, recipient and quoted amount. Each explicit read-only page commits its durable cursor; failed reads do not advance it. `tests/gauge-base-portability.mjs` — prepareCurrentPortability preserves snapshots and strips readback authority. PARTIAL: Crank trigger credentials cannot read run outcomes under its published contract, and provider-wide/general connector backfill, provider-wide pagination and automatic dead-letter recovery remain absent. `tests/gauge-commercial-proposals.mjs` — commercialProposalJourney additionally proves a bounded Inkwell binding manifest, expired-token checkpoint, explicit rotation/resume into exact source/value controls, immutable previously verified artifacts, replay and revoked-source refusal without a provider read; Inkwell health is inspected at 1440/390. Current cursors page frozen Gauge delivery/binding manifests, not whole provider accounts. Default ADOPTED pending ct: native-owner-only read-only reconciliation of exact existing Gauge sources; no provider-wide mailbox discovery or new audience exposure.
+
+### CONNECT-020
+
+Pre-rewrite Status note: Policy ruling, ct, 26 October 2026: APPROVE WITH RIDERS for owner-issued exact-staff-grant project reads, explicitly selected own draft-time writes, and individually reviewed native-owner release of signed outbound events. This is a policy ruling only; status remains partial. No delegated approval, remote approval, standing class release or unattended subscription is authorized. Existing evidence is retained without asserting a fresh test pass. Gaps: complete documented PSA read and write coverage; finite credential expiry and visible lifecycle; exact captured project-scope non-widening; exact payload preview and complete field projections; the complete signed webhook subscription lifecycle with class and field selection, bounded consent, versioning, expiry, pause, immediate revocation and safe resumption; receiver replay-window and durable deduplication proof; complete delivery-failure reconciliation; connected-copy erasure and old-restore erasure coverage. Native rights, custom-field visibility, audit, provider custody, erasure and authority-free restore remain inherited requirements.
+
+### FOLLOWUP-001
+
+Pre-rewrite Status note: Review detects missing time and decisions; no scheduled messages, replies or escalation.
+
+### FOLLOWUP-002
+
+ct approved owner-only native case management on 22 October 2026.
+
+### FOLLOWUP-002
+
+Pre-rewrite Status note: Native-owner-only durable cases cover exact risk/input/staffing/billing/client-decision sources, responsible person (the owner by default, reassignable among existing active members), next action/due, immutable attempts/replies and snooze/reassignment/escalation history. An actual approved proposal request is linked to its provider job; invocation never completes a case. Closure requires current exact email-confirmed client acceptance, conversion and a changed native forecast fenced to its reviewed inputs. BASE-002 preserves cases/history without outbound authority. ct approved (22 Oct): owner-only management, the owner as default responsible person reassigning among existing active members with no external access, no automatic outbound action, owner-recorded replies explicitly unverified. Remaining: verified closure of noncommercial cases (internal risk, blocked input, staffing gap, billing exception) without a linked proposal/opportunity.
+
+### FOLLOWUP-003
+
+Pre-rewrite Status note: No configurable event/schedule rules or unattended action policies.
+
+### FOLLOWUP-004
+
+The previously adopted conservative policy allowed only explicit native-owner dispatch; general unattended external dispatch was not approved by the timing proof.
+
+### FOLLOWUP-004
+
+Pre-rewrite Status note: Current provider jobs require explicit native-owner queue/dispatch, bind source and credential versions, and retain claims/outcomes with visible expired-claim uncertainty. Native retainer schedules now persist separate job claims, atomic draft/run outcomes, three-attempt bounded backoff/exhaustion, explicit audited review of proven non-admission dead letters and cancellation; expired consent is an owned finance exception. `tests/gauge-retainer-rules.mjs` — retainerDurableJobJourney proves refused atomic draft, backoff, real restart, corrected-source recovery into one draft, expired authority and cancellation at 1440/390; retainerRestartAndCloseJourney retains month-end and consecutive-invoice proof. `tests/gauge-commercial-proposals.mjs` — commercialRestartJourney proves an actual in-flight Worker interruption beyond the mail deadline, no resend, visible owned uncertainty and exact provider readback. `tests/gauge-provider-custody.mjs` — providerRetryJourney is the committed outside-Verify elapsed-time journey for 60/120-second backoff, real restart, cancellation, three-attempt exhaustion, the ten-job connection limit and audited original-owner review of proven non-admission dead letters. Provider dispatch is limited to ten claimed source jobs per connection per minute. Only explicit 429 refusal is retryable; ambiguous/5xx/timeout results never retry. PARTIAL: general unattended external dispatch remains disabled under the adopted conservative policy (explicit native-owner release only); the exact-candidate elapsed-time proof is the outside-Verify cloud run `sx-gauge-c38-retry-20261022-final` of the committed providerRetryJourney; its SHA-bound receipt is retained by the lane. This closes timing proof only and does not approve unattended policy.
+
+### MIGRATE-001
+
+Pre-rewrite Status note: Harvest now retains complete bounded historical expense, estimate, invoice, payment and signed retainer records, exact billed-time invoice joins and mandatory independent time-cost and financial controls. Forecast requires original page envelopes and separately captured account, history, window and per-object count metadata; CSV controls bind the original digest. Scoro, Teamwork, Productive, Rocketlane and both Kantata flavors reconcile signed source retainer balances where exported; Float retains its explicit non-retainer source controls. Every source has an owner-reviewed original custom-field carrier with seven native types, source field and value IDs, explicit native relationships, private visibility, replay and full archive custody. Missing, unknown, inexact or mismatched required money and currency controls refuse completeness or apply. The owner-only custom-field reversal restores untouched values and their prior source and version metadata, retires unused adopted schemas, preserves later native values and referenced definitions, and retains exact originals and effect journals through restore. Stale reversal and silent replay of undone sources are refused. Every acceptance point is proved for the documented bounded adapters; no live account or Base refresh is required. MIGRATE-002, MIGRATE-004 and MIGRATE-010 retain their broader provider-format, financial-adoption and operational cutover duties.
+
+### MIGRATE-002
+
+Pre-rewrite Status note: CSV/XLSX raw/rounded time, original workbook custody, explicit worksheet/row provenance, value-only bounded decoding, cross-format replay, source invoice/approval/lock evidence, dated person-rate histories and independent client/month billed/unbilled/cost controls are asserted. API captures, full source approval decisions, expenses/receipts, estimates, invoice/payment records and outstanding-balance reconciliation remain absent.
+
+### MIGRATE-004
+
+Pre-rewrite Status note: Bounded historical evidence import now distinguishes OX CSV/time XLSX/Insights-ID objects/asynchronous JSON downloads from SX Salesforce object CSV ZIP/API captures, with separate reviewed maps, source IDs and original custody. Complete contiguous year windows, object permissions, source joins, seven-type custom values and independent object/client/month/currency controls gate apply. Journaled batches resume, replay without duplicates and undo untouched source effects; historical Practice/Office controls reconcile. Native owner-confirmed adoption now resumes in bounded stages for draft clients/people/skills/projects/tasks/rates/time/expenses, tentative exact-date staffing and finance-only native custom fields/values. Source approval never approves native work; source-billed time cannot rebill. Fresh native review produces Practice/Office utilization and profitability matching independent controls; undo holds later edits/approvals and source custody while adoption exists. ct approved (22 Oct): historical estimates/invoices/payments/WIP stay source-owned evidence with source IDs, reconciled to the source, and OX and SX never share a mapping; owner-reviewed native drafts, private fields and tentative dates grant no issuance, settlement or cutover authority. Remaining: full native financial adoption and receipt custody; cutover, a separate explicit owner act that missing object permissions or export windows block, is not built; provider-format coverage beyond the documented synthetic adapter. Native core/fields/history and both journals survive whole-installation restore. Historical evidence is not native invoice issuance, payment settlement or approval.
+
+### MIGRATE-014
+
+ct approved source-owned financial evidence and owner-reviewed native drafts for OX/SX on 22 October 2026.
+
+### MIGRATE-005
+
+Pre-rewrite Status note: Bounded original CSV/value-only XLSX/v2 JSON custody, separate duration/billable duration, timezone timestamps, source invoice-line/allocation billing links and independent project/month controls; repeated report identities reconcile without duplication. Explicit owner review creates native core/time drafts and preserves source-billed exclusion. scoroJourney proves allocated-invoice-only billed state, two differently grouped source reports with exact raw hours/billable value/invoice totals, CSV/XLS/XLSX/v2 cross-format replay, complete date-filter/windows and page refusals, unchanged originals, staff/history privacy, later-approval undo hold and complete restore; native Imports screens fit 1440/390 with no icon-only controls. MIGRATE-010 retains separate cutover; historical source approvals/invoices/payments never confer native authority.
+
+### MIGRATE-006
+
+Pre-rewrite Status note: teamworkJourney proves integer minutes and DST work-date/UTC-audit separation, archived project, billed/unbilled source work, task lists/subtasks/dependencies, proof approval evidence, signed surplus/deficit retainer continuity and independent project/period controls. CSV/Excel and v1/v3 JSON capture previews, cross-format replay, originals, native drafts without imported approval/retainer billing authority, staff privacy and whole-installation restore pass; native Imports inspected at 1440/390 with text-labelled controls. MIGRATE-010 inherits separate cutover.
+
+### MIGRATE-007
+
+Pre-rewrite Status note: productiveJourney proves unnumbered draft attribution and manual-invoiced state without invented invoice numbers; both remain excluded from native rebilling after fresh native approval. Captured units, worked/billable differences, current/time-version history, recurring budgets, retainer opening/closing and dated phase override match independent manager totals. CSV/XLSX/v2 capture replay, exact number lexemes/decimal money, duplicate-key refusal, original custody, bounded rollback/undo, staff privacy, restore and native 1440/390 Imports pass. Historical invoices/retainers stay source-owned evidence; MIGRATE-010 retains separate cutover.
+
+### MIGRATE-008
+
+Pre-rewrite Status note: Phase/ad-hoc minutes, SOFT/HARD exact daily allocations, unfilled placeholders, epoch units, approval/rate history and separate original finance attributions reconcile before owner source comparison review. CSV/XLSX/v1 capture custody/replay, native draft/source-billed fences, bounded reversal, scoped reads and complete restore pass. Default ADOPTED pending ct: owner-only explicit audited exact-source comparison receipt; no automatic provider action, deletion, native financial ownership transfer or payment authority. Operational cutover stays held; its policy and resulting native ownership workflow remain unproven. MIGRATE-010 retains broader retirement/parallel-run obligations.
+
+### MIGRATE-015
+
+RL106 adopts exact-source comparison with omissions/unresolved totals and no cutover, deletion or financial authority.
+
+### MIGRATE-009
+
+Pre-rewrite Status note: Complete for the bounded documented adapter. Native adoption and deletion continuation are separate explicit audited native-owner decisions. Source actuals and historical finance remain evidence; native staffing starts tentative and imported leave is approved only by the confirming owner. Deletion continuation removes only linked untouched daily schedule and leave effects; committed staffing, later edits or approvals hold it. Source comparison alone grants no native deletion, provider action or financial cutover authority. MIGRATE-010 retains operational cutover and CONNECT-013 retains live provider access.
+
+### MIGRATE-010
+
+Pre-rewrite Status note: Stable import identities, billed flags and native reconciliation exist; complete parallel-run comparison and invoice/retainer ownership cutover do not.
+
+### GOVERN-001
+
+ct approved the native threshold and independence rule on 19 October 2026 at 18:06Z; legacy agent-wide credit refusals are subject to the company money policy in the rewritten contract.
+
+### GOVERN-003
+
+ct approved scoped resource-manager and reviewed-accountant permission sets on 24 October 2026 at 16:35Z.
+
+### GOVERN-003
+
+Pre-rewrite Status note: Read-only accountant and explicitly scoped resource-manager grants ship. Client sponsors, client collaborators and configurable role grants remain absent.
+
+### GOVERN-004
+
+Pre-rewrite Status note: Native Base operator sessions exist; no enterprise SSO, MFA/passkey policy or SCIM integration.
+
+### GOVERN-005
+
+Pre-rewrite Status note: Every current write, decision, grant, key event, packet export and import effect is one sealed SHA-256 chain entry with actor, time, revisions, previous and resulting values, approval, policy and references; finance/owner search, export and checkpoint verification, favorites withheld, no secrets. Provider sync and future external actions inherit entries before they ship.
+
+### GOVERN-006
+
+ct approved the native-owner manual erasure slice on 22 October 2026.
+
+### GOVERN-006
+
+Pre-rewrite Status note: Owner-only versioned retention, explicit exit, read-only exact consequence preview and manually confirmed bounded native erasure ship. ct approved this slice (22 Oct): native-owner-only manual erasure after the exact preview and explicit lawful-receipt authorization; financial totals and immutable audit stay on legal hold under the anonymized profile the preview names; every erasure writes its mandatory completion record. Profiles, private leave notes, favorites and eligible receipt bytes are removed; billed work and financial artifacts remain exact. Base redaction journal refuses an old archive with the trusted later journal, and post-erasure archives restore anonymous profiles without erased receipt bytes. Remaining: the owner-set retention schedule and its automatic execution (saved retention days only gate this manual erasure); erasure in search, caches and connected copies where authorized; restoring an old archive with the erasure journal so private content stays erased (today that archive is refused); full personal-content erasure in retained audit, source originals and other free text. This is not complete subject erasure.
+
+### GOVERN-007
+
+The native purpose-grant/source-staleness rule was approved by ct on 21 October 2026; agent dispositions follow the company policy.
+
+### GOVERN-008
+
+ct approved the native credential-custody mechanism on 21 October 2026; its former blanket exclusion of agent credential actions is governed by the company security policy.
+
+### GOVERN-008
+
+Pre-rewrite Status note: The ct-approved provider custody mechanism is complete for current Resend and Crank jobs. CONNECT-001 through CONNECT-019 inherit this sealed version-bound dispatch, metadata-only inspection and authority-free restore before shipping.
+
+### MOBILE-001
+
+Pre-rewrite Status note: Responsive current time, capacity, approval, billing-packet and native pre-tax invoice/manual-receipt forms exist. Client reports/payments and complete keyboard, focus, error-recovery and screen-reader accessibility acceptance remain absent.
+
+### MOBILE-002
+
+Pre-rewrite Status note: No native mobile applications, offline synchronization or push delivery.
+
+### MOBILE-003
+
+Pre-rewrite Status note: No macOS/Windows timer applications or offline recovery.
+
+### MOBILE-004
+
+Pre-rewrite Status note: No browser extension or browser-host consent model.
+
+### BASE-001
+
+Pre-rewrite Status note: Local Base command path exists; hosted target deployment and new integration operational capacity remain unproven.
+
+### BASE-002
+
+Pre-rewrite Status note: All current business records, histories, exact amounts, artifacts, receipts and originals round-trip; corrupt/occupied restore and old HTTP sessions are refused. Fresh native sign-in is required. Current Resend and Crank job records, connection metadata and outcomes round-trip without the installation key, credentials, private receipts or execution authority; restored jobs never replay. Future capabilities inherit this obligation before shipping.
+
+### BASE-003
+
+Pre-rewrite Status note: Base composition and current interfaces are recorded; model-backed PSA execution and tested provider substitution for the target are absent.
+
+### BASE-004
+
+Pre-rewrite Status note: Current bounded import and archive recovery exist; target capacity measurements, scheduled backups and operational monitoring are absent.
+
+### BASE-005
+
+Pre-rewrite Status note: Existing hard admission bounds refuse packages above 1,000 rows or 8 MiB. No floor dataset generator, hosted agency-capacity measurements, published measured bounds or preview refusal against those measured bounds exists.
+
+### BOUNDARY-001
+
+Pre-rewrite Status note: Exact approved labor, expense, billing-preparation, issued invoice and user-recorded payment handoff snapshots have immutable downloads and receiver acceptance/rejection reconciliation. Specialist execution, provider settlement and certification are never claimed; future document, reimbursement, recognition and live accounting capabilities inherit input/result reconciliation before shipping.
+
+### BOUNDARY-002
+
+RL101 adopts authorized exact invoice instructions to the agency’s own merchant, safe references and distinct success/availability/payout states.
+
+### BOUNDARY-002
+
+Pre-rewrite Status note: The held-key run in `tests/artifacts/stripe-sandbox.json` proves hosted card payment, refund and an existing automatic payout reconciliation. This card charge remained processor-pending; its own settlement and payout composition remain unproved. ACH collection requires an enabled US bank account test merchant. No live merchant onboarding completion or independent bank reconciliation is claimed. Default ADOPTED pending ct: the native owner alone authorizes invoice collection and each refund; Stripe holds and moves funds under the agency agreement, and Gauge retains only safe outcome metadata.
+
+### BOUNDARY-003
+
+Pre-rewrite Status note: Named sibling/external handoffs for the complete PSA target are not implemented.
+
+### RECOVER-001
+
+Pre-rewrite Status note: Grounded exceptions and staffing/change proposals with capacity conflicts exist; continuous cross-system diagnosis, cases, portfolio/cash recovery comparison and the full feasibility test (dependencies, budgets/retainers, FINANCE-006 deltas, refusal of infeasible options) are absent.
+
+### RECOVER-002
+
+Pre-rewrite Status note: Human decision and exact proposal effects ship; external negotiation, feasibility re-check after replies, approved follow-up delivery and cross-system execution are absent.
+
+### RECOVER-003
+
+Pre-rewrite Status note: No cross-system read-back, recovery baseline comparison or verified case closure.
+
+### RECOVER-004
+
+Pre-rewrite Status note: No retainer steward, delivered approval chasing or invoice/payment completion loop.
+
+### RECOVER-005
+
+Pre-rewrite Status note: Cited reconstruction and personal confirmation ship; connected collection and active completion chasing are absent.
+
+### RECOVER-006
+
+Pre-rewrite Status note: Actuals and recorded proposal assumptions exist; outcome learning, held-out effort/margin/payment-timing scoring, the improvement gate and prospective recalibration do not.
+
+### RECOVER-007
+
+Pre-rewrite Status note: Cited change-order briefs exist; initial document extraction, ambiguity resolution and complete plan/retainer setup are absent.
+
+### RECOVER-008
+
+Pre-rewrite Status note: No embedded natural-language reporting, financial policy analysis or role-aware cited answers.
+
+### RECOVER-009
+
+Pre-rewrite Status note: Reviewed import planning exists; configuration/migration agents, case resolution and settled-cycle verification do not.

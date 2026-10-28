@@ -5,7 +5,7 @@ import { chromium } from '@playwright/test'
 import { timeReviewJourney } from './gauge-time-review.mjs'
 import { harness } from './gauge-harness.mjs'
 
-// TIME-003: real favorite/grid/manual entry, atomic submission, return/correction,
+// TIME-003 / TIME-007: real favorite/grid/manual entry, atomic submission, return/correction,
 // policy locks through native and import doors, and exact approval history.
 const h=await harness({currency:'USD',timezone:'America/New_York'})
 let browser
@@ -111,5 +111,5 @@ try {
  const latest=(await state()).data.time.find(t=>t.id===first.id);assert.equal(latest.value.durationSeconds,3601);assert.equal(latest.value.approvedBy,manager.id)
  await signIn(staff.cookie);await page.goto(sheetUrl);await capture('timesheet-corrected')
  await timeReviewJourney(h,{page,signIn,capture,worker,lead,staff,manager,task,project,zone})
- console.log('PASS TIME-003: daily/week grid, favorites/recent copy, atomic bulk submit, missing/status, audited lock/reopen, import guards and exact approval history')
+ console.log('PASS TIME-003 / TIME-007: daily/week grid, favorites/recent copy, atomic bulk submit, missing/status, audited lock/reopen, import guards and exact approval history')
 }finally{await browser?.close();await h.dispose()}

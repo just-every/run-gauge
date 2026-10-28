@@ -6,9 +6,9 @@ import { retainerMatches, overageCharge } from './retainer-rules'
 import { retainerFees } from './retainer-fees'
 import { allocationPricing } from './forecast-allocation-pricing'
 
-// FINANCE-006 committed forecast basis. Every amount is integer cents in the engagement currency.
+// FINANCE-006 / FINANCE-018 / FINANCE-019 committed forecast basis. Every amount is integer cents in the engagement currency.
 // Hourly fees: approved actuals at their frozen billMinor + future committed allocation days priced at the
-// bill rate effective on each day (RATE-002 precedence, withdrawn cards excluded), including bill-only
+// bill rate effective on each day (RATE-002 / RATE-003 precedence, withdrawn cards excluded), including bill-only
 // overtime premiums followed by write-downs, round-half-up per allocation day. Allocation seconds are unrounded.
 // Fixed fees follow approved milestones by due month; retainer revenue is its forecast overages (the period fee
 // is optional on each immutable version, earned ratably in opened periods; missing fees remain incomplete). Cost always uses the allocation formula.
@@ -91,7 +91,7 @@ export function financeForecastBase(data: Record<string, Row[]>, asOf: string, r
    const planEnd = committedDays.sort().at(-1) ?? asOf
    for (const [m, minor] of terms!.value.expenseDate ? [[month(terms!.value.expenseDate), remainingExpenseMinor] as const] : spread(remainingExpenseMinor, monthsBetween(nextDay(asOf), planEnd > asOf ? planEnd : nextDay(asOf)))) { at(m).expenseFeesMinor += minor; at(m).expenseCostMinor += minor }
   }
-  // Fixed-fee revenue follows approved milestones; an unscheduled remainder has no month yet (INVOICE-002 adds percentage schedules).
+  // Fixed-fee revenue follows approved milestones; an unscheduled remainder has no month yet (INVOICE-002 / INVOICE-010 / INVOICE-011 adds percentage schedules).
   let unscheduledMinor = 0
   if (basis === 'fixed') {
    const milestones = mine('milestones').filter(r => r.value.status === 'approved')

@@ -2,7 +2,7 @@ import { recordMilestoneAcceptance } from './gauge-harness.mjs'
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 
-// DELIVERY-003: a versioned client-onboarding template starts two projects on
+// DELIVERY-003 / DELIVERY-009: a versioned client-onboarding template starts two projects on
 // different dates; a later version never changes the projects already started.
 export async function deliveryTemplatesJourney(h,browser,{lead,worker,manager,staff,outsider}) {
  const {cmd,state,request}=h,zone='America/New_York'
@@ -61,7 +61,7 @@ export async function deliveryTemplatesJourney(h,browser,{lead,worker,manager,st
   await cmd('template:apply',{templateId:v2.id,engagementId:fresh.id,start:'2026-11-23',reason:'Not my engagement'},outsider.cookie,403)
   assert.equal((await request(`/api/gauge/history/deliveryTemplates/${v1.id}`,staff.cookie)).status,403)
   await clientIntakeJourney(h,browser,{lead,worker,manager,staff,outsider})
-  console.log('PASS DELIVERY-003: versioned client-onboarding template with dependencies, owners, effort and priced milestone applied to two start dates on the agency calendar; later version leaves started projects unchanged; scoped authority')
+  console.log('PASS DELIVERY-003 / DELIVERY-009: versioned client-onboarding template with dependencies, owners, effort and priced milestone applied to two start dates on the agency calendar; later version leaves started projects unchanged; scoped authority')
  }finally{await context.close()}
 }
 

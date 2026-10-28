@@ -1,4 +1,4 @@
-// FINANCE-001 on Week in review: finance's actual and forecast margin per engagement, each figure opening its
+// FINANCE-001 / FINANCE-008 on Week in review: finance's actual and forecast margin per engagement, each figure opening its
 // calculation and sources. Earned value is operational, billing is prepared not invoiced, and no payments are recorded.
 import { escape as e } from './ui-forms'
 import { money, hours } from './ui-format'

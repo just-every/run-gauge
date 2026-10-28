@@ -1,9 +1,9 @@
 import { type Row, type Value, charge, sum } from './model'
 
-// RESOURCE-005 resource demand forecast, as of the FINANCE-006 day. Seconds by month for the days after the as-of date:
-// committed = committed allocations + open unfilled roles + won opportunities not yet converted (SALES-004 converts
+// RESOURCE-005 / RESOURCE-008 resource demand forecast, as of the FINANCE-006 / FINANCE-018 / FINANCE-019 day. Seconds by month for the days after the as-of date:
+// committed = committed allocations + open unfilled roles + won opportunities not yet converted (SALES-004 / SALES-011 converts
 // their demand into open roles, so each won deal counts once); "+ tentative" and "+ weighted pipeline" stay separate.
-// Capacity splits employees from contractors by profile. Fees, cost and margin are FINANCE-006's committed figures in the
+// Capacity splits employees from contractors by profile. Fees, cost and margin are FINANCE-006 / FINANCE-018 / FINANCE-019's committed figures in the
 // agency currency for the as-of month onwards. Owner-approved scenarios for one open opportunity add that deal as won
 // (shifted by its delay) and an optional planned hire or contractor; they are computed here and never write a record.
 const DAY = 86400000

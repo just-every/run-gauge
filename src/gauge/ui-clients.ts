@@ -1,4 +1,4 @@
-// SETUP-002 on the Engagements page, for finance: the active clients with their terms, a client search by name, PO
+// SETUP-002 / SETUP-007 / SETUP-008 on the Engagements page, for finance: the active clients with their terms, a client search by name, PO
 // or external ID, the client form with its contacts, addresses, tax, PO, tag and external-ID fields, and, on a
 // client's edit view, the merge of that duplicate into a surviving client.
 import type { Row, Value } from './model'

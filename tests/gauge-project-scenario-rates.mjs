@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 
-// FINANCE-003: future rate alternatives share the native RATE-002 door and
-// FINANCE-006/002 pricing. Frozen actuals and unselected cards remain unchanged.
+// FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014: future rate alternatives share the native RATE-002 / RATE-003 door and
+// FINANCE-006 / FINANCE-018 / FINANCE-019/002 pricing. Frozen actuals and unselected cards remain unchanged.
 export async function rateScenarioJourney(h,browser) {
  const {cmd,request,post,owner} = h, asOf = new Date().toISOString().slice(0,10)
  const day = n => new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
@@ -92,5 +92,5 @@ export async function rateScenarioJourney(h,browser) {
    if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/rates-adopted-${width}.png`,fullPage:true})}
   }
  } finally {await context.close()}
- console.log('PASS FINANCE-003 rate alternatives: independent two-project ETC/EAC/margin/cash, isolated baseline, selected immutable future card, frozen actuals and native date/scope/stale refusals; rates 1440/390')
+ console.log('PASS FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 rate alternatives: independent two-project ETC/EAC/margin/cash, isolated baseline, selected immutable future card, frozen actuals and native date/scope/stale refusals; rates 1440/390')
 }

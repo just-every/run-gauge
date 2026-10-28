@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 
-// FINANCE-006 committed forecast basis, the acceptance drill as of 20 October 2026, and the FINANCE-001 margin drill on
+// FINANCE-006 / FINANCE-018 / FINANCE-019 committed forecast basis, the acceptance drill as of 20 October 2026, and the FINANCE-001 / FINANCE-008 margin drill on
 // the same basis, through the command, state and Week in review doors.
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
 let browser
@@ -55,7 +55,7 @@ try {
  assert(fixedFigure.etcCostMinor > 0, 'Fixed-fee cost still follows its allocations')
  assert.deepEqual(f.pipeline, [{ currency: 'USD', months: [{ month: '2026-11', weightedMinor: 250000 }, { month: '2026-12', weightedMinor: 250000 }] }])
  assert.equal(f.totals[0].eacFeesMinor, 520000 + 2000000, 'Committed totals never include tentative or pipeline additions')
- // FINANCE-001 margin reads on the same basis: a complete engagement shows actual and forecast margin; nothing billed or paid yet.
+ // FINANCE-001 / FINANCE-008 margin reads on the same basis: a complete engagement shows actual and forecast margin; nothing billed or paid yet.
  const margin = data.margin.find(x => x.engagementId === eng.id)
  assert.equal(margin.complete, true); assert.equal(margin.earnedValueMinor, 150000); assert.equal(margin.approvedCostMinor, 90000)
  assert.equal(margin.actualMarginMinor, 60000); assert.equal(margin.forecastMarginMinor, 200000); assert.equal(margin.billedMinor, 0)
@@ -79,7 +79,7 @@ try {
  assert.equal(gap.complete, false); assert(gap.unpriced.some(u => u.staffingId === unpriced.id && u.missing === 'bill rate'))
  assert.equal((await forecast()).lineage.find(x => x.id === `forecast:${eng.id}:eacFeesMinor`).value, null)
 
- // FINANCE-001 acceptance: approve time and expenses, leave one cost unknown, bill half the project, and trace
+ // FINANCE-001 / FINANCE-008 acceptance: approve time and expenses, leave one cost unknown, bill half the project, and trace
  // actual/forecast margin and its incomplete flag to source records. Margin, billing and lineage stay finance-only.
  const kim = await cmd('save:people', { name: 'Kim Bill-only', timezone: 'America/New_York' })
  await cmd('save:rates', { personId: kim.id, service: '*', effective: '2026-01-01', billMinor: 15000 })
@@ -147,5 +147,5 @@ try {
  await section.getByRole('row', { name: /Hourly rebuild/ }).first().getByRole('link').nth(2).click()
  assert(await page.locator('#report-evidence').getAttribute('open') !== null)
  assert((await page.locator('#report-evidence article').first().innerText()).includes('Committed EAC fees'))
- console.log('PASS FINANCE-001 actual/forecast margin with unknown cost traced to sources, billed net of credits not invoiced, no payments recorded; FINANCE-006 committed ETC/EAC at effective rates, monthly split, tentative and weighted pipeline additions, unpriced incompleteness, fixed-fee milestone schedule, rate withdrawal and finance-only lineage')
+ console.log('PASS FINANCE-001 / FINANCE-008 actual/forecast margin with unknown cost traced to sources, billed net of credits not invoiced, no payments recorded; FINANCE-006 / FINANCE-018 / FINANCE-019 committed ETC/EAC at effective rates, monthly split, tentative and weighted pipeline additions, unpriced incompleteness, fixed-fee milestone schedule, rate withdrawal and finance-only lineage')
 } finally { await browser?.close(); await h.dispose() }

@@ -5,7 +5,7 @@ import { date, need, sum, text, uuid } from './model'
 import { capacity } from './reports'
 import { utilization } from './utilization'
 
-// CONNECT-020 slice (ct 19 Oct 12:43Z): the owner creates read-only keys that answer one aggregate
+// CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032 slice (ct 19 Oct 12:43Z): the owner creates read-only keys that answer one aggregate
 // utilization figure set from GET /api/gauge/state. A key is shown once and kept only as SHA-256;
 // it names no person and carries no rate, cost or pay.
 export const keyScope = 'utilization:read'
@@ -80,7 +80,7 @@ export async function utilizationKeyRead(env: Bindings, token: string, from: str
  return result
 }
 
-/** CONNECT-020: RFC 7009 style self-revocation, without disclosing whether the key existed. */
+/** CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032: RFC 7009 style self-revocation, without disclosing whether the key existed. */
 export async function revokePresentedKey(env: Bindings, token: string) {
  const hash = sha256(token), at = Date.now()
  // INSERT ... SELECT and UPDATE share one transaction: concurrent calls audit the first revoke only.

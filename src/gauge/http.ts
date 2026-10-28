@@ -63,7 +63,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  let refused:{a:Actor,action:string}|undefined
  try{
   need(url.origin===env.AUTH_ORIGIN&&(!request.headers.has('host')||request.headers.get('host')===url.host),'Invalid host',403)
-  // CONNECT-020: a scoped key can read aggregate state and revoke only itself.
+  // CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032: a scoped key can read aggregate state and revoke only itself.
   const bearer=request.headers.get('authorization')
   if(path==='/api/gauge/keys/revoke'){
    if(request.method!=='POST')return new Response(null,{status:405,headers:{...headers,allow:'POST'}})
@@ -142,7 +142,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
   if(download?.[1]==='archives'){need(finance(a),'Finance access required',403);const archive=await get(env,'archives',download[2]);await fence(env,a);return new Response(Buffer.from(archive.value.base64,'base64'),{headers:{...headers,'content-type':archive.value.mediaType==='application/json'?'application/json':'application/octet-stream','content-disposition':archive.value.mediaType==='application/json'?'attachment; filename=forecast-source.json':'attachment; filename=historical-document.pdf'}})}
   if(download?.[1]==='imports')return Response.json((await env.DB.prepare("SELECT 1 FROM ik_jobs WHERE id=? AND destination='gauge-kantata'").bind(download[2]).first())?await kantataCommand(env,a,'kantata:originals',{id:download[2]}):await importCommand(env,a,'import:originals',{id:download[2]}),{headers:{...headers,'content-disposition':`attachment; filename="gauge-import-${download[2]}.json"`}})
   if(path==='/api/gauge/rates/explain'){const q=Object.fromEntries(['personId','engagementId','service','date','taskId','phaseKey'].map(k=>[k,url.searchParams.get(k)??''])) as any;const result=await explainRate(env,a,q);await fence(env,a);return Response.json(result,{headers})}
-  // SETUP-002: finance searches clients by name, PO or external ID.
+  // SETUP-002 / SETUP-007 / SETUP-008: finance searches clients by name, PO or external ID.
   if(path==='/api/gauge/clients')return Response.json(await clientSearchRead(env,a,url.searchParams.get('q')),{headers})
   if(path==='/api/gauge/receivables'||path==='/api/gauge/receivables.csv'){
    const report=await receivablesRead(env,a,url.searchParams.get('asOf'),url.searchParams.get('clientId'))
@@ -158,7 +158,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    need(url.searchParams.get('fingerprint')===report.fingerprint,'Report inputs changed; refresh the report before exporting',409)
    await fence(env,a);return new Response(reportCsv(report),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="gauge-report-calculations.csv"'}})
   }
-  // GOVERN-005: finance and the owner search, export and verify the business audit.
+  // GOVERN-005 / GOVERN-011: finance and the owner search, export and verify the business audit.
   if(path==='/api/gauge/audit')return Response.json(await auditSearch(env,a,auditQuery(url)),{headers})
   if(path==='/api/gauge/audit/export')return Response.json(await auditExport(env,a),{headers:{...headers,'content-disposition':'attachment; filename="gauge-audit.json"'}})
   if(path==='/api/gauge/audit/verify')return Response.json(await auditVerify(env,a,url.searchParams.get('seq'),url.searchParams.get('hash')),{headers})

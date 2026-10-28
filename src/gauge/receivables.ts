@@ -6,9 +6,9 @@ import { finance, fence, type Actor } from './store'
 const bucketNames = ['current', '1–30', '31–60', '61–90', '91+'] as const
 const overdueBucket = (days: number) => bucketNames[days <= 0 ? 0 : days <= 30 ? 1 : days <= 60 ? 2 : days <= 90 ? 3 : 4]
 
-/** INVOICE-006: one database snapshot of issued documents and their dated
+/** INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017: one database snapshot of issued documents and their dated
  * allocations. A statement is internal preparation, never proof of sending.
- * INVOICE-004 credit notes and voids issued through the as-of day reduce what each invoice still owes. */
+ * INVOICE-004 / INVOICE-013 / INVOICE-014 credit notes and voids issued through the as-of day reduce what each invoice still owes. */
 export async function receivablesRead(env: Bindings, a: Actor, asOfInput: string | null, clientId: string | null) {
  need(finance(a), 'Finance access required', 403)
  const asOf = date(asOfInput ?? workDate(Date.now(), a.timezone))

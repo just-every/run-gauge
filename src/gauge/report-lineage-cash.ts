@@ -5,7 +5,7 @@ const formulas: Record<string, [string, string]> = {
  expectedMinor: ['Expected cash on terms', 'SUM(round-half-up(open amount × client collection probability / 100)) by receipt month. Issued receipt date is the immutable invoice due date; open amount is invoice total less user-recorded receipts and issued credit notes dated through the as-of day, and less any standing dispute (listed apart, never expected as cash until resolved) (an invoice voided by then is excluded; its reissue is its own invoice), without a processor-verification or settlement claim. Unissued receipt = expected invoice date + client payment terms days (Net 30 assumed while unset). Future-dated issues and payments are excluded until their date. A receipt before the as-of day is placed in the as-of month, flagged past due if still open.'],
  historicalExpectedMinor: ['Expected cash at historical timing', 'As expected cash on terms, with each receipt date moved by the client\'s approved average days late; equal to on-terms where none is approved.'],
 }
-/** FINANCE-002: each cash month links to its schedule, terms, days-late value, probability and as-of day. */
+/** FINANCE-002 / FINANCE-009 / FINANCE-010: each cash month links to its schedule, terms, days-late value, probability and as-of day. */
 export function cashLineage(c: Lineage) {
  const cash = c.report.cash
  if (!cash) return

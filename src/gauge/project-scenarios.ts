@@ -12,7 +12,7 @@ import { scopeAlternative } from './project-scenario-scope'
 import { deadlineAlternative } from './project-scenario-deadlines'
 import type { Alternative, ScenarioEffect } from './project-scenario-effects'
 
-// FINANCE-003: every comparison uses the native committed forecast and cash basis.
+// FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014: every comparison uses the native committed forecast and cash basis.
 // Full set guards include inserts/deletes as well as revision changes.
 const basisKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','retainers','retainerPeriods','retainerCloses','retainerAdjustments','deliveryPlans','invoices','payments','paymentPromises','invoiceCorrections']
 const hash = (value: unknown) => sha256(canonicalJson(value))

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 
-// FINANCE-003 write-down/overtime alternatives: integer arithmetic through native
+// FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 write-down/overtime alternatives: integer arithmetic through native
 // rate, scenario and forecast doors, including cross-project threshold spillover.
 export async function pricingScenarioJourney(h,browser) {
  const {cmd,request,owner}=h,asOf=new Date().toISOString().slice(0,10)
@@ -112,5 +112,5 @@ export async function pricingScenarioJourney(h,browser) {
    if(process.env.GAUGE_SCENARIO_SHOTS)await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/pricing-lineage-${width}.png`,fullPage:false})
   }
  } finally {await context.close()}
- console.log('PASS FINANCE-003 overtime/write-downs: independent per-project fees/cost/margin/cash, shared daily threshold, tentative ordering, isolated native pricing adoption, frozen actuals, cross-project spillover and agency-day fence; 1440/390')
+ console.log('PASS FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 overtime/write-downs: independent per-project fees/cost/margin/cash, shared daily threshold, tentative ordering, isolated native pricing adoption, frozen actuals, cross-project spillover and agency-day fence; 1440/390')
 }

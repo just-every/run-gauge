@@ -2,7 +2,7 @@ import { type Value, need, text, integer } from './model'
 import { type Actor, Transaction, all } from './store'
 import type { Bindings } from '../auth.server'
 
-// SETUP-001 (conservative default, ct approval pending): the owner alone sets the agency legal business, US billing
+// SETUP-001 / SETUP-006 (conservative default, ct approval pending): the owner alone sets the agency legal business, US billing
 // address, EIN and fiscal-year start. The EIN stays owner-only (finance, leads and staff never receive it, and no
 // invoice, export or audit view shows it); finance sees the legal business, address and fiscal year.
 const states = 'AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI'.split(' ')

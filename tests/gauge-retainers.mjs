@@ -8,7 +8,7 @@ import { retainerRulesJourney, retainerScheduleJourney } from './gauge-retainer-
 import { retainerCloseJourney } from './gauge-retainer-close.mjs'
 import { harness } from './gauge-harness.mjs'
 
-// RETAINER-001: native commercial terms and separate immutable periods, with the
+// RETAINER-001 / RETAINER-006 / RETAINER-007: native commercial terms and separate immutable periods, with the
 // contract's independent dollar/hour proration examples and explicit work policy.
 const h=await harness({currency:'USD',timezone:'America/New_York'})
 let browser
@@ -174,5 +174,5 @@ try{
  await retainerCloseJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await retainerScheduleJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:false});await cmd('retainer:preview',open.input,manager.cookie,403)
- console.log('PASS RETAINER-001: native USD value/hours terms, monthly/quarterly/annual periods, exact calendar/working proration, inclusive ends and renewal, immutable commercial versions/calendar snapshots, eligible approved-work policy, lineage and scoped authority')
+ console.log('PASS RETAINER-001 / RETAINER-006 / RETAINER-007: native USD value/hours terms, monthly/quarterly/annual periods, exact calendar/working proration, inclusive ends and renewal, immutable commercial versions/calendar snapshots, eligible approved-work policy, lineage and scoped authority')
 }finally{await browser?.close();await h.dispose()}

@@ -3,11 +3,11 @@ import { type Row, type Value, need, text, date, sum } from './model'
 import { type Actor, Transaction, all, finance } from './store'
 import { currencies } from './agency'
 
-// SETUP-001 / SETUP-003: Gauge never converts silently. Money in a currency other than the agency's reporting currency
+// SETUP-001 / SETUP-006 / SETUP-003: Gauge never converts silently. Money in a currency other than the agency's reporting currency
 // is consolidated only at an owner-approved, effective-dated rate; with no approved rate an amount stays in its own
 // currency and the consolidated total is withheld, never shown with the amount as zero. A new or corrected rate
 // applies forward only: it cannot be effective before the latest rate already approved for that currency, nor on or
-// before the end of a closed agency period (FINANCE-004); an authorized reopen lifts that protection as it does for
+// before the end of a closed agency period (FINANCE-004 / FINANCE-015); an authorized reopen lifts that protection as it does for
 // every other dated financial fact.
 const rateMicro = (raw: unknown) => {
  const s = String(raw ?? '').trim()

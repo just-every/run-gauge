@@ -40,14 +40,14 @@ export async function access(env: Bindings, a: Actor, engagementId: string, mana
 }
 export class Transaction {
  statements: D1PreparedStatement[] = []
- /** The command's request key and action, kept on each GOVERN-005 audit row. */
+ /** The command's request key and action, kept on each GOVERN-005 / GOVERN-011 audit row. */
  key: string | null = null
  action: string | null = null
  customPendingPeople?:Map<string,string>
  customWrite?:{scope:string;id?:string;values:any};customObserved=false;customOverlay?:Row[];customImport?:Value
  reopeningCloseId?:string
  constructor(public env: Bindings, public actor: Actor) {}
- /** GOVERN-005: an append-only audit row in the committing batch; src/gauge/audit.ts seals it into the chain. */
+ /** GOVERN-005 / GOVERN-011: an append-only audit row in the committing batch; src/gauge/audit.ts seals it into the chain. */
  audit(action: string, k: string, recordId: string, data: Value, link: { previousRevision?: string | null, revision?: string | null } = {}) {
   this.sql('INSERT INTO g_audit(at,actor,role,person_id,request_key,action,kind,record_id,previous_revision,revision,data) VALUES(?,?,?,?,?,?,?,?,?,?,?)', Date.now(), this.actor.session.operator.id, this.actor.role, this.actor.personId, this.key, action, k, recordId, link.previousRevision ?? null, link.revision ?? null, JSON.stringify(data))
  }

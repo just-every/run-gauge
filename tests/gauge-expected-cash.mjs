@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { harness } from './gauge-harness.mjs'
 
-// FINANCE-007 expected cash basis as of 10 October 2026, through the command and state doors, for the points today's
+// FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 expected cash basis as of 10 October 2026, through the command and state doors, for the points today's
 // records carry: nothing issued; a New York client on Net 30; a fixed-fee milestone invoiced on its scheduled date and
 // October hourly fees monthly in arrears on 1 November; approved days late as the labelled historical-timing end of the
-// range; the milestone moved through the approved delivery plan. Retainer in-advance invoices (RETAINER-005), issued
-// invoices and disputes (INVOICE-001/006/007), scheduled-invoice probabilities and pending ACH (PAYMENT-001/002) join later.
+// range; the milestone moved through the approved delivery plan. Retainer in-advance invoices (RETAINER-005 / RETAINER-013 / RETAINER-014), issued
+// invoices and disputes (INVOICE-001 / INVOICE-009/006/007), scheduled-invoice probabilities and pending ACH (PAYMENT-001 / PAYMENT-004/002) join later.
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
 try {
  const { cmd, request, owner } = h, asOf = '2026-10-10'
@@ -26,7 +26,7 @@ try {
 
  const item = (data, engagementId) => { const items = data.cash.engagements.find(e => e.engagementId === engagementId).items; assert.equal(items.length, 1); return items[0] }
  const curve = (data, field) => Object.fromEntries(data.cash.months.filter(m => m[field]).map(m => [m.month, m[field]]))
- // FINANCE-007: November $10,000 (due 14 November) and December $4,000 of hourly fees (due 1 December), nothing issued.
+ // FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022: November $10,000 (due 14 November) and December $4,000 of hourly fees (due 1 December), nothing issued.
  let data = await read()
  assert.equal(data.cash.asOf, asOf)
  let milestone = item(data, fixed.id), fees = item(data, hourly.id)
@@ -59,5 +59,5 @@ try {
  data = await read(); milestone = item(data, fixed.id)
  assert.deepEqual([milestone.invoiceDate, milestone.receiptDate, milestone.cashMonth], ['2026-11-05', '2026-12-05', '2026-12'])
  assert.deepEqual(curve(data, 'expectedMinor'), { '2026-12': 1400000 })
- console.log('PASS FINANCE-007 unissued milestone and arrears placement on Net 30, approved days late range and delivery-plan moves as of 10 October')
+ console.log('PASS FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 unissued milestone and arrears placement on Net 30, approved days late range and delivery-plan moves as of 10 October')
 } finally { await h.dispose() }

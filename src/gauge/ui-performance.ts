@@ -6,7 +6,7 @@ import type { Value } from './model'
 const percent = (v: number | null) => v === null ? 'Unknown' : `${v.toFixed(2)}%`
 const points = (v: number | null) => v === null ? 'No target' : `${v < 0 ? '−' : v > 0 ? '+' : ''}${Math.abs(v).toFixed(2)} points`
 
-/** REPORT-002: billable utilization against target for everyone who sees utilization; realization for finance only. */
+/** REPORT-002 / REPORT-007: billable utilization against target for everyone who sees utilization; realization for finance only. */
 export function performanceSection(report: Report, options: Value, canSetTargets: boolean) {
  const dimensions = { person: 'byPerson', role: 'byRole', client: 'byClient', period: 'byPeriod' } as const
  const selected = options.performanceGroup in dimensions ? options.performanceGroup as keyof typeof dimensions : 'person'

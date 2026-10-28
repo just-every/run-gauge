@@ -1,7 +1,7 @@
 import { capacityEvidence } from './report-lineage-capacity'
 import { type Evidence, Lineage } from './report-lineage-shared'
 
-// REPORT-002: every utilization-to-target and realization figure names its approved time, target, calendar and packet rows.
+// REPORT-002 / REPORT-007: every utilization-to-target and realization figure names its approved time, target, calendar and packet rows.
 export function performanceLineage(c: Lineage) {
  const p = c.report.performance
  if (!p) return

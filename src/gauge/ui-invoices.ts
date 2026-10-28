@@ -15,7 +15,7 @@ function openOf(d: Report['data'], invoice: Row) {
 }
 const outcomeLabels: Record<string, string> = { rejected: 'Rejected: the client owes it', withdrawn: 'Withdrawn by the client', credited: 'Credited (name the credit note)' }
 
-/** INVOICE-006: money received from a client under one reference, allocated across that client's invoices. */
+/** INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017: money received from a client under one reference, allocated across that client's invoices. */
 function receiptsBlock(d: Report['data'], today: string) {
  const clients = d.clients.filter(c => !c.value.mergedInto)
  const record = form('receipt:record', 'Record money received from a client', `<p>Records one receipt under a unique external reference. Allocate it to one or more of the client's invoices below; what is not allocated stays unapplied. This does not contact a bank or processor and does not verify settlement.</p>` + select('clientId', 'Client', clients) + input('currency', 'Currency', d.invoices.at(-1)?.value.currency ?? 'USD') + input('date', 'Receipt date', today, 'date') + amount('amountDollars', 'Amount received', '') + input('reference', 'Unique external reference'), undefined, 'Record client receipt', 'g-bare')

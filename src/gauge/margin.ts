@@ -4,10 +4,10 @@ import { explain, activeRates } from './rate-cards'
 import type { financeForecast } from './finance-forecast'
 import { liveInvoices } from './invoice-standing'
 
-// FINANCE-001 actual and forecast margin per engagement, on the FINANCE-006 basis. Integer cents in the engagement currency.
-// Earned value is FINANCE-006 actual fees: operational, not recognized revenue. Billed is approved billing packets net of
-// approved adjustment packets: billing prepared, not invoiced (INVOICE-001 issues invoices). Credits are the negative
-// adjustment deltas. No payments are recorded until INVOICE-006, so paid cash is never shown as zero.
+// FINANCE-001 / FINANCE-008 actual and forecast margin per engagement, on the FINANCE-006 / FINANCE-018 / FINANCE-019 basis. Integer cents in the engagement currency.
+// Earned value is FINANCE-006 / FINANCE-018 / FINANCE-019 actual fees: operational, not recognized revenue. Billed is approved billing packets net of
+// approved adjustment packets: billing prepared, not invoiced (INVOICE-001 / INVOICE-009 issues invoices). Credits are the negative
+// adjustment deltas. No payments are recorded until INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017, so paid cash is never shown as zero.
 export const marginLabels = { earned: 'Operational value, not recognized revenue', billed: 'Billing prepared, not invoiced', paid: 'No payments recorded' }
 const DAY = 86400000
 type Forecast = ReturnType<typeof financeForecast>
@@ -38,7 +38,7 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
    else provisionalLaborMinor += charge(t.value.durationSeconds, cost.value.costMinor)
   }
   for (const x of mine('expenses').filter(r => r.value.status === 'submitted')) { provisionalSources.push(`expenses:${x.id}`); if(x.value.amountMinor==null)provisionalUnknown.push(`expenses:${x.id}: FX or unit pricing pending`);else provisionalExpenseMinor += x.value.amountMinor }
-  // Live invoices only: a void removes its original, and issued credit notes (INVOICE-004) are netted out of billed.
+  // Live invoices only: a void removes its original, and issued credit notes (INVOICE-004 / INVOICE-013 / INVOICE-014) are netted out of billed.
   const billing=projectBillingData(data,e.id,forecast.asOf)
   const standings = liveInvoices(billing, forecast.asOf).filter(s => s.invoice.value.engagementId === e.id), invoices = standings.map(s => s.invoice), invoiceCredits = standings.flatMap(s => s.credits), payments=billing.payments.filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))
   const packets = billing.packets.filter(p => p.value.status === 'approved'), credits = packets.filter(p => p.value.correctsPacketId && p.value.totalMinor < 0)

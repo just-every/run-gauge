@@ -7,8 +7,8 @@ import { progressJourney } from './gauge-progress.mjs'
 import { receiptJourney } from './gauge-receipts.mjs'
 import { revenueDashboardJourney, captureRevenueDashboard } from './gauge-revenue-dashboard.mjs'
 
-// FINANCE-002 revenue and cash forecast as of 20 October 2026, through the command, state and Week in review doors:
-// a milestone delayed two weeks through the delivery plan moves expected cash exactly as an independent FINANCE-007
+// FINANCE-002 / FINANCE-009 / FINANCE-010 revenue and cash forecast as of 20 October 2026, through the command, state and Week in review doors:
+// a milestone delayed two weeks through the delivery plan moves expected cash exactly as an independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022
 // recomputation, month by month, while booked revenue and settled cash stay distinct.
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
 let browser
@@ -30,7 +30,7 @@ try {
  await cmd('time:approve', await cmd('time:submit', entry))
  await cmd('save:staffing', { personId: worker.id, engagementId: hourly.id, service: 'Support', from: '2026-11-02', to: '2026-11-03', dailySeconds: 14400, commitment: 'committed' })
 
- // Independent FINANCE-007 recomputation from the inputs above: milestones invoice on their due date, hourly fees on the 1st
+ // Independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 recomputation from the inputs above: milestones invoice on their due date, hourly fees on the 1st
  // of the next month; receipt = invoice + Net days (+ approved days late); never before the as-of day; cash × probability.
  const plus = (day, n) => new Date(Date.parse(day) + n * 86400000).toISOString().slice(0, 10)
  const recompute = (invoices, { net = 30, late = 0, percent = 100 } = {}) => {
@@ -123,5 +123,5 @@ try {
  // This independent document journey has its own installation and native authentication limits.
  const invoiceApp=await harness({currency:'USD',timezone:'America/New_York',databaseBinding:false})
  try{await invoicePresentationJourney(invoiceApp);await stripePaymentJourney(invoiceApp)}finally{await invoiceApp.dispose()}
- console.log('PASS FINANCE-002 milestone delay moves expected cash as an independent FINANCE-007 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only')
+ console.log('PASS FINANCE-002 / FINANCE-009 / FINANCE-010 milestone delay moves expected cash as an independent FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 recomputation; days-late range, collection probability, unset terms Net 30 assumed, booked revenue and settled cash distinct, finance-only')
 } finally { await browser?.close(); await h.dispose() }

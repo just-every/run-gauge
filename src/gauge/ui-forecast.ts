@@ -1,4 +1,4 @@
-// FINANCE-006 on Week in review: finance's committed forecast per engagement and month,
+// FINANCE-006 / FINANCE-018 / FINANCE-019 on Week in review: finance's committed forecast per engagement and month,
 // with tentative work and weighted pipeline shown only as labelled additions.
 import { escape as e } from './ui-forms'
 import { money } from './ui-format'

@@ -78,7 +78,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  need(a.role!=='accountant','Accountants have read-only access',403)
  // An agent grant prepares and withdraws proposals; every other effect needs a person.
  need(a.role!=='agent'||['proposal:prepare','proposal:withdraw'].includes(action),'Agents prepare proposals; a person approves them',403)
- // GOVERN-005: earlier commands' audit rows join the chain before this one writes.
+ // GOVERN-005 / GOVERN-011: earlier commands' audit rows join the chain before this one writes.
  await seal(env,action.startsWith('import:'))
  if(action.startsWith('stripe:'))return stripeCommand(env,a,action,input)
  if(action.startsWith('provider:'))return providerRequest(env,a,action,input)

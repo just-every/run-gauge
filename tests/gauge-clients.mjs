@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { harness } from './gauge-harness.mjs'
 
-// SETUP-002 client and contact workspace through the command, client search, state, audit and Engagements page doors:
+// SETUP-002 / SETUP-007 / SETUP-008 client and contact workspace through the command, client search, state, audit and Engagements page doors:
 // two similarly named clients, a merge of the duplicate with an explicit payment-terms choice, search by PO and external
 // ID afterwards, and every linked engagement and opportunity still attached to the surviving client and its terms.
 const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
@@ -75,7 +75,7 @@ try {
  assert.deepEqual(kept.externalIds, [{ system: 'hubspot', id: '5001' }, { system: 'hubspot', id: '5002' }, { system: 'quickbooks', id: '88' }])
  assert.deepEqual(kept.poNumbers, ['PO-1001', 'PO-2002']); assert.deepEqual(kept.tags, ['design', 'priority', 'retainer']); assert.equal(kept.contacts.length, 2)
  assert.equal(retired.merge.into, survivor.id); assert.equal(retired.merge.terms, 'survivor'); assert.equal(retired.merge.reason, 'Duplicate created at intake')
- // FINANCE-002 places the moved milestone on the surviving client's Net 45, not "Net 30 assumed": due 2 November, received 17 December.
+ // FINANCE-002 / FINANCE-009 / FINANCE-010 places the moved milestone on the surviving client's Net 45, not "Net 30 assumed": due 2 November, received 17 December.
  const cash = data.cash.engagements.find(x => x.engagementId === website.id)
  assert.equal(cash.termsLabel, 'Net 45'); assert.equal(data.cash.months.find(m => m.month === '2026-12').expectedMinor, 1000000)
  // The merged duplicate takes no new work, edit or second merge; the lead sees the moved engagements under the surviving name.
@@ -85,7 +85,7 @@ try {
  await merge({ terms: 'duplicate' }, owner, 409)
  const leadData = (await state(lead.cookie)).data
  assert.deepEqual(leadData.clients.map(c => c.value.name), ['Northwind Studio'])
- // GOVERN-005: the merge is audited on every record it changed.
+ // GOVERN-005 / GOVERN-011: the merge is audited on every record it changed.
  const audit = await h.request('/api/gauge/audit?action=client:merge', owner).then(r => r.json())
  assert.deepEqual(audit.entries.map(x => `${x.kind}:${x.recordId}`).sort(), [`clients:${survivor.id}`, `clients:${duplicate.id}`, `engagements:${website.id}`, `engagements:${support.id}`, `opportunities:${deal.id}`].sort())
  // The Engagements page searches by PO and offers the merge on a client's edit view.
@@ -93,5 +93,5 @@ try {
  assert.match(page, /Matched by PO · 3 projects/); assert.match(page, /Merged: Northwind Studios into Northwind Studio \(Duplicate created at intake\)/)
  const other = await cmd('save:clients', { name: 'Harbor Labs' })
  assert.match(await h.request(`/app/engagements?edit=${other.id}`, owner).then(r => r.text()), /Merge Harbor Labs into another client/)
- console.log('SETUP-002 client workspace, search and merge: ok')
+ console.log('SETUP-002 / SETUP-007 / SETUP-008 client workspace, search and merge: ok')
 } finally { await h.dispose() }

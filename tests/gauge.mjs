@@ -8,7 +8,7 @@ import {portability} from './gauge-portability.mjs'
 import {prepareCurrentPortability} from './gauge-base-portability.mjs'
 import {harness} from './gauge-harness.mjs'
 import {governJourney} from './gauge-approvals.mjs'
-// A USD agency: RATE-002 declares new costs in USD, so cost totals sum with USD expenses (AUD buckets: gauge-currency.mjs).
+// A USD agency: RATE-002 / RATE-003 declares new costs in USD, so cost totals sum with USD expenses (AUD buckets: gauge-currency.mjs).
 const h=await harness({currency:'USD'}),{cmd,state,request,post,owner}=h
 let count=0
 async function flow(name,fn){await fn();console.log(`PASS ${name}`);count++}

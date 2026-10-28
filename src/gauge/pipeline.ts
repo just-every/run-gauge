@@ -46,7 +46,7 @@ export async function opportunityCommand(env: Bindings, a: Actor, tx: Transactio
  * recorded won value. Booked values are before billing, not cash forecasts.
  * With `billedAsOf` (finance only: leads never read invoice amounts), billed
  * is the pre-tax total of live native invoices issued on or before that day, less their issued
- * credit notes (INVOICE-004; a voided original drops out and its reissue counts once), for the
+ * credit notes (INVOICE-004 / INVOICE-013 / INVOICE-014; a voided original drops out and its reissue counts once), for the
  * engagements that carry booked value, and backlog is booked minus billed in
  * minor units; it goes negative when billing exceeds booked value. */
 export function pipeline(data: Record<string, Row[]>, billedAsOf: string | null = null) {

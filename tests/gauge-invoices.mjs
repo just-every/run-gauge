@@ -7,7 +7,7 @@ import {chromium} from '@playwright/test'
 import {invoiceCorrectionJourney} from './gauge-invoice-corrections.mjs'
 import {invoiceDeliveryJourney} from './gauge-invoice-delivery.mjs'
 
-// REPORT-003 / INVOICE-006: production commands, pages, report CSV and specialist reconciliation.
+// REPORT-003 / REPORT-008 / INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017: production commands, pages, report CSV and specialist reconciliation.
 export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,packet}) {
  const {cmd,owner,request}=h
  const read=async(asOf='2026-10-19',cookie=owner)=>(await request(`/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=${asOf}`,cookie)).json()
@@ -40,7 +40,7 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
  await cmd('packet:adjust',{...packet,sourceId:entry.id,sourceKind:'time',correctedAmountMinor:50000,reason:'Must use future invoice credit flow'},owner,409)
  await cmd('payment:record',{...invoice,date:'2026-10-09',amountMinor:100,reference:'Before issue'},owner,400)
  await cmd('payment:record',{...invoice,date:'2026-10-11',amountMinor:100,currency:'CAD',reference:'Wrong currency'},owner,400)
- // FINANCE-002's inherited payment-promise obligation: move only the promised amount's cash month.
+ // FINANCE-002 / FINANCE-009 / FINANCE-010's inherited payment-promise obligation: move only the promised amount's cash month.
  await cmd('invoice:promise',{...invoice,date:'2026-12-15',amountMinor:10000,reference:'Client AP promise'})
  let promised=(await read()).cash.engagements.find(x=>x.engagementId===hourly.id).items
  assert.deepEqual(Object.fromEntries(promised.map(x=>[x.cashMonth,x.expectedMinor])),{'2026-12':5000,'2026-11':25000},'FINANCE-007 independent month-by-month promised cash recomputation');assert.equal(promised.find(x=>x.promised).cashMonth,'2026-12');assert.equal(promised.find(x=>x.promised).openMinor,10000)
@@ -51,7 +51,7 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
  assert.equal(promised.reduce((n,x)=>n+x.expectedMinor,0),30000,'FINANCE-007 independent recomputation: full open 60000 times client collection probability 50%')
  const broken=(await read('2027-02-02')).cash.engagements.find(x=>x.engagementId===hourly.id).items.find(x=>x.promised)
  assert.equal(broken.cashMonth,'2027-02');assert.equal(broken.pastDue,true)
- // FINANCE-003 inherits invoice/payment/promise basis and refuses stale adoption after a receipt.
+ // FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 inherits invoice/payment/promise basis and refuses stale adoption after a receipt.
  const contractor=await cmd('save:people',{name:'Invoice scenario contractor',timezone:'America/New_York',employmentType:'contractor'})
  await cmd('save:rates',{personId:contractor.id,service:'*',effective:'2026-01-01',costMinor:6000,billMinor:17000})
  const booking=await cmd('save:staffing',{engagementId:hourly.id,personId:worker.id,service:'Support',from:'2026-11-02',to:'2026-11-03',dailySeconds:3600,commitment:'committed'})
@@ -133,10 +133,10 @@ export async function invoiceDashboardJourney(h,{worker,client,hourly,entry,pack
   assert.match(await page.locator(`#invoice-${invoice.id}`).innerText(),/not provider verified/)
  }finally{await browser.close()}
  await invoiceCorrectionJourney(h,{worker})
- console.log('PASS REPORT-003 / INVOICE-006 native invoice-to-paid: source transfer once, as-of receipts, immutable source/client terms, races/replay, exact cash and margin, CSV/lineage, specialist reconciliation and privacy; provider/FX acceptance stays partial')
+ console.log('PASS REPORT-003 / REPORT-008 / INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017 native invoice-to-paid: source transfer once, as-of receipts, immutable source/client terms, races/replay, exact cash and margin, CSV/lineage, specialist reconciliation and privacy; provider/FX acceptance stays partial')
 }
 
-// INVOICE-006 real issuance and manual allocations, then aging/statement downloads.
+// INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017 real issuance and manual allocations, then aging/statement downloads.
 export async function receivablesJourney(h,worker) {
  const {cmd,request,owner}=h, asOf='2026-10-31'
  const read=async(cookie=owner,clientId=null,on=asOf)=>{
@@ -194,10 +194,10 @@ export async function receivablesJourney(h,worker) {
  await cmd('payment:record',{...invoices[0],date:asOf,amountMinor:1000,reference:'Later recorded allocation'})
  assert.equal((await request(download(report),owner)).status,409,'INVOICE-006 changed allocations require refreshing before statement export')
  assert.equal((await read(owner,client.id)).totals[0].openMinor,131000)
- console.log('PASS INVOICE-006 dated aging and client statements: independent totals at all bucket edges, inclusive dates, paid invoices, source receipt CSV, safe text, client filtering, current finance authority and stale-export refusal')
+ console.log('PASS INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017 dated aging and client statements: independent totals at all bucket edges, inclusive dates, paid invoices, source receipt CSV, safe text, client filtering, current finance authority and stale-export refusal')
 }
 
-// BUDGET-002: exact source slices, through the ordinary finance packet/invoice doors.
+// BUDGET-002 / BUDGET-003 / BUDGET-004: exact source slices, through the ordinary finance packet/invoice doors.
 export async function notToExceedJourney(h){
  const {cmd,state,request,owner}=h,zone='America/New_York'
  const client=await cmd('save:clients',{name:'Capped hourly client'})
@@ -261,7 +261,7 @@ export async function notToExceedJourney(h){
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('#budget-caps').scrollIntoViewIfNeeded();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Not-to-exceed billing fits ${width}`);if(process.env.GAUGE_BUDGET_SHOTS){await mkdir(process.env.GAUGE_BUDGET_SHOTS,{recursive:true});await page.locator('#budget-caps').screenshot({path:`${process.env.GAUGE_BUDGET_SHOTS}/caps-${width}.png`})}}
  }finally{await browser.close()}
  const currentPolicy=(await state()).data.approvalPolicies[0];await cmd('approval:limit',{...currentPolicy,reviewAboveMinor:limit?.value.reviewAboveMinor??null,reason:'Restore the pre-journey review limit after isolated cap proof'})
- console.log('PASS BUDGET-002 not-to-exceed: $10,000 / 66 h 40 min eligible, $500 / 3 h 20 min held, accepted change-order release, reviewed permanent write-down, exact time preservation, cancellation, source-date order, cash hold, privacy and 1440/390')
+ console.log('PASS BUDGET-002 / BUDGET-003 / BUDGET-004 not-to-exceed: $10,000 / 66 h 40 min eligible, $500 / 3 h 20 min held, accepted change-order release, reviewed permanent write-down, exact time preservation, cancellation, source-date order, cash hold, privacy and 1440/390')
 }
 
 export async function phaseBudgetJourney(h){
@@ -325,7 +325,7 @@ export async function phaseBudgetJourney(h){
  try{const context=await browser.newContext({ignoreHTTPSErrors:true});await context.addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}));const page=await context.newPage()
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(`${h.origin}/app/engagements?edit=${project.id}&asOf=2026-10-20`);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Phase budgets fit ${width}`);if(process.env.GAUGE_BUDGET_SHOTS){await mkdir(process.env.GAUGE_BUDGET_SHOTS,{recursive:true});await page.locator('#phase-budgets').screenshot({path:`${process.env.GAUGE_BUDGET_SHOTS}/phases-${width}.png`})}await page.goto(h.origin+'/app/review');assert.match(await page.locator('#budget-alerts').innerText(),/75%/);if(process.env.GAUGE_BUDGET_SHOTS)await page.locator('#budget-alerts').screenshot({path:`${process.env.GAUGE_BUDGET_SHOTS}/alerts-${width}.png`});await page.goto(h.origin+'/app/capacity');assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Phase staffing controls fit ${width}`);if(process.env.GAUGE_BUDGET_SHOTS)await page.screenshot({path:`${process.env.GAUGE_BUDGET_SHOTS}/phase-staffing-${width}.png`,fullPage:true})}
  }finally{await browser.close()}
- console.log('PASS BUDGET-002 phase budgets: exact $60,000 rollup and controlled transfer, 76/91 hours cross 75/90 once, corrected approval dedupe, mixed billing, independent complete phase margins/ETC/EAC, source/CSV drills, template inheritance and lead/finance alerts at 1440/390')
+ console.log('PASS BUDGET-002 / BUDGET-003 / BUDGET-004 phase budgets: exact $60,000 rollup and controlled transfer, 76/91 hours cross 75/90 once, corrected approval dedupe, mixed billing, independent complete phase margins/ETC/EAC, source/CSV drills, template inheritance and lead/finance alerts at 1440/390')
 }
 
 export async function agencyCloseJourney(h){
@@ -405,10 +405,10 @@ export async function agencyCloseJourney(h){
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('#period-close').scrollIntoViewIfNeeded();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Agency close fits ${width}`);assert.match(await page.locator('#period-close').innerText(),/September|2026-09/);if(process.env.GAUGE_CLOSE_SHOTS){await mkdir(process.env.GAUGE_CLOSE_SHOTS,{recursive:true});await page.locator('#period-close').screenshot({path:`${process.env.GAUGE_CLOSE_SHOTS}/agency-close-${width}.png`})}}
  }finally{await browser.close()}
  const finalPolicy=(await state()).data.approvalPolicies[0];await cmd('approval:limit',{...finalPolicy,reviewAboveMinor:oldLimit?.value.reviewAboveMinor??null,reason:'Restore review policy after isolated close proof'})
- console.log('PASS FINANCE-004 agency close: missing time/cost/unapproved cost/unmatched invoice refused then resolved; explicit WIP/unbilled reconciliation; held TIME-003 cutoff; immutable retainer links/open exception; stale and independent review; financial-date lock; authorized late reopen and linked reclose; role privacy at 1440 and 390')
+ console.log('PASS FINANCE-004 / FINANCE-015 agency close: missing time/cost/unapproved cost/unmatched invoice refused then resolved; explicit WIP/unbilled reconciliation; held TIME-003 / TIME-007 cutoff; immutable retainer links/open exception; stale and independent review; financial-date lock; authorized late reopen and linked reclose; role privacy at 1440 and 390')
 }
 
-// SETUP-004: typed source fields, native creation doors, reports and scoped resource search.
+// SETUP-004 / SETUP-009 / SETUP-010: typed source fields, native creation doors, reports and scoped resource search.
 export async function customFieldJourney(h) {
  const {cmd,request,owner}=h
  const base='/api/gauge/state?from=2026-10-05&to=2026-10-09&asOf=2026-10-20'
@@ -520,10 +520,10 @@ export async function customFieldJourney(h) {
  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});for(const [path,selector,name]of [['/app/access','#custom-definitions','definitions'],[`/app/engagements?edit=${client.id}`,'#custom-values','client-values'],[`/app/engagements?edit=${b.id}`,'#custom-values','person-values'],[`/app/engagements?edit=${task.id}`,'#custom-values','task-values'],[`/app/engagements?edit=${projects[0].id}`,'#custom-values','values'],[`/app/review?from=2026-10-05&to=2026-10-09&asOf=2026-10-20&customGroup=${practice.id}&portfolioGroup=custom:${practice.id}&customMeasures=${encodeURIComponent(JSON.stringify([contract.id]))}`,'#custom-reports','reports'],[`/app/capacity?from=2026-10-05&filter:${office.id}=NYC`,'main','resources']]){await page.goto(h.origin+path);assert.equal(await page.locator(selector).count(),1);if(name==='resources'){const boardText=await page.locator('.g-board').innerText();assert(boardText.includes('Fields Austin'));assert(!boardText.includes('Fields NYC'))}assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);if(shots){await page.locator(selector).screenshot({path:`${shots}/${name}-${width}.png`});if(name==='reports')await page.locator('#portfolio-profitability').screenshot({path:`${shots}/profitability-${width}.png`})}}}
  await context.clearCookies();await context.addCookies(lead.cookie.split('; ').map(part=>{const i=part.indexOf('=');return{name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}));await page.goto(h.origin+`/app/engagements?edit=${projects[0].id}`);assert(!((await page.locator('main').innerText()).includes('Contract value')))
  }finally{await browser.close()}
- console.log('PASS SETUP-004 typed Kantata fields, Legacy preview refusal, independent Practice/Office profitability and utilization, required direct/conversion/template doors, private measures/page/API/CSV/saved/history, resource filtering, option retirement, native-edit replay and 1440/390')
+ console.log('PASS SETUP-004 / SETUP-009 / SETUP-010 typed Kantata fields, Legacy preview refusal, independent Practice/Office profitability and utilization, required direct/conversion/template doors, private measures/page/API/CSV/saved/history, resource filtering, option retirement, native-edit replay and 1440/390')
 }
 
-// SALES-002: cost assumptions are immutable and private; project preparation is manual and source-bound.
+// SALES-002 / SALES-007: cost assumptions are immutable and private; project preparation is manual and source-bound.
 export async function estimateJourney(h){
  const {cmd,state,request,owner}=h,zone='America/New_York'
  const designer=await cmd('save:people',{name:'Estimate designer',timezone:zone}),engineer=await cmd('save:people',{name:'Estimate engineer',timezone:zone}),contractor=await cmd('save:people',{name:'Estimate contractor',timezone:zone,employmentType:'contractor'})
@@ -638,7 +638,7 @@ export async function estimateJourney(h){
  await page.locator('#estimates form').filter({has:page.locator('input[value="estimate:compare"]')}).getByRole('button',{name:'Save',exact:true}).click();assert.match(await page.locator('#estimate-comparison').innerText(),/Customer price change/)
  await context.clearCookies();await context.addCookies(cookies(lead.cookie));for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(h.origin+`/app/engagements?estimate=${second.id}#estimates`);const section=page.locator('#estimates');assert.match(await section.innerText(),/restricted to finance/i);assert.equal(await section.getByText('Estimated cost',{exact:true}).count(),0);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await section.screenshot({path:`${shots}/estimate-lead-${width}.png`})}
  }finally{await browser.close()}
- console.log('PASS SALES-002 priced design/engineering/contractor/expense lines, exact contingency/discount/margin versions, immutable rates, feasible dates and private source boundaries, mixed/hourly phases, unknown refusal, structured owner attestation, missing-field refusals, audited pre-conversion withdrawal, post-conversion refusal, exact unverified labels/history/exports, exact-version one-engagement conversion, required fields, draft budget/tasks/milestones and 1440/390; external client identity unverified')
+ console.log('PASS SALES-002 / SALES-007 priced design/engineering/contractor/expense lines, exact contingency/discount/margin versions, immutable rates, feasible dates and private source boundaries, mixed/hourly phases, unknown refusal, structured owner attestation, missing-field refusals, audited pre-conversion withdrawal, post-conversion refusal, exact unverified labels/history/exports, exact-version one-engagement conversion, required fields, draft budget/tasks/milestones and 1440/390; external client identity unverified')
 }
 
 // One immutable source set rendered through the finance HTTP and native Billing doors.
@@ -729,7 +729,7 @@ export async function invoicePresentationJourney(h) {
   await page.goto(h.origin+issuedPath);await capture('issued-invoice','#invoice-document')
   settings=(await state()).data.invoiceSettings.find(r=>r.value.clientId===client.id);await cmd('invoice:settings',{...settings,...clientSettings,footer:'New default only',timeMode:'entry'})
   assert.equal(Buffer.compare(original,Buffer.from(await(await request(issuedPath+'?format=pdf',owner)).arrayBuffer())),0,'Issued original stays exact after client defaults change')
-  // INVOICE-003: the ordinary owner form authorizes only one confirmed recipient.
+  // INVOICE-003 / INVOICE-012: the ordinary owner form authorizes only one confirmed recipient.
   const recipient=await h.invite('synthetic-gauge-5301'),stranger=await h.invite('synthetic-gauge-5302')
   await cmd('invoice:release',{...issued,revision:randomUUID(),contact:'synthetic-gauge-5301@example.test',days:7,reason:'Stale original'},owner,409)
   await cmd('invoice:release',{...issued,contact:'synthetic-gauge-5301@example.test',days:31,reason:'Unbounded access'},owner,400)
@@ -765,5 +765,5 @@ export async function invoicePresentationJourney(h) {
   assert.equal((await get({},'pdf','')).status,401)
   const history=await(await request(`/api/gauge/history/invoiceSettings/${settings.id}`,owner)).json();assert(history.history.length>0)
  }finally{await browser.close()}
- console.log('PASS INVOICE-008 fourteen approved time entries and three receipt-backed expenses, all time groupings, independent PDF totals, exact detail sources and durations, client footer and logo, once-only native issue, immutable originals, role privacy at 1440 and 390')
+ console.log('PASS INVOICE-008 / INVOICE-019 fourteen approved time entries and three receipt-backed expenses, all time groupings, independent PDF totals, exact detail sources and durations, client footer and logo, once-only native issue, immutable originals, role privacy at 1440 and 390')
 }

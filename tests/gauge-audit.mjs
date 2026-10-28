@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises'
 import {createHash} from 'node:crypto'
 import {harness} from './gauge-harness.mjs'
 
-// GOVERN-005 searchable business audit, through the built Worker's HTTP doors: a corrected time entry traced through
+// GOVERN-005 / GOVERN-011 searchable business audit, through the built Worker's HTTP doors: a corrected time entry traced through
 // approval, billing adjustment and export; import effects with their source identity; scoped search; a complete export
 // whose SHA-256 chain this test recomputes independently; edits and deletions detected; no secret in the export.
 const canonical=v=>v===null||typeof v!=='object'?JSON.stringify(v):Array.isArray(v)?`[${v.map(canonical).join(',')}]`:`{${Object.keys(v).sort().map(k=>`${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}`
@@ -42,7 +42,7 @@ try{
  assert.equal((await request('/api/gauge/state?from=2026-10-01&to=2026-10-31','',{headers:{authorization:`Bearer ${key.token}`}})).status,200)
 
  const search=async(params,cookie=fin.cookie)=>{const r=await request('/api/gauge/audit?'+new URLSearchParams(params),cookie);assert.equal(r.status,200,`audit ${JSON.stringify(params)}`);return r.json()}
- // GOVERN-005: the corrected entry's whole trail, oldest first, with actor, previous and resulting values and the approval.
+ // GOVERN-005 / GOVERN-011: the corrected entry's whole trail, oldest first, with actor, previous and resulting values and the approval.
  const trail=(await search({kind:'time',recordId:t.id})).entries.reverse(),actions=trail.map(x=>x.action)
  assert.deepEqual(actions.filter(a=>a.startsWith('time:')),['time:save','time:submit','time:approve','time:correct','time:save','time:submit','time:approve'],'every step of the corrected entry')
  const [created,,firstApproval,reopened,changed,,finalApproval]=trail.filter(x=>x.action.startsWith('time:'))
@@ -101,7 +101,7 @@ try{
  assert((await (await request('/app/billing',fin.cookie)).text()).includes('href="/app/audit"'))
  const page=await (await request(`/app/audit?${new URLSearchParams({kind:'time',recordId:t.id,checkSeq:checkpoint.seq,checkHash:checkpoint.hash})}`,fin.cookie)).text()
  for(const fragment of ['Business audit','Chain intact',`Checkpoint ${checkpoint.seq} matches`,'time:correct','Approved by lead'])assert(page.includes(fragment),fragment)
- console.log('PASS GOVERN-005 corrected time traced through approval, billing adjustment, import and export with a verified chain')
+ console.log('PASS GOVERN-005 / GOVERN-011 corrected time traced through approval, billing adjustment, import and export with a verified chain')
 }finally{await h.dispose()}
 
 await privacyJourney()

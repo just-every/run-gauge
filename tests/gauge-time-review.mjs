@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-// TIME-004 extends the existing built-worker timesheet journey, not a second suite.
+// TIME-004 / TIME-008 extends the existing built-worker timesheet journey, not a second suite.
 export async function timeReviewJourney(h,{page,signIn,capture,worker,lead,staff,manager,task,project,zone}) {
  const {cmd,state,request,owner}=h,hour=3600
  const reviewer=await cmd('save:people',{name:'Jordan Review Delegate',timezone:zone}),accountant=await cmd('save:people',{name:'Sam Finance Reviewer',timezone:zone})
@@ -102,5 +102,5 @@ export async function timeReviewJourney(h,{page,signIn,capture,worker,lead,staff
  next=await cmd('time:submit',next,staff.cookie);next=await cmd('time:approve',next,manager.cookie);await cmd('time:approve',next,financeUser.cookie)
  await signIn(financeUser.cookie);await page.goto(h.origin+'/app/time?sheetFrom=2026-10-12');await capture('TIME-004-completed-review',page.locator(`tr[id="${current.id}"]`))
  const final=(await state()).data.time.find(t=>t.id===current.id);assert.deepEqual(final,approved,'Later policy changes do not rewrite approved time')
- console.log('PASS TIME-004: due dates, note/entry/day failures and correction, service defaults, absent-lead delegation, exact independent two-level review, ageing, scope/range/revoke and self-bypass refusals')
+ console.log('PASS TIME-004 / TIME-008: due dates, note/entry/day failures and correction, service defaults, absent-lead delegation, exact independent two-level review, ageing, scope/range/revoke and self-bypass refusals')
 }

@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url'
 import {chromium} from '@playwright/test'
 import {harness} from './gauge-harness.mjs'
 
-// CONNECT-007 through the production Worker: a GitHub App installation fake at the network edge verifies the
+// CONNECT-007 / CONNECT-021 through the production Worker: a GitHub App installation fake at the network edge verifies the
 // RS256 App token and answers only for the installed repository. Its other repository must never be contacted.
 const org='synthetic-gauge-org',installed=`${org}/synthetic-gauge-repo-1`,other=`${org}/synthetic-gauge-repo-2`
 const privateTitle='Synthetic merged beta work',privateBody='synthetic-private-body-text',login='synthetic-gauge-login'
@@ -154,7 +154,7 @@ export async function githubJourney(browser){
   const uses=(await state()).data.providerUses.filter(r=>['repo:read','issue:write'].includes(r.value.operation));assert(uses.length>=5);assert(!JSON.stringify(uses).includes('synthetic-gauge-installation'),'Provider use holds no token')
   const evidenceText=JSON.stringify((await h.db.prepare('SELECT data FROM g_audit').all()).results)+JSON.stringify((await h.db.prepare('SELECT result FROM g_receipts').all()).results)
   for(const secret of ['synthetic-gauge-installation',privateBody,login,Buffer.from(privateKey).toString('base64').slice(0,60)])assert(!evidenceText.includes(secret),`Audit and receipts omit ${secret}`)
-  console.log('PASS CONNECT-007 githubJourney: sealed GitHub App credential and App-signed least-permission tokens, installation-only repository selection, unauthorized repository refused and never contacted, read-only PR and issue evidence without code, bodies or logins, merged-PR milestone proposal approved into one delivery that is neither accepted nor billable, client and every non-owner role see nothing, exact approved issue follow-up sent once and uncertain send never retried, rotation and revocation, owner Access at 1440 and 390')
+  console.log('PASS CONNECT-007 / CONNECT-021 githubJourney: sealed GitHub App credential and App-signed least-permission tokens, installation-only repository selection, unauthorized repository refused and never contacted, read-only PR and issue evidence without code, bodies or logins, merged-PR milestone proposal approved into one delivery that is neither accepted nor billable, client and every non-owner role see nothing, exact approved issue follow-up sent once and uncertain send never retried, rotation and revocation, owner Access at 1440 and 390')
  }finally{await context.close();await h.dispose()}
 }
 

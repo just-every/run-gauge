@@ -6,7 +6,7 @@ import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
 import {recordMilestoneAcceptance,harness} from './gauge-harness.mjs'
 
-// BOUNDARY-001: actual built-worker forms/downloads and a test-only network-edge
+// BOUNDARY-001 / BOUNDARY-004 / BOUNDARY-005: actual built-worker forms/downloads and a test-only network-edge
 // accounting receiver. The app never substitutes a simulated provider outcome.
 const h=await harness({currency:'USD',timezone:'America/New_York'})
 let browser,receiver
@@ -90,7 +90,7 @@ try{
  const history=await(await request(`/api/gauge/history/specialistHandoffs/${handoff.id}`,owner)).json();assert(history.history.some(r=>r.value.status==='awaiting-result'&&!r.value.result))
  await expensePolicyJourney(h,page)
  await revenueScheduleJourney(h,page)
- console.log('PASS BOUNDARY-001: exact approved labor/expense/revenue input export, unknown and signed reconciliation, real test-receiver acceptance/rejection, honest labels, immutable results, replay and scoped privacy')
+ console.log('PASS BOUNDARY-001 / BOUNDARY-004 / BOUNDARY-005: exact approved labor/expense/revenue input export, unknown and signed reconciliation, real test-receiver acceptance/rejection, honest labels, immutable results, replay and scoped privacy')
 }finally{await browser?.close();if(receiver)await new Promise(resolve=>receiver.close(resolve));await h.dispose()}
 
 

@@ -7,10 +7,10 @@ import { type Row, sum } from './model'
 import { liveInvoices } from './invoice-standing'
 import type { financeForecast } from './finance-forecast'
 
-// FINANCE-002 revenue and expected cash by month, on the FINANCE-006 revenue basis and the FINANCE-007 cash basis for the
+// FINANCE-002 / FINANCE-009 / FINANCE-010 revenue and expected cash by month, on the FINANCE-006 / FINANCE-018 / FINANCE-019 revenue basis and the FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 cash basis for the
 // records that exist today. Unissued hourly fees, retainer overages and billable expenses are invoiced monthly in arrears on
 // the 1st of the next month; an approved fixed-fee milestone on its due date. Issued invoices replace their source schedule
-// once, use their immutable actual issue/due dates, and deduct user-recorded receipts and issued credit notes (INVOICE-004)
+// once, use their immutable actual issue/due dates, and deduct user-recorded receipts and issued credit notes (INVOICE-004 / INVOICE-013 / INVOICE-014)
 // dated through the as-of day. A void dated through the as-of day removes its invoice; its reissue is a separate invoice,
 // and the original lines still leave the schedule once, so written-down amounts are never expected again.
 // Unissued receipt = invoice date + the client's payment terms (Net N days, "Net 30 assumed" while unset);
@@ -32,7 +32,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
 
  const place = (day: string) => (day < asOf ? asOf : day).slice(0, 7)
  const engagements = forecast.engagements.map(f => {
-  // The client's finance-set Net N is used when set; "Net 30 assumed" appears only while it is unset (SETUP-002).
+  // The client's finance-set Net N is used when set; "Net 30 assumed" appears only while it is unset (SETUP-002 / SETUP-007 / SETUP-008).
   const e = data.engagements.find(r => r.id === f.engagementId)!, client = clients.get(e.value.clientId), set = client?.value.paymentTermsDays ?? null, terms: number = set ?? 30
   const daysLate = client?.value.daysLate ?? null, percent = client?.value.collectionPercent ?? 100
   const incomplete = [...f.incomplete], sources = { ...f.sources, clients: client ? [client.id] : [], milestones: [...(f.sources.milestones ?? [])], invoices: [] as string[], payments: [] as string[], invoiceCorrections: [] as string[], fixedCharges: [] as string[],timeSlices:(data.timeSlices??[]).filter(s=>s.value.engagementId===e.id).map(s=>s.id),capWriteDowns:(data.capWriteDowns??[]).filter(s=>s.value.engagementId===e.id).map(s=>s.id),retainerSchedules:[] as string[],retainerCharges:[] as string[] }
@@ -89,7 +89,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const paidMinor = sum(payments.map(p => p.value.amountMinor))
    const openMinor=invoice.value.totalMinor-paidMinor-standing.creditedMinor
    const promise=(billing.paymentPromises??[]).filter(p=>p.value.invoiceId===invoice.id).at(-1)
-   // INVOICE-006/FINANCE-007: a standing dispute is listed apart and never expected as cash until it is resolved.
+   // INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017/FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022: a standing dispute is listed apart and never expected as cash until it is resolved.
    const dispute=(billing.invoiceDisputes??[]).filter(x=>x.value.invoiceId===invoice.id&&x.value.openedDate<=asOf&&(x.value.status==='open'||x.value.resolvedDate>asOf)).at(-1)
    const disputed=dispute?Math.min(openMinor,dispute.value.amountMinor):0
    const promised=promise?Math.min(openMinor-disputed,promise.value.amountMinor):0
@@ -104,7 +104,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   return { engagementId: e.id, name: e.value.name, clientId: e.value.clientId, currency: f.currency, basis: f.basis, paymentTermsDays: terms, termsLabel: set === null ? 'Net 30 assumed' : `Net ${terms}`, daysLate, daysLateApprovedBy: client?.value.daysLateApprovedBy ?? null, collectionPercent: percent,
    bookedRevenueMinor: f.actualFeesMinor, backlogMinor: f.eacFeesMinor - f.actualFeesMinor, items, complete: incomplete.length === 0, incomplete: [...new Set(incomplete)], sources }
  })
- // Per currency and month: committed revenue (FINANCE-006), expected invoices, and cash on terms and at historical timing.
+ // Per currency and month: committed revenue (FINANCE-006 / FINANCE-018 / FINANCE-019), expected invoices, and cash on terms and at historical timing.
  const months: Record<string, Record<string, CashMonth>> = {}
  const at = (currency: string, month: string) => (months[currency] ??= {})[month] ??= { currency, month, revenueMinor: 0, tentativeMinor: 0, pipelineMinor: 0, invoicesMinor: 0, openMinor: 0, expectedMinor: 0, historicalOpenMinor: 0, historicalExpectedMinor: 0, pastDueMinor: 0, engagements: [] }
  for (const f of forecast.engagements) for (const m of f.months) { const row = at(f.currency, m.month); row.revenueMinor += m.committedFeesMinor; row.tentativeMinor += m.tentativeFeesMinor }
@@ -115,7 +115,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   const late = at(e.currency, x.historicalMonth ?? x.cashMonth); late.historicalOpenMinor += x.openMinor; late.historicalExpectedMinor += x.expectedMinor
   for (const row of [cash, late]) if (!row.engagements.includes(e.engagementId)) row.engagements.push(e.engagementId)
  }
- // A month is incomplete when any engagement in its currency has an incomplete FINANCE-006 forecast.
+ // A month is incomplete when any engagement in its currency has an incomplete FINANCE-006 / FINANCE-018 / FINANCE-019 forecast.
  const unplaced = engagements.filter(e => !e.complete)
  const list = Object.values(months).flatMap(byMonth => Object.values(byMonth)).sort((x, y) => x.currency.localeCompare(y.currency) || x.month.localeCompare(y.month)).map(row => {
   const complete = !unplaced.some(e => e.currency === row.currency)

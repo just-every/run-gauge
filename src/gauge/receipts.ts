@@ -4,11 +4,11 @@ import { type Actor, type Transaction, authority, finance, fence, get } from './
 import { activeClient } from './clients'
 import { owed, settledMinor } from './invoices'
 
-// INVOICE-006. Finance records money received from a client once, under one unique external reference, and
+// INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017. Finance records money received from a client once, under one unique external reference, and
 // allocates it to one or more of that client's invoices (same currency, each allocation an exact g_payments
 // row naming the receipt). What is not allocated stays the receipt's unapplied balance. Finance also records a
 // dispute against an invoice's open amount. Nothing here is bank or processor verified, and a dispute changes
-// no amount, aging bucket or expected-cash month (INVOICE-007 and FINANCE-007 inherit dispute holds by name).
+// no amount, aging bucket or expected-cash month (INVOICE-007 / INVOICE-018 and FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022 inherit dispute holds by name).
 export const receiptVerification = 'finance recorded; not bank or processor verified'
 export const disputeOutcomes = ['rejected', 'withdrawn', 'credited']
 

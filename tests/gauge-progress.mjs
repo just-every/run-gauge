@@ -4,7 +4,7 @@ import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
 import {harness} from './gauge-harness.mjs'
 
-// INVOICE-002: two real fixed projects, paid deposits and cumulative progress,
+// INVOICE-002 / INVOICE-010 / INVOICE-011: two real fixed projects, paid deposits and cumulative progress,
 // exact source reservations, failed competing approvals and separate billing from delivery.
 export async function progressJourney(h,worker) {
  const {cmd,state,owner,request,post}=h,zone='America/New_York'
@@ -226,7 +226,7 @@ export async function progressJourney(h,worker) {
    if(process.env.GAUGE_PROGRESS_SHOTS){await mkdir(process.env.GAUGE_PROGRESS_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_PROGRESS_SHOTS}/billing-${width}.png`,fullPage:true});await page.locator('#fixed-charges').screenshot({path:`${process.env.GAUGE_PROGRESS_SHOTS}/charges-${width}.png`})}
   }
  }finally{await browser.close()}
- console.log('PASS INVOICE-002 progressJourney: two paid deposits, combined net progress, project and phase balances, partial time rounding and races, immutable sources, cash, finance scope and native 1440 and 390 forms')
+ console.log('PASS INVOICE-002 / INVOICE-010 / INVOICE-011 progressJourney: two paid deposits, combined net progress, project and phase balances, partial time rounding and races, immutable sources, cash, finance scope and native 1440 and 390 forms')
 }
 
 if(import.meta.url===new URL(process.argv[1],'file:').href){

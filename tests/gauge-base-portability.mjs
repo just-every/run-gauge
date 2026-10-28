@@ -9,7 +9,7 @@ import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 // The caller closes the source before passing this verifier to portability().
 export async function prepareCurrentPortability(h,{importJob}) {
  const {cmd,state,request,owner}=h,zone='Australia/Brisbane'
- // COST-002: retain receipt economics, unit rates, once-only reimbursement and honest receiver history.
+ // COST-002 / COST-004: retain receipt economics, unit rates, once-only reimbursement and honest receiver history.
  const expensePerson=await cmd('save:people',{name:'synthetic-gauge-7201',timezone:zone})
  const expenseClient=await cmd('save:clients',{name:'Portable travel client'})
  const expenseProject=await cmd('save:engagements',{name:'Portable expense policy',clientId:expenseClient.id,leadId:expensePerson.id,members:[expensePerson.id],scope:'Portable travel review',timezone:zone})
@@ -41,10 +41,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('expense:save',{engagementId:internal.id,personId:person.id,taskId:subtask.id,date:'2026-10-08',description:'Research workshop materials',amountMinor:1250,reimbursable:false})
  await cmd('task:progress',{...subtask,status:'done',remainingSeconds:0,completedItems:['notes']})
  await cmd('task:progress',{...task,status:'done',remainingSeconds:0,completedItems:['review']})
- // DELIVERY-002 / BASE-002: immutable dependency baselines travel with their source tasks.
+ // DELIVERY-002 / DELIVERY-008 / BASE-002: immutable dependency baselines travel with their source tasks.
  const delivery=await cmd('delivery:preview',{engagementId:internal.id,operation:'baseline',plan:{calendar:{weekdays:[1,2,3,4,5],holidays:['2026-10-05']},nodes:[{id:subtask.id,kind:'task',sourceId:subtask.id,name:'Prepare research notes',start:'2026-10-08',durationDays:1,predecessors:[],staffingIds:[]}]}})
  await cmd('delivery:approve',{...delivery.input,fingerprint:delivery.fingerprint,reason:'Portability delivery baseline',acceptEffects:true})
- // DELIVERY-005 / BASE-002: risks, dated dependencies, delivered snapshots and attributed client decisions travel with milestone history.
+ // DELIVERY-005 / DELIVERY-012 / BASE-002: risks, dated dependencies, delivered snapshots and attributed client decisions travel with milestone history.
  const acceptedMilestone=await cmd('save:milestones',{engagementId:engagement.id,name:'Portable delivery decision',due:'2026-10-21',amountMinor:2500})
  let trackedMilestone=await cmd('milestone:health',{...acceptedMilestone,health:'at-risk',reason:'Waiting for client assets'})
  trackedMilestone=await cmd('milestone:issue',{...trackedMilestone,name:'Assets missing',ownerId:person.id,mitigation:'Prepare complete source package',status:'open',reason:'Client reported missing work'})
@@ -60,13 +60,13 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableReviewPath=`/api/gauge/client-milestones/${reviewMilestone.id}/${portableReview.id}`
  const portableDecision=await h.request(portableReviewPath,portableRecipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':portableRelease.token},body:JSON.stringify({key:crypto.randomUUID(),revision:portableReviewRow.revision,outcome:'accepted',reason:'Client confirms the retained delivery'})})
  assert.equal(portableDecision.status,200,await portableDecision.clone().text())
- // DELIVERY-003 / BASE-002: immutable template versions and the plan applied from one round-trip.
+ // DELIVERY-003 / DELIVERY-009 / BASE-002: immutable template versions and the plan applied from one round-trip.
  const kickoff={key:'kickoff',kind:'task',name:'Portable kickoff',offsetDays:0,durationDays:1,predecessors:[],owner:'lead',effortSeconds:3600}
  const template=await cmd('template:save',{name:'Portable onboarding',purpose:'client-onboarding',items:[kickoff],reason:'Portable onboarding template'})
  await cmd('template:save',{previousId:template.id,items:[kickoff,{key:'close',kind:'milestone',name:'Portable close',offsetDays:0,durationDays:1,predecessors:['kickoff'],amountMinor:50000}],reason:'Add a priced close'})
  const onboarding=await cmd('save:engagements',{name:'Portable onboarding project',clientId:engagement.value.clientId,leadId:engagement.value.leadId,members:[],scope:'Started from a template',timezone:zone})
  await cmd('template:apply',{templateId:template.id,engagementId:onboarding.id,start:'2026-10-12',reason:'Portable template application'})
- // RETAINER-001 / RETAINER-002 / BASE-002: commercial terms, calendars and individual periods round-trip.
+ // RETAINER-001 / RETAINER-006 / RETAINER-007 / RETAINER-002 / RETAINER-008 / BASE-002: commercial terms, calendars and individual periods round-trip.
  await cmd('agency:calendar',{weekdays:[1,2,3,4,5],holidays:['2026-10-05'],reason:'Agency calendar for retained commercial periods'})
  const retainer=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{name:'Quarterly research retainer',feeMinor:225100,frequency:'quarterly',unit:'hours',allowance:144000,services:['Research'],consumes:'billable',proration:'working',start:'2026-10-16',end:null,renewal:'automatic',noticeDays:14,rules:{carryCap:28800,carryPeriods:2,deficit:false,overage:'bill',overageRate:18000}}})
  const portableRetainer=await cmd('retainer:approve',{...retainer.input,fingerprint:retainer.fingerprint,reason:'Reviewed quarterly research allowance'})
@@ -76,7 +76,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('approval:limit',{...portableApprovalPolicy,reviewAboveMinor:300000,reason:'Portable bounded automatic invoice consent'})
  const portableSchedule=await cmd('retainer:schedule',{retainerId:portableRetainer.id,basis:'advance',from:'2026-10-16',enabled:true,heldPeriodIds:[],autoIssue:true,capMinor:300000,includeOverages:true,billTo:'Portable client',remitTo:'Portable agency',reference:'Portable service',reason:'Portable automatic schedule with fresh installation consent'})
  await cmd('retainer:run',{...portableSchedule,asOf:'2026-10-16'})
- // RETAINER-002/003 / BASE-002: exact overage source/artifact and pending projection survive restore.
+ // RETAINER-002 / RETAINER-008/003 / BASE-002: exact overage source/artifact and pending projection survive restore.
  const overageTerms=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{name:'Review service retainer',frequency:'monthly',unit:'hours',allowance:3600,services:['Retained review'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:0,carryPeriods:0,deficit:false,overage:'bill',overageRate:18000}}})
  const reviewRetainer=await cmd('retainer:approve',{...overageTerms.input,fingerprint:overageTerms.fingerprint,reason:'Reviewed overage billing for retained reviews'})
  const reviewTask=await cmd('save:tasks',{engagementId:engagement.id,name:'Retained review work',remainingSeconds:3600})
@@ -85,7 +85,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const overagePacket=await cmd('packet:create',{engagementId:engagement.id,title:'Reviewed retainer overage',sources:[`retainerPeriods:${reviewPeriod.id}`]});await cmd('packet:approve',overagePacket)
  await cmd('time:save',{personId:person.id,engagementId:engagement.id,taskId:reviewTask.id,service:'Retained review',timezone:zone,start:'2026-10-18T11:00:00+10:00',end:'2026-10-18T12:00:00+10:00',notes:'Pending review service',billable:true})
  const reviewBalance=(await state()).retainerBalances.find(b=>b.periodId===reviewPeriod.id);assert.equal(reviewBalance.overageMinor,18000);assert.equal(reviewBalance.pending,3600);assert.equal(reviewBalance.projectedRemaining,-7200)
- // RETAINER-004 / BASE-002: an immutable close and approved linked adjustment survive restore.
+ // RETAINER-004 / RETAINER-010 / RETAINER-011 / RETAINER-012 / BASE-002: an immutable close and approved linked adjustment survive restore.
  const closeTerms=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',from:'2026-08-01',to:'2026-09-30',terms:{...overageTerms.terms,name:'Portable closed allowance',services:['Portable close'],start:'2026-08-01'}})
  const closeRetainer=await cmd('retainer:approve',{...closeTerms.input,fingerprint:closeTerms.fingerprint,reason:'Portable completed periods'})
  const closePeriod=(await state()).data.retainerPeriods.find(p=>p.value.retainerId===closeRetainer.id&&p.value.periodStart==='2026-08-01')
@@ -95,9 +95,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const favoriteUser=await h.invite('portability-timesheet-person');await cmd('grant',{operatorId:favoriteUser.id,personId:person.id,role:'staff',enabled:true})
  const favorite=await cmd('time:favorite',{personId:person.id,taskId:task.id,name:'Research training',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
  await cmd('time:favorite',{...favorite,personId:person.id,taskId:task.id,name:'Research workshop',service:'Research',timezone:zone,billable:false},favoriteUser.cookie)
- // REPORT-002 / BASE-002: billability targets travel as business records.
+ // REPORT-002 / REPORT-007 / BASE-002: billability targets travel as business records.
  await cmd('target:set',{scope:'person',personId:person.id,percent:'72.5',effectiveFrom:'2026-10-01'})
- // CONNECT-020 / BASE-002: a live utilization key is installation authority and never travels.
+ // CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032 / BASE-002: a live utilization key is installation authority and never travels.
  assert.match((await cmd('apikey:create',{label:'Portability source key'})).token,/^gauge_util_/)
  assert.match((await cmd('appkey:create',{label:'Portability app credential',operatorId:favoriteUser.id,scope:'projects:read time:write'})).token,/^gauge_app_/)
  await cmd('time:policy',{lockThrough:'2020-12-31',reason:'Historical migration cutoff; current work remains open'})
@@ -120,7 +120,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  let retainedImport=await cmd('import:create',{package:sourcePackage,fingerprint:preview.fingerprint})
  while(['applying','queued'].includes(retainedImport.state))retainedImport=await cmd('import:resume',{id:retainedImport.id})
  assert.equal(retainedImport.state,'completed')
- // BUDGET-002: exact capped source slices, alert records and budget-bearing templates round-trip.
+ // BUDGET-002 / BUDGET-003 / BUDGET-004: exact capped source slices, alert records and budget-bearing templates round-trip.
  const capProject=await cmd('save:engagements',{name:'Portable capped service',clientId:engagement.value.clientId,leadId:person.id,members:[person.id],scope:'Portable held excess',timezone:zone})
  const capBudget=await cmd('budget:approve',await cmd('save:budgets',{engagementId:capProject.id,mode:'hourly',notToExceed:true,amountMinor:7000,effortSeconds:3600,roundingSeconds:1,reason:'Portable cap'}))
  const capTask=await cmd('save:tasks',{engagementId:capProject.id,name:'Portable capped work',remainingSeconds:0})
@@ -138,19 +138,19 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableTime=await cmd('time:approve',await cmd('time:submit',await cmd('time:save',{engagementId:portablePartialProject.id,personId:person.id,taskId:portableTask.id,service:'Research',timezone:zone,notes:'Portable partial source',billable:true,start:'2026-10-09T15:00:00+10:00',end:'2026-10-09T16:00:00+10:00'})))
  const portableTerms=(await state()).data.budgets.find(b=>b.value.engagementId===portablePartialProject.id&&b.value.status==='approved')
  const portablePartial=await cmd('packet:approve',await cmd('packet:partial',{engagementId:portablePartialProject.id,budgetId:portableTerms.id,budgetRevision:portableTerms.revision,sourceId:portableTime.id,sourceRevision:portableTime.revision,durationSeconds:1200,title:'Portable partial time'}))
- // TIME-004 / BASE-002: dated delegations and versioned submission/review policy travel as business records, never authority.
+ // TIME-004 / TIME-008 / BASE-002: dated delegations and versioned submission/review policy travel as business records, never authority.
  const portableLead=await h.invite('portable-review-lead'),portableDelegate=await h.invite('portable-review-delegate')
  await cmd('grant',{operatorId:portableLead.id,personId:engagement.value.leadId,role:'lead',enabled:true})
  await cmd('grant',{operatorId:portableDelegate.id,personId:person.id,role:'finance',enabled:true})
  await cmd('time:delegate',{engagementId:engagement.id,delegateId:person.id,from:'2026-10-01',to:'2026-12-31',reason:'Portable review cover'},portableLead.cookie)
  const portablePolicy=(await state()).data.timePolicies[0]
  await cmd('time:policy',{...portablePolicy,review:{dueWeekday:5,dueTime:'16:30',minimumNotes:8,maxEntrySeconds:28800,maxDaySeconds:43200,reviewLevels:2,separation:true,serviceBillability:{Research:false}},reason:'Portable independent review policy'})
- // BOUNDARY-001 / BASE-002: exact prepared inputs, receiver acknowledgement, artifact and history survive restore.
+ // BOUNDARY-001 / BOUNDARY-004 / BOUNDARY-005 / BASE-002: exact prepared inputs, receiver acknowledgement, artifact and history survive restore.
  const handoffState=await state(),handoffSources=['time','expenses','packets'].flatMap(kind=>handoffState.data[kind].filter(r=>r.value.status==='approved').map(r=>({kind,id:r.id,revision:r.revision})))
  const handoff=await cmd('handoff:prepare',{recipient:'Portable accountant',purpose:'accounting',reason:'Approved inputs retained with their receiver reconciliation',sources:handoffSources})
  const prepared=(await state()).data.specialistHandoffs.find(r=>r.id===handoff.id)
  await cmd('handoff:record-result',{...handoff,result:{handoffId:handoff.id,artifactHash:prepared.value.artifactHash,lines:prepared.value.lines.map((l,i)=>({id:l.id,status:i?'accepted':'rejected',...(i?{}:{reason:'Portable receiver requested supporting evidence'}),currency:l.currency,amountMinor:l.amountMinor,durationSeconds:l.durationSeconds}))}})
- // REPORT-003 / BASE-002: native issued sources, numbering and receipts round-trip with the agency.
+ // REPORT-003 / REPORT-008 / BASE-002: native issued sources, numbering and receipts round-trip with the agency.
  const invoiceProject=await cmd('save:engagements',{name:'Portable invoice engagement',clientId:engagement.value.clientId,leadId:engagement.value.leadId,members:[person.id],scope:'Portable source ledger',timezone:zone})
  await cmd('budget:approve',await cmd('save:budgets',{engagementId:invoiceProject.id,mode:'hourly',amountMinor:100000,effortSeconds:3600,roundingSeconds:60,reason:'Portable invoice terms'}))
  let invoiceExpense=await cmd('expense:save',{engagementId:invoiceProject.id,personId:person.id,date:'2026-10-10',description:'Portable reimbursable materials',amountMinor:2500,reimbursable:true})
@@ -165,9 +165,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
  assert.equal((await request('/app/client-invoices/'+portableInvoiceAccess.id,invoiceRecipient.cookie)).status,200)
  await cmd('invoice:promise',{...portableInvoice,date:'2026-11-20',amountMinor:1500,reference:'Portable payment promise'})
  await cmd('payment:record',{...portableInvoice,date:'2026-10-12',amountMinor:1000,reference:'Portable bank receipt'})
- // INVOICE-004 credit notes travel with their invoice through BASE-002.
+ // INVOICE-004 / INVOICE-013 / INVOICE-014 credit notes travel with their invoice through BASE-002.
  await cmd('invoice:credit',{...portableInvoice,type:'discount',line:0,amountMinor:500,date:'2026-10-13',reason:'Portable agreed discount'})
- // INVOICE-002 / BASE-002: percentage schedule, approvals and its exact invoice source travel whole.
+ // INVOICE-002 / INVOICE-010 / INVOICE-011 / BASE-002: percentage schedule, approvals and its exact invoice source travel whole.
  const fixedProject=await cmd('save:engagements',{name:'Portable percentage billing',clientId:engagement.value.clientId,leadId:engagement.value.leadId,members:[],scope:'Portable deposit and progress',timezone:zone})
  const fixedTerms=await cmd('budget:approve',await cmd('save:budgets',{engagementId:fixedProject.id,mode:'fixed',amountMinor:100000,effortSeconds:3600,roundingSeconds:60,reason:'Portable fixed terms'}))
  const fixedCharge=await cmd('fixed:approve',await cmd('fixed:prepare',{engagementId:fixedProject.id,budgetId:fixedTerms.id,budgetRevision:fixedTerms.revision,chargeType:'deposit',cumulativeBasisPoints:2000,name:'Portable deposit',date:'2026-10-11',reason:'Portable billing schedule'}))
@@ -176,7 +176,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const extraExpense=await cmd('expense:approve',await cmd('expense:submit',await cmd('expense:save',{engagementId:invoiceProject.id,personId:person.id,date:'2026-10-10',description:'Portable consolidated materials',amountMinor:100,reimbursable:true})))
  const fixedPacket=await cmd('packet:approve',await cmd('packet:create',{engagementId:fixedProject.id,consolidate:true,title:'Portable deposit packet',sources:[`fixedCharges:${fixedCharge.id}`,`expenses:${extraExpense.id}`]}))
  await cmd('invoice:issue',{...fixedPacket,issueDate:'2026-10-11',dueDate:invoiceDue,billTo:invoiceClient.value.name,remitTo:'Portable agency account',reference:invoiceClient.value.poRequired?invoiceClient.value.poNumbers[0]:'Portable deposit invoice'})
- // FINANCE-004: an agency close and manual reconciliation are business history, not authority.
+ // FINANCE-004 / FINANCE-015: an agency close and manual reconciliation are business history, not authority.
  const closeMonth='2019-04'
  const agencyPreview=await cmd('period:preview',{month:closeMonth})
  assert.deepEqual(agencyPreview.snapshot.checklist.blocking,[])
@@ -254,7 +254,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableCaseCurrent=(await state()).data.operationalCases.find(r=>r.id===portableCase.id)
  await cmd('case:snooze',{...portableCaseCurrent,until:new Date(Date.now()+86400000).toISOString(),reason:'Wait for reviewed input'})
  await sourceFieldJourney(h,{client:expenseClient,project:expenseProject,person:expensePerson,task:await cmd('save:tasks',{engagementId:expenseProject.id,name:'Source custom field carrier',remainingSeconds:0})})
- // SALES-005: immutable reviewed change comparisons are portable, without live effects.
+ // SALES-005 / SALES-012: immutable reviewed change comparisons are portable, without live effects.
  const scopeSource=(await state()).data.engagements.find(r=>r.id===engagement.id)
  const scopeInput={asOf:'2026-10-01',changes:[{type:'scope',id:scopeSource.id,revision:scopeSource.revision,scope:'Portable proposed alternative'}]}
  const scopePreview=await cmd('change:preview',scopeInput)

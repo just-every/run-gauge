@@ -77,7 +77,7 @@ try {
  await page.goto(h.origin + '/app/engagements'); await capture('pipeline-won-lost')
  await page.goto(h.origin + `/app/engagements?opportunity=${won.id}#pipeline-title`); await capture('pipeline-editor')
  await page.goto(h.origin + `/api/gauge/history/opportunities/${won.id}`); await capture('pipeline-history')
- // SALES-004: finance converts a won fixed-fee opportunity once; replays and repeat conversions find the same engagement.
+ // SALES-004 / SALES-011: finance converts a won fixed-fee opportunity once; replays and repeat conversions find the same engagement.
  const deal = { name: 'Retail fixed-fee launch', clientId: client.id, ownerId: person.id, stage: 'proposal', probability: 80, from: '2026-11-02', to: '2026-11-06', services: 'Design, Research', amountMinor: 3600000, demandSeconds: 100 * 3600 + 7 }
  let pending = await cmd('save:opportunities', deal)
  await cmd('opportunity:convert', pending, owner, 409)
@@ -108,8 +108,8 @@ try {
  await page.goto(h.origin + '/app/engagements'); assert(await page.locator(`tr[id="${winning.id}"]`).getByRole('link', { name: 'Open converted engagement' }).isVisible())
  assert(await page.locator(`tr[id="${winning.id}"]`).getByText('7 seconds of demand unplaced').isVisible())
  await capture('pipeline-converted')
- console.log('PASS SALES-004 won fixed-fee opportunity converts once into an engagement, draft budget and staffing requests that reconcile to it')
- // SALES-001 backlog: with no invoice it equals booked value; an issued invoice is subtracted as billed, for finance only.
+ console.log('PASS SALES-004 / SALES-011 won fixed-fee opportunity converts once into an engagement, draft budget and staffing requests that reconcile to it')
+ // SALES-001 / SALES-006 backlog: with no invoice it equals booked value; an issued invoice is subtracted as billed, for finance only.
  const books = async (asOf, cookie = owner) => (await (await request(`/api/gauge/state?from=2026-10-01&to=2026-10-31&asOf=${asOf}`, cookie)).json()).pipeline[0]
  const open = await books('2026-10-19')
  assert.deepEqual([open.billedMinor, open.backlogMinor], [0, open.bookedMinor], 'No invoice issued: backlog equals booked value')
@@ -142,5 +142,5 @@ try {
  await commercialProposalJourney(h,browser)
  await estimateJourney(h)
  await h.close();await providerCustodyJourney(browser);await connectorHealthJourney(browser);await commercialRestartJourney(browser)
- console.log('PASS SALES-001 two probabilities, won/lost history, separate tentative demand, exact replay, scoped access and booked backlog without double counting')
+ console.log('PASS SALES-001 / SALES-006 two probabilities, won/lost history, separate tentative demand, exact replay, scoped access and booked backlog without double counting')
 } finally { await browser?.close(); await h.dispose() }

@@ -1,7 +1,7 @@
 import { sum } from './model'
 import { type Evidence, Lineage } from './report-lineage-shared'
 
-// REPORT-005 for RESOURCE-005: every monthly demand, capacity, fee, cost and margin figure and every approved-scenario
+// REPORT-005 for RESOURCE-005 / RESOURCE-008: every monthly demand, capacity, fee, cost and margin figure and every approved-scenario
 // delta names its source rows and formula. Month figures reuse the source rows the forecast itself recorded.
 const measures: Record<string, [string, 'seconds' | 'minor', string]> = {
  committedSeconds: ['Committed allocated demand', 'seconds', 'SUM(dailySeconds of committed allocations over each day of the month after the as-of day).'],
@@ -13,7 +13,7 @@ const measures: Record<string, [string, 'seconds' | 'minor', string]> = {
  contractorCapacitySeconds: ['Contractor capacity', 'seconds', 'Same as employee capacity for contractor-profile people.'],
  committedFeesMinor: ['Committed fees', 'minor', 'SUM over engagements in the agency currency of the FINANCE-006 committed fees of the month (actual fees + committed ETC fees).'],
  committedCostMinor: ['Committed cost', 'minor', 'SUM over engagements in the agency currency of the FINANCE-006 committed cost of the month.'],
- weightedPipelineFeesMinor: ['+ weighted pipeline fees', 'minor', 'FINANCE-006 weighted pipeline: each open opportunity round half up(amountMinor × probability ÷ 100) spread evenly over the months of its proposed dates; never inside committed fees.'],
+ weightedPipelineFeesMinor: ['+ weighted pipeline fees', 'minor', 'FINANCE-018 weighted pipeline: each open opportunity round half up(amountMinor × probability ÷ 100) spread evenly over the months of its proposed dates; never inside committed fees.'],
 }
 const derived: Record<string, [string, string[], string]> = {
  committedDemandSeconds: ['Committed demand', ['committedSeconds', 'unfilledSeconds', 'wonSeconds'], 'Committed allocated demand + unfilled role demand + won demand not yet converted; tentative and weighted pipeline are separate additions.'],
@@ -27,7 +27,7 @@ export function demandLineage(c: Lineage) {
  const evidenceOf = (month: string, measure: string) => {
   const e = c.evidence()
   for (const ref of f.sourcesByMonth[month]?.[measure] ?? []) { const [kind, id] = ref.split(':'); c.row(e, kind!, id) }
-  // An incomplete FINANCE-006 forecast makes the priced figures unknown, naming each engagement.
+  // An incomplete FINANCE-006 / FINANCE-018 / FINANCE-019 forecast makes the priced figures unknown, naming each engagement.
   if (['committedFeesMinor', 'committedCostMinor'].includes(measure)) e.unknown.push(...f.incomplete.filter((x: string) => x.startsWith('engagements:')))
   return e
  }

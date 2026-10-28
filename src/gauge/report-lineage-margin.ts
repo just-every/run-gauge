@@ -1,6 +1,6 @@
 import { Lineage, type Evidence } from './report-lineage-shared'
 
-/** FINANCE-001: each margin figure links to its formula, its source rows and every source that makes it unknown. */
+/** FINANCE-001 / FINANCE-008: each margin figure links to its formula, its source rows and every source that makes it unknown. */
 export function marginLineage(c: Lineage) {
  const asOf = c.report.forecast?.asOf
  for (const m of [...(c.report.margin??[]),...(c.report.phaseMargins??[])]) {

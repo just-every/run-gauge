@@ -6,7 +6,7 @@ import { harness } from './gauge-harness.mjs'
 import { milestoneDeliveryJourney } from './gauge-milestone-delivery.mjs'
 import { deliveryTemplatesJourney } from './gauge-delivery-templates.mjs'
 
-// DELIVERY-002: plan actual tasks, phases and a priced milestone through native
+// DELIVERY-002 / DELIVERY-008: plan actual tasks, phases and a priced milestone through native
 // forms, inspect a Thanksgiving cascade and global capacity, approve one baseline.
 const h=await harness({currency:'USD',timezone:'America/New_York'})
 let browser
@@ -119,5 +119,5 @@ try {
  await milestoneDeliveryJourney(h,browser,{lead,worker,manager,staff,outsider})
  await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:false})
  await cmd('delivery:preview',again,manager.cookie,403)
- console.log('PASS DELIVERY-002: phase/task/milestone DAG, inclusive business dates, Thanksgiving cascade, critical path/slack, global staffing effects, immutable baseline, exact replay/stale refusal and scoped access')
+ console.log('PASS DELIVERY-002 / DELIVERY-008: phase/task/milestone DAG, inclusive business dates, Thanksgiving cascade, critical path/slack, global staffing effects, immutable baseline, exact replay/stale refusal and scoped access')
 }finally{await browser?.close();await h.dispose()}

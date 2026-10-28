@@ -1,4 +1,4 @@
-// RESOURCE-005 on Week in review: finance's monthly demand against capacity, priced on the FINANCE-006 basis,
+// RESOURCE-005 / RESOURCE-008 on Week in review: finance's monthly demand against capacity, priced on the FINANCE-006 / FINANCE-018 / FINANCE-019 basis,
 // and the owner-approved scenarios beside the untouched baseline.
 import { escape as e, decision } from './ui-forms'
 import { money, hours } from './ui-format'

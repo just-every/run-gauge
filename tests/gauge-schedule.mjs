@@ -108,7 +108,7 @@ try {
  await shots('filtered-calendar',page.locator('[aria-label="Staffing board"]'))
  await page.goto(h.origin+'/app/capacity?from=2026-10-12')
  await shots('split-result',section)
- // RESOURCE-003 native holiday administration, weekday hours, protected history and reviewed absence.
+ // RESOURCE-003 / RESOURCE-007 native holiday administration, weekday hours, protected history and reviewed absence.
  const workTimezone=(await state()).agency.timezone
  const worker=await cmd('save:people',{name:'Casey Contractor',contractor:true,timezone:workTimezone})
  const workerUser=await h.invite('leave-worker')
@@ -209,7 +209,7 @@ try {
  await cmd('leave:decide',{...rejected,outcome:'rejected',reason:'Requested date unavailable'})
  assert.equal((await net()).days[1].availableSeconds,8*hour)
  assert.equal(h.providerRequests.length,outboundBefore,'Leave requests and decisions send no outbound notifications')
- console.log('PASS RESOURCE-003 federal and agency holidays, regional exception, contractor workday override, weekday hours and future versions, historical refusal, private requested, approved and cancelled leave and scoped lead alert at 1440 and 390')
+ console.log('PASS RESOURCE-003 / RESOURCE-007 federal and agency holidays, regional exception, contractor workday override, weekday hours and future versions, historical refusal, private requested, approved and cancelled leave and scoped lead alert at 1440 and 390')
  await cmd('grant',{operatorId:lead.id,personId:leadPerson.id,role:'lead',enabled:false})
  await cmd('staffing:preview',{...split,revision:parts[0].revision},lead.cookie,403)
  console.log('PASS RESOURCE-002 calendar search, holiday and hidden-project preview, unknown capacity, atomic move/split, stale/concurrent refusal, exact replay, privacy and unfilled-demand reconciliation')

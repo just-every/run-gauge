@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {randomUUID,createHash} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
 
-// Extends CONNECT-020's existing utilization journey through the built Worker.
+// Extends CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032's existing utilization journey through the built Worker.
 export async function appApiJourney(h,browser,{staff,person,client,task,engagement}) {
  const {cmd,owner,request}=h
  const app=(token,path='/api/gauge/v1/projects',input)=>request(path,'',{...(input?{method:'POST',body:JSON.stringify(input)}:{}),headers:{authorization:`Bearer ${token}`,'content-type':'application/json'}})
@@ -58,6 +58,6 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.equal((await app(token)).status,401);assert.equal((await app(token,'/api/gauge/v1/time',input)).status,401,'Revocation also refuses an exact write replay')
   await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true})
   assert.equal((await app(readOnly.token)).status,403,'A changed native grant invalidates existing credentials')
-  console.log('PASS CONNECT-020 appApiJourney: scoped native project pagination and filters, stale cursor refusal, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, grant change and revoked replay refusal, Access at 1440 and 390')
+  console.log('PASS CONNECT-020 / CONNECT-024 / CONNECT-025 / CONNECT-026 / CONNECT-027 / CONNECT-028 / CONNECT-029 / CONNECT-030 / CONNECT-031 / CONNECT-032 appApiJourney: scoped native project pagination and filters, stale cursor refusal, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, grant change and revoked replay refusal, Access at 1440 and 390')
  }finally{await context.close()}
 }

@@ -3,7 +3,7 @@ import {execFileSync} from 'node:child_process'
 import {randomUUID} from 'node:crypto'
 import {chromium} from '@playwright/test'
 
-// INVOICE-006: one client payment covers two invoices and leaves an unapplied balance; aging and statement totals are
+// INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017: one client payment covers two invoices and leaves an unapplied balance; aging and statement totals are
 // traced through a dispute and a later credit, through the command, receivables, state, CSV and Billing doors.
 export async function receiptJourney(h,worker) {
  const {cmd,request,owner,post}=h
@@ -75,7 +75,7 @@ export async function receiptJourney(h,worker) {
  assert.equal(report.totals[0].disputedMinor,3000);assert.equal(report.invoices.find(i=>i.id===b.id).disputedMinor,3000)
  assert.deepEqual(report.totals[0].aging,before.totals[0].aging,'INVOICE-006 a dispute never moves aging');assert.equal(report.totals[0].openMinor,before.totals[0].openMinor)
  assert.equal((await read('2026-10-22',client.id)).totals[0].disputedMinor,0,'INVOICE-006 a dispute counts from its own date')
- // FINANCE-007: the disputed $30.00 is listed apart and never expected as cash; the undisputed $20.00 still is.
+ // FINANCE-007 / FINANCE-020 / FINANCE-021 / FINANCE-022: the disputed $30.00 is listed apart and never expected as cash; the undisputed $20.00 still is.
  const cashItem=async(asOf,id)=>(await state(owner,asOf)).cash.engagements.find(x=>x.engagementId===mine.project.id).items.find(x=>x.invoiceId===id&&!x.promised)
  let item=await cashItem('2026-10-23',b.id);assert.deepEqual([item.openMinor,item.disputedMinor,item.expectedMinor],[2000,3000,2000],'FINANCE-007 independent recomputation: $50.00 open less the $30.00 dispute')
  item=await cashItem('2026-10-22',b.id);assert.deepEqual([item.openMinor,item.disputedMinor],[5000,0])
@@ -133,5 +133,5 @@ export async function receiptJourney(h,worker) {
   await cmd('invoice:dispute',{...c,date:'2026-10-27',amountMinor:100,reason:'No'},actor.cookie,403)
   for(const path of [`/api/gauge/history/clientReceipts/${wire.id}`,`/api/gauge/history/invoiceDisputes/${dispute.id}`])assert.equal((await request(path,actor.cookie)).status,403)
  }
- console.log('PASS INVOICE-006 one payment across two invoices with an unapplied balance, unique references, exact allocation races, disputes, a later credit, as-of statements, CSV and finance-only access')
+ console.log('PASS INVOICE-006 / INVOICE-015 / INVOICE-016 / INVOICE-017 one payment across two invoices with an unapplied balance, unique references, exact allocation races, disputes, a later credit, as-of statements, CSV and finance-only access')
 }

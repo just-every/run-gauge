@@ -72,12 +72,12 @@ function milestoneAudit(h) {
    assert(a.atMs>0);assert.match(a.hash,/^[a-f0-9]{64}$/)
    for(const [key,value]of Object.entries(e.result))assert.deepEqual(a.result[key],value,`${e.action} audit result ${key}`)
   }
-  console.log(`PASS DELIVERY-005 audit: ${expected.size} submitted commands retain actor, exact request key, revisions and result`)
+  console.log(`PASS DELIVERY-005 / DELIVERY-012 audit: ${expected.size} submitted commands retain actor, exact request key, revisions and result`)
  }
  return {...h,cmd,deliveryAudit:{remember,form,verify}}
 }
 
-// DELIVERY-005: every acceptance point through native forms and HTTP, at both widths.
+// DELIVERY-005 / DELIVERY-012: every acceptance point through native forms and HTTP, at both widths.
 export async function milestoneDeliveryJourney(h,browser,{lead,worker,manager,staff,outsider}) {
  h=milestoneAudit(h)
  const {cmd,state,request}=h
@@ -199,7 +199,7 @@ export async function milestoneDeliveryJourney(h,browser,{lead,worker,manager,st
  }
  await directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff,outsider,financePerson})
  await h.deliveryAudit.verify()
- console.log('PASS DELIVERY-005: risks, mitigation/owner, dated client dependencies, immutable delivered work, attributed rejection/resolution/acceptance, separate billing gates, exact replay/stale refusal, access and 1440/390 public forms')
+ console.log('PASS DELIVERY-005 / DELIVERY-012: risks, mitigation/owner, dated client dependencies, immutable delivered work, attributed rejection/resolution/acceptance, separate billing gates, exact replay/stale refusal, access and 1440/390 public forms')
 }
 
 async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff,outsider,financePerson}) {
@@ -440,7 +440,7 @@ async function directMilestoneReviewJourney(h,browser,{lead,worker,manager,staff
  assert.equal((await request(boundPath,otherRecipient.cookie)).status,403,'A later internal grant immediately refuses the recipient')
  assert.equal((await post(boundPath,{key:randomUUID(),revision:bound.revision,outcome:'accepted',reason:'Internal recipient cannot decide'},otherRecipient.cookie)).status,403)
  await clientPortalJourney(h,browser,{lead,worker,manager,staff,financePerson})
- console.log('PASS DELIVERY-005 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale, revoked and expired authority, replay and separate finance gates')
+ console.log('PASS DELIVERY-005 / DELIVERY-012 direct API: exact recipient, private projection, rejection issue, resolution, acceptance, stale, revoked and expired authority, replay and separate finance gates')
 }
 
 export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,financePerson}) {
@@ -792,5 +792,5 @@ export async function clientPortalJourney(h,browser,{lead,worker,manager,staff,f
  await cmd('grant',{operatorId:bob.id,personId:worker.id,role:'staff',enabled:true})
  assert.equal((await request(`/api/gauge/client-projects/${other.id}`,bob.cookie)).status,403,'An acquired internal grant ends client projection access')
  assert.deepEqual(await projects(bob.cookie),[])
- console.log('PASS CLIENT-001 scoped project: selected burn and unknown values, current and original field visibility and ISO currencies, nonzero rollover and linked corrections and value parity, authority-free restore, two-client refusal, revocation, expiry and 1440/390')
+ console.log('PASS CLIENT-001 / CLIENT-005 / CLIENT-006 / CLIENT-007 scoped project: selected burn and unknown values, current and original field visibility and ISO currencies, nonzero rollover and linked corrections and value parity, authority-free restore, two-client refusal, revocation, expiry and 1440/390')
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
-// SETUP-001: the New York agency profile and who sees it, the workweek, an old AUD record that stays AUD until the
+// SETUP-001 / SETUP-006: the New York agency profile and who sees it, the workweek, an old AUD record that stays AUD until the
 // owner approves an exchange rate, and USD quote → work across the 8 March 2026 spring-forward → invoice.
 export async function agencyJourney(h, page, capture) {
  const { cmd, state, request, owner } = h, EIN = '12-3456789'
@@ -103,7 +103,7 @@ export async function agencyJourney(h, page, capture) {
  assert.deepEqual([issued.currency, issued.totalMinor, issued.lines.map(l => l.durationSeconds), issued.lines.map(l => l.amountMinor), issued.issueDate, issued.dueDate], ['USD', 90000, [7200, 14400], [30000, 60000], '2026-03-10', '2026-04-09'])
  assert.equal(issued.totalMinor, quoted.totalMinor, 'The invoice equals the quote')
  await page.goto(h.origin + '/app/billing'); assert.match(await page.locator('main').innerText(), /\$900\.00/); await capture('invoice')
- console.log('PASS SETUP-001 agency profile privacy → workweek → old AUD import stays AUD until an approved rate → USD quote and invoice across the spring-forward')
+ console.log('PASS SETUP-001 / SETUP-006 agency profile privacy → workweek → old AUD import stays AUD until an approved rate → USD quote and invoice across the spring-forward')
 }
 
 // SETUP-003 native billing currencies, exact invoice values and labelled dated conversion.
@@ -155,7 +155,7 @@ export async function clientCurrencyJourney(h, page, capture) {
  assert.deepEqual(october.buckets.map(b=>[b.currency,b.amountMinor,b.convertedMinor]),[['CAD',1000000,730000],['GBP',10000,null],['USD',500000,500000]])
  assert.deepEqual([october.consolidatedMinor,october.knownMinor,october.missingRates],[null,1230000,['GBP']])
  assert.deepEqual(october.buckets[0].conversions.map(c=>[c.rate,c.effective,c.sourceMinor,c.convertedMinor]),[['0.7300','2026-10-01',1000000,730000]])
- // SETUP-005: the October portfolio's earned value converts amount by amount at the labelled approved rate; GBP stays unconverted.
+ // SETUP-005 / SETUP-011 / SETUP-012: the October portfolio's earned value converts amount by amount at the labelled approved rate; GBP stays unconverted.
  const portfolioOctober=(await state()).portfolio.convertedEarned
  assert.deepEqual(portfolioOctober.buckets.map(b=>[b.currency,b.amountMinor,b.convertedMinor,b.unconvertedMinor]),[['CAD',1000000,730000,0],['GBP',10000,null,10000],['USD',500000,500000,0]])
  assert.deepEqual([portfolioOctober.knownMinor,portfolioOctober.minor,portfolioOctober.missingRates,portfolioOctober.buckets[0].conversions.map(c=>[c.rate,c.effective])],[1230000,null,['GBP'],[['0.7300','2026-10-01']]])

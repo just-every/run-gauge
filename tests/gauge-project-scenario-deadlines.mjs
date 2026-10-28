@@ -6,7 +6,7 @@ const weekday = day => ![0, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay()
 const nextWeekday = day => { do { day = dayAfter(day) } while (!weekday(day)); return day }
 const previousWeekday = day => { do { day = dayAfter(day, -1) } while (!weekday(day)); return day }
 
-// FINANCE-003 deadline alternative: actual native schedule, fixed-fee cash timing,
+// FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 deadline alternative: actual native schedule, fixed-fee cash timing,
 // effective dated cost and global capacity, without touching the prepared baseline.
 export async function deadlineScenarioJourney(h, browser) {
  const { cmd, owner, request } = h, asOf = new Date().toISOString().slice(0, 10)
@@ -136,5 +136,5 @@ export async function deadlineScenarioJourney(h, browser) {
  const linkedPlan = await cmd('delivery:approve', { ...linkedNative.input, fingerprint: linkedNative.fingerprint, acceptEffects: true, reason: 'Retain earlier linked preparation' })
  await cmd('projectScenario:preview', { asOf, changes: [{ type: 'deadline', id: linkedPlan.id, revision: linkedPlan.revision, nodeId: futureTask.id, delayBusinessDays: 1 }] }, owner, 409)
  assert.equal((await read()).data.staffing.find(s => s.id === historicalBooking.id).value.from, asOf)
- console.log('PASS FINANCE-003 deadline scenario: holiday DAG cascade, fixed-fee cash month, effective cost, global capacity, native history, selected human adoption, lead planning, stale and past-work refusals; browser 1440/390')
+ console.log('PASS FINANCE-003 / FINANCE-011 / FINANCE-012 / FINANCE-013 / FINANCE-014 deadline scenario: holiday DAG cascade, fixed-fee cash month, effective cost, global capacity, native history, selected human adoption, lead planning, stale and past-work refusals; browser 1440/390')
 }

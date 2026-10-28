@@ -1,6 +1,6 @@
 import { type Row, sum } from './model'
 
-// INVOICE-004: an issued invoice never changes. Its standing on a day comes from the immutable corrections issued
+// INVOICE-004 / INVOICE-013 / INVOICE-014: an issued invoice never changes. Its standing on a day comes from the immutable corrections issued
 // through that day: an issued void removes it (its reissue is a separate, newly numbered invoice), and issued credit
 // notes (credit, discount, write-off) reduce what it bills. Pending and withdrawn corrections change nothing.
 export interface InvoiceStanding { invoice: Row; voided: Row | null; credits: Row[]; creditedMinor: number; netMinor: number }

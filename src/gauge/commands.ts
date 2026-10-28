@@ -1,3 +1,4 @@
+import { scopeExtractionCommand } from './scope-extraction'
 import { changeReviewCommand } from './scope-review'
 import { intakeCommand } from './intake'
 import { clientPortalCommand } from './client-portal'
@@ -162,6 +163,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(!result)result=await syncCommand(env,a,tx,action,input)
  if(!result)result=await jobCommand(env,a,tx,action,input)
  if(!result)result=await commercialCommand(env,a,tx,action,input)
+ if(!result)result=await scopeExtractionCommand(env,a,tx,action,input)
  if(!result)result=await estimateCommand(env,a,tx,action,input)
  if(!result)result=await customCommand(env,a,tx,action,input)
  if(!result)result=await catalog(env,a,tx,action,input)

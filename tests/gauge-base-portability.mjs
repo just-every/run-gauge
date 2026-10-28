@@ -232,6 +232,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const signedDecision=await h.post('/app/client-proposals/'+signedProposal.id,{key:crypto.randomUUID(),revision:releasedSigned.revision,fingerprint:releasedSigned.value.fingerprint,outcome:'accepted',reason:'Client confirms the exact signed portable proposal',confirm:'accept-exact-proposal'},proposalRecipient.cookie);assert.equal(signedDecision.status,200)
  assert.equal((await state()).data.commercialEvents.find(r=>r.value.proposalId===signedProposal.id&&r.value.type==='accepted').value.signatureEvidenceId,signedEvidence.id)
 
+ const portableScope=await cmd('scope:preview',{proposalId:releasedSigned.id,proposalRevision:releasedSigned.revision,reason:'Retain exact document citations'})
+ const portableResolution=await cmd('scope:resolve',{proposalId:releasedSigned.id,proposalRevision:releasedSigned.revision,...portableScope,ambiguityId:'meaning',interpretation:'schedule',meaning:'The stated research handover schedule governs; no recurring charge is authorized.',reason:'Human reviewed retained source fields',confirm:'record-interpretation-only'})
+
  const portableSync=await cmd('providerSync:start',{connectionId:portableProvider.id})
  const portableReceiptKey=await cmd('provider:connect',{provider:'receipt',accountLabel:'Portable workflow request key',credential:'synthetic-gauge-3008'})
  const portableSecondAlert=(await state()).data.budgetAlerts.find(a=>a.value.engagementId===capProject.id&&a.id!==portableAlert.id);assert(portableSecondAlert)
@@ -395,6 +398,11 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const freshClient=confirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
    assert.equal((await restored.request('/app/client-proposals/'+portableProposal.id,freshClient)).status,403,'Fresh client sign-in alone cannot restore an old release')
    assert.equal((await restored.request('/app/client-proposals/'+signedProposal.id+'/evidence/signed',freshClient)).status,403,'Signed artifacts keep the same disconnected recipient authority after restore')
+   const restoredScopeResponse=await restored.request('/api/gauge/scope-previews/'+signedProposal.id,restored.owner);assert.equal(restoredScopeResponse.status,200)
+   const restoredScope=(await restoredScopeResponse.json()).previews.find(r=>r.id===portableScope.id)
+   assert.equal(restoredScope.status,'resolved-for-review');assert.equal(restoredScope.resolution.id,portableResolution.id)
+   assert.deepEqual(restoredScope.value,before.data.commercialEvents.find(r=>r.id===portableScope.id).value)
+   assert.deepEqual(restoredScope.resolution.value,before.data.commercialEvents.find(r=>r.id===portableResolution.id).value)
    const restoredEvidence=restoredEstimates.data.commercialEvents.find(r=>r.value.proposalId===signedProposal.id&&r.value.status==='verified');assert.equal(restoredEvidence.value.artifacts.signed.base64,signatureOriginal.toString('base64'))
    await restored.cmd('commercial:signature-readback',releasedSigned,restored.owner,409)
    const mailCount=restored.mails.length

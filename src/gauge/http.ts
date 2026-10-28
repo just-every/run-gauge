@@ -1,3 +1,5 @@
+import { scopePreviewRead } from './scope-extraction'
+import { scopePreviewPage } from './ui-scope-extraction'
 import { analystAnswer } from './analyst'
 import { clientChangePageResponse } from './ui-client-change'
 import { changeClientResponse } from './scope-review'
@@ -55,13 +57,14 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  if(path.startsWith('/app/client-invoices/'))return invoiceClientResponse(request,runtimeBindings(original))
  if(path.startsWith('/app/client-proposals/')||path.startsWith('/app/proposal-originals/'))return commercialClientResponse(request,runtimeBindings(original))
  const invoiceDocumentRoute=path.match(/^\/api\/gauge\/(invoice-drafts|invoice-documents)\/([^/%]+)$/)
+ const scopeRoute=path.match(/^\/(api\/gauge|app)\/scope-previews\/([^/%]+)$/)
  const mutation=path==='/api/gauge/command'||path==='/app/action'
  const historyRoute=path.match(/^\/api\/gauge\/history\/([^/%]+)\/([^/%]+)$/)
  const savedRoute=path.match(/^\/api\/gauge\/saved\/([^/%]+)$/)
  const resourceRoute=path.match(/^\/api\/gauge\/resources\/([^/%]+)$/)
  const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports|handoffs|closes)\/([^/%]+)$/)
  const page=path==='/app'?'review':path.match(/^\/app\/(review|engagements|time|expenses|capacity|rates|billing|imports|access)$/)?.[1]
- if((!mutation&&!invoiceDocumentRoute&&!historyRoute&&!resourceRoute&&!savedRoute&&!download&&!path.startsWith('/api/gauge/v1/')&&!['/api/gauge/analyst','/api/gauge/accountant','/api/gauge/privacy/journal','/api/gauge/receivables','/api/gauge/receivables.csv','/api/gauge/state','/api/gauge/clients','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke','/api/gauge/audit','/api/gauge/audit/export','/api/gauge/audit/verify','/app/audit'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
+ if((!mutation&&!scopeRoute&&!invoiceDocumentRoute&&!historyRoute&&!resourceRoute&&!savedRoute&&!download&&!path.startsWith('/api/gauge/v1/')&&!['/api/gauge/analyst','/api/gauge/accountant','/api/gauge/privacy/journal','/api/gauge/receivables','/api/gauge/receivables.csv','/api/gauge/state','/api/gauge/clients','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke','/api/gauge/audit','/api/gauge/audit/export','/api/gauge/audit/verify','/app/audit'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
  const env=runtimeBindings(original)
  // A refused page form shows its reason on the page it came from; programs keep the JSON answer.
  let refused:{a:Actor,action:string}|undefined
@@ -91,6 +94,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
   if(a.role==='agent')need(mutation||historyRoute||path==='/api/gauge/state'||path==='/app'||path==='/app/review','Agent read door is outside its purpose',403)
   const allowed=mutation?['POST']:['GET','HEAD']
   if(!allowed.includes(request.method))return Response.json({error:'Method not allowed'},{status:405,headers:{...headers,allow:allowed.join(', ')}})
+  if(scopeRoute){const read=await scopePreviewRead(env,a,scopeRoute[2]);return scopeRoute[1]==='app'?new Response(scopePreviewPage(read),{headers:{...headers,'content-type':'text/html; charset=utf-8'}}):Response.json(read,{headers})}
   if(path==='/api/gauge/accountant')return Response.json(await accountantInputs(env,a),{headers})
   if(mutation) {
    need(request.headers.get('origin')===env.AUTH_ORIGIN&&request.headers.get('sec-fetch-site')!=='cross-site','Invalid origin',403)
@@ -111,6 +115,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    if(action==='invoice:release'||action==='invoice:revoke-access'){const released=await get(env,'invoiceAccess',result.id);return new Response(null,{status:303,headers:{...headers,location:'/api/gauge/invoice-documents/'+encodeURIComponent(released.value.invoiceId)}})}
    if(action==='estimate:compare')return new Response(await appPage(env,a,'engagements',{estimate:input.afterId,estimateComparison:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action.startsWith('providerSync:'))return new Response(null,{status:303,headers:{...headers,location:'/app/access#provider-health'}})
+   if(action.startsWith('scope:'))return new Response(null,{status:303,headers:{...headers,location:'/app/scope-previews/'+encodeURIComponent(input.proposalId)}})
    if(action.startsWith('commercial:')){const estimateId=input.estimateId??(await get(env,'commercialProposals',input.id)).value.estimateId;return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(estimateId)}#commercial-proposals`}})}
    if(action==='estimate:convert')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(result.id)}`}})
    if(action==='estimate:save'||action==='estimate:approve'||action==='estimate:withdraw')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?estimate=${encodeURIComponent(input.id??result.id)}#estimates`}})

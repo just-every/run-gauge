@@ -28,6 +28,7 @@ interface CustomerPhase {
 }
 interface CustomerLine {
  key:string;name:string;phaseKey:string;service:string;kind:'labor'|'subcontractor'|'expense'
+ role?:string
  effortSeconds:number;quantity:number;billRateMinor:number|null;baseMinor:number;amountMinor:number
 }
 export interface CommercialProposalDocument {
@@ -94,7 +95,7 @@ export async function commercialProposalDocument(estimate:Row,input:CommercialPr
   need(l.kind==='labor'||l.kind==='subcontractor'||l.kind==='expense','Estimate line kind is invalid')
   const effortSeconds=amount(l.effortSeconds,'Line effort seconds'),quantity=integer(l.quantity,'Line quantity',1,100000),baseMinor=amount(l.baseMinor,'Line base price'),billRateMinor=l.kind==='expense'?null:amount(l.billRateMinor,'Customer hourly rate')
   need(l.kind==='expense'?effortSeconds===0&&baseMinor%quantity===0:quantity===1&&effortSeconds>0&&charge(effortSeconds,billRateMinor!)===baseMinor,'Estimate line price and effort do not reconcile')
-  return {key:text(l.key,'Line key',100),name:text(l.name,'Line description',200),phaseKey:phase.key,service:phase.service,kind:l.kind,effortSeconds,quantity,billRateMinor,baseMinor,amountMinor:amount(l.amountMinor,'Line customer amount')}
+  return {key:text(l.key,'Line key',100),name:text(l.name,'Line description',200),phaseKey:phase.key,service:phase.service,kind:l.kind,...(l.kind!=='expense'&&l.role?{role:text(l.role,'Customer role',200)}:{}),effortSeconds,quantity,billRateMinor,baseMinor,amountMinor:amount(l.amountMinor,'Line customer amount')}
  })
  need(new Set(lines.map(l=>l.key)).size===lines.length,'Estimate line keys must be unique')
  const totalMinor=amount(v.totalMinor,'Estimate total'),feeMinor=amount(v.feeMinor,'Estimate fees'),expenseMinor=amount(v.expenseMinor,'Estimate expenses'),effortSeconds=amount(v.effortSeconds,'Estimate effort seconds'),baseMinor=amount(v.baseMinor,'Estimate base price'),grossMinor=amount(v.grossMinor,'Estimate contingency price'),discountMinor=amount(v.discountMinor,'Estimate discount')

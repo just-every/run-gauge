@@ -1,3 +1,4 @@
+import { finance } from './store'
 import type { Actor } from './store'
 import type { Row } from './model'
 import type { Report } from './ui-describe'
@@ -9,6 +10,7 @@ export function commercialProposalSection(a:Actor,report:Report,estimate:Row){
  let html='<section id="commercial-proposals" class="g-block"><h2>Client proposals</h2><p>Review a complete customer document before sending. Only its invited recipient can open the client link and respond. A newer proposal or estimate needs fresh acceptance. Private costs and staffing assumptions are excluded.</p>'
  for(const row of rows){const v=row.value,events=report.data.commercialEvents.filter(r=>r.value.proposalId===row.id)
   html+=`<section class="g-card" id="commercial-${e(row.id)}"><h3>${e(v.document.title)} · proposal version ${v.number}</h3><p>${e(v.status)} · ${e(v.document.recipient.name)} · ${e(v.document.recipient.contact)}</p><details><summary>Review the exact customer document</summary>${commercialProposalDocumentBody(v.document).replaceAll('id="',`id="${e(row.id)}-`)}</details><ul>${events.map(r=>`<li>${e(r.value.type)}${r.value.status?' · '+e(r.value.status):''} · ${e(r.value.meaning??r.value.reason??r.value.contact??'')} <a href="/api/gauge/history/commercialEvents/${e(r.id)}">History</a></li>`).join('')}</ul>`
+  if(finance(a)&&events.some(r=>r.value.type==='accepted'))html+=`<p><a href="/app/scope-previews/${e(row.id)}">Review signed scope extraction</a></p>`
   if(a.role==='owner')for(const event of events.filter(r=>r.value.type==='delivery'))html+=form('commercial:delivery-readback','Reconcile mailbox delivery',input('providerMessageId','Provider message id (required if submission timed out)',event.value.providerMessageId??'','text',false)+area('reason','Reconciliation reason','',false),event,'Read delivery status')
   if(a.role==='owner'&&v.status==='released'&&v.document.signatureRequired){
    html+=`<p><a href="/app/proposal-originals/${e(row.id)}">Download exact original PDF for Inkwell</a></p>`

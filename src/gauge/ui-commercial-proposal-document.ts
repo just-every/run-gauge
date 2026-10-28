@@ -17,7 +17,7 @@ export function commercialProposalDocumentBody(document:CommercialProposalDocume
   + `<section class="g-card"><h2>Scope</h2><p>${prose(d.scope)}</p><h3>Deliverables</h3>${list(d.deliverables)}<h3>Exclusions</h3>${list(d.exclusions)}</section>`
   + `<section class="g-card"><h2>Phases and dates</h2>${d.phases.map(phase=>`<section class="g-card"><h3>${e(phase.name)} · ${e(phase.service)}</h3><p>${phase.mode==='fixed'?'Fixed fee':'Hourly'} · ${e(day(phase.from))} – ${e(day(phase.to))} · ${e(hours(phase.effortSeconds))}</p><p>Fees ${e(money(phase.feeMinor,d.currency))} · expenses ${e(money(phase.expenseMinor,d.currency))}</p></section>`).join('')}</section>`
   + table('Customer prices',lines,[
-   {label:'Work',line:1,wrap:true,cell:r=>`${e(r.value.name)}<span class="g-sub">${e(r.value.service)}</span>`},
+   {label:'Work',line:1,wrap:true,cell:r=>`${e(r.value.name)}<span class="g-sub">${e([r.value.service,r.value.role].filter(Boolean).join(' · '))}</span>`},
    {label:'Effort / quantity',line:2,cell:r=>e(r.value.kind==='expense'?`${r.value.quantity} units`:hours(r.value.effortSeconds))},
    {label:'Base rate',line:3,cell:r=>r.value.kind==='expense'?e(money(r.value.baseMinor/r.value.quantity,d.currency))+' per unit':e(money(r.value.billRateMinor,d.currency))+' per hour'},
    {label:'Customer amount',line:2,num:true,cell:r=>e(money(r.value.amountMinor,d.currency))},

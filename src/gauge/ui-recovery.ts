@@ -13,6 +13,7 @@ import { type Report, proposalLabels } from './ui-describe'
 import { agentStrip, dayName } from './ui-shell'
 import { figure, shift, workedCommitted } from './ui-board'
 import { alternativeBillable } from './alternative-billable'
+export { analystPanel } from './ui-analyst'
 
 const letter = (n: number) => String.fromCharCode(65 + n)
 const words = ['No', 'One', 'Two', 'Three', 'Four', 'Five']

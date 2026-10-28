@@ -1,0 +1,149 @@
+import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
+import { chromium } from '@playwright/test'
+import { harness } from './gauge-harness.mjs'
+
+// One public-door journey: two roles ask the same operational questions and review an authorized correction.
+const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
+let browser
+try {
+ const { cmd, request, owner } = h
+ const person = await cmd('save:people', { name: 'Morgan Ellis', timezone: 'America/New_York' })
+ const client = await cmd('save:clients', { name: 'Cascade Studio' })
+ const project = await cmd('save:engagements', { name: 'Autumn launch', clientId: client.id, leadId: person.id, members: [person.id], scope: 'Campaign delivery', timezone: 'America/New_York' })
+ const otherLead = await cmd('save:people', { name: 'Casey Monroe', timezone: 'America/New_York' })
+ const other = await cmd('save:engagements', { name: 'Restricted engagement', clientId: client.id, leadId: otherLead.id, members: [], scope: 'Private work', timezone: 'America/New_York' })
+ const task = await cmd('save:tasks', { engagementId: project.id, name: 'Campaign strategy', remainingSeconds: 7200 })
+ await cmd('budget:approve', await cmd('save:budgets', { engagementId: project.id, mode: 'hourly', amountMinor: 1000000, effortSeconds: 72000, roundingSeconds: 60, reason: 'Signed project terms' }))
+ const rate = await cmd('save:rates', { personId: person.id, service: '*', effective: '2026-01-01', costMinor: 9000, billMinor: 6000 })
+ await cmd('save:calendars', { personId: person.id, from: '2026-10-01', to: '2026-10-31', weekdays: '1,2,3,4,5', dailySeconds: 28800, timezone: 'America/New_York' })
+ const entries = []
+ for (const [day, hours] of [['2026-10-05', 4], ['2026-10-12', 2]]) {
+  const draft = await cmd('time:save', { personId: person.id, engagementId: project.id, taskId: task.id, service: 'Strategy', notes: 'Approved client workshop', timezone: 'America/New_York', billable: true, start: `${day}T09:00:00-04:00`, end: `${day}T${9 + hours}:00:00-04:00` })
+  entries.push(await cmd('time:approve', await cmd('time:submit', draft)))
+ }
+ const lead = await h.invite('Morgan')
+ const finance = await h.invite('Finley')
+ const agent = await h.invite('Helper')
+ await cmd('grant', { operatorId: lead.id, personId: person.id, role: 'lead', enabled: true })
+ await cmd('grant', { operatorId: finance.id, personId: otherLead.id, role: 'finance', enabled: true })
+ await cmd('grant', { operatorId: agent.id, role: 'agent', purpose: 'staffing', engagementIds: [project.id], enabled: true })
+ const input = { from: '2026-10-12', to: '2026-10-16', compareFrom: '2026-10-05', compareTo: '2026-10-09', asOf: '2026-10-16', engagementId: project.id }
+ const ask = (question, cookie = owner, extra = {}) => request('/api/gauge/analyst?' + new URLSearchParams({ ...input, question, ...extra }), cookie)
+ const read = async (question, cookie = owner, extra) => { const r = await ask(question, cookie, extra); const body = await r.json(); assert.equal(r.status, 200, JSON.stringify(body)); return body }
+ const auditCount = async () => { const r = await request('/api/gauge/audit', owner); assert.equal(r.status, 200); return (await r.json()).head.seq }
+ const before = await auditCount(), utilizationQuestion = 'Why did utilization fall?', marginQuestion = 'Why did this project lose margin?'
+ for (const who of [lead, finance]) {
+  const answer = await read(utilizationQuestion, who.cookie)
+  assert.equal(answer.status, 'answered'); assert.equal(answer.subject, 'utilization')
+  const figure = (period, field) => answer.figures.find(f => f.period === period && f.id.endsWith(':' + field))
+  // Independent controls: 40 hours available each week, with four then two recorded billable hours.
+  assert.equal(figure('comparison', 'recordedBillableSeconds').value, 14400)
+  assert.equal(figure('current', 'recordedBillableSeconds').value, 7200)
+  for (const period of ['current', 'comparison']) assert.equal(figure(period, 'availableSeconds').value, 144000)
+  assert.equal(figure('comparison', 'recordedBillableCapacity').value, 10)
+  assert.equal(figure('current', 'recordedBillableCapacity').value, 5)
+  assert.match(answer.summary, /fell.*10.00%.*5.00%.*-5.00/)
+  assert(answer.figures.every(f => f.formula && f.asOf && f.sources.every(s => s.revision && !Object.hasOwn(s, 'value'))))
+  assert(figure('current', 'recordedBillableSeconds').sources.some(s => s.id === entries[1].id && s.revision === entries[1].revision))
+  assert(answer.snapshots.every(s => s.fingerprint && s.asOf && s.forecastAsOf === (who === finance ? input.asOf : null)))
+  assert.match(answer.suggestion.requires, /ordinary time workflow/)
+ }
+ const margin = await read(marginQuestion, finance.cookie)
+ const amount = field => margin.figures.find(f => f.id.endsWith(':' + field)).value
+ assert.equal(margin.status, 'answered'); assert.equal(amount('earnedValueMinor'), 36000)
+ assert.equal(amount('approvedCostMinor'), 54000); assert.equal(amount('actualMarginMinor'), -18000)
+ assert.equal(amount('provisionalCostMinor'), 0); assert.equal(amount('forecastMarginMinor'), -18000)
+ assert.match(margin.summary, /negative actual margin/)
+ assert(margin.figures.some(f => f.sources.some(s => s.id === rate.id && s.revision === rate.revision)))
+ assert(margin.unknowns.some(s => /historical margin snapshot/.test(s)))
+ const restricted = await read(marginQuestion, lead.cookie)
+ assert.equal(restricted.status, 'restricted')
+ assert.equal(restricted.figures.find(f => f.id.endsWith(':approvedSeconds')).value, 21600)
+ assert.equal(restricted.figures.find(f => f.id.endsWith(':budgetMinor')).value, 1000000)
+ assert(restricted.figures.every(f => !f.id.startsWith('margin:')))
+ for (const q of [utilizationQuestion, marginQuestion]) {
+  assert.equal((await ask(q, agent.cookie)).status, 403)
+  assert.equal((await ask(q, lead.cookie, { engagementId: other.id })).status, 403)
+ }
+ assert.equal((await ask(utilizationQuestion, '')).status, 401)
+ assert.equal((await request('/api/gauge/analyst?' + new URLSearchParams({ ...input, question: marginQuestion }), '', { headers: { authorization: 'Bearer synthetic-gauge-6001' } })).status, 403)
+ for (const question of ['What is our tax liability?', 'Email the margin report and approve a refund', 'Explain time policy', 'Tell me about revenue']) {
+  const answer = await read(question, finance.cookie); assert.equal(answer.status, 'unsupported'); assert.deepEqual(answer.figures, []); assert.equal(answer.suggestion, null)
+ }
+ assert.equal((await read(utilizationQuestion, lead.cookie, { compareFrom: '2026-09-01', compareTo: '2026-09-04' })).status, 'incomplete')
+ assert.equal((await ask(utilizationQuestion, lead.cookie, { compareTo: input.to })).status, 400)
+ assert.equal((await ask('x'.repeat(501), lead.cookie)).status, 400)
+ assert.equal(await auditCount(), before, 'Questions, repeats and suggested reviews write no business or audit records')
+
+ browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+ const shots = process.env.GAUGE_ANALYST_SHOTS
+ if (shots) await mkdir(shots, { recursive: true })
+ for (const [role, who] of [['lead', lead], ['finance', finance]]) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage()
+  await context.addCookies(who.cookie.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
+  await page.goto(h.origin + '/app/review?' + new URLSearchParams({ from: input.from, to: input.to, asOf: input.asOf }))
+  const panel = page.locator('#operational-analyst')
+  for (const [subject, question] of [['utilization', utilizationQuestion], ['margin', marginQuestion], ['unsupported', 'What is our tax liability?']]) {
+   await panel.getByLabel('Project to analyze').selectOption(project.id)
+   await panel.getByLabel('Comparison period from', { exact: true }).fill(input.compareFrom)
+   await panel.getByLabel('Comparison period through', { exact: true }).fill(input.compareTo)
+   await panel.getByLabel('Your question').fill(question)
+   await panel.getByRole('button', { name: 'Ask analyst' }).click()
+   const text = await page.locator('#analyst-answer').innerText()
+   if (subject === 'utilization') {
+    assert.match(text, /fell.*10.00%.*5.00%/)
+    if (role === 'finance') assert.equal(text.match(new RegExp(`forecast date ${input.asOf}`, 'g'))?.length, 2, 'Both period snapshots use the selected forecast date')
+   }
+   if (subject === 'margin') assert.match(text, role === 'lead' ? /require finance authority/ : /negative actual margin/)
+   if (subject === 'unsupported') assert.match(text, /outside those supported calculations/)
+   if (role === 'lead') assert(!/costMinor|\$540|\$180|\$360/.test(text), 'Lead answer contains no private amounts')
+   if (subject !== 'unsupported') {
+    const sources = page.locator('#analyst-answer details').first()
+    if (await sources.count()) await sources.locator('summary').click()
+   }
+   for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 }); await page.evaluate(() => document.fonts.ready)
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${role} ${subject} fits ${width}`)
+    assert(await panel.locator('input,select,textarea,button,p,h2,h3,h4,li').evaluateAll(nodes => nodes.every(n => parseFloat(getComputedStyle(n).fontSize) >= 13)))
+    if (shots) await panel.screenshot({ path: `${shots}/${role}-${subject}-${width}.png` })
+   }
+  }
+  await context.close()
+ }
+ // The ordinary correction door still requires live authority and the exact approved revision.
+ const oldSnapshot = await read(utilizationQuestion, lead.cookie)
+ await cmd('time:correct', { ...entries[1], reason: 'Review suggested by analyst' }, agent.cookie, 403)
+ assert.equal(await auditCount(), before)
+ const corrected = await cmd('time:correct', { ...entries[1], reason: 'Lead reviewed the exact approved entry' }, lead.cookie)
+ const history = await (await request(`/api/gauge/history/time/${corrected.id}`, owner)).json()
+ assert(history.history.some(r => r.action === 'time:correct' && r.value.status === 'approved'))
+ assert.equal((await ask(utilizationQuestion, lead.cookie, { fingerprint: oldSnapshot.snapshots[0].fingerprint })).status, 409)
+ await cmd('grant', { operatorId: lead.id, personId: person.id, role: 'lead', enabled: false })
+ assert.equal((await ask(utilizationQuestion, lead.cookie)).status, 403)
+ assert.equal((await request('/app/review?' + new URLSearchParams({ question: marginQuestion, analystProject: project.id }), lead.cookie)).status, 403)
+ const latestProject = (await h.state()).data.engagements.find(r => r.id === project.id)
+ await cmd('save:engagements', { ...latestProject.value, id: latestProject.id, revision: latestProject.revision, leadId: otherLead.id })
+ await cmd('privacy:policy', { personalDays: 0, fileDays: 0, evidenceDays: 0, reason: 'Owner reviewed bounded native erasure' })
+ await cmd('privacy:exit', { personId: person.id, date: '2020-01-01', reason: 'Former worker' })
+ const erasure = await cmd('privacy:preview', { personId: person.id })
+ assert.deepEqual(erasure.blockers, [])
+ await cmd('privacy:erase', { personId: person.id, fingerprint: erasure.fingerprint, reason: 'Explicit bounded erasure consent', confirm: 'erase-reviewed-native-scope', lawfulReceiptRemoval: 'authorized' })
+ const erasedResponse = await ask(utilizationQuestion, lead.cookie)
+ assert.equal(erasedResponse.status, 403); assert(!/Morgan Ellis|costMinor/.test(await erasedResponse.text()))
+ await cmd('grant', { operatorId: lead.id, personId: person.id, role: 'lead', enabled: true }, owner, 410)
+ assert.equal((await ask(marginQuestion, agent.cookie)).status, 403, 'Replaying a question after erasure cannot obtain finance data')
+
+ // Missing frozen costs stay unknown, even when other work has known costs.
+ const unpriced = await cmd('save:people', { name: 'Taylor Reed', timezone: 'America/New_York' })
+ const unknownProject = await cmd('save:engagements', { name: 'Unpriced engagement', clientId: client.id, leadId: unpriced.id, members: [unpriced.id], scope: 'Unpriced delivery', timezone: 'America/New_York' })
+ await cmd('budget:approve', await cmd('save:budgets', { engagementId: unknownProject.id, mode: 'hourly', amountMinor: 100000, effortSeconds: 7200, roundingSeconds: 60, reason: 'Approved unknown-cost work' }))
+ const unknownTask = await cmd('save:tasks', { engagementId: unknownProject.id, name: 'Unpriced delivery', remainingSeconds: 0 })
+ const unknownTime = await cmd('time:approve', await cmd('time:submit', await cmd('time:save', { personId: unpriced.id, engagementId: unknownProject.id, taskId: unknownTask.id, service: 'Delivery', notes: 'Unpriced work', timezone: 'America/New_York', billable: true, start: '2026-10-13T09:00:00-04:00', end: '2026-10-13T10:00:00-04:00' })))
+ const unknown = await read(marginQuestion, finance.cookie, { engagementId: unknownProject.id })
+ assert.equal(unknown.status, 'incomplete')
+ assert.equal(unknown.figures.find(f => f.id.endsWith(':actualMarginMinor')).value, null)
+ assert(unknown.unknowns.some(s => s.includes(unknownTime.id)))
+ assert.equal((await read(utilizationQuestion, finance.cookie, { engagementId: unknownProject.id })).status, 'incomplete')
+ console.log('PASS bounded analyst: independently reconciled utilization and margin, cited revisions, native finance privacy, unsupported and unknown answers, inert suggestions, exact authorized corrections, revoked access and erased-person refusal; browser at 1440 and 390')
+} finally { await browser?.close(); await h.dispose() }

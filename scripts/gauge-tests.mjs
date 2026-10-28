@@ -5,6 +5,7 @@ import { basename } from 'node:path'
 // The complete public-door wall is unchanged. CI divides it into independently
 // required jobs; local invocation without a shard retains the full suite.
 const suites = [
+ ["node", "tests/gauge-analyst.mjs"],
  ["node", "tests/gauge-float.mjs"],
  ["node", "tests/gauge-rocketlane.mjs"],
  ["node", "tests/gauge-productive.mjs"],
@@ -126,6 +127,7 @@ const groups = [
   "gauge-forecast.mjs"
  ],
  [
+  "gauge-analyst.mjs",
   "gauge-teamwork.mjs",
   "gauge-agent.mjs",
   "gauge-finance-forecast.mjs",

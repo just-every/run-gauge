@@ -20,7 +20,7 @@ import { escape as e } from './ui-forms'
 import { hours, money, when, chip } from './ui-format'
 import { type Report, describeSource } from './ui-describe'
 import { tabLabels, rail, topBar } from './ui-shell'
-import { agentNotice } from './ui-recovery'
+import { agentNotice, analystPanel } from './ui-recovery'
 import { operations } from './ui-operations'
 import { reviewSection } from './ui-review'
 import { engagementsSection } from './ui-engagements'
@@ -59,6 +59,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  need(tabsFor(a).includes(section),'Page unavailable',404)
  let body=options.error?`<p class="g-alert" role="alert">${e(options.error)}</p>`:options.saved?'<p class="g-saved" role="status">Saved.</p>':''
  if(section==='review')body+=await reviewSection(env,a,report,options)
+ if(section==='review')body+=await analystPanel(env,a,report,options)
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
  if(section==='engagements'&&options.edit){const project=report.data.engagements.find(r=>r.id===options.edit);if(project)body+=await clientPortalSection(env,a,project)+await intakeSection(env,a,project)}
  if(section==='time')body+=timeSection(a,report,options)

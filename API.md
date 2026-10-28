@@ -19,6 +19,34 @@ The forward migration infers an existing agency's currency from stored monetary 
 - `GET /api/gauge/audit/verify[?seq&hash]` recomputes the chain and returns `{entries, head, mismatches, gaps, unsealed, checkpoint, intact}`; a checkpoint (an earlier export's `head.seq` and `head.hash`) matches only when the chain recomputed from the first entry reproduces it.
 - `GET /api/gauge/packets/{id}` downloads an approved packet's CSV (finance); `GET /api/gauge/files/{id}` a receipt (its owner or finance).
 
+## Native project analyst
+
+`GET /api/gauge/analyst` accepts `question` (1–500 characters), `engagementId`,
+`from`, `to`, `compareFrom`, `compareTo`, optional `asOf` (forecast date, default
+`to`) and optional `fingerprint` binding the current report inputs. It requires
+a live native lead or finance session; bearer keys and agent grants cannot use
+it. The same read-only door is available under Review in “Ask about this project”.
+The current dates follow the Review period; comparison dates are selected in the
+question form. An old fingerprint returns 409 rather than silently reusing a
+changed snapshot.
+
+The bounded native calculation recognizes utilization and project-margin
+questions. Utilization compares recorded billable seconds against participating
+people’s available calendar seconds in two nonoverlapping periods. Margin
+reconciles whole-project earned operational value, approved and provisional
+cost, and actual and forecast margin. It does not reconstruct historical margin
+from a forecast date. A lead receives only permitted project totals and an
+explicit finance boundary; private margin calculations run inside finance’s
+native session. No data is sent to a model or other provider.
+
+Answers include status, scope, snapshot fingerprints and read times, formulas,
+exact source kinds, IDs and revisions, explicit missing inputs and limits. Raw
+source payloads are omitted. Unknown costs, absent activity and missing capacity
+remain unknown. Unsupported questions return an explicit unsupported answer.
+Suggestions link to ordinary review screens, write nothing, and confer no
+correction, approval or execution authority. Answers are recalculated on every
+request and are not saved or replayed as commands.
+
 ## Utilization keys (CONNECT-020)
 
 The owner creates a read-only utilization key on **Access** (or `apikey:create` with a `label`; owner only, 403 otherwise). The answer and the page show the key (`gauge_util_…`) once; Gauge stores only its SHA-256, and replaying the request key returns the key's `id` without it. `apikey:revoke` with the key's `id` revokes it; the next keyed request answers 401.

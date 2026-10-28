@@ -1,3 +1,4 @@
+import {seedLearningProjects} from './fixtures/learning-projects.mjs'
 import { sourceFieldJourney } from './fixtures/source-custom-fields.mjs'
 import { harvestFinancePackage } from './fixtures/harvest-finance.mjs'
 import assert from 'node:assert/strict'
@@ -9,6 +10,8 @@ import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 // The caller closes the source before passing this verifier to portability().
 export async function prepareCurrentPortability(h,{importJob}) {
  const {cmd,state,request,owner}=h,zone='Australia/Brisbane'
+ const learning=await seedLearningProjects(h),learningPreview=await cmd('learning:preview',learning.input)
+ const portableLearning=await cmd('learning:save',{...learning.input,sourceDigest:learningPreview.sourceDigest})
  // COST-002: retain receipt economics, unit rates, once-only reimbursement and honest receiver history.
  const expensePerson=await cmd('save:people',{name:'synthetic-gauge-7201',timezone:zone})
  const expenseClient=await cmd('save:clients',{name:'Portable travel client'})
@@ -311,9 +314,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
  for(const archive of before.data.archives)downloads.push(`/api/gauge/archives/${archive.id}`)
  downloads.push(`/api/gauge/imports/${importJob}`,`/api/gauge/imports/${retainedImport.id}`)
  const getBytes=async(app,path)=>{const response=await app.request(path,app.owner);assert.equal(response.status,200,path);return Buffer.from(await response.arrayBuffer())}
- const bytes=await Promise.all(downloads.map(path=>getBytes(h,path)))
+ const readAll=async(app,paths)=>{const result=[];for(let i=0;i<paths.length;i+=8)result.push(...await Promise.all(paths.slice(i,i+8).map(path=>getBytes(app,path))));return result}
+ const bytes=await readAll(h,downloads)
  const records=Object.entries(before.data).flatMap(([kind,rows])=>rows.map(row=>`/api/gauge/history/${kind}/${row.id}`))
- const histories=await Promise.all(records.map(path=>getBytes(h,path)))
+ const histories=await readAll(h,records)
  // Restore preserves business values, not SQLite insertion order. Compare records
  // by stable identity; derived groups and source sets have no positional meaning.
  const unordered=value=>Array.isArray(value)?value.map(unordered).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,unordered(v)])):value
@@ -359,6 +363,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
    assert.equal((await restored.state()).data.invoices.length,restoredBefore.data.invoices.length,'Restored schedule cannot issue without fresh consent')
    assert.equal((await restored.scheduled()).status,200)
    assert.deepEqual((await restored.state()).data.retainerRuns,restoredRuns,'Archive history never replays scheduled billing')
+   const restoredLearning=(await restored.state()).data.learningCohorts.find(r=>r.id===portableLearning.id)
+   assert.deepEqual(restoredLearning,before.data.learningCohorts.find(r=>r.id===portableLearning.id),'Exact held-out cohort, source revisions and scores survive restore')
+   assert.equal(restoredLearning.value.adoption.offered,false,'Restored comparison evidence grants no adoption or execution authority')
+   await restored.cmd('learning:adopt',{id:portableLearning.id,revision:portableLearning.revision},restored.owner,409)
    const restoredEstimates=await restored.state(),restoredAttestation=restoredEstimates.data.estimateApprovals.find(r=>r.id===portableApproval.id).value
    for(const key of ['acceptorName','acceptorContact','acceptanceDate','channel','evidenceRef','notice'])assert.equal(restoredAttestation[key],savedAttestation[key],'Restore keeps the structured acceptance field '+key)
    assert.equal(restoredEstimates.data.estimateApprovals.find(r=>r.id===withdrawnApproval.id).value.status,'withdrawn')
@@ -367,9 +375,9 @@ export async function prepareCurrentPortability(h,{importJob}) {
    assert.deepEqual(restoredEstimates.data.operationalCases,before.data.operationalCases,'Case owners, next actions, reply state, snooze and baseline survive restore')
    assert.deepEqual(restoredEstimates.data.caseEvents,before.data.caseEvents,'Case attempt/reply history survives without authority or automatic action')
    assert.deepEqual(stable(restoredEstimates),stable(before),'fresh native login sees the same current records, money and capacity')
-   const restoredBytes=await Promise.all(downloads.map(path=>getBytes(restored,path)))
+   const restoredBytes=await readAll(restored,downloads)
    assert.deepEqual(restoredBytes,bytes,'packet artifacts, receipts and retained source originals round-trip byte for byte')
-   assert.deepEqual(await Promise.all(records.map(path=>getBytes(restored,path))),histories,'all business revision history survives')
+   assert.deepEqual(await readAll(restored,records),histories,'all business revision history survives')
    const restoredScopePreview=await restored.cmd('change:preview',scopeInput)
    const continuedChange=await restored.cmd('change:prepare',{...scopeInput,previousId:portableChange.id,fingerprint:restoredScopePreview.fingerprint,name:'Continued restored change request',reason:'Version order is business order after restore'})
    const continuedRow=(await restored.state()).data.projectScenarios.find(r=>r.id===continuedChange.id)

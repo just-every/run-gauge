@@ -1,3 +1,4 @@
+import { learningPanel } from './ui-learning'
 import { intakeSection } from './intake'
 import { clientPortalSection } from './client-portal'
 import { accountantBody } from './accountant'
@@ -59,6 +60,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  need(tabsFor(a).includes(section),'Page unavailable',404)
  let body=options.error?`<p class="g-alert" role="alert">${e(options.error)}</p>`:options.saved?'<p class="g-saved" role="status">Saved.</p>':''
  if(section==='review')body+=await reviewSection(env,a,report,options)
+ if(section==='review')body+=learningPanel(a,report,options)
  if(section==='review')body+=await analystPanel(env,a,report,options)
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
  if(section==='engagements'&&options.edit){const project=report.data.engagements.find(r=>r.id===options.edit);if(project)body+=await clientPortalSection(env,a,project)+await intakeSection(env,a,project)}

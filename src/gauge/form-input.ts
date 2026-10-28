@@ -110,5 +110,9 @@ export function formInput(form: FormData): Value {
   input.phases=Object.keys(input).filter(k=>/^estimatePhase\d+Name$/.test(k)&&String(input[k]).trim()).map(k=>{const pre=k.slice(0,-4);return {key:input[pre+'Key'],name:input[k],service:input[pre+'Service'],mode:input[pre+'Mode'],from:input[pre+'From'],to:input[pre+'To']}})
   input.lines=Object.keys(input).filter(k=>/^estimateLine\d+Name$/.test(k)&&String(input[k]).trim()).map(k=>{const pre=k.slice(0,-4),v:Value={key:input[pre+'Key'],name:input[k],phaseKey:input[pre+'Phase'],kind:input[pre+'Kind'],role:input[pre+'Role'],personId:input[pre+'Person']||null,effortSeconds:input[pre+'EffortSeconds'],billRateMinor:input[pre+'BillRateMinor'],quantity:input[pre+'Quantity'],unitBillMinor:input[pre+'UnitBillMinor']};if(input[pre+'CostRateMinor']!==undefined&&input[pre+'CostRateMinor']!=='')v.costRateMinor=input[pre+'CostRateMinor'];if(input[pre+'CostMinor']!==undefined&&input[pre+'CostMinor']!=='')v.costMinor=input[pre+'CostMinor'];if(v.costRateMinor!==undefined||v.costMinor!==undefined)v.costReference=input[pre+'CostReference'];return v})
  }
+ if(input.action.startsWith('learning:')){
+  if(input.payload){const payload=JSON.parse(input.payload);Object.assign(input,payload)}
+  else{input.candidateBasisPoints=decimal(String(input.candidatePercent),'Candidate effort percent')*100;input.selections=form.getAll('selectedSamples').map(v=>JSON.parse(String(v)));input.excludedClients=form.getAll('excludedClients').map(v=>({...JSON.parse(String(v)),reason:input.exclusionReason}))}
+ }
  return input
 }

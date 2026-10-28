@@ -507,9 +507,27 @@
     },
     {
       "binding": "DB",
+      "name": "0081_gauge_change_acceptance_versions.sql",
+      "sha256": "97aa276992de3a006ab6493557b53ab1ab50ea2a1d630c4362a9ba8899d42815",
+      "sql": "-- Existing unsigned review authority is deliberately invalid until freshly issued.\nALTER TABLE g_change_review_authority ADD COLUMN owner_version INTEGER NOT NULL DEFAULT 0;\nALTER TABLE g_change_review_authority ADD COLUMN recipient_version INTEGER NOT NULL DEFAULT 0;\n"
+    },
+    {
+      "binding": "DB",
       "name": "0082_gauge_webhook_previews.sql",
       "sha256": "2c9942d7fa3ea75120d7fc4f3350eec77230e0ee10ee348ee5f36812eca49283",
       "sql": "-- Preview bindings are installation authority. Exact payload bytes are derived, never stored.\nCREATE TABLE g_webhook_previews (\n id TEXT PRIMARY KEY, event_id TEXT NOT NULL, owner_id TEXT NOT NULL, owner_version INTEGER NOT NULL, connection_id TEXT NOT NULL,\n credential_version INTEGER NOT NULL, source_ref TEXT NOT NULL, event_type TEXT,\n payload_digest TEXT NOT NULL, expires_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0083_gauge_analyst_snapshots.sql",
+      "sha256": "e5f8f7836ab2f8a57f3218807419a743b2c3b55b475f4f57929733a6fef88066",
+      "sql": "-- Financial observations carry no source text, credential or execution authority.\nCREATE TABLE g_analystSnapshots (\n id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)),\n engagement_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.engagementId')) STORED NOT NULL REFERENCES g_engagements(id)\n);\nCREATE TRIGGER g_analyst_snapshot_immutable BEFORE UPDATE ON g_analystSnapshots\nBEGIN SELECT RAISE(ABORT,'immutable_analyst_snapshot'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0084_gauge_learning.sql",
+      "sha256": "358ae3670f4cb3621cd9ac2b0c3d7181a8f54a241da3a4c5bdd7f6201173b16c",
+      "sql": "-- Immutable owner-selected backtests are business evidence, with no execution authority.\nCREATE TABLE g_learningCohorts (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK (json_valid(data))\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
@@ -526,7 +544,6 @@
     "MAIL_RELAY_URL": "",
     "MAIL_ACCOUNT_ID": "",
     "IDENTITY_PROVIDER": "",
-    "OWNER_EMAIL": "",
     "APP_NAME": "Gauge",
     "PRIMARY_COLOR": "#174F84"
   },

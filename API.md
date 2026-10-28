@@ -1214,3 +1214,12 @@ Optional chestUrl and blotterUrl retain a reference to broader shared-file work 
 Chest or accounting-practice requests in Blotter. They must be HTTPS links without
 embedded credentials, query data or fragments. Opening a reference leaves Gauge and
 uses the other product's permissions; Gauge neither fetches it nor grants access.
+
+
+### Forecast backtesting
+
+A native owner previews a read-only comparison with `learning:preview` through `POST /api/gauge/command`. Select one to fifty original converted project estimates with `selections` entries containing `engagementId`, `engagementRevision`, `estimateId` and `estimateRevision`; provide `name`, `reason`, `completedThrough` and a `candidate` with `role` and integer `basisPoints` (10000 keeps original effort). Optional `excludedClients` entries bind a client `id`, `revision` and exclusion `reason`. Review exposes the same selection and comparison forms.
+
+The current comparison supports completed fixed-fee projects with approved actual work, completed tasks and no later committed work. Exclusions and incomplete inputs are explicit. Effort MAPE and margin error use the same eligible projects; fewer than five yields insufficient history. The original estimate retains fixed fees and cost assumptions, while final margin uses FINANCE-006. A candidate changes only its selected role effort and corresponding retained estimated cost. Currencies are never pooled, and missing costs remain unknown.
+
+`learning:save` takes the same inputs plus the preview's `sourceDigest` and a fresh request `key`. It refuses changed sources and keeps immutable numeric scores, exact source references and selection reasons in `learningCohorts`, with an owner-only audit. The installation archive carries this business evidence without adding execution authority. Saved score figures and their comparison revision are included in the ordinary report calculation CSV. Payment-timing evidence remains unavailable; manual bank receipts remain user-recorded. No comparison offers adoption, changes an estimate or executes a payment.

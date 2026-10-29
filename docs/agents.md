@@ -1,5 +1,3 @@
-# Agency preparation through the shared door
-
 Gauge serves `/mcp`, canonical OAuth metadata, signed Business policy adoption at
 `/api/rer/agent-policy`, and the native person's `/agents` policy, approval and
 audit pages through Base's shared agent door. `/docs/agents` publishes the

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {randomUUID,createHash} from 'node:crypto'
 import {mkdir} from 'node:fs/promises'
+import {request as httpsRequest} from 'node:https'
 
 // Extends CONNECT-020's existing utilization journey through the built Worker.
 export async function appApiJourney(h,browser,{staff,person,client,task,engagement}) {
@@ -11,13 +12,14 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
  const create={expiryDays:30,engagementIds:captured,label:'Scoped timesheet app',operatorId:staff.id,scope:'projects:read time:write'}
  await cmd('appkey:create',create,staff.cookie,403)
  await cmd('appkey:create',{...create,scope:'owner:*'},owner,400)
- for(const expiryDays of [undefined,0,366,1.5])await cmd('appkey:create',{...create,expiryDays},owner,400)
+ for(const expiryDays of [undefined,0,366,1.5,'Infinity'])await cmd('appkey:create',{...create,expiryDays},owner,400)
  for(const engagementIds of [undefined,[],['synthetic-gauge-unassigned']])await cmd('appkey:create',{...create,engagementIds},owner,engagementIds?.length?404:400)
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  await context.addCookies(owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
  const capture=async name=>{
   await page.setViewportSize({width:1440,height:1000});await page.evaluate(()=>document.fonts.ready)
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'App credential screen fits desktop')
+  for(const control of await page.locator('button.g-btn--icon,a.g-btn--icon').all())assert(await control.getAttribute('data-tooltip'))
   if(process.env.GAUGE_UTILIZATION_SHOTS)for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready)
    if(process.env.GAUGE_UTILIZATION_SHOTS){await mkdir(process.env.GAUGE_UTILIZATION_SHOTS,{recursive:true});await page.locator('#app-keys').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`,fullPage:true,mask:[page.locator('[name=createdKey]')]});await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`,mask:[page.locator('[name=createdKey]')]})}
@@ -97,9 +99,55 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   await page.locator(`tr[id="${key.id}"]`).getByRole('button',{name:'Revoke app credential',exact:true}).click()
   await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${key.id}"]`).innerText(),/revoked/);await capture('app-credential-revoked')
   assert.equal((await app(token)).status,401);assert.equal((await app(token,'/api/gauge/v1/time',input)).status,401,'Revocation also refuses an exact write replay')
+  const expiredAgain=await cmd('appkey:create',{...create,label:'Expired app'})
+  assert.equal((await app(expiredAgain.token)).status,200)
+  const expiryInput={...input,key:randomUUID(),start:'2026-10-04T11:00:00+10:00',end:'2026-10-04T11:30:00+10:00'}
+  assert.equal((await app(expiredAgain.token,'/api/gauge/v1/time',expiryInput)).status,200)
+  await h.db.prepare('UPDATE g_app_keys SET expires_at=0 WHERE id=?').bind(expiredAgain.id).run()
+  assert.equal((await app(expiredAgain.token)).status,401,'Expiry refuses the next read')
+  assert.equal((await app(expiredAgain.token,'/api/gauge/v1/time',expiryInput)).status,401,'Expiry refuses a previously successful write replay')
+  await h.db.prepare('UPDATE g_app_keys SET expires_at=1 WHERE id=?').bind(expiredAgain.id).run()
+  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${expiredAgain.id}"]`).innerText(),/expired/)
+  const usedAgain=await h.db.prepare('SELECT last_used_at FROM g_app_keys WHERE id=?').bind(key.id).first();assert(usedAgain.last_used_at>=key.created_at)
+  const race=await cmd('appkey:create',{...create,label:'Expiry during request'})
+  let streamRequest
+  const inFlight=new Promise((resolve,reject)=>{
+   streamRequest=httpsRequest(new URL('/api/gauge/v1/time',h.origin),{method:'POST',rejectUnauthorized:false,headers:{authorization:`Bearer ${race.token}`,'content-type':'application/json','transfer-encoding':'chunked'}},response=>{response.resume();response.on('end',()=>resolve({status:response.statusCode}))})
+   streamRequest.on('error',reject);streamRequest.setTimeout(15000,()=>streamRequest.destroy(new Error('Bounded streamed request timed out')));streamRequest.flushHeaders()
+  })
+  // Observe the authenticated request before releasing its body on the loopback TLS server.
+  inFlight.catch(()=>{})
+  let admitted=false
+  try{
+   for(let attempt=0;attempt<1000;attempt++){
+    const row=await h.db.prepare('SELECT last_used_at FROM g_app_keys WHERE id=?').bind(race.id).first()
+    if(row.last_used_at){admitted=true;break}
+    await new Promise(resolve=>setTimeout(resolve,10))
+   }
+   assert(admitted,'The authenticated request reached its recorded use before body delivery')
+   await h.db.prepare('UPDATE g_app_keys SET expires_at=1 WHERE id=?').bind(race.id).run()
+   streamRequest.end(JSON.stringify({...input,key:randomUUID(),start:'2026-10-04T12:00:00+10:00',end:'2026-10-04T12:30:00+10:00'}))
+  }finally{if(!admitted)streamRequest.destroy()}
+  assert.equal((await inFlight).status,403,'Expiry after admission prevents the in-flight write')
+  const afterRace=(await h.state()).data.time;assert(!afterRace.some(r=>r.value.start===Date.parse('2026-10-04T12:00:00+10:00')),'The refused in-flight request leaves no draft')
+  const historyLink=page.locator(`tr[id="${key.id}"]`).getByRole('link',{name:'Use history',exact:true});await historyLink.click()
+  const history=await page.locator('body').innerText();assert(history.includes('appkey:use')&&history.includes(key.id));assert(!history.includes(token))
+  const filteredHistory=await(await request('/api/gauge/audit?kind=appKeys&recordId='+key.id,owner)).json();assert(filteredHistory.entries.length>2);assert(filteredHistory.entries.every(e=>e.recordId===key.id));assert(filteredHistory.entries.some(e=>e.action==='appkey:use'&&e.result.label===create.label&&e.result.method==='GET'&&e.result.path==='/api/gauge/v1/projects'))
+
   await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true})
   assert.equal((await app(readOnly.token)).status,403,'A changed native grant invalidates existing credentials')
   await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${readOnly.id}"]`).innerText(),/principal or grant changed/);await capture('app-credential-invalidated')
+  const issuer=await h.invite('app-continuity-owner','owner')
+  const issuerBound=await cmd('appkey:create',{...create,label:'Issuing owner authority'},issuer.cookie)
+  assert.equal((await app(issuerBound.token)).status,200)
+  await h.db.prepare("UPDATE oa_operators SET status='inactive' WHERE id=?").bind(issuer.id).run()
+  try{assert.equal((await app(issuerBound.token)).status,403,'The issuing owner must remain active')}finally{await h.db.prepare("UPDATE oa_operators SET status='active' WHERE id=?").bind(issuer.id).run()}
+  const liveBound=await cmd('appkey:create',{...create,label:'Live operator authority'})
+  assert.equal((await app(liveBound.token)).status,200)
+  await h.db.prepare('UPDATE oa_operators SET version=version+1 WHERE id=?').bind(staff.id).run()
+  assert.equal((await app(liveBound.token)).status,403,'A changed principal operator version invalidates the credential')
+  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${liveBound.id}"]`).innerText(),/principal or grant changed/)
+  if(process.env.GAUGE_UTILIZATION_SHOTS)for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('section.g-card--table').filter({has:page.getByRole('heading',{name:'App credentials',exact:true})}).screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/app-credential-register-${width}.png`})}
   console.log('PASS CONNECT-020 appApiJourney: scoped native project pagination and filters, stale cursor refusal, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, grant change and revoked replay refusal, finite expiry including write replays, exact captured scope non-widening and native membership intersection, visible lifecycle and safe activity, Access at 1440 and 390')
  }finally{await context.close()}
 }

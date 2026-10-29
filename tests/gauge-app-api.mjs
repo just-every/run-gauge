@@ -27,7 +27,7 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   await page.goto(h.origin+'/app/access');const form=page.locator('form:has(input[value="appkey:create"])')
   await form.getByLabel('App label',{exact:true}).fill(create.label);await form.locator('select[name=operatorId]').selectOption(staff.id);await form.locator('select[name=scope]').selectOption(create.scope);await form.getByLabel('Expires after days',{exact:true}).fill('30');for(const id of captured)await form.locator(`[name=engagementIds][value="${id}"]`).check()
   await capture('app-credential-create');await form.getByRole('button',{name:'Create app credential',exact:true}).click()
-  const token=await page.locator('[name=createdKey]').inputValue();assert(token)
+  const token=await page.locator('[name=createdKey]').inputValue();assert.match(token,/^gauge_app_/)
   const key=await h.db.prepare('SELECT * FROM g_app_keys WHERE label=?').bind(create.label).first();assert.equal(key.hash,createHash('sha256').update(token).digest('hex'));assert(!JSON.stringify(key).includes(token))
   assert.deepEqual(JSON.parse(key.engagement_ids),captured);assert.equal(key.person_id,person.id);assert.equal(key.expires_at-key.created_at,30*86400000)
   const lifecycle=page.locator(`tr[id="${key.id}"]`),lifecycleText=await lifecycle.innerText();assert(lifecycleText.includes(new Date(key.expires_at).toISOString().slice(0,16).replace('T',' ')+' UTC'));assert(lifecycleText.includes(person.id));assert(lifecycleText.includes('operator '+key.operator_version));assert(lifecycleText.includes('grant '+key.grant_version));for(const id of captured)assert((await lifecycle.innerText()).includes(id))

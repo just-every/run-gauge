@@ -464,7 +464,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "824fa961cd136ec80a5bc5c97fef1c84bfff711dc02c17607d9c165f3c443c4f",
+      "sha256": "f20d27342a3cf89cfe3b9cc70d979fc93fa6a352d7c38589049fb2c1d59c494b",
       "executable": false
     },
     "DEMO.md": {
@@ -4572,7 +4572,7 @@
       "executable": false
     },
     "tests/gauge-app-api.mjs": {
-      "sha256": "745a3fa83886e74cf604639894bdeab03500b8e042759c9ece4c07efc0f1d6da",
+      "sha256": "6b9ff5acfadf80039fffa566c2d998d47b0d53f5e6f56edf18914e39fd406103",
       "executable": false
     },
     "tests/gauge-approvals.mjs": {
@@ -4584,7 +4584,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "78b0528e224f414b0030e5d0d30724c3e99081c647120e1d2d95eefcfbaf9127",
+      "sha256": "1e6dd5c4bc31b8da9d74fcc9a938cb7f7c1dbbe2cff9047daa33a4ac0e496397",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {

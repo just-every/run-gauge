@@ -4,6 +4,7 @@ import {execFileSync} from 'node:child_process'
 import {createServer} from 'node:http'
 import {mkdir} from 'node:fs/promises'
 import {chromium} from '@playwright/test'
+import {clientRoleJourney} from './gauge-client-roles.mjs'
 import {recordMilestoneAcceptance,harness} from './gauge-harness.mjs'
 
 // BOUNDARY-001: actual built-worker forms/downloads and a test-only network-edge
@@ -31,7 +32,7 @@ try{
  await cmd('handoff:prepare',{recipient:'Accountant test receiver',purpose:'accounting',reason:'Stale selected revision',sources:[{...sources[0],revision:'stale'}]},owner,409)
  await cmd('handoff:prepare',{recipient:'Accountant test receiver',purpose:'accounting',reason:'No exact source revision',sources:[{kind:sources[0].kind,id:sources[0].id}]},owner,400)
  await cmd('handoff:prepare',{recipient:'Accountant test receiver',purpose:'accounting',reason:'Duplicate source review',sources:[sources[0],sources[0]]},owner,400)
- browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  await context.addCookies(finance.cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
  const capture=async (name,focus=page.locator('#specialist-handoffs'))=>{if(!process.env.GAUGE_HANDOFF_SHOTS)return;await mkdir(process.env.GAUGE_HANDOFF_SHOTS,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} fits ${width}`);await focus.scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_HANDOFF_SHOTS}/${name}-${width}.png`,fullPage:true});await page.screenshot({path:`${process.env.GAUGE_HANDOFF_SHOTS}/${name}-viewport-${width}.png`})}}
@@ -90,6 +91,7 @@ try{
  const history=await(await request(`/api/gauge/history/specialistHandoffs/${handoff.id}`,owner)).json();assert(history.history.some(r=>r.value.status==='awaiting-result'&&!r.value.result))
  await expensePolicyJourney(h,page)
  await revenueScheduleJourney(h,page)
+ await clientRoleJourney(h,browser)
  console.log('PASS BOUNDARY-001: exact approved labor/expense/revenue input export, unknown and signed reconciliation, real test-receiver acceptance/rejection, honest labels, immutable results, replay and scoped privacy')
 }finally{await browser?.close();if(receiver)await new Promise(resolve=>receiver.close(resolve));await h.dispose()}
 

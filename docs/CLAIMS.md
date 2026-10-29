@@ -119,7 +119,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `MIGRATE-010` | partial | `src/gauge/harvest.ts`; `src/gauge/imports.ts`; `tests/gauge.mjs` |
 | `GOVERN-001` | done | `src/gauge/approval-policy.ts`; `src/gauge/catalog.ts`; `tests/gauge-approvals.mjs` |
 | `GOVERN-002` | done | `src/gauge/store.ts`; `src/gauge/reports.ts`; `src/gauge/time-review.ts`; `tests/gauge.mjs` |
-| `GOVERN-003` | partial | `tests/gauge-handoffs.mjs` |
+| `GOVERN-003` | partial | `tests/gauge-handoffs.mjs`; `migrations/core/0085_gauge_client_roles.sql`; `tests/gauge-client-roles.mjs`; `tests/gauge-handoffs.mjs` |
 | `GOVERN-004` | missing |  |
 | `GOVERN-005` | done | `src/gauge/audit.ts`; `src/gauge/ui-audit.ts`; `src/gauge/store.ts`; `src/gauge/http.ts`; `migrations/core/0036_gauge_audit.sql`; `tests/gauge-audit.mjs` |
 | `GOVERN-006` | partial | `src/gauge/privacy.ts`; `src/gauge/ui-privacy.ts`; `tests/gauge-privacy.mjs`; `tests/gauge-audit.mjs` |

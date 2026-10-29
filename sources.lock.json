@@ -491,7 +491,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "0bb242a7f48d900ea4be0459f08b45d67f0f029550ab1230f374925954db46d0",
+      "sha256": "35286161c3fd7cc2db78de5c2b15bf15846e7876a8cfbd96130a108d7f0baac8",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -1734,8 +1734,12 @@
       "sha256": "ee122738bddd0e72da61b80d10e5ee01cc221eec1325987c04be2533ce0c8448",
       "executable": false
     },
+    "src/gauge/door/docs.ts": {
+      "sha256": "ff32b61cec2a3ad1abb3963043aadf00c0311a4c7f642558a541e409a73cc966",
+      "executable": false
+    },
     "src/gauge/door/index.ts": {
-      "sha256": "4d2d40e71facc984991ecabf9b8ed63cfd8cbee81723701fd3a2a641d73d3d60",
+      "sha256": "3b3cb0bbbaf25e8406b7fe285d9737efe0d1b56146ee5b34d26063fa27b84667",
       "executable": false
     },
     "src/gauge/door/legacy.ts": {

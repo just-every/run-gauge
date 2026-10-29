@@ -3,6 +3,7 @@ import { authConfig,operatorAuth,runtimeBindings,type Bindings } from '../../aut
 import { gaugeBusiness } from '../business'
 import { gaugeTools } from './tools'
 import { gaugeResources } from './resources'
+import { agentDocumentation } from './docs'
 import { boundAgent,localAgentId } from '../agent-grants'
 
 function trust(env:Bindings):Trust|null{
@@ -30,6 +31,7 @@ export function gaugeDoor(original:Bindings){
 }
 export async function gaugeAgentResponse(request:Request,original:Bindings){
  const env=runtimeBindings(original)
+ const docs=agentDocumentation(request,env);if(docs)return docs
  // The signed settings and policy doors run before native app/setup redirects.
  const settings=await gaugeBusiness(env).handle(request);if(settings)return settings
  const response=await gaugeDoor(env).handle(request)

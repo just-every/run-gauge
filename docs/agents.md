@@ -2,7 +2,8 @@
 
 Gauge serves `/mcp`, canonical OAuth metadata, signed Business policy adoption at
 `/api/rer/agent-policy`, and the native person's `/agents` policy, approval and
-audit pages through Base's shared agent door. It accepts MCP 2026-07-28 and
+audit pages through Base's shared agent door. `/docs/agents` publishes the
+current tool and resource declarations directly from the registry. It accepts MCP 2026-07-28 and
 2025-11-25. Gauge has no built-in model and this declared subset uses no paid AI.
 
 The currently judged native agent authority is **preparation only**. Company

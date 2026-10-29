@@ -31,10 +31,13 @@ export function gaugeDoor(original:Bindings){
  })
 }
 export async function gaugeAgentResponse(request:Request,original:Bindings){
- const env=runtimeBindings(original)
+ const env=runtimeBindings(original),path=new URL(request.url).pathname
  const docs=agentDocumentation(request,env);if(docs)return docs
+ // Construct authenticated adapters only for their owned paths. Public health
+ // and document routes retain their native configuration requirements.
+ if(['/api/rer/business-settings','/rer-business-logo','/rer-business.css'].includes(path))return gaugeBusiness(env).handle(request)
+ if(!['/mcp','/api/rer/agent-policy','/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/mcp','/agents'].includes(path)&&!path.startsWith('/agents/api/')&&!/^\/agents\/approvals\/[^/]+$/.test(path))return null
  // The signed settings and policy doors run before native app/setup redirects.
- const settings=await gaugeBusiness(env).handle(request);if(settings)return settings
  const response=await gaugeDoor(env).handle(request)
  // Drain a rejected upload without retaining it, so the native HTTP transport
  // can deliver the door's 413 instead of aborting the connection mid-upload.

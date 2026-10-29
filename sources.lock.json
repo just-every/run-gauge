@@ -1739,7 +1739,7 @@
       "executable": false
     },
     "src/gauge/door/index.ts": {
-      "sha256": "f77fa8f629429ceb2f93e685a5c46fd513f111c8c2805a250c6d2b4b513064db",
+      "sha256": "66d42a2d632c411b931b410c5dc327243d43fdcd9ab3c362c896bb709551ecc3",
       "executable": false
     },
     "src/gauge/door/legacy.ts": {

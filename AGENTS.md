@@ -119,12 +119,12 @@ authorization. Writes take a request key and bind exact record revisions.
 Money is integer cents in the agency currency; durations are whole seconds. Start local data empty:
 no seeded records, fake providers, fallbacks or mock behavior.
 
-Lander-Regenerate: after changing a Status row, run
-`node scripts/contract-docs.mjs write --clauses RECOVER-008` (comma-separated
-touched clause IDs), then the same command with `check` instead of `write`.
-It regenerates summary counts, the touched legacy acceptance rows and
-`docs/CLAIMS.md` from CONTRACT.md, preserving other acceptance evidence.
-Run `pnpm run source:lock` last, then `pnpm run source:check`.
+Lander-Regenerate: node scripts/contract-docs.mjs write --clauses BASE-AGENT-001,BASE-AGENT-002,BASE-AGENT-003,BASE-AGENT-004,BASE-AGENT-005,BASE-AGENT-006,BASE-AGENT-007,BASE-AGENT-008,BASE-AGENT-009,BASE-AGENT-010,BASE-AGENT-011,BASE-AGENT-012,BASE-AGENT-013
+
+After changing a Status row, run that command with the comma-separated touched
+clause IDs, then the same command with `check` instead of `write`. It regenerates
+summary counts, touched acceptance rows and `docs/CLAIMS.md`, preserving unrelated
+legacy evidence. Run `pnpm run source:lock` last, then `pnpm run source:check`.
 
 Agents prepare; people decide. An `agent` grant may only `proposal:prepare` and
 `proposal:withdraw`; approval runs the ordinary command as the deciding person in

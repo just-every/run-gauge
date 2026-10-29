@@ -146,3 +146,16 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `BOUNDARY-001` | done | `src/gauge/specialist-handoff.ts`; `src/gauge/ui-specialist-handoff.ts`; `tests/gauge-handoffs.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-invoices.mjs` |
 | `BOUNDARY-002` | partial | `tests/fixtures/stripe-journey.mjs`; `tests/gauge-invoices.mjs`; `tests/fixtures/stripe-archive.mjs` |
 | `BOUNDARY-003` | missing |  |
+| `BASE-AGENT-001` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-002` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-003` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-004` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-005` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-006` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-007` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-008` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-009` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-010` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-011` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-012` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |
+| `BASE-AGENT-013` | partial | `src/gauge/door/index.ts`; `agent-surface.json`; `tests/gauge-agent.mjs` |

@@ -6,7 +6,7 @@ const common = {
  clients: ['name'], people: ['name','timezone'],
  engagements: ['name','clientId','leadId','members','type','currency','timezone'],
  tasks: ['name','engagementId','remainingSeconds','status'],
- proposals: ['kind','engagementId','status','preparedBy','preparedAt','assumptions','evidence','plan','decidedBy','decidedAt','reason','choice','effect','availability'],
+ proposals: ['kind','engagementId','status','preparedBy','preparedAt','assumptions','evidence','plan','decidedBy','decidedAt','reason','choice','effect','availability','attribution','operationId','policyApprovers'],
 }
 const work = {
  time: ['personId','engagementId','taskId','service','start','end','timezone','workDate','durationSeconds','notes','billable','status'],

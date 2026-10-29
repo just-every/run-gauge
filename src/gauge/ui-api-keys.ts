@@ -26,7 +26,7 @@ export async function apiKeysSection(env: Bindings, created?: { id: string; labe
  body += table('App credentials',appKeys,[
   {label:'Label and principal',wrap:true,line:1,cell:r=>`${e(r.value.label)}<span class="g-sub">${e(r.value.principal)} · person ${e(r.value.person_id)}</span><span class="g-sub">Issued by ${e(r.value.issuer)} · ${e(when(r.value.created_at))}</span>`},
   {label:'Captured authority',wrap:true,line:3,cell:r=>`${e(appScopeName(r.value.scope))}<span class="g-sub">${JSON.parse(r.value.engagement_ids).map((id:string)=>e(projects.get(id)??'Unavailable project')+' · '+e(id)).join('<br>')}</span><span class="g-sub">Credential version ${e(r.value.credential_version)} · operator ${e(r.value.operator_version)} · grant ${e(r.value.grant_version)}</span>`},
-  {label:'Lifecycle',wrap:true,line:3,cell:r=>`Expires ${e(when(r.value.expires_at))}<span class="g-sub">Last used ${e(when(r.value.last_used_at))}</span>${r.value.revoked_at?`<span class="g-sub">Revoked ${e(when(r.value.revoked_at))}</span>`:''}`},
+  {label:'Lifecycle',wrap:true,line:3,cell:r=>`Expires ${e(when(r.value.expires_at))}<span class="g-sub">Last used ${e(when(r.value.last_used_at))} · <a href="/app/audit?kind=appKeys&amp;recordId=${e(r.id)}">Use history</a></span>${r.value.revoked_at?`<span class="g-sub">Revoked ${e(when(r.value.revoked_at))}</span>`:''}`},
   {label:'Status',wrap:true,line:2,cell:r=>chip(r.value.lifecycle)},
  ],r=>r.value.revoked_at?'':decision('appkey:revoke','Revoke app credential',r,false,'secondary'),'No app credentials yet.')
  const appActivity=(await env.DB.prepare("SELECT at,actor,action,record_id,data FROM g_audit WHERE kind='appKeys' ORDER BY seq DESC LIMIT 50").all<any>()).results.map((r,index)=>({id:'app-activity-'+index,revision:'',value:r}))

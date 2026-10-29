@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+export const agency={}
+
 // Native production owner lifecycle; no database or authentication substitution.
 export default async function({request,origin,claim,displayName,returnTo,reviewers}){
  const bootstrap=await request(new URL(claim.path,origin).href,{method:'POST',redirect:'manual',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({token:claim.token,displayName,returnTo})})
@@ -14,8 +16,10 @@ export default async function({request,origin,claim,displayName,returnTo,reviewe
  await cmd('save:tasks',{engagementId:engagement.id,name:'Design handoff',remainingSeconds:7200})
  const agent=await reviewers.initialize('agency-agent',{email:'synthetic-gauge-owner@example.com',cookie})
  const session=await(await request(origin+'/auth/session',{headers:{Cookie:agent.cookie}})).json()
- await cmd('grant',{operatorId:session.operator.id,role:'agent',enabled:true,purpose:'time',engagementIds:[engagement.id]})
- // Base 0.2.86 creates act.sub only after this hook returns. No invented binding
- // or self-grant is installed; conformance must expose that missing lifecycle.
+ agency.operatorId=session.operator.id
+ agency.engagementId=engagement.id
+ await cmd('grant',{operatorId:agency.operatorId,role:'agent',enabled:true,purpose:'time',engagementIds:[agency.engagementId]})
+ // The phase fixture binds the authenticated Business agent through this same
+ // owner grant after discovery has recorded its identity in the person door.
  return bootstrap
 }

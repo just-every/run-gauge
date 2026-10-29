@@ -3,7 +3,7 @@
 Gauge serves `/mcp`, canonical OAuth metadata, signed Business policy adoption at
 `/api/rer/agent-policy`, and the native person's `/agents` policy, approval and
 audit pages through Base's shared agent door. `/docs/agents` publishes the
-current tool and resource declarations directly from the registry. It accepts MCP 2026-07-28 and
+current tool declarations directly from the registry. It accepts MCP 2026-07-28 and
 2025-11-25. Gauge has no built-in model and this declared subset uses no paid AI.
 
 The currently judged native agent authority is **preparation only**. Company
@@ -39,7 +39,6 @@ stops the next effect. Changing an email never moves a binding.
 | `gauge.workspace.snapshot` | `gauge:read` | Read a fingerprint of that same permitted record set |
 | `gauge.proposals.prepare` | `gauge:proposals` | Prepare the exact purpose's proposal through the native command |
 | `gauge.proposals.withdraw` | `gauge:proposals` | Withdraw only that native agent's own open, current proposal |
-| `gauge.events.list` | `events:read` | Base's built-in reader; agency event delivery is undeclared |
 
 Every declared tool computes `standard` from its internal, non-committing
 preparation effect. No tool sends, publishes, charges, changes standing authority
@@ -49,13 +48,15 @@ Native transactions fence current grants, sponsor authority and the exact policy
 state as well as the affected record revisions. Replayed native request keys
 return the original acknowledgment; changed arguments conflict.
 
-The `gauge://{kind}/{id}` catalogue covers clients, people, engagements, tasks,
-proposals, time, calendars, leave, staffing, expenses, milestones and budgets.
-Readers use the native closed field lists for the current purpose. Missing and
-restricted records return the same refusal; imported notes and evidence are
-untrusted. No rates, costs, bearer credentials or unrelated engagement data are
-returned. A resource's `standard` class describes the redacted record actually
-returned, rather than its URI or caller-supplied labels.
+CORE declares tools, policy, pause, audit and idempotency. Events, resources,
+prompts and subscriptions are undeclared. Discovery advertises that boundary;
+optional listing is empty and calls return `capability_not_declared` with the
+family name. The built-in event reader is absent from tools/list.
+
+Primary records remain inspectable through the purpose-scoped read tools.
+Native resource visibility adapters remain internal; public resource templates
+and links are withheld. Imported notes and evidence are untrusted. No rates,
+costs, bearer credentials or unrelated engagement data are returned.
 
 | Native purpose | What an agent prepares | Who makes the native decision |
 | --- | --- | --- |
@@ -77,18 +78,18 @@ financial correction, privacy erasure, device operation, import or installation
 operation is available through these tools. Those native doors keep their own
 credentials and human requirements. No `cost` is registered; spend is
 `{none:true}`. Agency events/subscriptions, multiple simultaneous sponsors,
-resource refresh and provider delivery are not claimed. The pinned Base runtime
-still exposes its built-in event reader; the future subset runtime must make
-optional capabilities explicit.
+resource refresh and provider delivery are not claimed. These unscoped families
+remain PARTIAL in the contract; declaring CORE does not prove them.
 
 The production owner-claim endpoint uses the installation's existing signed
 claim trust. Normal `rer verify` runs the declared native lifecycle and
-`agent-surface.json` journey on a disposable production build. Base 0.2.86 chooses
-its random agent subject after the seed owner initializer returns, so that
-initializer cannot bind the subject to an owner-made native agent grant. The
-seed intentionally refuses the unbound verifier agent. This is an outstanding
-verification lifecycle gap, not authority to manufacture a grant or bypass
-native persistence.
+`agent-surface.json` journey on a disposable production build with rer 0.2.88
+and Base runtime 114ef7a61f080da053af783c5fbe06f625d692cc. The owner initializer
+claims the owner, completes agency setup, invites a native agent operator and
+grants one purpose. The initial phase fixture reads the authenticated Business
+agent identity from the native person inventory and binds it through the same
+owner Access command used in production. No token email selects an operator,
+and no test-only production route or direct database mutation is used.
 
 Portability keeps native attribution and door audit as business history, while
 excluding executable policy, pending decisions, replay claims and signed Business

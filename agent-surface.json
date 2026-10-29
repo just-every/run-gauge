@@ -84,17 +84,6 @@
         "AGENT-004",
         "GOVERN-007"
       ]
-    },
-    {
-      "name": "gauge.events.list",
-      "scope": "events:read",
-      "readOnly": true,
-      "classes": [
-        "standard"
-      ],
-      "clauses": [
-        "BASE-AGENT-010"
-      ]
     }
   ],
   "notTools": [
@@ -125,20 +114,7 @@
       "reason": "installation"
     }
   ],
-  "resources": [
-    "gauge://clients/{id}",
-    "gauge://people/{id}",
-    "gauge://engagements/{id}",
-    "gauge://tasks/{id}",
-    "gauge://proposals/{id}",
-    "gauge://time/{id}",
-    "gauge://calendars/{id}",
-    "gauge://leave/{id}",
-    "gauge://staffing/{id}",
-    "gauge://expenses/{id}",
-    "gauge://milestones/{id}",
-    "gauge://budgets/{id}"
-  ],
+  "resources": [],
   "witness": {
     "tool": "gauge.workspace.snapshot",
     "args": {}
@@ -258,21 +234,6 @@
           }
         }
       ]
-    },
-    {
-      "id": "events",
-      "tool": "gauge.events.list",
-      "args": {
-        "limit": 200
-      },
-      "expect": [
-        {
-          "class": "standard",
-          "facts": {
-            "measure": 1
-          }
-        }
-      ]
     }
   ],
   "verification": {
@@ -286,6 +247,9 @@
         "email": "synthetic-gauge-agent@example.com",
         "initializer": "tests/fixtures/agent-door-reviewer.mjs"
       }
-    ]
+    ],
+    "fixtures": {
+      "module": "tests/fixtures/agent-door-phases.mjs"
+    }
   }
 }

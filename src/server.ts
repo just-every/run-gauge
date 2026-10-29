@@ -11,6 +11,7 @@ import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
 import { runRetainerSchedules } from './gauge/retainer-schedule'
 import { gaugeResponse } from './gauge/http'
+import { gaugeAgentResponse } from './gauge/door/index'
 
 const api = new Hono<{ Bindings: Bindings }>()
 api.get('/health', (context) => context.json({ status: 'ok', ...deploymentHealth(context.env) }))
@@ -29,6 +30,8 @@ const worker = {
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
+    const agent = await gaugeAgentResponse(request, env)
+    if (agent) return agent
     const auth = await authResponse(request, env)
     if (auth) return auth
     const gauge = await gaugeResponse(request, env)

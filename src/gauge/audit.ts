@@ -75,6 +75,8 @@ const changed = (before: Value | null, after: Value) => [...new Set([...Object.k
 
 /** One audit entry as finance reads it: who, when, what changed (previous and resulting values), decision, approval, policy, source and external references, and the row's chain hash. */
 async function present(env: Bindings, a: Actor, r: AuditRow, names: Map<string, string>) {
+ const attribution=await env.DB.prepare('SELECT attribution,approvers,operation_id FROM g_door_activity WHERE audit_seq=?').bind(r.seq).first<{attribution:string;approvers:string;operation_id:string}>()
+ const preparer=attribution?JSON.parse(attribution.attribution):null
  const k = r.kind as Kind, record = kinds.includes(k)
  const raw = JSON.parse(r.data) as Value, result = record ? redact(a, k, raw) : raw
  const prior = r.previous_revision && record ? await env.DB.prepare('SELECT data FROM g_history WHERE kind=? AND record_id=? AND revision=?').bind(r.kind, r.record_id, r.previous_revision).first<{ data: string }>() : null
@@ -82,7 +84,8 @@ async function present(env: Bindings, a: Actor, r: AuditRow, names: Map<string, 
  const internalApproval = result.changeOrder&&result.reviewStatus==='approved' ? {by:result.reviewedBy,byName:names.get(result.reviewedBy)??null,at:result.reviewedAt,label:'Internal approval'} : null
  const approval = internalApproval ?? (result.approvedBy && result.approvedBy !== previous?.approvedBy ? { by: result.approvedBy, byName: names.get(result.approvedBy) ?? null, at: result.approvedAt ?? null } : null)
  return {
-  seq: r.seq, at: new Date(r.at).toISOString(), atMs: r.at, actor: { id: r.actor, name: names.get(r.actor) ?? (r.actor.startsWith('key:') ? `API key ${r.actor.slice(4)}` : null), role: r.role ?? (r.action.startsWith('import:') || r.action==='stripe:webhook' ? 'import job' : null), personId: r.person_id },
+  seq: r.seq, at: new Date(r.at).toISOString(), atMs: r.at, actor: { id: r.actor, name: preparer?.label ?? names.get(r.actor) ?? (r.actor.startsWith('key:') ? `API key ${r.actor.slice(4)}` : null), role: r.role ?? (r.action.startsWith('import:') || r.action==='stripe:webhook' ? 'import job' : null), personId: r.person_id },
+  ...(attribution?{agent:preparer.agent,sponsor:preparer.for,policyApprovers:JSON.parse(attribution.approvers),operationId:attribution.operation_id}:{}),
   automated: r.role === 'agent' || r.actor.startsWith('key:') || r.action.startsWith('import:') || r.action==='stripe:webhook',
   action: r.action, decision: decisions.test(r.action), kind: r.kind, recordId: r.record_id, previousRevision: r.previous_revision, revision: r.revision,
   previous, result, changes: changed(previous, result), approval, policy: pick(result, policyKeys), requestKey: r.request_key,

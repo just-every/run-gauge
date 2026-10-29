@@ -37,7 +37,7 @@ const styles = ['/rer-theme.css', '/gauge.css', '/gauge-shell.css', '/gauge-boar
 /** The app document: the rail (the current page marked), the top bar, the agent's strip when something waits, and the page. */
 export function shell(a: Actor, section: string, title: string, body: string, chrome: { today: string; zone: string; notice?: string; currency?: string }) {
  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title)} · Gauge</title><link rel="icon" href="/favicon.ico" sizes="16x16 32x32"><link rel="icon" href="/favicon-32.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">${fonts}${styles}</head>`
-  + `<body class="g-app">${rail(tabsFor(a), section)}<div class="g-work">${topBar(a, chrome.today, chrome.zone)}<main class="g-main">${chrome.notice ?? ''}${body}</main><footer class="g-foot">Owner-run agency operations · ${e(chrome.currency ?? a.currency)} · Billing preparation only</footer></div></body></html>`
+  + `<body class="g-app">${rail(tabsFor(a), section)}<div class="g-work">${topBar(a, chrome.today, chrome.zone)}<main class="g-main">${chrome.notice ?? ''}${body}</main><footer class="g-foot">${e(a.businessName??'Gauge')} · Owner-run agency operations · ${e(chrome.currency ?? a.currency)} · Billing preparation only</footer></div></body></html>`
 }
 
 // Reporting periods follow the timezone chosen for the agency.

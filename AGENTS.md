@@ -28,7 +28,7 @@ For the current shell, run `export PATH="$HOME/.local/bin:$PATH"` after installi
 
 To install for a real owner instead of a review launch, run the verbs yourself
 from the checkout root. `rer` runs each verb with the exact `@runeditrun/rer`
-version this checkout pins in `package.json` (0.2.30); do not add a local CLI copy.
+version this checkout pins in `package.json` (0.2.88); do not add a local CLI copy.
 
 ```sh
 rer install
@@ -107,7 +107,9 @@ Gauge owns `src/gauge` (domain, server handlers and pages), its migrations
 `0006`, `0016` and `0017` onward, `public/gauge.css` and the tests. `src/base`,
 `src/modules/*` and the recorded numbered migrations are byte copies of Base
 `rer-v0.2.30` (`d434ea67989fe10b6ddff01daba8bb350975e54a`) recorded in
-`base-copies.json` (0001 keeps its historical bytes unrecorded); change them only by refreshing from
+`base-copies.json` (0001 keeps its historical bytes unrecorded). The agent door,
+Business settings and selected import-kit runtime source are separately recorded
+at Base `114ef7a61f080da053af783c5fbe06f625d692cc` (`rer-v0.2.88`); change copied source only by refreshing from
 Base (`node scripts/edition-authoring/cli.mjs refresh-base ...`). Applied
 migrations never change: add a new numbered migration. After any tracked change
 run `pnpm run source:lock` so CI's source check passes.
@@ -119,12 +121,12 @@ authorization. Writes take a request key and bind exact record revisions.
 Money is integer cents in the agency currency; durations are whole seconds. Start local data empty:
 no seeded records, fake providers, fallbacks or mock behavior.
 
-Lander-Regenerate: after changing a Status row, run
-`node scripts/contract-docs.mjs write --clauses RECOVER-008` (comma-separated
-touched clause IDs), then the same command with `check` instead of `write`.
-It regenerates summary counts, the touched legacy acceptance rows and
-`docs/CLAIMS.md` from CONTRACT.md, preserving other acceptance evidence.
-Run `pnpm run source:lock` last, then `pnpm run source:check`.
+Lander-Regenerate: node scripts/contract-docs.mjs write --clauses BASE-AGENT-001,BASE-AGENT-002,BASE-AGENT-003,BASE-AGENT-004,BASE-AGENT-005,BASE-AGENT-006,BASE-AGENT-007,BASE-AGENT-008,BASE-AGENT-009,BASE-AGENT-010,BASE-AGENT-011,BASE-AGENT-012,BASE-AGENT-013
+
+After changing a Status row, run that command with the comma-separated touched
+clause IDs, then the same command with `check` instead of `write`. It regenerates
+summary counts, touched acceptance rows and `docs/CLAIMS.md`, preserving unrelated
+legacy evidence. Run `pnpm run source:lock` last, then `pnpm run source:check`.
 
 Agents prepare; people decide. An `agent` grant may only `proposal:prepare` and
 `proposal:withdraw`; approval runs the ordinary command as the deciding person in

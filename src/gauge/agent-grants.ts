@@ -26,3 +26,13 @@ export async function liveAgent(env: Bindings, operatorId: string) {
 export function requireAgentScope(a: Actor, purpose: string, engagementId: string) {
  need(a.role === 'agent' && a.agentScope?.purpose === purpose && a.agentScope.engagementIds.includes(engagementId), 'Agent purpose or engagement is outside its grant', 403)
 }
+
+/** Explicit Business agent binding is native owner data, not inferred from email. */
+export const localAgentId=(operatorId:string,sponsorId:string)=>`native:${operatorId}:${sponsorId}`
+export async function boundAgent(env: Bindings, agentId: string) {
+ const local=/^native:([^:]+):([^:]+)$/.exec(agentId)
+ const row=local?{operator_id:local[1]}:await env.DB.prepare('SELECT operator_id FROM g_grants WHERE business_agent_id=?').bind(agentId).first<{operator_id:string}>()
+ if(!row)return null
+ const grant=await liveAgent(env,row.operator_id)
+ return grant&&(!local||grant.granted_by===local[2])?{...grant,operatorId:row.operator_id}:null
+}

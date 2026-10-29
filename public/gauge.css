@@ -272,3 +272,7 @@
 
 #specialist-handoffs .g-check { min-width: 0; max-width: 100%; }
 #specialist-handoffs .g-check > span { min-width: 0; overflow-wrap: anywhere; }
+
+/* The owner-controlled company agent binding keeps touch targets usable. */
+.g-app form:has([name="businessAgentId"]) :is(input:not([type="checkbox"]), select, button) { min-height: 44px; }
+.g-app form:has([name="businessAgentId"]) label:has(input[type="checkbox"]) { min-height: 44px; }

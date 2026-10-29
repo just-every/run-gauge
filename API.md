@@ -1231,3 +1231,31 @@ A native owner previews a read-only comparison with `learning:preview` through `
 The current comparison supports completed fixed-fee projects with approved actual work, completed tasks and no later committed work. Exclusions and incomplete inputs are explicit. Effort MAPE and margin error use the same eligible projects; fewer than five yields insufficient history. The original estimate retains fixed fees and cost assumptions, while final margin uses FINANCE-006. A candidate changes only its selected role effort and corresponding retained estimated cost. Currencies are never pooled, and missing costs remain unknown.
 
 `learning:save` takes the same inputs plus the preview's `sourceDigest` and a fresh request `key`. It refuses changed sources and keeps immutable numeric scores, exact source references and selection reasons in `learningCohorts`, with an owner-only audit. The installation archive carries this business evidence without adding execution authority. Saved score figures and their comparison revision are included in the ordinary report calculation CSV. Payment-timing evidence remains unavailable; manual bank receipts remain user-recorded. No comparison offers adoption, changes an estimate or executes a payment.
+
+## Shared company agent door
+
+`POST /mcp` serves MCP 2026-07-28 and 2025-11-25 through the copied Base agent door.
+Use discovery and `agent-surface.json` for exact schemas and scopes; the supported
+jobs, resources and refusals are documented in [docs/agents.md](docs/agents.md).
+A Business token's subject binds through signed Business settings to the native
+owner who granted that agent's one purpose and engagements. Owner `grant` accepts
+an optional `businessAgentId` to bind that exact company agent to the existing
+active native agent operator. Only the existing native owner command may save
+this binding; native credential IDs are reserved and cannot be Business bindings.
+
+Native agent-session calls to `/api/gauge/command`, `/api/gauge/state`, record
+history and the agent review page enter the same tool registry. They now require
+an answered local or paired company policy in addition to their original grant.
+Their API, device and provider credentials retain their existing purposes. A
+failed recognizable Business credential cannot fall through to a native one.
+
+Signed settings use `/api/rer/business-settings`; signed policy uses
+`/api/rer/agent-policy`. The latter acknowledges exactly
+`{adopted:{seq,revision},door:{classes:[{class,tools}]}}`. Native people use
+`/agents` and `/agents/api/*` for policy, pause, named decisions and audit.
+Company policy does not authorize a worker confirmation or financial decision
+through an agent's preparation grant. Mutations carry `idempotency_key` and an
+optional string `expected_revision`; exact native revision and source fences
+still apply. Refusals retain the shared machine code, including
+`native_agent_grant_required`, `native_forbidden`, `revision_conflict`,
+`policy_unset`, `policy_blocked`, `agents_paused` and `insufficient_scope`.

@@ -15,17 +15,21 @@ for (const [label, selected] of [['Published', rows.filter(r => r[2] === 'publis
 }
 const parsed = parseContract(contract)
 let acceptance = await readFile('ACCEPTANCE.md', 'utf8')
+const added = []
 for (const id of ids) {
  const clause = parsed.clauses.find(c => c.id === id)
  if (!clause) throw Error(`Unknown clause ${id}`)
  const evidence = rows.find(r => r[0] === `\`${id}\``)[4]
  const outcome = clause.text.split('**Acceptance evidence:**')[1]?.trim() ?? clause.text
  const line = acceptance.split('\n').find(line => line.startsWith('| ') && cells(line)[1] === id)
- if (!line) throw Error(`No legacy acceptance row for ${id}`)
- const old = cells(line), escape = s => s.replace(/\|/g, '\\|')
+ if (!line && !/^BASE-AGENT-/.test(id)) throw Error(`No legacy acceptance row for ${id}`)
+ const old = line ? cells(line) : [String(parsed.clauses.findIndex(c=>c.id===id)+1)], escape = s => s.replace(/\|/g, '\\|').replace(/\n/g,' ')
  const detail = `${outcome}${evidence ? ` Evidence: ${evidence}.` : ''}${clause.gap ? ` Remaining: ${clause.gap}` : ''}`
- acceptance = acceptance.replace(line, `| ${old[0]} | ${id} | ${escape(clause.title)} | ${escape(detail)} | ${clause.status} |`)
+ const rendered = `| ${old[0]} | ${id} | ${escape(clause.title)} | ${escape(detail)} | ${clause.status} |`
+ if (line) acceptance = acceptance.replace(line, rendered)
+ else added.push(rendered)
 }
+if (added.length) acceptance += '\n## Base-delivered agent surface\n\n| # | Clause | What a person can do | Test | Status |\n| --- | --- | --- | --- | --- |\n' + added.join('\n') + '\n'
 const claims = '# Contract claims\n\nGenerated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative contract](../CONTRACT.md#status) retains each clause’s complete acceptance obligations, Evidence, Gap and judgment provenance. Partial and missing clauses retain every obligation named there.\n\n'
  + '| Clause | Status | Evidence paths |\n| --- | --- | --- |\n'
  + parsed.clauses.map(c => `| \`${c.id}\` | ${c.status} | ${c.evidence.map(p => `\`${p}\``).join('; ')} |`).join('\n') + '\n'

@@ -81,12 +81,11 @@ remain PARTIAL in the contract; declaring CORE does not prove them.
 
 The production owner-claim endpoint uses the installation's existing signed
 claim trust. Normal `rer verify` runs the declared native lifecycle and
-`agent-surface.json` journey on a disposable production build with rer 0.2.88
-and Base runtime 114ef7a61f080da053af783c5fbe06f625d692cc. The owner initializer
+`agent-surface.json` journey on a disposable production build with rer 0.2.91
+and Base runtime 2135c394939f4a737adabdc8003b0e667b31ac5a. The owner initializer
 claims the owner, completes agency setup, invites a native agent operator and
-grants one purpose. The initial phase fixture reads the authenticated Business
-agent identity from the native person inventory and binds it through the same
-owner Access command used in production. No token email selects an operator,
+grants one purpose. The agent initializer binds the exact conformance agent id through the same
+owner Access command used in production before its first request. No token email selects an operator,
 and no test-only production route or direct database mutation is used.
 
 Portability keeps native attribution and door audit as business history, while

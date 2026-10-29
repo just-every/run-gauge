@@ -248,8 +248,8 @@
         "initializer": "tests/fixtures/agent-door-reviewer.mjs"
       }
     ],
-    "fixtures": {
-      "module": "tests/fixtures/agent-door-phases.mjs"
+    "agent": {
+      "initializer": "tests/fixtures/agent-door-agent.mjs"
     }
   }
 }

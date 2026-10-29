@@ -19,7 +19,5 @@ export default async function({request,origin,claim,displayName,returnTo,reviewe
  agency.operatorId=session.operator.id
  agency.engagementId=engagement.id
  await cmd('grant',{operatorId:agency.operatorId,role:'agent',enabled:true,purpose:'time',engagementIds:[agency.engagementId]})
- // The phase fixture binds the authenticated Business agent through this same
- // owner grant after discovery has recorded its identity in the person door.
  return bootstrap
 }

@@ -28,7 +28,7 @@ For the current shell, run `export PATH="$HOME/.local/bin:$PATH"` after installi
 
 To install for a real owner instead of a review launch, run the verbs yourself
 from the checkout root. `rer` runs each verb with the exact `@runeditrun/rer`
-version this checkout pins in `package.json` (0.2.88); do not add a local CLI copy.
+version this checkout pins in `package.json` (0.2.91); do not add a local CLI copy.
 
 ```sh
 rer install
@@ -109,7 +109,7 @@ Gauge owns `src/gauge` (domain, server handlers and pages), its migrations
 `rer-v0.2.30` (`d434ea67989fe10b6ddff01daba8bb350975e54a`) recorded in
 `base-copies.json` (0001 keeps its historical bytes unrecorded). The agent door,
 Business settings and selected import-kit runtime source are separately recorded
-at Base `114ef7a61f080da053af783c5fbe06f625d692cc` (`rer-v0.2.88`); change copied source only by refreshing from
+at Base `2135c394939f4a737adabdc8003b0e667b31ac5a` (`rer-v0.2.91`); change copied source only by refreshing from
 Base (`node scripts/edition-authoring/cli.mjs refresh-base ...`). Applied
 migrations never change: add a new numbered migration. After any tracked change
 run `pnpm run source:lock` so CI's source check passes.

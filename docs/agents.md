@@ -88,3 +88,8 @@ initializer cannot bind the subject to an owner-made native agent grant. The
 seed intentionally refuses the unbound verifier agent. This is an outstanding
 verification lifecycle gap, not authority to manufacture a grant or bypass
 native persistence.
+
+Portability keeps native attribution and door audit as business history, while
+excluding executable policy, pending decisions, replay claims and signed Business
+person bindings. A restored installation must pair and answer policy again; an
+archive cannot resume an old approved agent effect.

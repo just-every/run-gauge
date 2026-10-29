@@ -442,6 +442,10 @@
       "sha256": "2ec8aab9889f2c58f0a154ec4a3e53d118992574b1c4300130f98a8f8d2a9e2e",
       "executable": false
     },
+    "agent-surface.json": {
+      "sha256": "c5e6042d040ee041f97746664e11635b4c377fe9492e693fe3fbd341853beba8",
+      "executable": false
+    },
     "AGENTS.consumer.md": {
       "sha256": "888cf334f51b716ba6791cf07973026eb02569d233cc7a0f22eb410d3730dec8",
       "executable": false
@@ -487,7 +491,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "92baceead2ba1ffd44750fcd523f6c2efbe58abc4dd21004ccc306f53de17c00",
+      "sha256": "0bb242a7f48d900ea4be0459f08b45d67f0f029550ab1230f374925954db46d0",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -922,6 +926,10 @@
       "sha256": "5ecd861982094e00224a8722f02a9584334f6e316254c7614fabdaa27c0fa858",
       "executable": false
     },
+    "migrations/core/0089_gauge_business_agent_binding.sql": {
+      "sha256": "4cbf7668d7414268ccc9aa82b180d26a6780798142cba8bc0c691fb918aef2c2",
+      "executable": false
+    },
     "MOVE-IN.md": {
       "sha256": "b8baacbb587bdcf9aa6dc0d0c1fb28906929601ad7805c66a72bf8723fa79c5d",
       "executable": false
@@ -1047,7 +1055,7 @@
       "executable": false
     },
     "public/gauge.css": {
-      "sha256": "ab451fce34ae976714e56b79ab0658b9ae9426a65a422efa4725490441db22c6",
+      "sha256": "80539cefd967540f780f98977913dd2402acee92782b3d2fb83c5dcdc13fb427",
       "executable": false
     },
     "public/move-in.html": {
@@ -1367,7 +1375,7 @@
       "executable": false
     },
     "scripts/installer/portability-policy.mjs": {
-      "sha256": "15822e2542e4521d44dfa99ddad8d632c34bd55ee390802d90363fd185938809",
+      "sha256": "0570a876f25edeb424af294117804c0ad76b41b1f9bbb9a11f00f1b84303b6e1",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -1634,6 +1642,10 @@
       "sha256": "21d5463c62cbb1419759463cebb08841be9a14bfef6df6c3c97259e58c88e680",
       "executable": false
     },
+    "src/gauge/business.ts": {
+      "sha256": "c3fa95c22a77bfe6f03c01ee03581c46119c2bbc966ab2f43703bce57dfb148c",
+      "executable": false
+    },
     "src/gauge/cash-conversion.ts": {
       "sha256": "631bf0dfe7665eca551e97110f412c8b567894faa4ad94499c5a341554f36ca6",
       "executable": false
@@ -1726,8 +1738,12 @@
       "sha256": "4d2d40e71facc984991ecabf9b8ed63cfd8cbee81723701fd3a2a641d73d3d60",
       "executable": false
     },
+    "src/gauge/door/legacy.ts": {
+      "sha256": "6ffe66ebeddf27b50d2667438b18648449e7da01022454db6ed3d66393f9099a",
+      "executable": false
+    },
     "src/gauge/door/native.ts": {
-      "sha256": "35a7ce91103069d32e1b6487dfd0c1d015e400d984209d71ded709e90dd4f411",
+      "sha256": "69dbe26c419ff927d67e4a971998d43fe87c8cd70fd089924e4c3f081b47fd94",
       "executable": false
     },
     "src/gauge/door/resources.ts": {
@@ -1735,7 +1751,7 @@
       "executable": false
     },
     "src/gauge/door/tools.ts": {
-      "sha256": "c6fca39233f383b4a8fbcbda93b292fe5ad037b3d670d129a1e2560aed4a878b",
+      "sha256": "0b9bb503785f950cf3cb50426ae432aa3b1ff96998fb0a39450206658485ccb1",
       "executable": false
     },
     "src/gauge/estimate-attestation.ts": {
@@ -2299,7 +2315,7 @@
       "executable": false
     },
     "src/gauge/store.ts": {
-      "sha256": "d2904438e230c5a3e300920aae8c3f7bd365d3d5b3b57eca13da792198ea5759",
+      "sha256": "d57d899c8e7017006a5efb670454587c3271b30d559cb3a97d0e4c4805e8e4d3",
       "executable": false
     },
     "src/gauge/stripe-api.ts": {
@@ -2367,7 +2383,7 @@
       "executable": false
     },
     "src/gauge/ui-audit.ts": {
-      "sha256": "eeefef7ee1fe104a5e10fafea3203703b282a476cd0c2f906d13381971e7cbfc",
+      "sha256": "2dde5767733a9e84b6daf2a0241151787fada040ec00be95c18d8d52c5b2fd6a",
       "executable": false
     },
     "src/gauge/ui-board.ts": {
@@ -2519,7 +2535,7 @@
       "executable": false
     },
     "src/gauge/ui-operations.ts": {
-      "sha256": "160366e44f9ee18510dc77c5c3843e904d65a464a452e739d265396da70487ca",
+      "sha256": "a34abddceca3f455024e4afe44844f288201699dcd5f40a5b27c943824b82807",
       "executable": false
     },
     "src/gauge/ui-performance.ts": {
@@ -5272,6 +5288,14 @@
     },
     "tests/artifacts/stripe-sandbox.json": {
       "sha256": "e129bc97a22f9fde4177a6608d1c246dc3f306dcee50091de4b311ad83eb8563",
+      "executable": false
+    },
+    "tests/fixtures/agent-door-owner.mjs": {
+      "sha256": "d820aecbbfc3e289f60297d8b6f359ab7821bbc67dc8f83dbaefc4f89efd7d3c",
+      "executable": false
+    },
+    "tests/fixtures/agent-door-reviewer.mjs": {
+      "sha256": "d7ce4f89d3e0e9bc89e2293da952388ae69e202e3e2181e7f8cc75554b59302a",
       "executable": false
     },
     "tests/fixtures/analyst-portability.mjs": {

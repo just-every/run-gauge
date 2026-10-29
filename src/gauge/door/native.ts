@@ -8,7 +8,7 @@ import { Fault, type Kind, type Row } from '../model'
 
 export type PrincipalContext = Pick<ResourceContext, 'person' | 'agent'>
 /** A company credential does not replace the owner's native, purpose-scoped grant.
- * Agent ids are native operator ids, never email addresses or invented accounts. */
+ * Company agent ids bind explicitly to native operators, never through email. */
 export async function nativeActor(env: Bindings, ctx: PrincipalContext): Promise<Actor> {
  const grant = await boundAgent(env, ctx.agent.id)
  const sponsor = await env.DB.prepare('SELECT id,version,role,status FROM oa_operators WHERE id=?').bind(ctx.person.id).first<{id:string;version:number;role:string;status:string}>()
@@ -19,7 +19,7 @@ export async function nativeActor(env: Bindings, ctx: PrincipalContext): Promise
  if (!policy) throw new ToolRefusal('policy_unset')
  const tool = ctx as ToolContext
  a.door = {sponsor:ctx.person.id,sponsorVersion:sponsor.version,envelope:policy.envelope,document:policy.local_document,revision:policy.local_revision,actor:{agent:{id:ctx.agent.id,name:ctx.agent.name},for:{id:ctx.person.id,name:ctx.person.name},label:`${ctx.agent.name} for ${ctx.person.name}`},operationId:tool.operationId??'',approvers:tool.approvers??[]}
- await fence(env,a)
+ await nativeCall(()=>fence(env,a))
  return a
 }
 export async function nativeRead(env: Bindings, ctx: PrincipalContext) {

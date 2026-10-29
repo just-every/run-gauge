@@ -151,7 +151,10 @@
       "args": {},
       "expect": [
         {
-          "class": "standard"
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
         }
       ]
     },
@@ -164,7 +167,10 @@
       },
       "expect": [
         {
-          "class": "standard"
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
         }
       ]
     },
@@ -209,7 +215,10 @@
       },
       "expect": [
         {
-          "class": "standard"
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
         }
       ]
     },
@@ -225,7 +234,10 @@
       },
       "expect": [
         {
-          "class": "standard"
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
         }
       ]
     },
@@ -240,7 +252,10 @@
       },
       "expect": [
         {
-          "class": "standard"
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
         }
       ]
     },
@@ -252,7 +267,10 @@
       },
       "expect": [
         {
-          "class": "standard"
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
         }
       ]
     }

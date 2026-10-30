@@ -6,12 +6,12 @@ import {harness} from './gauge-harness.mjs'
 // One money journey: isolated invoice assumptions, source renewal, immutable issue,
 // current authority, replay and the exact visible report and its downloaded sources.
 export async function cashAssumptionsJourney() {
- const h=await harness({currency:'USD',timezone:'America/New_York'})
+ const h=await harness({currency:'USD',timezone:'America/New_York',databaseBinding:false})
  let browser
  try {
   const {cmd,request,owner}=h,asOf='2026-10-10',from='2026-10-01',to='2026-11-30'
   const query=new URLSearchParams({from,to,asOf})
-  const read=async(cookie=owner)=>{const r=await request('/api/gauge/state?'+query,cookie);assert.equal(r.status,200,await r.clone().text());return r.json()}
+  const read=async(cookie=owner)=>{const r=await request('/api/gauge/state?'+query,cookie);const body=await r.json();assert.equal(r.status,200,JSON.stringify(body));return body}
   const worker=await cmd('save:people',{name:'synthetic-gauge-15001',timezone:'America/New_York'})
   const client=await cmd('save:clients',{name:'Collection review client',paymentTermsDays:30,daysLate:10})
   const project=async name=>cmd('save:engagements',{name,clientId:client.id,leadId:worker.id,members:[worker.id],scope:'Reviewed cash forecast',timezone:'America/New_York'})
@@ -30,6 +30,7 @@ export async function cashAssumptionsJourney() {
   const getItem=data=>items(data,retainer.id).find(i=>i.source.startsWith('retainerPeriods:'))
   const december=data=>data.cash.months.find(m=>m.month==='2026-12')
   const approveInput=(data,item,percent)=>({from,to,asOf,engagementId:retainer.id,sourceKey:item.probabilityBasis.key,fingerprint:item.probabilityBasis.fingerprint,collectionPercent:percent,reason:'Finance assessment of this exact invoice',...data.data.cashAssumptions.find(r=>r.value.engagementId===retainer.id&&r.value.sourceKey===item.probabilityBasis.key)})
+  console.log('Cash assumptions: native schedule seeded')
   let data=await read(),item=getItem(data)
   assert.equal(item.amountMinor,300000);assert.equal(item.collectionPercent,100)
   assert.equal(december(data).openMinor,700000);assert.equal(december(data).expectedMinor,700000)
@@ -50,6 +51,7 @@ export async function cashAssumptionsJourney() {
   assert.equal(figure.value,550000);assert(figure.sources.some(s=>s.kind==='cashAssumptions'&&s.id===approved.id&&s.revision===approved.revision))
   const csv=await request('/api/gauge/report.csv?'+new URLSearchParams({from,to,asOf,fingerprint:data.fingerprint}),owner)
   assert.equal(csv.status,200);const csvText=await csv.text();assert(csvText.includes('550000'));assert(csvText.includes(approved.revision));assert(csvText.includes(item.probabilityBasis.references[0].revision))
+  console.log('Cash assumptions: finance approval, replay and CSV reconcile')
   const originals=Object.fromEntries(['invoices','payments','retainers','retainerPeriods','retainerCharges'].map(k=>[k,data.data[k]]))
 
   // Native approval form, with assertions at one width and visual proof at both.
@@ -93,12 +95,13 @@ export async function cashAssumptionsJourney() {
   await cmd('cash:approve',stalePayload,owner,409)
   // Issue the exact scheduled fee. Its identity and probability carry once, and
   // no old scheduled fee remains beside the new immutable invoice.
+  console.log('Cash assumptions: native form, zero, fallback and schedule renewal reconcile')
   const run=await cmd('retainer:run',{...schedule,asOf:'2026-11-01'})
   data=await read();const packet=data.data.packets.find(p=>p.id===run.value?.packetId||p.value.scheduleId===schedule.id)
   const approvedPacket=await cmd('packet:approve',packet)
   const issued=await cmd('invoice:issue',{...approvedPacket,issueDate:'2026-11-01',dueDate:'2026-12-01',billTo:'Collection review client',remitTo:'Agency operating account',reference:'November contract'})
   const issuedQuery=new URLSearchParams({from,to,asOf:'2026-11-01'})
-  const readIssued=async()=>{const r=await request('/api/gauge/state?'+issuedQuery,owner);assert.equal(r.status,200,await r.clone().text());return r.json()}
+  const readIssued=async()=>{const r=await request('/api/gauge/state?'+issuedQuery,owner);const body=await r.json();assert.equal(r.status,200,JSON.stringify(body));return body}
   data=await readIssued();const issuedItems=items(data,retainer.id)
   assert.equal(issuedItems.length,1);assert.equal(issuedItems[0].invoiceId,issued.id);assert.equal(issuedItems[0].collectionPercent,50);assert.equal(issuedItems[0].probabilityRevision,renewed.revision)
   assert.equal(issuedItems[0].probabilitySource,'scheduled source override');assert.equal(december(data).expectedMinor,278000)
@@ -108,6 +111,61 @@ export async function cashAssumptionsJourney() {
   await cmd('cash:approve',issuedInput)
   data=await readIssued();assert.equal(items(data,retainer.id)[0].expectedMinor,75000);assert.deepEqual(data.data.invoices.find(i=>i.id===issued.id),invoiceOriginal)
   assert.equal(december(data).expectedMinor,203000);assert.equal(december(data).historicalExpectedMinor,203000)
+  await cmd('cash:approve',{...approveInput(data,items(data,retainer.id)[0],''),asOf:'2026-11-01'})
+  data=await readIssued();assert.equal(items(data,retainer.id)[0].collectionPercent,80);assert.equal(items(data,retainer.id)[0].probabilitySource,'client fallback','Explicit reset suppresses an inherited scheduled override')
+  await cmd('cash:approve',{...approveInput(data,items(data,retainer.id)[0],25),asOf:'2026-11-01'})
+  data=await readIssued();assert.equal(december(data).expectedMinor,203000)
+
+
+  // A combined document keeps the approved source separate from its other line.
+  // Credits reduce the named line before probabilities, including a full credit.
+  const mixed=await project('Combined scheduled charges')
+  const budget=await cmd('budget:approve',await cmd('save:budgets',{engagementId:mixed.id,mode:'fixed',amountMinor:300000,effortSeconds:3600,roundingSeconds:60,reason:'Two scheduled charges'}))
+  const charges=[]
+  for(const cumulativeBasisPoints of [5000,10000])charges.push(await cmd('fixed:approve',await cmd('fixed:prepare',{engagementId:mixed.id,budgetId:budget.id,budgetRevision:budget.revision,name:'Scheduled service charge',chargeType:'progress',cumulativeBasisPoints,date:'2026-11-01',reason:'Approved billing schedule'})))
+  data=await readIssued();const scheduled=items(data,mixed.id).find(i=>i.source==='fixedCharges:'+charges[0].id)
+  await cmd('cash:approve',{...approveInput(data,scheduled,50),engagementId:mixed.id,asOf:'2026-11-01'})
+  const combined=await cmd('packet:approve',await cmd('packet:create',{engagementId:mixed.id,title:'Combined service charges',sources:charges.map(c=>'fixedCharges:'+c.id)}))
+  const combinedInvoice=await cmd('invoice:issue',{...combined,issueDate:'2026-11-01',dueDate:'2026-12-01',billTo:'Collection review client',remitTo:'Agency operating account',reference:'Two exact charges'})
+  data=await readIssued();let parts=items(data,mixed.id)
+  assert.equal(parts.length,2);assert.deepEqual(parts.map(i=>i.collectionPercent),[50,80]);assert.equal(parts.reduce((n,i)=>n+i.expectedMinor,0),195000)
+  const combinedOriginal=data.data.invoices.find(i=>i.id===combinedInvoice.id)
+  const firstIndex=combinedOriginal.value.lines.findIndex(l=>l.sourceId===charges[0].id),secondIndex=1-firstIndex
+  await cmd('invoice:credit',{...combinedInvoice,type:'credit',lines:[{line:firstIndex,amountMinor:100000}],date:'2026-11-01',reason:'Partial source credit'})
+  data=await readIssued();parts=items(data,mixed.id)
+  assert.equal(parts.reduce((n,i)=>n+i.openMinor,0),200000)
+  assert.equal(parts.reduce((n,i)=>n+i.expectedMinor,0),145000,'Only the credited source loses its own expected cash')
+  assert.deepEqual(data.data.invoices.find(i=>i.id===combinedInvoice.id),combinedOriginal)
+  await cmd('invoice:credit',{...combinedInvoice,type:'credit',lines:[{line:firstIndex,amountMinor:50000},{line:secondIndex,amountMinor:150000}],date:'2026-11-01',reason:'Credit the remaining scheduled sources'})
+  data=await readIssued();parts=items(data,mixed.id)
+  assert.equal(parts.reduce((n,i)=>n+i.openMinor,0),0);assert.equal(parts.reduce((n,i)=>n+i.expectedMinor,0),0,'A fully credited inherited schedule remains readable with zero cash')
+
+
+  // A single issued invoice may span projects. Its override is one invoice
+  // decision, applied to both project shares with one exact approval revision.
+  const expenses=[]
+  for(const engagementId of [retainer.id,hourly.id]){
+   const expense=await cmd('expense:save',{engagementId,personId:worker.id,date:'2026-11-01',description:'Approved reimbursable cost',amountMinor:100000,reimbursable:true})
+   expenses.push(await cmd('expense:approve',await cmd('expense:submit',expense)))
+  }
+  const sharedPacket=await cmd('packet:approve',await cmd('packet:create',{engagementId:retainer.id,consolidate:true,title:'One invoice across projects',sources:expenses.map(e=>'expenses:'+e.id)}))
+  const sharedInvoice=await cmd('invoice:issue',{...sharedPacket,issueDate:'2026-11-01',dueDate:'2026-12-01',billTo:'Collection review client',remitTo:'Agency operating account',reference:'Consolidated expenses'})
+  data=await readIssued();const sharedItem=items(data,retainer.id).find(i=>i.invoiceId===sharedInvoice.id)
+  let sharedApproval=await cmd('cash:approve',{...approveInput(data,sharedItem,25),asOf:'2026-11-01'})
+  data=await readIssued()
+  for(const id of [retainer.id,hourly.id]){
+   const part=items(data,id).find(i=>i.invoiceId===sharedInvoice.id)
+   assert.equal(part.openMinor,100000);assert.equal(part.expectedMinor,25000);assert.equal(part.probabilityRevision,sharedApproval.revision)
+   assert.equal(part.probabilityBasis.fingerprint,sharedItem.probabilityBasis.fingerprint)
+  }
+  const otherPart=items(data,hourly.id).find(i=>i.invoiceId===sharedInvoice.id)
+  sharedApproval=await cmd('cash:approve',{...approveInput(data,otherPart,50),...sharedApproval,engagementId:hourly.id,asOf:'2026-11-01'})
+  data=await readIssued()
+  for(const id of [retainer.id,hourly.id]){
+   const part=items(data,id).find(i=>i.invoiceId===sharedInvoice.id)
+   assert.equal(part.expectedMinor,50000);assert.equal(part.probabilityRevision,sharedApproval.revision)
+  }
+  assert.equal(data.data.cashAssumptions.filter(a=>a.value.sourceKey===otherPart.probabilityBasis.key).length,1,'Project shares never create conflicting invoice approvals')
 
   const lead=await h.invite('synthetic-gauge-15003'),agent=await h.invite('synthetic-gauge-15004')
   await cmd('grant',{operatorId:lead.id,personId:worker.id,role:'lead',enabled:true})
@@ -122,7 +180,7 @@ export async function cashAssumptionsJourney() {
   await cmd('cash:approve',{...payload,key:requestKey},finance.cookie,403)
   assert.equal((await request('/api/gauge/history/cashAssumptions/'+approved.id,finance.cookie)).status,403)
   const allApprovals=(await readIssued()).data.cashAssumptions
-  assert.equal(allApprovals.length,2,'Refusals, stale sources and replays create no extra assumptions')
+  assert.equal(allApprovals.length,4,'Refusals, stale sources and replays create no extra assumptions')
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/review?'+issuedQuery);await page.locator('#cash-sources > summary').click()
    if(process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS){await mkdir(process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS,{recursive:true});await page.locator('#cash-forecast').screenshot({path:`${process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS}/cash-assumptions-${width}.png`})}

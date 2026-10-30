@@ -1,3 +1,4 @@
+import { cashAssumptionFor } from './cash-assumptions'
 // FINANCE-002 on Week in review: committed revenue, expected invoices and expected cash by month, with the
 // historical-timing range, nothing issued and no payments recorded shown as such.
 import { escape as e, form, input } from './ui-forms'
@@ -14,8 +15,8 @@ export function cashSection(report: Report) {
  const clients = c.engagements.map(x => `<li>${e(x.name)}: ${e(x.termsLabel)}${x.daysLate === null ? '' : ` · ${x.daysLate} days late, historical timing`} · ${x.collectionPercent}% collection · booked ${money(x.bookedRevenueMinor, x.currency)} · backlog ${money(x.backlogMinor, x.currency)}</li>`).join('')
  const seen = new Set<string>()
  const sourceRows = c.engagements.flatMap(project => project.items.map(item => {
-  const basis = item.probabilityBasis, saved = report.data.cashAssumptions.find(r => r.value.engagementId === project.engagementId && r.value.sourceKey === basis.key)
-  const id = project.engagementId+':'+basis.key
+  const basis = item.probabilityBasis, saved = cashAssumptionFor(report.data.cashAssumptions,project.engagementId,basis.key)
+  const id = basis.key.startsWith('invoices:') ? basis.key : project.engagementId+':'+basis.key
   const fields = {engagementId:project.engagementId, sourceKey:basis.key, fingerprint:basis.fingerprint, from:report.from, to:report.to, asOf:c.asOf}
   const hidden = Object.entries(fields).map(([k,v]) => `<input type="hidden" name="${e(k)}" value="${e(v)}">`).join('')
   const editor = seen.has(id) ? '' : `<details><summary>Review collection probability</summary>${form('cash:approve','Approve this source',hidden+input('collectionPercent','Collection percentage (0–100; blank uses client)',saved?.value.collectionPercent??'','number',false)+input('reason','Approval reason'),saved,'Approve probability','g-bare')}</details>`

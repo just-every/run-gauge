@@ -125,7 +125,7 @@ try {
  assert.equal(leadMargin.margin, null, 'Margin stays with finance'); assert(!leadMargin.lineage.some(x => x.id.startsWith('margin:')))
 
  // Finance reads the same forecast on Week in review, each figure opening its calculation, at desktop and phone widths.
- browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+ browser = await chromium.launch({ headless: true, executablePath:process.env.GAUGE_CHROMIUM_PATH, args: ['--use-mock-keychain', '--password-store=basic'] })
  const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage(), shots = process.env.GAUGE_FORECAST_SHOTS
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
  await page.goto(h.origin + '/app/review')

@@ -19,6 +19,50 @@ The forward migration infers an existing agency's currency from stored monetary 
 - `GET /api/gauge/audit/verify[?seq&hash]` recomputes the chain and returns `{entries, head, mismatches, gaps, unsealed, checkpoint, intact}`; a checkpoint (an earlier export's `head.seq` and `head.hash`) matches only when the chain recomputed from the first entry reproduces it.
 - `GET /api/gauge/packets/{id}` downloads an approved packet's CSV (finance); `GET /api/gauge/files/{id}` a receipt (its owner or finance).
 
+## Native vendor costs
+
+Owner and finance use the vendor panel on the engagement page. Native vendor
+costs require matching agency and project currencies. They carry no accounting
+connection, payment instruction or provider verification.
+
+- `vendor:save` prepares a draft with `engagementId`, the approved `phaseKey`
+  when phases exist, `vendor`, `scope`, `poReference`, `amountMinor`, `date`,
+  `from`, `to`, `expectedDate` and a `reason`. Draft edits send `id` and
+  `revision`. `vendor:approve` separately approves that exact revision with
+  a reason under the owner's existing monetary-review limit.
+- `vendorBill:save` records `engagementId`, `phaseKey`, the current approved
+  `commitmentId` and `commitmentRevision`, vendor bill `reference`,
+  `amountMinor`, `date` and a `reason`. The bill date must be within the
+  commitment period. Vendor bill references cannot be received twice. Purchase order references are unique across native commitment chains.
+- `vendorBill:file` takes the draft bill's `id` and `revision` plus an original
+  PDF, PNG, JPEG or text file of at most 1 MiB. It returns the new revision.
+  `vendorBill:approve` separately approves and matches that exact original-backed
+  revision once, with a reason and the same independent-review rule.
+  `GET /api/gauge/vendor-files/{id}` downloads the retained original; current
+  owner or finance authority is required on every read.
+- Approved records cannot be edited. A new draft with `previousId` and
+  `previousRevision` prepares a linked correction of the current approved
+  record. A bill correction retains its commitment and cannot predate the
+  original. The approved successor replaces only its own chain; original
+  records and files remain inspectable. An amount reduction is a signed cost
+  delta on the correction date, preserving earlier monthly actuals.
+
+Approved received bills reduce the unbilled commitment remainder once. The
+forecast includes actual bills plus that remainder, with exact revision sources
+in calculation drills and the captured report CSV. Project, phase, margin and
+portfolio totals use the same ledger. Drafts have no effect on costs. Received
+unapproved bills appear on the monthly close checklist; an approved close
+retains its native vendor sources and signed cost totals. Backdated writes to a
+closed period require the ordinary finance reopening.
+
+The native commitment link is mandatory on every bill. Expense costs without a distinct native phase or period,
+billable expense budgets and contractor work in the same project, phase and
+period are refused instead of silently counted as another cost source.
+The same checks run on later native writes and classification changes.
+Leads, staff, client recipients, agents and scoped keys gain no vendor costs or
+bill-original access. Restore retains records, originals and exact match history
+without restoring native sessions or provider authority.
+
 ## Native project analyst
 
 `GET /api/gauge/analyst` accepts `question` (1–500 characters), `engagementId`,

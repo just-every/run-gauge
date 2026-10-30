@@ -1,3 +1,4 @@
+import { vendorCosts } from './vendor-commitments'
 import { resourceData } from './resource-manager'
 import type { Bindings } from '../auth.server'
 import { type Row, type Kind, type Value, need, date, sum, kinds } from './model'
@@ -38,7 +39,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
  if(['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts'].includes(k)&&a.role!=='owner')return {}
  if(['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','floatAdoptions','learningCohorts'].includes(k)&&a.role!=='owner')return {}
- if(['analystSnapshots','cashAssumptions'].includes(k)&&!finance(a))return {}
+ if(['analystSnapshots','cashAssumptions','vendorCommitments','vendorBills'].includes(k)&&!finance(a))return {}
  if(k==='kantataRecords'&&!finance(a))return {}
  if(['revenueSchedules','revenueRecognitions'].includes(k)&&!finance(a))return {}
  if(['fxRates','invoiceSettings','invoiceAccess','invoiceViews'].includes(k)&&!finance(a))return {}
@@ -72,6 +73,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  data.customFields=data.customFields.filter(f=>canField(a,f));data.customImports=finance(a)?data.customImports:[];data.savedReports=data.savedReports.filter(r=>savedVisible(a,r.value))
  for(const k of ['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','floatAdoptions','learningCohorts'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.kantataRecords=finance(a)?data.kantataRecords:[]
+ data.vendorCommitments=finance(a)?data.vendorCommitments:[];data.vendorBills=finance(a)?data.vendorBills:[]
  data.analystSnapshots=finance(a)?data.analystSnapshots:[]
  data.cashAssumptions=finance(a)?data.cashAssumptions:[]
  data.expenseRates=finance(a)?data.expenseRates:[]
@@ -155,7 +157,8 @@ export function economics(data: Awaited<ReturnType<typeof visible>>,a: Actor) {
   need(time.every(r=>!r.value.economics || r.value.economics.currency===e.value.currency) && expenses.every(r=>r.value.currency===e.value.currency), 'Report source currencies differ from engagement; no implicit FX')
   // Declared costs keep their own currency (RATE-002): each currency is its own bucket and a total across currencies is refused without SETUP-003 rates.
   const costs=time.filter(r=>r.value.economics?.costMinor!=null),costCurrency=(r:Row)=>r.value.economics.costCurrency??r.value.economics.currency
-  const costByCurrency:Record<string,number>={};for(const [currency,minor] of [...costs.map(r=>[costCurrency(r),r.value.economics.costMinor]),...expenses.map(r=>[r.value.currency,r.value.amountMinor])] as [string,number][])costByCurrency[currency]=sum([costByCurrency[currency]??0,minor])
+  const vendorMinor=sum(vendorCosts(data).filter(c=>c.commitment.value.engagementId===e.id).map(c=>c.actualMinor))
+  const costByCurrency:Record<string,number>={[e.value.currency]:vendorMinor};for(const [currency,minor] of [...costs.map(r=>[costCurrency(r),r.value.economics.costMinor]),...expenses.map(r=>[r.value.currency,r.value.amountMinor])] as [string,number][])costByCurrency[currency]=sum([costByCurrency[currency]??0,minor])
   const otherCostCurrencies=Object.keys(costByCurrency).filter(c=>c!==e.value.currency).sort(),knownCostMinor=costByCurrency[e.value.currency]??0,knownBillableMinor=sum(time.filter(r=>r.value.billable).map(r=>r.value.economics?.billMinor??0))
   const missingCostSources=time.filter(r=>r.value.economics?.costMinor==null).map(r=>r.id),missingBillRateSources=time.filter(r=>r.value.billable && r.value.economics?.billMinor==null).map(r=>r.id)
   return {...base,costMinor:missingCostSources.length||otherCostCurrencies.length?null:knownCostMinor,knownCostMinor,missingCostSources,costByCurrency,otherCostCurrencies,billableMinor:missingBillRateSources.length?null:knownBillableMinor,knownBillableMinor,missingBillRateSources}

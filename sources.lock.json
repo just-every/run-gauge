@@ -4732,7 +4732,7 @@
       "executable": false
     },
     "tests/gauge-realization.mjs": {
-      "sha256": "6c6c6da4f964fc283b0dfb2e6d2801aca703c0e19d7f55b9a71e8444d920a56f",
+      "sha256": "b631e3f1a192c9be4a9d165344899bdcc2ded9a987801e68186311c27923f161",
       "executable": false
     },
     "tests/gauge-receipts.mjs": {
@@ -4800,7 +4800,7 @@
       "executable": false
     },
     "tests/gauge-utilization.mjs": {
-      "sha256": "7247ea9b6aa8dc48051ce065ad428528cab56a0a359a25105df69ae57262459c",
+      "sha256": "493336bdb372497a0cb93e304198c92b9bca0186cdd2ae61225cc45386b983cd",
       "executable": false
     },
     "tests/gauge.mjs": {

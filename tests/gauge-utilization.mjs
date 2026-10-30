@@ -24,7 +24,7 @@ try {
   if (denominator === null || denominator === 0) assert.equal(r.ratios[key].percent, null, key)
   else assert(Math.abs(r.ratios[key].percent - numerator / denominator * 100) < 1e-8, key)
  }
- const client = await cmd('save:clients', { name: 'Cascade Cider' })
+ const client = await cmd('save:clients', { name: 'Cascade Cider', billingCurrency: 'AUD' })
  const person = await cmd('save:people', { name: 'Mia Chen', timezone: 'Australia/Brisbane' })
  const zero = await cmd('save:people', { name: 'Zero availability', timezone: 'Australia/Brisbane' })
  const missing = await cmd('save:people', { name: 'Unsupplied calendar', timezone: 'Australia/Brisbane' })

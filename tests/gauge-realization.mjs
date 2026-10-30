@@ -7,7 +7,7 @@ import { mkdir } from 'node:fs/promises'
 export async function realizationJourney(h, browser) {
  const { cmd, request, owner } = h, hour = 3600, from = '2026-09-07', to = '2026-09-11', zone = 'America/New_York'
  const report = async (cookie = owner) => { const r = await request('/api/gauge/state?' + new URLSearchParams({ from, to }), cookie); assert.equal(r.status, 200); return r.json() }
- const client = await cmd('save:clients', { name: 'Harbor Outfitters' })
+ const client = await cmd('save:clients', { name: 'Harbor Outfitters', billingCurrency: 'AUD' })
  const ana = await cmd('save:people', { name: 'Ana Ruiz', timezone: zone, role: 'Designer' })
  const lee = await cmd('save:people', { name: 'Lee Park', timezone: zone, role: 'Director' })
  const leadUser = await h.invite('realization-lead'), staffUser = await h.invite('realization-staff')

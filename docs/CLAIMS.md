@@ -25,7 +25,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `SETUP-002` | done | `src/gauge/clients.ts`; `src/gauge/ui-clients.ts`; `src/gauge/catalog.ts`; `src/gauge/http.ts`; `tests/gauge-clients.mjs` |
 | `SETUP-003` | done | `tests/gauge-agency.mjs`; `tests/gauge-currency.mjs`; `tests/gauge-agency.mjs`; `tests/gauge-currency.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-cash-forecast.mjs`; `src/gauge/fx-rates.ts`; `src/gauge/ui-agency.ts` |
 | `SETUP-004` | done | `src/gauge/custom-fields.ts`; `src/gauge/custom-values.ts`; `src/gauge/custom-report.ts`; `src/gauge/custom-resource.ts`; `tests/gauge-invoices.mjs`; `tests/gauge-base-portability.mjs` |
-| `SETUP-005` | partial | `tests/gauge-agency.mjs`; `tests/gauge-currency.mjs`; `src/gauge/portfolio.ts`; `src/gauge/ui-portfolio.ts`; `src/gauge/cash-conversion.ts`; `src/gauge/ui-cash.ts`; `src/gauge/ui-conversion.ts`; `src/gauge/fx-rates.ts` |
+| `SETUP-005` | partial | `tests/gauge-agency.mjs`; `tests/gauge-currency.mjs`; `tests/gauge-agency.mjs`; `tests/gauge-currency.mjs`; `src/gauge/portfolio.ts`; `src/gauge/ui-portfolio.ts`; `src/gauge/cash-conversion.ts`; `src/gauge/ui-cash.ts`; `src/gauge/ui-conversion.ts`; `src/gauge/fx-rates.ts` |
 | `SALES-001` | done | `src/gauge/pipeline.ts`; `src/gauge/ui-pipeline.ts`; `src/gauge/report-lineage-pipeline.ts`; `src/gauge/reports.ts`; `tests/gauge-pipeline.mjs` |
 | `SALES-002` | done | `tests/gauge-invoices.mjs`; `tests/gauge-pipeline.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs` |
 | `SALES-003` | done | `tests/gauge-commercial-proposals.mjs`; `tests/gauge-pipeline.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs` |

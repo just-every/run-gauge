@@ -55,7 +55,8 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   if (k === 'clients') {
    need(!previous?.value.merge, 'This client was merged into another client; edit the surviving client', 409)
    const days = (key: string, label: string) => input[key] === undefined ? previous?.value[key] ?? null : input[key] === '' || input[key] === null ? null : integer(input[key], label, 0, 365)
-   v.billingCurrency = input.billingCurrency || previous?.value.billingCurrency || a.currency
+   // New clients use USD; legacy clients without a stored choice retain their agency currency.
+   v.billingCurrency = input.billingCurrency || previous?.value.billingCurrency || (previous ? a.currency : 'USD')
    need(currencies.includes(v.billingCurrency), 'Choose a supported billing currency')
    v.paymentTermsDays = days('paymentTermsDays', 'Payment terms days'); v.daysLate = days('daysLate', 'Days late')
    v.daysLateApprovedBy = v.daysLate === null ? null : v.daysLate === (previous?.value.daysLate ?? null) ? previous?.value.daysLateApprovedBy ?? a.session.operator.id : a.session.operator.id

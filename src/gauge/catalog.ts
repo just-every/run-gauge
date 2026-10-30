@@ -78,7 +78,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
   need(currencies.includes(v.currency), 'Choose a supported billing currency')
   if (previous && v.currency !== previous.value.currency) {
    need(!previous.value.estimateId, 'Currency is locked by an accepted commercial estimate', 409)
-   for (const kind of ['budgets','retainers','invoices','packets','time','milestones'] as const) {
+   for (const kind of ['budgets','retainers','invoices','packets','time','milestones','vendorCommitments','vendorBills'] as const) {
     const rows = (await all(env, kind)).filter(r => r.value.engagementId === previous.id)
     for(const row of rows)tx.observe(kind,row)
     need(!rows.some(r => kind === 'retainers' || kind === 'invoices' || r.value.status === 'approved' || !!r.value.economics), 'Currency is locked by approved commercial work', 409)

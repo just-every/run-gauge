@@ -1,3 +1,4 @@
+import { vendorCosts } from './vendor-commitments'
 import { quoteBill } from './quote-pricing'
 import { phaseViews } from './budget-phases'
 import { type Row, type Value, charge, sum } from './model'
@@ -65,6 +66,13 @@ export function financeForecastBase(data: Record<string, Row[]>, asOf: string, r
   }
   const spent = mine('expenses').filter(r => r.value.status === 'approved')
   for (const x of spent) { const m = at(month(x.value.date)); sources.expenses.push(x.id); m.actualCostMinor += x.value.amountMinor; if (x.value.clientBillable??x.value.reimbursable) m.actualFeesMinor += x.value.clientRecoveryMinor??x.value.amountMinor }
+  // Approved received bills replace their commitment remainder once. Drafts have no cost effect.
+  const vendors=vendorCosts(data,asOf).filter(c=>c.commitment.value.engagementId===e.id)
+  for(const v of vendors){
+   (sources.vendorCommitments??=[]).push(v.commitment.id)
+   for(const b of v.bills){(sources.vendorBills??=[]).push(b.id);at(month(b.value.date)).actualCostMinor+=b.value.amountMinor}
+   at(month(v.commitment.value.expectedDate)).etcCostMinor+=v.remainingMinor
+  }
   // ETC: future allocation days, priced at the rate effective on each day.
   const committedDays: string[] = []
   for (const s of mine('staffing')) {

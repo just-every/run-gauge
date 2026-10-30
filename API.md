@@ -1249,3 +1249,29 @@ A delivery-only invitation also refuses independently released invoice and comme
 `GET /api/gauge/saved/:id` returns the definition, permitted result, displayed table, formulas, overlap warning and source fingerprint. The native Review form opens the same view with `savedReport` in its query. Finance can read saved definitions; a lead reads only their own utilization reports. Current field policy and project access are checked again at each read; narrowing access to a retained project refuses the saved read.
 
 Append `.csv`, `.xlsx` or `.pdf` to the saved-report endpoint and send its exact `revision` and `fingerprint` query parameters. Each native download contains the same captured rows, exact minor units, seconds, formulas and explicit unknowns as the displayed table. Source or definition changes require reopening the report. Text is formula-safe, currencies remain distinct and overlapping cohorts cannot be summed. Restoring business records preserves definitions and history, without restoring sessions or grants. Scheduling, outbound sending, warehouse delivery and BI feeds remain unavailable.
+## Invoice collection assumptions
+
+Native owner and finance sessions may submit `cash:approve` with a request key,
+`from`, `to`, `asOf`, `engagementId`, `sourceKey`, `fingerprint`, an integer
+`collectionPercent` from 0 to 100 and a reason. The source key and fingerprint
+come from the cash item's `probabilityBasis`. An existing assumption also requires
+its exact `id` and `revision`. Blank or null percentage restores the client
+fallback; zero means no expected collection. The Review cash section offers the
+same source-specific approval form.
+
+The approval retains the finance approver, source references and immutable prior
+revisions. Changed scheduled amounts, dates, source revisions or payment terms
+invalidate it; the report labels the client fallback and asks for renewed approval.
+A client probability change alone does not replace a valid invoice override.
+An issued invoice override applies to its remaining collectible balance, including
+promised portions, after dated receipts, credits and standing disputes. Exact
+scheduled retainer fee and fixed-source approvals follow their frozen source
+identities into an issued invoice; combined documents retain each source's share
+rather than applying that percentage to unrelated lines. Regrouped hourly cycle
+projections need a separate issued-invoice approval. The invoice original,
+approved commercial terms and payment records are never edited by an assumption.
+
+Cash items show collectible open amounts, applied percentages, approvers and exact
+assumption revisions. Calculation drills and the revision-bound report CSV retain
+the same assumption records. Business export and restore preserve these records
+and their history; they supply no payment or scheduled-execution authority.

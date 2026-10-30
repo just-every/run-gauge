@@ -38,7 +38,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if (a.role==='agent') return agentValue(a,k,value)
  if(['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts'].includes(k)&&a.role!=='owner')return {}
  if(['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','floatAdoptions','learningCohorts'].includes(k)&&a.role!=='owner')return {}
- if(k==='analystSnapshots'&&!finance(a))return {}
+ if(['analystSnapshots','cashAssumptions'].includes(k)&&!finance(a))return {}
  if(k==='kantataRecords'&&!finance(a))return {}
  if(['revenueSchedules','revenueRecognitions'].includes(k)&&!finance(a))return {}
  if(['fxRates','invoiceSettings','invoiceAccess','invoiceViews'].includes(k)&&!finance(a))return {}
@@ -73,6 +73,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  for(const k of ['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','floatAdoptions','learningCohorts'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.kantataRecords=finance(a)?data.kantataRecords:[]
  data.analystSnapshots=finance(a)?data.analystSnapshots:[]
+ data.cashAssumptions=finance(a)?data.cashAssumptions:[]
  data.expenseRates=finance(a)?data.expenseRates:[]
  data.leave=data.leave.map(r=>({...r,value:redact(a,'leave',r.value)}))
  data.revenueSchedules=finance(a)?data.revenueSchedules:[];data.revenueRecognitions=finance(a)?data.revenueRecognitions:[];

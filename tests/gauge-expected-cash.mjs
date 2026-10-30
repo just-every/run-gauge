@@ -1,3 +1,4 @@
+import {cashAssumptionsJourney} from './gauge-cash-assumptions.mjs'
 import assert from 'node:assert/strict'
 import { harness } from './gauge-harness.mjs'
 
@@ -61,3 +62,5 @@ try {
  assert.deepEqual(curve(data, 'expectedMinor'), { '2026-12': 1400000 })
  console.log('PASS FINANCE-007 unissued milestone and arrears placement on Net 30, approved days late range and delivery-plan moves as of 10 October')
 } finally { await h.dispose() }
+
+await cashAssumptionsJourney()

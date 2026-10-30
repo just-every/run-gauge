@@ -1,3 +1,4 @@
+import { vendorCosts } from './vendor-commitments'
 import { type Row, type Value, need, sum } from './model'
 import { projectFieldLabels,projectMatches,customMeasures } from './custom-report'
 import { portfolioLabor } from './portfolio-labor'
@@ -17,14 +18,16 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
   const mine=(kind:string)=>(data[kind]??[]).filter(r=>r.value.engagementId===id)
   const time=mine('time').filter(r=>r.value.status==='approved'&&r.value.workDate>=from&&r.value.workDate<=end)
   const expenses=mine('expenses').filter(r=>r.value.status==='approved'&&r.value.date>=from&&r.value.date<=end)
+  const vendorBills=vendorCosts(data,end).filter(c=>c.commitment.value.engagementId===id).flatMap(c=>c.bills).filter(b=>b.value.date>=from)
   const milestones=mine('milestones').filter(r=>r.value.status==='approved'&&r.value.due>=from&&r.value.due<=end)
   const budget=mine('budgets').filter(r=>r.value.status==='approved').sort((a,b)=>b.value.approvedAt-a.value.approvedAt)[0]
   const periodFees=fees.filter(fee=>fee.engagementId===id&&fee.activeStart<=end&&fee.activeEnd>=from)
   const costUnknown:string[]=[],feeUnknown:string[]=[],sources:Record<string,string[]>={engagements:[id],clients:[project.value.clientId],people:[],time:time.map(t=>t.id),expenses:expenses.map(t=>t.id),budgets:budget?[budget.id]:[],milestones:[],retainers:[],retainerPeriods:[]}
-  let costMinor=sum(expenses.map(r=>r.value.amountMinor)),earnedMinor=sum(expenses.filter(r=>(r.value.clientBillable??r.value.reimbursable)).map(r=>r.value.clientRecoveryMinor??r.value.amountMinor))
+  sources.vendorBills=vendorBills.map(b=>b.id);sources.vendorCommitments=vendorCosts(data,end).filter(c=>c.commitment.value.engagementId===id).map(c=>c.commitment.id)
+  let costMinor=sum([...expenses,...vendorBills].map(r=>r.value.amountMinor)),earnedMinor=sum(expenses.filter(r=>(r.value.clientBillable??r.value.reimbursable)).map(r=>r.value.clientRecoveryMinor??r.value.amountMinor))
   const items=expenses.filter(r=>(r.value.clientBillable??r.value.reimbursable)).map(r=>({day:r.value.date as string,minor:(r.value.clientRecoveryMinor??r.value.amountMinor) as number}))
   // Each cost keeps its own currency and date, so the converted burn needs no engagement-currency match.
-  const costs=[...expenses.map(r=>({currency:r.value.currency as string,day:r.value.date as string,minor:r.value.amountMinor as number,unknown:false})),...time.map(r=>{const x=r.value.economics??{};return {currency:(x.costCurrency??x.currency) as string,day:r.value.workDate as string,minor:(x.costMinor??0) as number,unknown:x.costMinor==null}})]
+  const costs=[...vendorBills.map(r=>({currency:r.value.currency as string,day:r.value.date as string,minor:r.value.amountMinor as number,unknown:false})),...expenses.map(r=>({currency:r.value.currency as string,day:r.value.date as string,minor:r.value.amountMinor as number,unknown:false})),...time.map(r=>{const x=r.value.economics??{};return {currency:(x.costCurrency??x.currency) as string,day:r.value.workDate as string,minor:(x.costMinor??0) as number,unknown:x.costMinor==null}})]
   for(const row of time){const x=row.value.economics??{};if(x.costMinor==null)costUnknown.push(`time:${row.id}: frozen cost unknown`);else if((x.costCurrency??x.currency)!==f.currency)costUnknown.push(`time:${row.id}: unconverted ${x.costCurrency??x.currency} cost`);else costMinor+=x.costMinor
    if((f.basis==='hourly'||f.basis==='mixed'&&x.mode==='hourly')&&row.value.billable){if(x.billMinor==null)feeUnknown.push(`time:${row.id}: frozen bill value unknown`);else{earnedMinor+=x.billMinor;items.push({day:row.value.workDate,minor:x.billMinor})}}}
   if(f.basis==='fixed'||f.basis==='mixed'){earnedMinor+=sum(milestones.map(m=>m.value.amountMinor));items.push(...milestones.map(m=>({day:m.value.due as string,minor:m.value.amountMinor as number})));sources.milestones=milestones.map(m=>m.id)}

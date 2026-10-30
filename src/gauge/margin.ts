@@ -1,3 +1,4 @@
+import { vendorCosts } from './vendor-commitments'
 import { projectBillingData } from './consolidated-billing'
 import { type Row, type Value, charge, sum } from './model'
 import { explain, activeRates } from './rate-cards'
@@ -42,6 +43,7 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
   const billing=projectBillingData(data,e.id,forecast.asOf)
   const standings = liveInvoices(billing, forecast.asOf).filter(s => s.invoice.value.engagementId === e.id), invoices = standings.map(s => s.invoice), invoiceCredits = standings.flatMap(s => s.credits), payments=billing.payments.filter(p=>p.value.date<=forecast.asOf&&invoices.some(i=>i.id===p.value.invoiceId))
   const packets = billing.packets.filter(p => p.value.status === 'approved'), credits = packets.filter(p => p.value.correctsPacketId && p.value.totalMinor < 0)
+  const approvedVendorCostMinor=sum(vendorCosts(data,forecast.asOf).filter(c=>c.commitment.value.engagementId===e.id).map(c=>c.actualMinor))
   const approvedExpenseMinor = sum(approvedExpenses.map(x => x.value.amountMinor)), knownApprovedCostMinor = f.actualCostMinor
   const actualUnknown = [...costUnknown, ...feesUnknown], knownActualMarginMinor = f.actualFeesMinor - knownApprovedCostMinor
   // Remaining effort: open task estimates, and committed allocation seconds after the as-of day.
@@ -51,7 +53,7 @@ export function projectMargin(data: Record<string, Row[]>, forecast: Forecast) {
   }))
   return {
    engagementId: e.id, name: e.value.name, currency: f.currency, basis: f.basis,
-   approvedCostMinor: costUnknown.length ? null : knownApprovedCostMinor, knownApprovedCostMinor, approvedLaborCostMinor: knownApprovedCostMinor - approvedExpenseMinor, approvedExpenseCostMinor: approvedExpenseMinor, costUnknown,
+   approvedCostMinor: costUnknown.length ? null : knownApprovedCostMinor, knownApprovedCostMinor, approvedLaborCostMinor: knownApprovedCostMinor - approvedExpenseMinor - approvedVendorCostMinor, approvedVendorCostMinor, approvedExpenseCostMinor: approvedExpenseMinor, costUnknown,
    provisionalCostMinor: provisionalUnknown.length ? null : provisionalLaborMinor + provisionalExpenseMinor, knownProvisionalCostMinor: provisionalLaborMinor + provisionalExpenseMinor, provisionalLaborCostMinor: provisionalLaborMinor, provisionalExpenseCostMinor: provisionalExpenseMinor, provisionalUnknown, provisionalSources,
    earnedValueMinor: feesUnknown.length ? null : f.actualFeesMinor, knownEarnedValueMinor: f.actualFeesMinor, feesUnknown, earnedLabel: marginLabels.earned,
    billedMinor: invoices.length ? sum(standings.map(s => s.netMinor)) : sum(packets.map(p => p.value.totalMinor)), creditsMinor: sum(credits.map(p => p.value.totalMinor)), billedLabel: invoices.length ? (invoiceCredits.length ? 'Invoiced, pre-tax, net of credit notes' : 'Invoiced, pre-tax') : marginLabels.billed, invoiceCreditSources: invoiceCredits.map(c => c.id), packetSources: packets.map(p => p.id), creditSources: credits.map(p => p.id),

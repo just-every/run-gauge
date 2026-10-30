@@ -1,3 +1,4 @@
+import { vendorCommand } from './vendor-commitments'
 import { recoveryBaseline, recoveryFormPreview } from './recovery-feasibility'
 import { learningPreview, learningCommand } from './learning'
 import { analystCapture } from './analyst-snapshots'
@@ -122,6 +123,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  if(action==='opportunity:convert')tx.customWrite={scope:'engagements',values:input.customFields}
  const alertInputs=await observeBudgetAlerts(env,tx,action)
  let result:Value|null=action.startsWith('privacy:')?await privacyCommand(env,a,tx,action,input):followupProof?await applyProviderFollowup(env,a,tx,input,followupProof):await retainerCommand(env,a,tx,action,input)
+ if(!result)result=await vendorCommand(env,a,tx,action,input)
  if(!result)result=await analystCapture(env,a,tx,action,input)
  if(!result)result=await learningCommand(env,a,tx,action,input)
  if(!result)result=await floatDeletionCommand(env,a,tx,action,input)

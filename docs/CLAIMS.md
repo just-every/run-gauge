@@ -77,7 +77,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `REPORT-001` | done | `src/gauge/portfolio.ts`; `src/gauge/portfolio-labor.ts`; `src/gauge/retainer-fees.ts`; `src/gauge/ui-portfolio.ts`; `tests/gauge-portfolio.mjs`; `tests/gauge-report-lineage.mjs`; `tests/gauge-base-portability.mjs` |
 | `REPORT-002` | done | `src/gauge/billability.ts`; `src/gauge/ui-performance.ts`; `tests/gauge-realization.mjs` |
 | `REPORT-003` | partial | `src/gauge/revenue-dashboard.ts`; `src/gauge/ui-revenue-dashboard.ts`; `src/gauge/report-lineage-revenue.ts`; `tests/gauge-revenue-dashboard.mjs`; `tests/gauge-cash-forecast.mjs` |
-| `REPORT-004` | missing |  |
+| `REPORT-004` | partial | `src/gauge/custom-fields.ts`; `src/gauge/custom-report.ts`; `src/gauge/saved-report-export.ts`; `src/gauge/ui-custom-fields.ts`; `tests/gauge-saved-reports.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-report-lineage.mjs` |
 | `REPORT-005` | done | `src/gauge/report-lineage.ts`; `src/gauge/report-export.ts`; `src/gauge/ui-report-evidence.ts`; `tests/gauge-report-lineage.mjs`; `src/gauge/report-lineage-demand.ts`; `src/gauge/ui-demand.ts`; `tests/gauge-demand-forecast.mjs` |
 | `CLIENT-001` | done | `tests/gauge-milestone-delivery.mjs`; `tests/gauge-delivery.mjs`; `.github/workflows/verify.yml` |
 | `CLIENT-002` | missing |  |

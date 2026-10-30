@@ -64,10 +64,15 @@ try {
   // Exercise the browser download door as well as the direct transport.
   const download=page.waitForEvent('download');await shown.getByRole('link',{name:'Download XLSX',exact:true}).click();assert.match((await download).suggestedFilename(),/\.xlsx$/)
   const shots=process.env.GAUGE_SAVED_REPORT_SHOTS
-  if(shots){await mkdir(shots,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await shown.screenshot({path:`${shots}/${row.value.dataset}-${width}.png`})}await page.setViewportSize({width:1440,height:1000})}
+  if(shots){await mkdir(shots,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.locator('#custom-reports').screenshot({path:`${shots}/${row.value.dataset}-${width}.png`})}await page.setViewportSize({width:1440,height:1000})}
  }
  // Stale definition and source fingerprints refuse without modifying business records.
- const revised=await cmd('saved:save',{...definition,...profit,name:'Revised profit',columns:['earnedMinor','marginMinor']},finance.cookie)
+ await login(finance.cookie);await page.goto(h.origin+`/app/review?savedReport=${profit.id}`)
+ const revise=page.locator('#custom-reports form').filter({has:page.locator('input[value="saved:save"]')})
+ await revise.getByLabel('Report name',{exact:true}).fill('Revised profit');await revise.locator('input[value="costMinor"]').uncheck()
+ await revise.getByRole('button',{name:'Save',exact:true}).click();await page.waitForURL('**/app/review?saved=1')
+ const revised=(await state(finance.cookie)).data.savedReports.find(r=>r.id===profit.id)
+ assert.notEqual(revised.revision,profit.revision);assert.deepEqual(revised.value.columns,['earnedMinor','marginMinor'])
  await cmd('saved:save',{...definition,...profit,name:'Stale edit'},finance.cookie,409)
  for(const format of ['csv','xlsx','pdf'])assert.equal((await request(path(profit,profitSnapshot,format),finance.cookie)).status,409)
  const history=await(await request('/api/gauge/history/savedReports/'+profit.id,finance.cookie)).json();assert.equal(history.history[0].value.name,'Finance profit');assert.deepEqual(history.history[0].value.columns,definition.columns)
@@ -82,13 +87,16 @@ try {
  await cmd('saved:save',{name:'Private selection',dataset:'utilization',group:field.id,from,to,columns:['costMinor']},leadUser.cookie,403)
  await cmd('saved:save',{name:'Private field',dataset:'utilization',group:privateField.id,from,to},leadUser.cookie,403)
  await cmd('saved:save',{name:'Private measure',dataset:'utilization',group:field.id,from,to,measures:[privateField.id]},leadUser.cookie,403)
+ const fieldRow=(await state()).data.customFields.find(r=>r.id===field.id)
+ const privatePolicy=await cmd('field:define',{...fieldRow,...fieldRow.value,visibility:'finance-only',reason:'Narrow reporting policy'})
+ assert.equal((await request('/api/gauge/saved/'+utilization.id,leadUser.cookie)).status,403)
+ for(const format of ['csv','xlsx','pdf'])assert.equal((await request(path(utilization,utilSnapshot,format),leadUser.cookie)).status,403)
+ await cmd('field:define',{...privatePolicy,...fieldRow.value,visibility:'lead-finance',reason:'Restore previously permitted reporting policy'})
+ await read(utilization,leadUser.cookie)
  const narrowed=(await state()).data.engagements.find(r=>r.id===projects[0].id)
  await cmd('save:engagements',{...narrowed,...narrowed.value,leadId:other.id,members:[]})
  assert.equal((await request('/api/gauge/saved/'+utilization.id,leadUser.cookie)).status,403)
  for(const format of ['csv','xlsx','pdf'])assert.equal((await request(path(utilization,utilSnapshot,format),leadUser.cookie)).status,403)
- const fieldRow=(await state()).data.customFields.find(r=>r.id===field.id)
- await cmd('field:define',{...fieldRow,...fieldRow.value,visibility:'finance-only',reason:'Narrow reporting policy'})
- assert.equal((await request('/api/gauge/saved/'+utilization.id,leadUser.cookie)).status,403)
  await cmd('grant',{operatorId:finance.id,personId:other.id,role:'finance',enabled:false})
  for(const format of ['csv','xlsx','pdf'])assert.equal((await request(path(profit,profitSnapshot,format),finance.cookie)).status,403)
  console.log('PASS REPORT-004 saved finance and lead forms, exact CSV XLSX PDF rows and formulas, revision history, stale sources, private fields, narrowed projects and revocation')

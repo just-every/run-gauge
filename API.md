@@ -1240,3 +1240,30 @@ The existing project invitation accepts `clientRole` as `sponsor` or `collaborat
 Collaborators see project scope, tasks, milestones and permitted nonmonetary custom fields. They see no budgets, burn or retainer statements. Finance sharing cannot widen that ceiling. A sponsor may inspect finances only after the separate finance sharing command, and may decide only a separately owner-released exact delivery through current project access or its existing review key. Turning delivery decisions off refuses the next review request and previously successful command replays. Changing a sponsor to collaborator clears monetary sharing; a later sponsor assignment requires fresh finance sharing.
 
 A delivery-only invitation also refuses independently released invoice and commercial-proposal documents for the same client. Revocation preserves an inert deny record until an explicit replacement invitation; removing project access cannot revive an older exact-delivery review. Authority remains excluded from business archives under the existing project-authority table policy. No notice is sent. This conservative client-role policy awaits ct approval; the existing separately released scope-change review remains available under its current authority rules, while role-specific scope approval proof and general configurable native roles remain GOVERN-003 gaps.
+
+## Invoice collection assumptions
+
+Native owner and finance sessions may submit `cash:approve` with a request key,
+`from`, `to`, `asOf`, `engagementId`, `sourceKey`, `fingerprint`, an integer
+`collectionPercent` from 0 to 100 and a reason. The source key and fingerprint
+come from the cash item's `probabilityBasis`. An existing assumption also requires
+its exact `id` and `revision`. Blank or null percentage restores the client
+fallback; zero means no expected collection. The Review cash section offers the
+same source-specific approval form.
+
+The approval retains the finance approver, source references and immutable prior
+revisions. Changed scheduled amounts, dates, source revisions or payment terms
+invalidate it; the report labels the client fallback and asks for renewed approval.
+A client probability change alone does not replace a valid invoice override.
+An issued invoice override applies to its remaining collectible balance, including
+promised portions, after dated receipts, credits and standing disputes. Exact
+scheduled retainer fee and fixed-source approvals follow their frozen source
+identities into an issued invoice; combined documents retain each source's share
+rather than applying that percentage to unrelated lines. Regrouped hourly cycle
+projections need a separate issued-invoice approval. The invoice original,
+approved commercial terms and payment records are never edited by an assumption.
+
+Cash items show collectible open amounts, applied percentages, approvers and exact
+assumption revisions. Calculation drills and the revision-bound report CSV retain
+the same assumption records. Business export and restore preserve these records
+and their history; they supply no payment or scheduled-execution authority.

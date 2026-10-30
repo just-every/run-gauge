@@ -1,9 +1,10 @@
+import { cashBasis, cashReference, cashProbability, type CashBasis, type CashReference } from './cash-assumptions'
 import { projectBillingData } from './consolidated-billing'
 import { capBalances } from './budget-caps'
 import { retainerConsumption } from './retainer-consumption'
 import { retainerIssueDate } from './retainer-schedule'
 import { retainerFees } from './retainer-fees'
-import { type Row, sum } from './model'
+import { type Row, type Kind, sum } from './model'
 import { liveInvoices } from './invoice-standing'
 import type { financeForecast } from './finance-forecast'
 
@@ -22,7 +23,7 @@ const DAY = 86400000
 const addDays = (day: string, days: number) => new Date(Date.parse(day) + days * DAY).toISOString().slice(0, 10)
 const nextMonthStart = (month: string) => { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + 1); return d.toISOString().slice(0, 10) }
 type CashMonth = { currency: string, month: string, revenueMinor: number, tentativeMinor: number, pipelineMinor: number, invoicesMinor: number, openMinor: number, expectedMinor: number, historicalOpenMinor: number, historicalExpectedMinor: number, pastDueMinor: number, engagements: string[] }
-type ScheduledInvoice = { source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], creditSnapshots?: Row[], creditedMinor?: number, disputedMinor?: number, disputeSnapshot?: Row, assumption?: string }
+type ScheduledInvoice = { probabilityBasis?: CashBasis, inheritedBasis?: CashBasis, source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], creditSnapshots?: Row[], creditedMinor?: number, disputedMinor?: number, disputeSnapshot?: Row, assumption?: string }
 const percentOf = (minor: number, percent: number) => Number((BigInt(minor) * BigInt(percent) + 50n) / 100n)
 
 export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
@@ -55,7 +56,19 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   }
   // Expected invoices: milestones on their due dates; every other committed fee of a month on the 1st of the next month.
   const invoices: ScheduledInvoice[] = []
-  const schedule = (source: string, revenueMonth: string, invoiceDate: string, amountMinor: number, assumption?: string) => invoices.push({ source, revenueMonth, invoiceDate, amountMinor, openMinor: amountMinor, issued: false, invoiceSnapshot: null, paymentSnapshots: [], ...(assumption ? { assumption } : {}) })
+  const basis = (key: string, invoiceDate: string, amountMinor: number, references: CashReference[], net = terms) => cashBasis(key, e.id, e.value.clientId, f.currency, invoiceDate, amountMinor, net, references)
+  const references = (source: string): CashReference[] => {
+   const [kind, id] = source.split(':')
+   const row = data[kind]?.find(r => r.id === id)
+   if (row) return [cashReference(kind as Kind, row)]
+   return Object.entries(f.sources).flatMap(([k, ids]) => (ids as string[]).flatMap(id => {const r = data[k]?.find(r => r.id === id); return r ? [cashReference(k as Kind, r)] : []})).sort((a,b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id))
+  }
+  const retainerReferences = (period: Row, charge?: Row) => {
+   const frozen = charge?.value, term = frozen?.termsSnapshot ?? data.retainers.find(r => r.id === period.value.retainerId)!
+   const savedPeriod = frozen?.periodSnapshot ?? period, configured = (data.retainerSchedules ?? []).find(s => s.value.rootId === period.value.rootId && period.value.activeStart >= s.value.from)
+   return [cashReference('retainerPeriods', savedPeriod), cashReference('retainers', term), ...(frozen?.scheduleId ? [{kind: 'retainerSchedules' as const, id: frozen.scheduleId, revision: frozen.scheduleRevision}] : configured ? [cashReference('retainerSchedules', configured)] : [])]
+  }
+  const schedule = (source: string, revenueMonth: string, invoiceDate: string, amountMinor: number, assumption?: string, refs = references(source)) => invoices.push({ probabilityBasis: basis(source, invoiceDate, amountMinor, refs), source, revenueMonth, invoiceDate, amountMinor, openMinor: amountMinor, issued: false, invoiceSnapshot: null, paymentSnapshots: [], ...(assumption ? { assumption } : {}) })
   const milestones = ['fixed','mixed'].includes(f.basis) ? (data.milestones ?? []).filter(m => m.value.engagementId === e.id && m.value.status === 'approved') : []
   for (const m of milestones) { if (!sources.milestones.includes(m.id)) sources.milestones.push(m.id); if (!issuedMilestones.has(m.id)) schedule(`milestones:${m.id}`, m.value.due.slice(0, 7), m.value.due, m.value.amountMinor) }
   for (const charge of (data.fixedCharges??[]).filter(c=>c.value.engagementId===e.id&&c.value.status==='approved')) {
@@ -66,7 +79,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const period=data.retainerPeriods.find(p=>p.id===fee.periodId)!,configured=(data.retainerSchedules??[]).find(s=>s.value.rootId===period.value.rootId&&period.value.activeStart>=s.value.from)
    const charge=(data.retainerCharges??[]).find(c=>c.value.periodId===fee.periodId)
    if(configured)sources.retainerSchedules.push(configured.id);if(charge)sources.retainerCharges.push(charge.id)
-   if(!charge||!issuedMilestones.has(charge.id))schedule(`retainerPeriods:${fee.periodId}`,fee.periodStart.slice(0,7),charge?.value.date??(configured?retainerIssueDate(period,configured.value.basis):fee.activeStart),fee.totalMinor!,configured?'Contractual retainer schedule; not issued':'Assumed in advance on active period start, not issued; RETAINER-005 sets the schedule')
+   if(!charge||!issuedMilestones.has(charge.id))schedule(`retainerPeriods:${fee.periodId}`,fee.periodStart.slice(0,7),charge?.value.date??(configured?retainerIssueDate(period,configured.value.basis):fee.activeStart),fee.totalMinor!,configured?'Contractual retainer schedule; not issued':'Assumed in advance on active period start, not issued; RETAINER-005 sets the schedule',retainerReferences(period,charge))
   }
   const periodOverages=f.basis==='retainer'?balances.filter(b=>b.engagementId===e.id&&b.overageMinor>0):[]
   for(const balance of periodOverages){
@@ -93,13 +106,37 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const dispute=(billing.invoiceDisputes??[]).filter(x=>x.value.invoiceId===invoice.id&&x.value.openedDate<=asOf&&(x.value.status==='open'||x.value.resolvedDate>asOf)).at(-1)
    const disputed=dispute?Math.min(openMinor,dispute.value.amountMinor):0
    const promised=promise?Math.min(openMinor-disputed,promise.value.amountMinor):0
-   if(promised)invoices.push({source:`invoices:${invoice.id}:promise`,revenueMonth:null,invoiceDate:invoice.value.issueDate,amountMinor:0,openMinor:promised,issued:true,invoiceSnapshot:invoice,promiseSnapshot:promise,promised:true,paymentSnapshots:[]})
-   invoices.push({ source: `invoices:${invoice.id}`, revenueMonth: null, invoiceDate: invoice.value.issueDate, amountMinor: invoice.value.totalMinor,
-    openMinor: openMinor-promised-disputed, issued: true, invoiceSnapshot: invoice, paymentSnapshots: payments, creditSnapshots: standing.credits, creditedMinor: standing.creditedMinor, disputedMinor: disputed, ...(disputed?{disputeSnapshot:dispute}:{}) })
+   const invoiceBasis = basis(`invoices:${invoice.id}`, invoice.value.issueDate, invoice.value.totalMinor, [cashReference('invoices', invoice)], invoice.value.paymentTermsDays)
+   const explicit = cashProbability(data,e.id,invoiceBasis,client).decisionSnapshot
+   const lineBases = invoice.value.lines.map((line: any) => {
+    const snapshot = line.sourceSnapshot as Row | undefined
+    if (!snapshot || line.amountMinor <= 0) return null
+    if (line.kind === 'retainerCharges') return basis(`retainerPeriods:${snapshot.value.periodId}`, snapshot.value.date, line.amountMinor, retainerReferences(snapshot.value.periodSnapshot, snapshot), invoice.value.paymentTermsDays)
+    if (['milestones','fixedCharges'].includes(line.kind)) return basis(`${line.kind}:${line.sourceId}`, snapshot.value.due ?? snapshot.value.date, line.amountMinor, [cashReference(line.kind, snapshot)], invoice.value.paymentTermsDays)
+    return null
+   }) as (CashBasis | null)[]
+   const inherited = !explicit && lineBases.some(b => b && cashProbability(data,e.id,b,client).assumptionSnapshot)
+   const weights: number[] = inherited ? invoice.value.lines.map((l: any) => Math.max(0,l.amountMinor)) : [invoice.value.totalMinor]
+   const totalWeight = sum(weights)
+   let cumulative = 0, remainingPromised = promised
+   for (const [index, weight] of weights.entries()) {
+    const before = cumulative; cumulative += weight
+    const portion = (amount: number) => Number((BigInt(amount)*BigInt(cumulative)+BigInt(Math.floor(totalWeight/2)))/BigInt(totalWeight)) - Number((BigInt(amount)*BigInt(before)+BigInt(Math.floor(totalWeight/2)))/BigInt(totalWeight))
+    const lineOpen = portion(openMinor-disputed), linePromised = Math.min(remainingPromised,lineOpen); remainingPromised -= linePromised
+    const inheritedBasis = inherited ? lineBases[index] ?? undefined : undefined
+    const source = `invoices:${invoice.id}${inherited ? `:line:${index}` : ''}`
+    const common = {probabilityBasis: invoiceBasis, inheritedBasis, revenueMonth:null, invoiceDate:invoice.value.issueDate, issued:true, invoiceSnapshot:invoice}
+    if (promised) invoices.push({...common,source:source+':promise',amountMinor:0,openMinor:linePromised,promiseSnapshot:promise,promised:true,paymentSnapshots:[]})
+    invoices.push({...common,source,amountMinor:portion(invoice.value.totalMinor),openMinor:lineOpen-linePromised,paymentSnapshots:index===0?payments:[],creditSnapshots:index===0?standing.credits:[],creditedMinor:index===0?standing.creditedMinor:0,disputedMinor:portion(disputed),...(disputed?{disputeSnapshot:dispute}:{})})
+   }
   }
   const items = invoices.map(x => {
    const receiptDate = x.promiseSnapshot?.value.date ?? x.invoiceSnapshot?.value.dueDate ?? addDays(x.invoiceDate, terms), historicalDate = x.promised ? receiptDate : daysLate === null ? null : addDays(receiptDate, daysLate)
-   return { ...x, invoiceId: x.invoiceSnapshot?.id ?? null, paidMinor: x.promised?0:sum(x.paymentSnapshots.map(p=>p.value.amountMinor)), invoiceMonth: x.invoiceDate.slice(0, 7), receiptDate, cashMonth: place(receiptDate), pastDue: x.openMinor > 0 && receiptDate < asOf, historicalDate, historicalMonth: historicalDate && place(historicalDate), collectionPercent: percent, expectedMinor: percentOf(x.openMinor, percent) }
+   const probabilityBasis = x.probabilityBasis ?? basis(x.source,x.invoiceDate,x.amountMinor,references(x.source))
+   const direct = cashProbability(data,e.id,probabilityBasis,client)
+   const inherited = x.inheritedBasis && !direct.decisionSnapshot ? cashProbability(data,e.id,x.inheritedBasis,client) : null
+   const probability = inherited?.assumptionSnapshot ? {...inherited, probabilitySource:'scheduled source override'} : direct
+   return { ...x, probabilityBasis, ...probability, invoiceId: x.invoiceSnapshot?.id ?? null, paidMinor: x.promised?0:sum(x.paymentSnapshots.map(p=>p.value.amountMinor)), invoiceMonth: x.invoiceDate.slice(0, 7), receiptDate, cashMonth: place(receiptDate), pastDue: x.openMinor > 0 && receiptDate < asOf, historicalDate, historicalMonth: historicalDate && place(historicalDate), expectedMinor: percentOf(x.openMinor, probability.collectionPercent) }
   }).sort((x, y) => x.invoiceDate.localeCompare(y.invoiceDate) || x.source.localeCompare(y.source))
   return { engagementId: e.id, name: e.value.name, clientId: e.value.clientId, currency: f.currency, basis: f.basis, paymentTermsDays: terms, termsLabel: set === null ? 'Net 30 assumed' : `Net ${terms}`, daysLate, daysLateApprovedBy: client?.value.daysLateApprovedBy ?? null, collectionPercent: percent,
    bookedRevenueMinor: f.actualFeesMinor, backlogMinor: f.eacFeesMinor - f.actualFeesMinor, items, complete: incomplete.length === 0, incomplete: [...new Set(incomplete)], sources }

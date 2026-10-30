@@ -62,7 +62,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `FINANCE-004` | done | `tests/gauge-invoices.mjs`; `tests/gauge-base-portability.mjs` |
 | `FINANCE-005` | partial | `tests/gauge-handoffs.mjs` |
 | `FINANCE-006` | done | `src/gauge/finance-forecast.ts`; `src/gauge/report-lineage-forecast.ts`; `src/gauge/rate-cards.ts`; `src/gauge/ui-forecast.ts`; `migrations/core/0033_gauge_rate_withdrawals.sql`; `tests/gauge-finance-forecast.mjs` |
-| `FINANCE-007` | partial | `src/gauge/cash-forecast.ts`; `src/gauge/report-lineage-cash.ts`; `tests/gauge-expected-cash.mjs`; `tests/gauge-cash-forecast.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-portfolio.mjs` |
+| `FINANCE-007` | partial | `src/gauge/cash-forecast.ts`; `src/gauge/cash-assumptions.ts`; `src/gauge/report-lineage-cash.ts`; `tests/gauge-expected-cash.mjs`; `tests/gauge-cash-assumptions.mjs`; `tests/gauge-cash-forecast.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-portfolio.mjs` |
 | `INVOICE-001` | partial | `src/gauge/billing.ts`; `tests/gauge.mjs`; `tests/gauge-currency.mjs`; `src/gauge/invoices.ts`; `src/gauge/ui-invoices.ts`; `tests/gauge-invoices.mjs` |
 | `INVOICE-002` | done | `tests/gauge-progress.mjs`; `tests/gauge-cash-forecast.mjs`; `tests/gauge-retainer-rules.mjs`; `tests/gauge-retainers.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs` |
 | `INVOICE-003` | partial | `tests/gauge-invoices.mjs`; `tests/gauge-invoice-delivery.mjs`; `tests/live/invoice-delivery.mjs`; `tests/gauge-base-portability.mjs`; `src/gauge/invoice-delivery.ts`; `src/gauge/invoice-delivery-readback.ts`; `src/gauge/invoice-mail-provider.mjs` |

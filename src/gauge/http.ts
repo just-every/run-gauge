@@ -131,6 +131,7 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    if(/^import:[a-z]+:(preview|report)$/.test(action))return new Response(await appPage(env,a,'imports',{[action.endsWith(':preview')?'moveInPreview':'moveInReport']:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='import:preview')return new Response(await appPage(env,a,'imports',{preview:result}),{headers:{...headers,'content-type':'text/html; charset=utf-8'}})
    if(action==='template:apply')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(input.engagementId)}&saved=1#delivery-schedule`}})
+   if(action==='cash:approve')return new Response(null,{status:303,headers:{...headers,location:`/app/review?${new URLSearchParams({from:String(input.from),to:String(input.to),asOf:String(input.asOf),saved:'1'})}#cash-forecast`}})
    if(action==='target:set')return new Response(null,{status:303,headers:{...headers,location:`/app/capacity?${new URLSearchParams({saved:'1',from:String(input.utilizationFrom??''),utilizationFrom:String(input.utilizationFrom??''),utilizationTo:String(input.utilizationTo??'')})}#performance`}})
    if((action.startsWith('retainer:')||action==='agency:calendar')&&input.engagementId)return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(input.engagementId)}&saved=1#retainers`}})
    // A form may name the page it sits on (the Staffing panel's approvals): the result shows there.

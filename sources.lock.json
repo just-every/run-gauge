@@ -2640,6 +2640,10 @@
       "sha256": "1371901429e8c2d69fd52d44a0be8a8bd04b9350708306b9377161fb31b5641f",
       "executable": false
     },
+    "src/gauge/ui-vendor-commitments.ts": {
+      "sha256": "945fa1316bbf98d74a8c8c426491098d84e7de91a56c7daa0d420f31198faf62",
+      "executable": false
+    },
     "src/gauge/ui.ts": {
       "sha256": "1eb667915690e44aa299aa8deb7dbaf15a8a0c363741b6202592bd738044c2f7",
       "executable": false
@@ -4564,6 +4568,10 @@
       "sha256": "8469384498f2e052c86f28a780aa6577d5b92d3683e703889e499c6314094e7f",
       "executable": false
     },
+    "tests/fixtures/vendor-commitments.mjs": {
+      "sha256": "10db4cc6bc8d0b0eb209b7db9fce6126faeb2e7af744583f9b1906e2cd0e917c",
+      "executable": false
+    },
     "tests/fresh-clone.mjs": {
       "sha256": "dd8433a471ab78b0560ee21f1ce18c0e92c6b842c27e8b73ea80128fda33c088",
       "executable": false
@@ -4810,6 +4818,10 @@
     },
     "tests/gauge-utilization.mjs": {
       "sha256": "493336bdb372497a0cb93e304198c92b9bca0186cdd2ae61225cc45386b983cd",
+      "executable": false
+    },
+    "tests/gauge-vendor-commitments.mjs": {
+      "sha256": "02b9aa040b9dfd7be53c859d946006889fb04db6b729984dc469b18d2cbfd921",
       "executable": false
     },
     "tests/gauge.mjs": {

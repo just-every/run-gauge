@@ -23,7 +23,7 @@ const DAY = 86400000
 const addDays = (day: string, days: number) => new Date(Date.parse(day) + days * DAY).toISOString().slice(0, 10)
 const nextMonthStart = (month: string) => { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + 1); return d.toISOString().slice(0, 10) }
 type CashMonth = { currency: string, month: string, revenueMinor: number, tentativeMinor: number, pipelineMinor: number, invoicesMinor: number, openMinor: number, expectedMinor: number, historicalOpenMinor: number, historicalExpectedMinor: number, pastDueMinor: number, engagements: string[] }
-type ScheduledInvoice = { probabilityBasis?: CashBasis, inheritedBasis?: CashBasis, source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], creditSnapshots?: Row[], creditedMinor?: number, disputedMinor?: number, disputeSnapshot?: Row, assumption?: string }
+type ScheduledInvoice = { collectibleOpenMinor?: number, probabilityBasis?: CashBasis, inheritedBasis?: CashBasis, source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], creditSnapshots?: Row[], creditedMinor?: number, disputedMinor?: number, disputeSnapshot?: Row, assumption?: string }
 const percentOf = (minor: number, percent: number) => Number((BigInt(minor) * BigInt(percent) + 50n) / 100n)
 
 export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
@@ -126,7 +126,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
     const lineOpen = portion(openMinor-disputed), linePromised = Math.min(remainingPromised,lineOpen); remainingPromised -= linePromised
     const inheritedBasis = inherited ? lineBases[index] ?? undefined : undefined
     const source = `invoices:${invoice.id}${inherited ? `:line:${index}` : ''}`
-    const common = {probabilityBasis: invoiceBasis, ...(inheritedBasis ? {inheritedBasis} : {}), revenueMonth:null, invoiceDate:invoice.value.issueDate, issued:true, invoiceSnapshot:invoice}
+    const common = {collectibleOpenMinor: lineOpen, probabilityBasis: invoiceBasis, ...(inheritedBasis ? {inheritedBasis} : {}), revenueMonth:null, invoiceDate:invoice.value.issueDate, issued:true, invoiceSnapshot:invoice}
     if (promised) invoices.push({...common,source:source+':promise',amountMinor:0,openMinor:linePromised,promiseSnapshot:promise,promised:true,paymentSnapshots:[]})
     invoices.push({...common,source,amountMinor:portion(invoice.value.totalMinor),openMinor:lineOpen-linePromised,paymentSnapshots:index===0?payments:[],creditSnapshots:index===0?standing.credits:[],creditedMinor:index===0?standing.creditedMinor:0,disputedMinor:portion(disputed),...(disputed?{disputeSnapshot:dispute}:{})})
    }
@@ -137,7 +137,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const direct = cashProbability(data,e.id,probabilityBasis,client)
    const inherited = x.inheritedBasis && !direct.decisionSnapshot ? cashProbability(data,e.id,x.inheritedBasis,client) : null
    const probability = inherited?.assumptionSnapshot ? {...inherited, probabilitySource:'scheduled source override'} : direct
-   return { ...x, probabilityBasis, ...probability, invoiceId: x.invoiceSnapshot?.id ?? null, paidMinor: x.promised?0:sum(x.paymentSnapshots.map(p=>p.value.amountMinor)), invoiceMonth: x.invoiceDate.slice(0, 7), receiptDate, cashMonth: place(receiptDate), pastDue: x.openMinor > 0 && receiptDate < asOf, historicalDate, historicalMonth: historicalDate && place(historicalDate), expectedMinor: percentOf(x.openMinor, probability.collectionPercent) }
+   return { ...x, collectibleOpenMinor: x.collectibleOpenMinor ?? x.openMinor, probabilityBasis, ...probability, invoiceId: x.invoiceSnapshot?.id ?? null, paidMinor: x.promised?0:sum(x.paymentSnapshots.map(p=>p.value.amountMinor)), invoiceMonth: x.invoiceDate.slice(0, 7), receiptDate, cashMonth: place(receiptDate), pastDue: x.openMinor > 0 && receiptDate < asOf, historicalDate, historicalMonth: historicalDate && place(historicalDate), expectedMinor: percentOf(x.openMinor, probability.collectionPercent) }
   }).sort((x, y) => x.invoiceDate.localeCompare(y.invoiceDate) || x.source.localeCompare(y.source))
   return { engagementId: e.id, name: e.value.name, clientId: e.value.clientId, currency: f.currency, basis: f.basis, paymentTermsDays: terms, termsLabel: set === null ? 'Net 30 assumed' : `Net ${terms}`, daysLate, daysLateApprovedBy: client?.value.daysLateApprovedBy ?? null, collectionPercent: percent,
    bookedRevenueMinor: f.actualFeesMinor, backlogMinor: f.eacFeesMinor - f.actualFeesMinor, items, complete: incomplete.length === 0, incomplete: [...new Set(incomplete)], sources }

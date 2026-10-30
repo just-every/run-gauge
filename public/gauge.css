@@ -272,3 +272,6 @@
 
 #specialist-handoffs .g-check { min-width: 0; max-width: 100%; }
 #specialist-handoffs .g-check > span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Keep cash source balances readable beside their expected amounts. */
+#cash-forecast small { font-size: 13px; }

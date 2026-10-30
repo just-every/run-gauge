@@ -1249,3 +1249,48 @@ A delivery-only invitation also refuses independently released invoice and comme
 `GET /api/gauge/saved/:id` returns the definition, permitted result, displayed table, formulas, overlap warning and source fingerprint. The native Review form opens the same view with `savedReport` in its query. Finance can read saved definitions; a lead reads only their own utilization reports. Current field policy and project access are checked again at each read; narrowing access to a retained project refuses the saved read.
 
 Append `.csv`, `.xlsx` or `.pdf` to the saved-report endpoint and send its exact `revision` and `fingerprint` query parameters. Each native download contains the same captured rows, exact minor units, seconds, formulas and explicit unknowns as the displayed table. Source or definition changes require reopening the report. Text is formula-safe, currencies remain distinct and overlapping cohorts cannot be summed. Restoring business records preserves definitions and history, without restoring sessions or grants. Scheduling, outbound sending, warehouse delivery and BI feeds remain unavailable.
+## Invoice collection assumptions
+
+Native owner and finance sessions may submit `cash:approve` with a request key,
+`from`, `to`, `asOf`, `engagementId`, `sourceKey`, `fingerprint`, an integer
+`collectionPercent` from 0 to 100 and a reason. The source key and fingerprint
+come from the cash item's `probabilityBasis`. An existing assumption also requires
+its exact `id` and `revision`. Blank or null percentage restores the client
+fallback; zero means no expected collection. The Review cash section offers the
+same source-specific approval form.
+
+The approval retains the finance approver, source references and immutable prior
+revisions. Changed scheduled amounts, dates, source revisions or payment terms
+invalidate it; the report labels the client fallback and asks for renewed approval.
+A client probability change alone does not replace a valid invoice override.
+One issued invoice override applies to every project share of that document, with
+one approval revision. It applies to the remaining collectible balance, including
+promised portions, after dated receipts, credits and standing disputes. Exact
+scheduled retainer fee and fixed-source approvals follow their frozen source
+identities into an issued invoice; combined documents retain each source's share
+rather than applying that percentage to unrelated lines. Regrouped hourly cycle
+projections need a separate issued-invoice approval. The invoice original,
+approved commercial terms and payment records are never edited by an assumption.
+
+Cash items show collectible open amounts, applied percentages, approvers and exact
+assumption revisions. Calculation drills and the revision-bound report CSV retain
+the same assumption records. Business export and restore preserve these records
+and their history; they supply no payment or scheduled-execution authority.
+
+The finance state read also returns `cashConverted`: each reporting month keeps
+its on-terms `minor`, currency `buckets` and exact source `placements`, a separate
+`historical` curve with the same fields, and `rangeLowMinor` and `rangeHighMinor`.
+Each source converts half up to cents at the approved rate effective on that
+curve's receipt date, using the as-of day once overdue. Placements retain the
+original receipt date, applied day, source amount, converted amount, and exact
+rate ID and revision. A missing rate or any incomplete source forecast withholds
+the affected total and range, preserving known subtotals and named unknowns.
+The Review amounts link to `cashConverted:<currency>:<month>:expectedMinor` and
+`historicalExpectedMinor` calculation figures; the report CSV includes the same
+figures and source revisions. Conversion changes no commercial or payment record.
+For unissued milestones a later recorded current client acceptance moves the
+expected invoice date; actual issued dates remain immutable. Disputed amounts
+stay open receivables and appear separately on their invoice source, excluded
+from expected cash. Historical timing remains a finance-recorded assumption;
+settled-history qualification and processor settlement still require their
+separately authorized provider proof.

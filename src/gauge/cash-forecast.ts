@@ -106,7 +106,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const dispute=(billing.invoiceDisputes??[]).filter(x=>x.value.invoiceId===invoice.id&&x.value.openedDate<=asOf&&(x.value.status==='open'||x.value.resolvedDate>asOf)).at(-1)
    const disputed=dispute?Math.min(openMinor,dispute.value.amountMinor):0
    const promised=promise?Math.min(openMinor-disputed,promise.value.amountMinor):0
-   const invoiceBasis = basis(`invoices:${invoice.id}`, invoice.value.issueDate, invoice.value.totalMinor, [cashReference('invoices', invoice)], invoice.value.paymentTermsDays)
+   const invoiceBasis = basis(`invoices:${invoice.id}`, invoice.value.issueDate, data.invoices.find(i => i.id === invoice.id)!.value.totalMinor, [cashReference('invoices', invoice)], invoice.value.paymentTermsDays)
    const explicit = cashProbability(data,e.id,invoiceBasis,client).decisionSnapshot
    const lineBases = invoice.value.lines.map((line: any) => {
     const snapshot = line.sourceSnapshot as Row | undefined
@@ -116,7 +116,8 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
     return null
    }) as (CashBasis | null)[]
    const inherited = !explicit && lineBases.some(b => b && cashProbability(data,e.id,b,client).assumptionSnapshot)
-   const weights: number[] = inherited ? invoice.value.lines.map((l: any) => Math.max(0,l.amountMinor)) : [invoice.value.totalMinor]
+   const netWeights: number[] = invoice.value.lines.map((l: any, index: number) => Math.max(0,l.amountMinor-sum(standing.credits.flatMap(c => (c.value.lines ?? []).filter((credit: any) => credit.index === index).map((credit: any) => credit.amountMinor)))))
+   const weights: number[] = inherited ? sum(netWeights)>0 ? netWeights : invoice.value.lines.map((l: any) => Math.max(0,l.amountMinor)) : [invoice.value.totalMinor]
    const totalWeight = sum(weights)
    let cumulative = 0, remainingPromised = promised
    for (const [index, weight] of weights.entries()) {
@@ -125,7 +126,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
     const lineOpen = portion(openMinor-disputed), linePromised = Math.min(remainingPromised,lineOpen); remainingPromised -= linePromised
     const inheritedBasis = inherited ? lineBases[index] ?? undefined : undefined
     const source = `invoices:${invoice.id}${inherited ? `:line:${index}` : ''}`
-    const common = {probabilityBasis: invoiceBasis, inheritedBasis, revenueMonth:null, invoiceDate:invoice.value.issueDate, issued:true, invoiceSnapshot:invoice}
+    const common = {probabilityBasis: invoiceBasis, ...(inheritedBasis ? {inheritedBasis} : {}), revenueMonth:null, invoiceDate:invoice.value.issueDate, issued:true, invoiceSnapshot:invoice}
     if (promised) invoices.push({...common,source:source+':promise',amountMinor:0,openMinor:linePromised,promiseSnapshot:promise,promised:true,paymentSnapshots:[]})
     invoices.push({...common,source,amountMinor:portion(invoice.value.totalMinor),openMinor:lineOpen-linePromised,paymentSnapshots:index===0?payments:[],creditSnapshots:index===0?standing.credits:[],creditedMinor:index===0?standing.creditedMinor:0,disputedMinor:portion(disputed),...(disputed?{disputeSnapshot:dispute}:{})})
    }

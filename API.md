@@ -1255,7 +1255,8 @@ The approval retains the finance approver, source references and immutable prior
 revisions. Changed scheduled amounts, dates, source revisions or payment terms
 invalidate it; the report labels the client fallback and asks for renewed approval.
 A client probability change alone does not replace a valid invoice override.
-An issued invoice override applies to its remaining collectible balance, including
+One issued invoice override applies to every project share of that document, with
+one approval revision. It applies to the remaining collectible balance, including
 promised portions, after dated receipts, credits and standing disputes. Exact
 scheduled retainer fee and fixed-source approvals follow their frozen source
 identities into an issued invoice; combined documents retain each source's share

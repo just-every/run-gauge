@@ -7,10 +7,11 @@ import { retainerConsumption, type RetainerData } from './retainer-consumption'
 
 /** The forecast and issued line bind the same reviewed consumption, including
  * source revisions even when an edit leaves the overage amount unchanged. */
-export function retainerOverageFingerprint(data: RetainerData, period: Row, balance: Value) {
+export function retainerOverageSource(data: RetainerData, period: Row, balance: Value) {
  const terms=data.retainers.find(t=>t.id===period.value.retainerId)!
  const inputs={period,terms,balance,priorPeriods:data.retainerPeriods.filter(p=>balance.priorPeriodIds.includes(p.id)),work:data.time.filter(t=>t.value.engagementId===period.value.engagementId&&t.value.workDate<=period.value.activeEnd)}
- return sha256(canonicalJson(inputs))
+ const reference=(kind: Kind,row: Row)=>({kind,id:row.id,revision:row.revision})
+ return {fingerprint:sha256(canonicalJson(inputs)),references:[reference('retainerPeriods',period),reference('retainers',terms),...inputs.priorPeriods.map(p=>reference('retainerPeriods',p)),...inputs.work.map(t=>reference('time',t))]}
 }
 
 /** A whole-period overage is one reserved billing source, bound to all inputs.
@@ -30,6 +31,6 @@ export async function retainerOverage(env:Bindings,tx:Transaction,period:Row) {
  const related=retainerConsumption(data).filter(b=>data.retainerPeriods.find(p=>p.id===b.periodId)!.value.rootId===root&&data.retainerPeriods.find(p=>p.id===b.periodId)!.value.periodStart<=period.value.periodStart)
  const sourceIds=[...new Set(related.flatMap(b=>b.sources as string[]))]
  for(const id of sourceIds){const time=data.time.find(t=>t.id===id)!;need(!time.value.source?.billed,'Historically billed work cannot produce another retainer charge',409);need(!await env.DB.prepare("SELECT 1 FROM g_billing_sources WHERE kind='time' AND source_id=?").bind(id).first(),'Retainer work is already reserved or billed elsewhere',409);tx.guard("NOT EXISTS(SELECT 1 FROM g_billing_sources WHERE kind='time' AND source_id=?)",id)}
- const terms=data.retainers.find(t=>t.id===period.value.retainerId)!
- return {kind:'retainerPeriods',sourceId:period.id,sourceRevision:period.revision,description:`${terms.value.terms.name}: ${period.value.periodStart}–${period.value.periodEnd} overage`,amountMinor:balance.overageMinor,currency:balance.currency,durationSeconds:balance.unit==='hours'?balance.overage:null,billRateMinor:balance.unit==='hours'?terms.value.terms.rules.overageRate:null,roundingPolicy:'Retainer FIFO excess only; exact seconds or value × agreed rate, half up to cents',rateId:terms.id,budgetId:null,retainerFingerprint:retainerOverageFingerprint(data,period,balance),retainerBalance:balance} as Value
+ const terms=data.retainers.find(t=>t.id===period.value.retainerId)!,reviewed=retainerOverageSource(data,period,balance)
+ return {kind:'retainerPeriods',sourceId:period.id,sourceRevision:period.revision,description:`${terms.value.terms.name}: ${period.value.periodStart}–${period.value.periodEnd} overage`,amountMinor:balance.overageMinor,currency:balance.currency,durationSeconds:balance.unit==='hours'?balance.overage:null,billRateMinor:balance.unit==='hours'?terms.value.terms.rules.overageRate:null,roundingPolicy:'Retainer FIFO excess only; exact seconds or value × agreed rate, half up to cents',rateId:terms.id,budgetId:null,retainerFingerprint:reviewed.fingerprint,retainerReferences:reviewed.references,retainerBalance:balance} as Value
 }

@@ -1629,7 +1629,7 @@
       "executable": false
     },
     "src/gauge/cash-forecast.ts": {
-      "sha256": "22185149661b519f7f575d65ead1cdc0d01f4f1694a435fbcfb5e17da17853f6",
+      "sha256": "73aae7ab33e30f8a9ec08f0a6ff85e97df745c600a8c5ab8949c425872181a5b",
       "executable": false
     },
     "src/gauge/catalog.ts": {
@@ -2165,7 +2165,7 @@
       "executable": false
     },
     "src/gauge/retainer-overages.ts": {
-      "sha256": "5dfabf36797ff1d976ee1c53d15d91942bb67edf4e8a96c215eaa533a43c1504",
+      "sha256": "15136d856cc101f4ec1424974e9e4362abb15f27939c8691a30a7fe35f0e10c2",
       "executable": false
     },
     "src/gauge/retainer-periods.ts": {
@@ -4605,7 +4605,7 @@
       "executable": false
     },
     "tests/gauge-cash-assumptions.mjs": {
-      "sha256": "e21d398acf81fa1d1263c26cdf8e36af42ada0e34e53a62808b2611800eadc86",
+      "sha256": "e36aa4139a7a73ca40470ab70a795a851afc93a393bbe3c83787c05d389b8938",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {

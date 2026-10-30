@@ -4784,7 +4784,7 @@
       "executable": false
     },
     "tests/gauge-saved-reports.mjs": {
-      "sha256": "0e9dc807629eac1ad2130c899c252b24b92c15602e05d7fbaa9e7a00d2d92986",
+      "sha256": "d99f9e487e13e38c4cdba766942485de56094e940856f64f23a017ebb25dfae3",
       "executable": false
     },
     "tests/gauge-schedule.mjs": {

@@ -57,6 +57,12 @@ try {
   const csv=await request(path(row,snapshot,'csv'),cookie),xlsx=await request(path(row,snapshot,'xlsx'),cookie),pdf=await request(path(row,snapshot,'pdf'),cookie)
   for(const response of [csv,xlsx,pdf])assert.equal(response.status,200,await response.clone().text())
   const csvGrid=csvRows(Buffer.from(await csv.arrayBuffer())),xlsxGrid=workbookRows(Buffer.from(await xlsx.arrayBuffer())),pdfText=await pdfLines(new Uint8Array(await pdf.arrayBuffer()))
+  const independentRows=row.value.dataset==='profitability'
+   ? [["'=SUM(1,2)",'USD','27000','45000','18000','5','20000'],["'=SUM(1,2)",'CAD','Unknown','Unknown','Unknown','Unknown','Unknown']]
+   : [["'=SUM(1,2)",'','10800','28800','37.5','5']]
+  assert.deepEqual(csvGrid.slice(-independentRows.length),independentRows,'Downloaded rows reconcile to independently priced time, distinct capacity and custom values')
+  assert.deepEqual(csvGrid[7],snapshot.table.headers,'Displayed selected columns match the native download')
+  assert.deepEqual(csvGrid[6].slice(1),snapshot.table.formulas,'Displayed calculation explanations match the native download')
   assert.deepEqual(xlsxGrid,csvGrid,'Independent ZIP and XML decode equals native CSV decode')
   assert.equal(pdfText.join(''),csvGrid.map(r=>r.join(' | ')).join(''),'Actual PDF glyphs preserve each captured cell, formula and exact amount')
   assert(csvGrid.some(r=>r[0]==="'=SUM(1,2)"),'Formula-like cohort text is escaped in every format')

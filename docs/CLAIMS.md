@@ -55,7 +55,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `TIME-005` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
 | `TIME-006` | partial | `src/gauge/time.ts`; `tests/gauge.mjs` |
 | `COST-002` | done | `tests/gauge-handoffs.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-handoffs.mjs` |
-| `COST-003` | missing |  |
+| `COST-003` | missing | `tests/gauge-vendor-commitments.mjs`; `tests/gauge-finance-forecast.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs` |
 | `FINANCE-001` | done | `src/gauge/margin.ts`; `src/gauge/report-lineage-margin.ts`; `src/gauge/ui-margin.ts`; `src/gauge/finance-forecast.ts`; `tests/gauge-finance-forecast.mjs`; `tests/gauge-invoices.mjs` |
 | `FINANCE-002` | done | `src/gauge/cash-forecast.ts`; `src/gauge/report-lineage-cash.ts`; `src/gauge/ui-cash.ts`; `src/gauge/catalog.ts`; `tests/gauge-cash-forecast.mjs`; `tests/gauge-invoices.mjs` |
 | `FINANCE-003` | done | `src/gauge/project-scenarios.ts`; `src/gauge/project-scenario-scope.ts`; `src/gauge/project-scenario-rates.ts`; `src/gauge/project-scenario-deadlines.ts`; `src/gauge/forecast-allocation-pricing.ts`; `tests/gauge-project-scenarios.mjs`; `tests/gauge-project-scenario-scope.mjs`; `tests/gauge-project-scenario-pricing.mjs`; `tests/gauge-project-scenario-rates.mjs`; `tests/gauge-project-scenario-deadlines.mjs` |

@@ -10,17 +10,18 @@ export function currentVendors(rows:Row[]) {
  return approved.filter(r=>!replaced.has(r.id))
 }
 export function vendorCosts(data:Record<string,Row[]>,asOf='9999-12-31') {
- const bills=currentVendors((data.vendorBills??[]).filter(r=>r.value.date<=asOf))
+ const bills=(data.vendorBills??[]).filter(r=>r.value.status==='approved'&&r.value.date<=asOf)
  return currentVendors(data.vendorCommitments??[]).map(commitment=>{
-  const matched=bills.filter(b=>b.value.commitmentRootId===commitment.value.rootId),actualMinor=sum(matched.map(b=>b.value.amountMinor))
-  return {commitment,bills:matched,actualMinor,remainingMinor:Math.max(0,commitment.value.amountMinor-actualMinor)}
+  const matched=bills.filter(b=>b.value.commitmentRootId===commitment.value.rootId)
+  const entries=matched.map(bill=>({bill,amountMinor:bill.value.amountMinor-(matched.find(p=>p.id===bill.value.previousId)?.value.amountMinor??0)})),actualMinor=sum(entries.map(b=>b.amountMinor))
+  return {commitment,bills:matched,entries,actualMinor,remainingMinor:Math.max(0,commitment.value.amountMinor-actualMinor)}
  })
 }
 const same=(a:Value,b:Value)=>a.engagementId===b.engagementId&&(!a.phaseKey||!b.phaseKey||a.phaseKey===b.phaseKey)
 const vendorName=(s:unknown)=>String(s??'').trim().toLowerCase()
 const overlaps=(c:Value,kind:string,v:Value,people:Row[])=>{
  if(!same(c,v))return false
- if(kind==='expenses')return v.date>=c.from&&v.date<=c.to&&(!v.vendor||vendorName(v.vendor)===vendorName(c.vendor))
+ if(kind==='expenses')return v.date>=c.from&&v.date<=c.to
  const person=people.find(p=>p.id===v.personId)
  if(!person?.value.contractor)return false
  return kind==='staffing'?v.from<=c.to&&v.to>=c.from:v.workDate>=c.from&&v.workDate<=c.to
@@ -30,6 +31,9 @@ async function observed(env:Bindings,tx:Transaction,k:Kind) {
  tx.guard(`(SELECT COUNT(*) FROM g_${k})=?`,rows.length);return rows
 }
 async function noOverlap(env:Bindings,tx:Transaction,c:Value) {
+ const budgets=await observed(env,tx,'budgets'),budget=budgets.filter(b=>b.value.engagementId===c.engagementId&&b.value.status==='approved').sort((a,b)=>b.value.approvedAt-a.value.approvedAt)[0]
+ const expenseBudget=c.phaseKey?budget?.value.phases?.find((p:Value)=>p.key===c.phaseKey)?.expenseBudgetMinor:budget?.value.expenseBudgetMinor
+ need(!expenseBudget,'Separate the vendor commitment from the billable expense budget before approval',409)
  const people=await observed(env,tx,'people')
  for(const k of ['expenses','staffing','time'] as const){
   const rows=await observed(env,tx,k)
@@ -37,9 +41,20 @@ async function noOverlap(env:Bindings,tx:Transaction,c:Value) {
  }
 }
 /** Every native writer uses this guard, including proposals and restored source edits. */
-export async function assertVendorSource(env:Bindings,tx:Transaction,k:Kind,value:Value) {
- if(!['expenses','staffing','time'].includes(k))return
- const rows=await observed(env,tx,'vendorCommitments'),people=await observed(env,tx,'people')
+export async function assertVendorSource(env:Bindings,tx:Transaction,k:Kind,value:Value,previous?:Row) {
+ if(!['expenses','staffing','time','people','budgets'].includes(k))return
+ const rows=await observed(env,tx,'vendorCommitments');if(!currentVendors(rows).length)return
+ const people=await observed(env,tx,'people')
+ if(k==='budgets'){
+  if(value.status==='approved')need(!currentVendors(rows).some(c=>c.value.engagementId===value.engagementId&&(c.value.phaseKey?value.phases?.find((p:Value)=>p.key===c.value.phaseKey)?.expenseBudgetMinor:value.expenseBudgetMinor)),'Vendor commitments and a billable expense budget must not overlap',409)
+  return
+ }
+ if(k==='people'){
+  if(!previous||!value.contractor||previous.value.contractor)return
+  const updated=people.map(p=>p.id===previous.id?{...p,value}:p)
+  for(const source of ['time','staffing'] as const){const sources=await observed(env,tx,source);need(!currentVendors(rows).some(c=>sources.some(r=>overlaps(c.value,source,r.value,updated))),'Contractor classification would overlap an approved vendor commitment',409)}
+  return
+ }
  need(!currentVendors(rows).some(c=>overlaps(c.value,k,value,people)),'Ambiguous vendor cost overlaps an approved commitment; use its received-bill workflow',409)
 }
 export async function vendorCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null> {
@@ -68,14 +83,15 @@ export async function vendorCommand(env:Bindings,a:Actor,tx:Transaction,action:s
    need(currentVendors(commitments).some(c=>c.id===commitment.id)&&commitment.revision===input.commitmentRevision,'Review the current approved commitment revision',409)
    need(same(commitment.value,common)&&commitment.value.phaseKey===common.phaseKey,'Bill must use its commitment project and phase')
    need(common.date>=commitment.value.from&&common.date<=commitment.value.to,'Bill date must be inside the commitment period')
-   if(previous)need(previous.value.commitmentRootId===commitment.value.rootId,'Corrections must retain their original commitment')
+   if(previous){need(previous.value.commitmentRootId===commitment.value.rootId,'Corrections must retain their original commitment');need(common.date>=previous.value.date,'A linked bill correction cannot predate its original')}
    const reference=text(input.reference,'Vendor bill reference',200)
-   need(!rows.some(r=>r.id!==old?.id&&r.value.rootId!==rootId&&r.value.commitmentRootId===commitment.value.rootId&&vendorName(r.value.reference)===vendorName(reference)),'Vendor bill reference already received; correct its existing record',409)
+   need(!rows.some(r=>r.id!==old?.id&&r.value.rootId!==rootId&&vendorName(r.value.vendor)===vendorName(commitment.value.vendor)&&vendorName(r.value.reference)===vendorName(reference)),'Vendor bill reference already received; correct its existing record',409)
    return tx.record(kind,{...common,commitmentId:commitment.id,commitmentRevision:commitment.revision,commitmentRootId:commitment.value.rootId,vendor:commitment.value.vendor,reference,evidence:'User-recorded bill; not accounting-provider verified',attachmentIds:old?.value.attachmentIds??[]},old,id,action)
   }
   const from=date(input.from),to=date(input.to);need(to>=from,'Commitment end precedes its start')
   const v={...common,vendor:text(input.vendor,'Vendor',200),scope:text(input.scope,'Subcontractor scope'),poReference:text(input.poReference,'Purchase order reference',200),from,to,expectedDate:date(input.expectedDate)}
   need(v.expectedDate>=from&&v.expectedDate<=to,'Expected date must be inside the commitment period')
+  need(!rows.some(r=>r.value.rootId!==rootId&&vendorName(r.value.poReference)===vendorName(v.poReference)),'Purchase order reference already recorded; use a linked correction',409)
   if(previous)need(v.vendor===previous.value.vendor&&v.phaseKey===previous.value.phaseKey,'Corrections retain vendor and phase identity')
   return tx.record(kind,v,old,id,action)
  }
@@ -99,7 +115,7 @@ export async function vendorCommand(env:Bindings,a:Actor,tx:Transaction,action:s
  }else await phaseFor(env,tx,e.id,old.value.phaseKey)
  await noOverlap(env,tx,commitment.value)
  const bills=isBill?rows:await observed(env,tx,'vendorBills')
- const matched=currentVendors(bills).filter(b=>b.value.commitmentRootId===commitment.value.rootId&&b.value.id!==old.id&&b.id!==old.value.previousId)
+ const matched=currentVendors(bills).filter(b=>b.value.commitmentRootId===commitment.value.rootId&&b.id!==old.value.previousId)
  const total=sum([...matched.map(b=>b.value.amountMinor),...(isBill?[old.value.amountMinor]:[])])
  need(total<=commitment.value.amountMinor,'Received bills exceed the approved commitment',409)
  if(!isBill){

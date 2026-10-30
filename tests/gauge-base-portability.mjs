@@ -1,3 +1,4 @@
+import {prepareVendorPortability} from './fixtures/vendor-commitments.mjs'
 import {seedLearningProjects} from './fixtures/learning-projects.mjs'
 import { sourceFieldJourney } from './fixtures/source-custom-fields.mjs'
 import { harvestFinancePackage } from './fixtures/harvest-finance.mjs'
@@ -10,6 +11,7 @@ import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 // The caller closes the source before passing this verifier to portability().
 export async function prepareCurrentPortability(h,{importJob}) {
  const {cmd,state,request,owner}=h,zone='Australia/Brisbane'
+ const portableVendor=await prepareVendorPortability(h)
  const learning=await seedLearningProjects(h),learningPreview=await cmd('learning:preview',learning.input)
  const portableLearning=await cmd('learning:save',{...learning.input,sourceDigest:learningPreview.sourceDigest})
  // COST-002: retain receipt economics, unit rates, once-only reimbursement and honest receiver history.
@@ -311,6 +313,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const documentDownloads=before.data.invoices.filter(i=>i.value.document).flatMap(i=>['pdf','detail-pdf','csv'].map(format=>`/api/gauge/invoice-documents/${i.id}?format=${format}`))
  const downloads=documentDownloads.concat(before.data.periodCloses.map(c=>`/api/gauge/closes/${c.id}`).concat(before.data.specialistHandoffs.map(r=>`/api/gauge/handoffs/${r.id}`)))
  for(const packet of before.data.packets.filter(r=>r.value.status==='approved'))downloads.push(`/api/gauge/packets/${packet.id}`)
+ for(const bill of before.data.vendorBills)for(const file of bill.value.attachmentIds??[])downloads.push(`/api/gauge/vendor-files/${file}`)
  for(const expense of before.data.expenses)for(const file of expense.value.attachmentIds??[])downloads.push(`/api/gauge/files/${file}`)
  for(const archive of before.data.archives)downloads.push(`/api/gauge/archives/${archive.id}`)
  downloads.push(`/api/gauge/imports/${importJob}`,`/api/gauge/imports/${retainedImport.id}`)
@@ -332,6 +335,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
   }})
   try{
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
+   assert.equal((await restored.request('/api/gauge/vendor-files/'+before.data.vendorBills[0].value.attachmentIds[0],portableVendor.approver.cookie)).status,401,'Old finance session cannot read restored bill originals')
+   await restored.cmd('vendorBill:approve',{...portableVendor.approved,reason:'Restored bill cannot match twice'},restored.owner,409)
    assert.notEqual(restored.vars.SESSION_SECRET,h.vars.SESSION_SECRET,'restore uses fresh private settings')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_milestone_review_authority').first()).n,0,'Client delivery review authority never travels')
    assert.equal((await restored.post('/auth/magic-link',{email:'synthetic-gauge-7305@example.test'})).status,202)

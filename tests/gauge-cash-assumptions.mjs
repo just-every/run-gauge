@@ -117,6 +117,14 @@ export async function cashAssumptionsJourney() {
   data=await readIssued();assert.equal(december(data).expectedMinor,203000)
 
 
+
+  await cmd('invoice:promise',{...issued,amountMinor:100000,date:'2026-12-20',reference:'Reviewed December promise'})
+  data=await readIssued();const promisedParts=items(data,retainer.id).filter(i=>i.invoiceId===issued.id)
+  assert.equal(promisedParts.length,2);assert(promisedParts.every(i=>i.collectibleOpenMinor===300000))
+  assert.equal(promisedParts.reduce((n,i)=>n+i.expectedMinor,0),75000,'A promise moves its portion without duplicating expected cash or losing the invoice override')
+  const promiseView=await(await request('/app/review?'+issuedQuery,owner)).text()
+  assert(promiseView.includes('Full source collectible open:'))
+
   // A combined document keeps the approved source separate from its other line.
   // Credits reduce the named line before probabilities, including a full credit.
   const mixed=await project('Combined scheduled charges')

@@ -18,7 +18,7 @@ export function portfolio(data:Record<string,Row[]>,forecast:ReturnType<typeof f
   const mine=(kind:string)=>(data[kind]??[]).filter(r=>r.value.engagementId===id)
   const time=mine('time').filter(r=>r.value.status==='approved'&&r.value.workDate>=from&&r.value.workDate<=end)
   const expenses=mine('expenses').filter(r=>r.value.status==='approved'&&r.value.date>=from&&r.value.date<=end)
-  const vendorBills=vendorCosts(data,end).filter(c=>c.commitment.value.engagementId===id).flatMap(c=>c.bills).filter(b=>b.value.date>=from)
+  const vendorBills=vendorCosts(data,end).filter(c=>c.commitment.value.engagementId===id).flatMap(c=>c.entries.map<Row>(entry=>({...entry.bill,value:{...entry.bill.value,amountMinor:entry.amountMinor}}))).filter(b=>b.value.date>=from)
   const milestones=mine('milestones').filter(r=>r.value.status==='approved'&&r.value.due>=from&&r.value.due<=end)
   const budget=mine('budgets').filter(r=>r.value.status==='approved').sort((a,b)=>b.value.approvedAt-a.value.approvedAt)[0]
   const periodFees=fees.filter(fee=>fee.engagementId===id&&fee.activeStart<=end&&fee.activeEnd>=from)

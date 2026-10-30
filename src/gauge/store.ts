@@ -59,7 +59,7 @@ export class Transaction {
  async record(k: Kind, value: Value, previous?: Row, id: string = uuid(), action = 'create', inherited?:Value): Promise<Row> {
   value=await normalizeCustom(this.env,this,k,value,previous,inherited)
   await assertPeriodWritable(this.env,this,k,value,previous?.value)
-  await assertVendorSource(this.env,this,k,value)
+  await assertVendorSource(this.env,this,k,value,previous)
   if (previous) { this.observe(k, previous); this.sql('INSERT INTO g_history(kind,record_id,revision,data,actor,action,at) VALUES(?,?,?,?,?,?,?)', k, previous.id, previous.revision, JSON.stringify(previous.value), this.actor.session.operator.id, action, Date.now()) }
   const row = { id: previous?.id ?? id, revision: uuid(), value }
   if (previous) this.sql(`UPDATE g_${k} SET revision=?,data=? WHERE id=?`, row.revision, JSON.stringify(value), row.id)

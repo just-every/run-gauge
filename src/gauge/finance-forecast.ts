@@ -70,7 +70,7 @@ export function financeForecastBase(data: Record<string, Row[]>, asOf: string, r
   const vendors=vendorCosts(data,asOf).filter(c=>c.commitment.value.engagementId===e.id)
   for(const v of vendors){
    (sources.vendorCommitments??=[]).push(v.commitment.id)
-   for(const b of v.bills){(sources.vendorBills??=[]).push(b.id);at(month(b.value.date)).actualCostMinor+=b.value.amountMinor}
+   for(const entry of v.entries){const b=entry.bill;(sources.vendorBills??=[]).push(b.id);at(month(b.value.date)).actualCostMinor+=entry.amountMinor}
    at(month(v.commitment.value.expectedDate)).etcCostMinor+=v.remainingMinor
   }
   // ETC: future allocation days, priced at the rate effective on each day.

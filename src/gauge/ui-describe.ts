@@ -12,6 +12,7 @@ const find = (rows: Row[], id: string) => rows.find(r => r.id === id)
 /** "Mia Chen · Workshop · 6.5 h · 6 Oct 2026" for one source line "time:ID" (or expenses, milestones, budgets, proposals). */
 export function describeSource(d: Data, source: string): { text: string; href: string } {
  const [kind, id] = source.split(':') as [string, string]
+ if(kind==='vendorCommitments'||kind==='vendorBills'){const r=d[kind].find(r=>r.id===id);return {text:r?`${r.value.vendor} · ${r.value.poReference??r.value.reference}`:'Vendor cost',href:`/app/engagements?edit=${r?.value.engagementId??''}#${kind==='vendorBills'?'bill':'vendor'}-${id}`}}
  if(kind==='customFields'){const row=d.customFields.find(f=>f.id===id);return {text:row?.value.name??'Custom field',href:`/api/gauge/history/customFields/${id}`}}
  if(kind==='clients'||kind==='tasks'){const row=d[kind].find(r=>r.id===id);return {text:row?.value.name??'Record',href:`/app/engagements?edit=${id}#custom-values`}}
  if(kind==='retainers'||kind==='retainerPeriods'){const r=find(d[kind],id);const t=kind==='retainers'?r:find(d.retainers,r?.value.retainerId);return {text:t?.value.terms.name??'Retainer period',href:`/app/engagements?edit=${r?.value.engagementId??''}#retainers`}}

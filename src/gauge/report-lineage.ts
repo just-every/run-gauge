@@ -1,3 +1,4 @@
+import { vendorCosts } from './vendor-commitments'
 import { learningLineage } from './report-lineage-learning'
 import { customLineage } from './report-lineage-custom'
 import { capacityLineage } from './report-lineage-capacity'
@@ -20,6 +21,12 @@ export type { LineageFigure, LineageSource, ReportLineageInput } from './report-
 /** Pure lineage over the exact authorized report snapshot; no clocks or DB reads. */
 export function buildLineage(report: ReportLineageInput) {
  const c = new Lineage(report)
+ for(const v of vendorCosts(report.data,report.forecast?.asOf)){
+  for(const [field,label,value,formula] of [['actualMinor','Vendor actual',v.actualMinor,'SUM(current approved user-recorded bills, each matched once)'],['remainingMinor','Vendor remaining',v.remainingMinor,'approved commitment minus current approved matched bills'],['totalMinor','Vendor forecast',v.actualMinor+v.remainingMinor,'current approved user-recorded bills plus unbilled commitment remainder']] as const){
+   const e=c.evidence();c.row(e,'vendorCommitments',v.commitment.id);for(const b of v.bills)c.row(e,'vendorBills',b.id)
+   c.add(`vendor:${v.commitment.id}:${field}`,label,value,'minor',formula,e,v.commitment.value.currency)
+  }
+ }
  learningLineage(c)
  customLineage(c)
  economicLineage(c)

@@ -1,3 +1,4 @@
+import { vendorOriginal } from './vendor-commitments'
 import { analystAnswer } from './analyst'
 import { clientChangePageResponse } from './ui-client-change'
 import { changeClientResponse } from './scope-review'
@@ -59,9 +60,10 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
  const historyRoute=path.match(/^\/api\/gauge\/history\/([^/%]+)\/([^/%]+)$/)
  const savedRoute=path.match(/^\/api\/gauge\/saved\/([^/%]+)$/)
  const resourceRoute=path.match(/^\/api\/gauge\/resources\/([^/%]+)$/)
+ const vendorFileRoute=path.match(/^\/api\/gauge\/vendor-files\/([^/%]+)$/)
  const download=path.match(/^\/api\/gauge\/(files|packets|archives|imports|handoffs|closes)\/([^/%]+)$/)
  const page=path==='/app'?'review':path.match(/^\/app\/(review|engagements|time|expenses|capacity|rates|billing|imports|access)$/)?.[1]
- if((!mutation&&!invoiceDocumentRoute&&!historyRoute&&!resourceRoute&&!savedRoute&&!download&&!path.startsWith('/api/gauge/v1/')&&!['/api/gauge/analyst','/api/gauge/accountant','/api/gauge/privacy/journal','/api/gauge/receivables','/api/gauge/receivables.csv','/api/gauge/state','/api/gauge/clients','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke','/api/gauge/audit','/api/gauge/audit/export','/api/gauge/audit/verify','/app/audit'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
+ if((!mutation&&!vendorFileRoute&&!invoiceDocumentRoute&&!historyRoute&&!resourceRoute&&!savedRoute&&!download&&!path.startsWith('/api/gauge/v1/')&&!['/api/gauge/analyst','/api/gauge/accountant','/api/gauge/privacy/journal','/api/gauge/receivables','/api/gauge/receivables.csv','/api/gauge/state','/api/gauge/clients','/api/gauge/report.csv','/api/gauge/rates/explain','/api/gauge/keys/revoke','/api/gauge/audit','/api/gauge/audit/export','/api/gauge/audit/verify','/app/audit'].includes(path)&&!page)||(historyRoute&&!kinds.includes(historyRoute[1] as Kind)))return new Response('Not found',{status:404,headers})
  const env=runtimeBindings(original)
  // A refused page form shows its reason on the page it came from; programs keep the JSON answer.
  let refused:{a:Actor,action:string}|undefined
@@ -133,10 +135,12 @@ export async function gaugeResponse(request:Request,original:Bindings):Promise<R
    if(action==='template:apply')return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(input.engagementId)}&saved=1#delivery-schedule`}})
    if(action==='target:set')return new Response(null,{status:303,headers:{...headers,location:`/app/capacity?${new URLSearchParams({saved:'1',from:String(input.utilizationFrom??''),utilizationFrom:String(input.utilizationFrom??''),utilizationTo:String(input.utilizationTo??'')})}#performance`}})
    if((action.startsWith('retainer:')||action==='agency:calendar')&&input.engagementId)return new Response(null,{status:303,headers:{...headers,location:`/app/engagements?edit=${encodeURIComponent(input.engagementId)}&saved=1#retainers`}})
+   if((action.startsWith('vendor:')||action.startsWith('vendorBill:'))&&result.id){const row=await get(env,action.startsWith('vendorBill:')?'vendorBills':'vendorCommitments',result.id);return new Response(null,{status:303,headers:{...headers,location:'/app/engagements?edit='+encodeURIComponent(row.value.engagementId)+'#vendor-commitments'}})}
    // A form may name the page it sits on (the Staffing panel's approvals): the result shows there.
    const back=typeof input.page==='string'&&tabsFor(a).includes(input.page)?input.page:sectionFor(action)
    return new Response(null,{status:303,headers:{...headers,location:`/app/${back}?saved=1`}})
   }
+  if(vendorFileRoute){const file=await vendorOriginal(env,a,vendorFileRoute[1]);return new Response(Buffer.from(file.bytes_hex,'hex'),{headers:{...headers,'content-type':'application/octet-stream','content-disposition':'attachment; filename="bill-original"'}})}
   if(invoiceDocumentRoute)return await invoiceDocumentResponse(env,a,url,invoiceDocumentRoute[2],invoiceDocumentRoute[1]==='invoice-documents')
   if(path==='/api/gauge/privacy/journal')return Response.json(await privacyJournal(env,a),{headers:{...headers,'content-disposition':'attachment; filename="gauge-erasure-journal.json"'}})
   if(savedRoute)return Response.json(await savedRead(env,a,savedRoute[1]),{headers})

@@ -537,6 +537,12 @@
     },
     {
       "binding": "DB",
+      "name": "0086_gauge_vendor_commitments.sql",
+      "sha256": "c33aa5e1b16cb4274faf8403d71717a494436be3103e2f4c8e771c5a8a4e38e5",
+      "sql": "-- Native, user-recorded vendor costs. These records grant no provider authority.\nCREATE TABLE g_vendorCommitments (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK(json_valid(data))\n);\nCREATE TABLE g_vendorBills (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK(json_valid(data))\n);\nCREATE TABLE g_vendor_files (\n id TEXT PRIMARY KEY,\n bill_id TEXT NOT NULL REFERENCES g_vendorBills(id),\n name TEXT NOT NULL,\n media_type TEXT NOT NULL,\n bytes BLOB NOT NULL,\n size INTEGER NOT NULL\n);\nCREATE TABLE g_vendor_matches (\n bill_id TEXT PRIMARY KEY REFERENCES g_vendorBills(id),\n commitment_id TEXT NOT NULL REFERENCES g_vendorCommitments(id),\n commitment_revision TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
       "name": "0087_gauge_cash_assumptions.sql",
       "sha256": "9b0510183ef49de98edc2f8ae46d4abe53c70ef2fe0d271e128d0d1d797487d2",
       "sql": "-- Business assumptions travel as history; they grant no execution authority.\nCREATE TABLE g_cashAssumptions (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK(json_valid(data)),\n engagement_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.engagementId')) STORED NOT NULL,\n source_key TEXT GENERATED ALWAYS AS (json_extract(data,'$.sourceKey')) STORED NOT NULL,\n UNIQUE(engagement_id,source_key)\n);\n"

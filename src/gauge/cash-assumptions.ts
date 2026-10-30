@@ -8,8 +8,8 @@ export type CashBasis = {key: string; fingerprint: string; references: CashRefer
 export const cashReference = (kind: Kind, row: Row): CashReference => ({kind, id: row.id, revision: row.revision})
 /** Identity excludes payments and disputes: those reduce collectible open cash,
  * while an approval remains bound to its original invoice or scheduled inputs. */
-export function cashBasis(key: string, engagementId: string, clientId: string, currency: string, invoiceDate: string, amountMinor: number, terms: number, references: CashReference[]): CashBasis {
- return {key, references, fingerprint: sha256(canonicalJson({key, engagementId: key.startsWith('invoices:') ? null : engagementId, clientId, currency, invoiceDate, amountMinor, terms, references}))}
+export function cashBasis(key: string, engagementId: string, clientId: string, currency: string, invoiceDate: string, amountMinor: number, terms: number, references: CashReference[], sourceFingerprint?: string): CashBasis {
+ return {key, references, fingerprint: sha256(canonicalJson({key, engagementId: key.startsWith('invoices:') ? null : engagementId, clientId, currency, invoiceDate, amountMinor, terms, references, ...(sourceFingerprint ? {sourceFingerprint} : {})}))}
 }
 export const cashAssumptionFor = (rows: Row[], engagementId: string, key: string) => rows.find(r => r.value.sourceKey === key && (key.startsWith('invoices:') || r.value.engagementId === engagementId))
 export function cashProbability(data: Record<string, Row[]>, engagementId: string, basis: CashBasis, client?: Row) {

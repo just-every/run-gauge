@@ -2,6 +2,7 @@ import { cashBasis, cashReference, cashProbability, type CashBasis, type CashRef
 import { projectBillingData } from './consolidated-billing'
 import { capBalances } from './budget-caps'
 import { retainerConsumption } from './retainer-consumption'
+import { retainerOverageFingerprint } from './retainer-overages'
 import { retainerIssueDate } from './retainer-schedule'
 import { retainerFees } from './retainer-fees'
 import { type Row, type Kind, sum } from './model'
@@ -70,6 +71,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const savedPeriod = frozen?.periodSnapshot ?? period, configured = (data.retainerSchedules ?? []).find(s => s.value.rootId === period.value.rootId && period.value.activeStart >= s.value.from)
    return [cashReference('retainerPeriods', savedPeriod), cashReference('retainers', term), ...(frozen?.scheduleId ? [{kind: 'retainerSchedules' as const, id: frozen.scheduleId, revision: frozen.scheduleRevision}] : configured ? [cashReference('retainerSchedules', configured)] : [])]
   }
+  const overageBasis = (period: Row, amountMinor: number, fingerprint: string, net = terms) => cashBasis(`retainerPeriods:${period.id}:overage`, e.id, e.value.clientId, f.currency, addDays(period.value.periodEnd,1), amountMinor, net, [cashReference('retainerPeriods',period)], fingerprint)
   const schedule = (source: string, revenueMonth: string, invoiceDate: string, amountMinor: number, assumption?: string, refs = references(source)) => invoices.push({ probabilityBasis: basis(source, invoiceDate, amountMinor, refs), source, revenueMonth, invoiceDate, amountMinor, openMinor: amountMinor, issued: false, invoiceSnapshot: null, paymentSnapshots: [], ...(assumption ? { assumption } : {}) })
   const milestones = ['fixed','mixed'].includes(f.basis) ? (data.milestones ?? []).filter(m => m.value.engagementId === e.id && m.value.status === 'approved') : []
   for (const m of milestones) { if (!sources.milestones.includes(m.id)) sources.milestones.push(m.id); if (!issuedMilestones.has(m.id)) schedule(`milestones:${m.id}`, m.value.due.slice(0, 7), milestoneInvoiceDate(m), m.value.amountMinor) }
@@ -89,7 +91,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    if(policy&&!sources.retainerSchedules.includes(policy.id))sources.retainerSchedules.push(policy.id)
    if(issuedMilestones.has(period.id))continue
    const held=policy?.value.heldPeriodIds.includes(period.id)
-   invoices.push({source:`retainerPeriods:${period.id}:overage`,revenueMonth:period.value.periodEnd.slice(0,7),invoiceDate:addDays(period.value.periodEnd,1),amountMinor:balance.overageMinor,openMinor:held?0:balance.overageMinor,issued:false,invoiceSnapshot:null,paymentSnapshots:[],...(held?{disputedMinor:balance.overageMinor,assumption:'Disputed retainer overage held; not expected as cash'}:{})})
+   invoices.push({probabilityBasis:overageBasis(period,balance.overageMinor,retainerOverageFingerprint({retainers:data.retainers,retainerPeriods:data.retainerPeriods,time:data.time},period,balance)),source:`retainerPeriods:${period.id}:overage`,revenueMonth:period.value.periodEnd.slice(0,7),invoiceDate:addDays(period.value.periodEnd,1),amountMinor:balance.overageMinor,openMinor:held?0:balance.overageMinor,issued:false,invoiceSnapshot:null,paymentSnapshots:[],...(held?{disputedMinor:balance.overageMinor,assumption:'Disputed retainer overage held; not expected as cash'}:{})})
   }
   for (const month of f.months) {
    const cap=caps.find(c=>c.engagementId===e.id),held=cap?sum(cap.rows.filter(r=>r.workDate.slice(0,7)===month.month).map(r=>r.heldMinor??0)):0,written=sum((data.capWriteDowns??[]).filter(w=>w.value.engagementId===e.id&&w.value.status==='approved'&&w.value.sourceSnapshot.value.workDate.slice(0,7)===month.month).map(w=>w.value.amountMinor))
@@ -113,6 +115,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
    const lineBases = invoice.value.lines.map((line: any) => {
     const snapshot = line.sourceSnapshot as Row | undefined
     if (!snapshot || line.amountMinor <= 0) return null
+    if (line.kind === 'retainerPeriods' && line.retainerFingerprint) return overageBasis(snapshot, line.amountMinor, line.retainerFingerprint, invoice.value.paymentTermsDays)
     if (line.kind === 'retainerCharges') return basis(`retainerPeriods:${snapshot.value.periodId}`, snapshot.value.date, line.amountMinor, retainerReferences(snapshot.value.periodSnapshot, snapshot), invoice.value.paymentTermsDays)
     if (['milestones','fixedCharges'].includes(line.kind)) return basis(`${line.kind}:${line.sourceId}`, line.kind === 'milestones' ? milestoneInvoiceDate(snapshot) : snapshot.value.date, line.amountMinor, [cashReference(line.kind, snapshot)], invoice.value.paymentTermsDays)
     return null

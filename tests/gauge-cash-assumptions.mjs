@@ -242,6 +242,41 @@ export async function cashAssumptionsJourney() {
   assert.deepEqual((await readIssued()).data.cashAssumptions,beforeRefused,'Erased-person replays neither read nor change retained finance decisions')
   const allApprovals=(await readIssued()).data.cashAssumptions
   assert.equal(allApprovals.length,4,'Refusals, stale sources and replays create no extra assumptions')
+  // A reviewed period overage is a scheduled source too. Issuing its exact
+  // approved packet must carry its decision, rather than restore the client rate.
+  const excessProject=await project('Retainer excess collection')
+  await cmd('budget:approve',await cmd('save:budgets',{engagementId:excessProject.id,mode:'hourly',amountMinor:100000,effortSeconds:14400,roundingSeconds:60,reason:'Separate service budget'}))
+  const excessPreview=await cmd('retainer:preview',{engagementId:excessProject.id,operation:'terms',from:'2026-10-01',to:'2026-10-31',terms:{name:'October service',feeMinor:30000,frequency:'monthly',unit:'hours',allowance:3600,services:['Excess service'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:'2026-10-31',renewal:'manual',noticeDays:0,rules:{carryCap:0,carryPeriods:0,deficit:false,overage:'bill',overageRate:20000}}})
+  await cmd('retainer:approve',{...excessPreview.input,fingerprint:excessPreview.fingerprint,reason:'Approved October service and overage rate'})
+  const excessTask=await cmd('save:tasks',{engagementId:excessProject.id,name:'Retainer delivery',remainingSeconds:7200})
+  let excessTime=await cmd('time:save',{personId:worker.id,engagementId:excessProject.id,taskId:excessTask.id,service:'Excess service',notes:'Two hours against one included hour',timezone:'America/New_York',billable:true,start:'2026-10-06T09:00:00-04:00',end:'2026-10-06T11:00:00-04:00'})
+  excessTime=await cmd('time:approve',await cmd('time:submit',excessTime))
+  data=await readIssued()
+  const excessSource=items(data,excessProject.id).find(i=>i.source.endsWith(':overage'))
+  assert.equal(excessSource.openMinor,20000)
+  let excessApproval=await cmd('cash:approve',{...approveInput(data,excessSource,25),engagementId:excessProject.id,asOf:'2026-11-01'})
+  data=await readIssued()
+  assert.equal(items(data,excessProject.id).find(i=>i.source.endsWith(':overage')).expectedMinor,5000)
+  const staleExcessInput={...approveInput(data,items(data,excessProject.id).find(i=>i.source===excessSource.source),25),engagementId:excessProject.id,asOf:'2026-11-01',...excessApproval}
+  excessTime=await cmd('time:correct',{...excessTime,reason:'Renew reviewed work without changing its duration'})
+  await cmd('time:approve',await cmd('time:submit',excessTime))
+  data=await readIssued()
+  const changedExcess=items(data,excessProject.id).find(i=>i.source===excessSource.source)
+  assert.equal(changedExcess.openMinor,20000)
+  assert.equal(changedExcess.expectedMinor,16000,'Changed consumption revisions require renewed approval even when the amount is unchanged')
+  assert(changedExcess.staleAssumption)
+  await cmd('cash:approve',staleExcessInput,owner,409)
+  excessApproval=await cmd('cash:approve',{...approveInput(data,changedExcess,25),engagementId:excessProject.id,asOf:'2026-11-01',...excessApproval})
+  const excessPeriodId=excessSource.source.split(':')[1]
+  const excessPacket=await cmd('packet:approve',await cmd('packet:create',{engagementId:excessProject.id,title:'October excess service',sources:['retainerPeriods:'+excessPeriodId]}))
+  const excessInvoice=await cmd('invoice:issue',{...excessPacket,issueDate:'2026-11-01',dueDate:'2026-12-01',billTo:'Collection review client',remitTo:'Agency operating account',reference:'Exact October overage'})
+  data=await readIssued()
+  const issuedExcess=items(data,excessProject.id).filter(i=>i.invoiceId===excessInvoice.id)
+  assert.equal(issuedExcess.reduce((n,i)=>n+i.openMinor,0),20000)
+  assert.equal(issuedExcess.reduce((n,i)=>n+i.expectedMinor,0),5000,'Issuance preserves the approved overage probability instead of restoring the client fallback')
+  assert(issuedExcess.every(i=>i.probabilityRevision===excessApproval.revision))
+  assert(!items(data,excessProject.id).some(i=>!i.issued&&i.source===excessSource.source),'The issued overage replaces its scheduled source exactly once')
+  console.log('PASS retainer overage probability: 20000 open, 25% and 5000 expected before and after issuance; same-amount source revision refuses stale approval')
   console.log('PASS invoice collection assumptions: isolated 5500 of 7000, native zero and fallback, source renewal, replay, authority, lineage, CSV and once-only issuance')
  } finally {await browser?.close();await h.dispose()}
 }

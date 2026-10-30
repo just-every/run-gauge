@@ -1263,6 +1263,10 @@ The approval retains the finance approver, source references and immutable prior
 revisions. Changed scheduled amounts, dates, source revisions or payment terms
 invalidate it; the report labels the client fallback and asks for renewed approval.
 A client probability change alone does not replace a valid invoice override.
+Retainer overage approvals bind the reviewed consumption fingerprint. Changing
+a source revision requires renewed approval even when the overage amount stays
+the same. Issuance carries that exact decision from the frozen approved overage
+line, preserving its percentage and assumption revision without another cash source.
 One issued invoice override applies to every project share of that document, with
 one approval revision. It applies to the remaining collectible balance, including
 promised portions, after dated receipts, credits and standing disputes. Exact

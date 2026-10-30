@@ -81,6 +81,14 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('approval:limit',{...portableApprovalPolicy,reviewAboveMinor:300000,reason:'Portable bounded automatic invoice consent'})
  const portableSchedule=await cmd('retainer:schedule',{retainerId:portableRetainer.id,basis:'advance',from:'2026-10-16',enabled:true,heldPeriodIds:[],autoIssue:true,capMinor:300000,includeOverages:true,billTo:'Portable client',remitTo:'Portable agency',reference:'Portable service',reason:'Portable automatic schedule with fresh installation consent'})
  await cmd('retainer:run',{...portableSchedule,asOf:'2026-10-16'})
+ const portableCashQuery='from=2026-10-01&to=2026-12-31&asOf=2026-10-16'
+ const portableCash=await(await request('/api/gauge/state?'+portableCashQuery,owner)).json()
+ const portableCashItem=portableCash.cash.engagements.flatMap(e=>e.items.map(i=>({...i,engagementId:e.engagementId}))).find(i=>i.invoiceSnapshot?.value.autoIssue?.scheduleId===portableSchedule.id)
+ assert(portableCashItem,'An issued retained fee is visible before approval')
+ const cashInput={from:'2026-10-01',to:'2026-12-31',asOf:'2026-10-16',engagementId:portableCashItem.engagementId,sourceKey:portableCashItem.probabilityBasis.key,fingerprint:portableCashItem.probabilityBasis.fingerprint,reason:'Portable finance collection assessment'}
+ const originalCashAssumption=await cmd('cash:approve',{...cashInput,collectionPercent:50})
+ const portableCashAssumption=await cmd('cash:approve',{...cashInput,...originalCashAssumption,collectionPercent:25})
+
  // RETAINER-002/003 / BASE-002: exact overage source/artifact and pending projection survive restore.
  const overageTerms=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{name:'Review service retainer',frequency:'monthly',unit:'hours',allowance:3600,services:['Retained review'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:0,carryPeriods:0,deficit:false,overage:'bill',overageRate:18000}}})
  const reviewRetainer=await cmd('retainer:approve',{...overageTerms.input,fingerprint:overageTerms.fingerprint,reason:'Reviewed overage billing for retained reviews'})
@@ -347,6 +355,17 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const restoredReview=(await restored.state()).data.milestones.find(r=>r.id===reviewMilestone.id)
    assert.equal(restoredReview.value.delivery.decisions[0].confirmedByClient,true,'Direct decision history remains direct evidence after restore')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_retainer_schedule_authority').first()).n,0,'Restored schedules carry no execution consent')
+   const restoredCash=await(await restored.request('/api/gauge/state?'+portableCashQuery,restored.owner)).json()
+   const restoredAssumption=restoredCash.data.cashAssumptions.find(r=>r.id===portableCashAssumption.id)
+   assert.equal(restoredAssumption.revision,portableCashAssumption.revision)
+   assert.equal(restoredAssumption.value.collectionPercent,25)
+   const restoredCashHistory=await(await restored.request('/api/gauge/history/cashAssumptions/'+portableCashAssumption.id,restored.owner)).json()
+   assert.equal(restoredCashHistory.history[0].revision,originalCashAssumption.revision)
+   assert.equal(restoredCashHistory.history[0].value.collectionPercent,50)
+   const restoredCashItem=restoredCash.cash.engagements.flatMap(e=>e.items).find(i=>i.probabilityBasis.key===cashInput.sourceKey)
+   assert.equal(restoredCashItem.probabilityRevision,portableCashAssumption.revision)
+   assert.equal(restoredCashItem.expectedMinor,Math.floor((restoredCashItem.openMinor*25+50)/100),'Restored exact assumptions remain business data, not a payment or schedule authority')
+
    await restored.cmd('handoff:prepare',{purpose:'reimbursement',recipient:'Portable payroll desk',reason:'Restored replay must not reimburse twice',sources:[{kind:'expenses',id:portableClaim.id,revision:portableClaim.revision}]},restored.owner,409)
    const restoredChange=(await restored.state()).data.projectScenarios.find(r=>r.id===portableChange.id)
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_change_review_authority').first()).n,0,'Change recipient authority never travels')

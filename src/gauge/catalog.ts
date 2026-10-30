@@ -61,6 +61,8 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
    v.paymentTermsDays = days('paymentTermsDays', 'Payment terms days'); v.daysLate = days('daysLate', 'Days late')
    v.daysLateApprovedBy = v.daysLate === null ? null : v.daysLate === (previous?.value.daysLate ?? null) ? previous?.value.daysLateApprovedBy ?? a.session.operator.id : a.session.operator.id
    v.collectionPercent = input.collectionPercent === undefined ? previous?.value.collectionPercent ?? 100 : input.collectionPercent === '' ? 100 : integer(input.collectionPercent, 'Collection probability percent', 0, 100)
+   v.collectionApprovedBy = v.collectionPercent === previous?.value.collectionPercent ? previous?.value.collectionApprovedBy ?? null : a.session.operator.id
+   v.collectionApprovedByName = v.collectionPercent === previous?.value.collectionPercent ? previous?.value.collectionApprovedByName ?? null : a.session.operator.displayName
    // SETUP-002: the client and contact workspace beside those terms.
    Object.assign(v, clientDetails(input, previous?.value)); await claimIdentities(env, tx, v, previous?.id)
   }

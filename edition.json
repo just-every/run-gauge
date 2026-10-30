@@ -89,7 +89,8 @@
           "migrations/core/0083_gauge_analyst_snapshots.sql",
           "migrations/core/0084_gauge_learning.sql",
           "migrations/core/0085_gauge_client_roles.sql",
-          "migrations/core/0086_gauge_vendor_commitments.sql"
+          "migrations/core/0086_gauge_vendor_commitments.sql",
+          "migrations/core/0087_gauge_cash_assumptions.sql"
         ]
       }
     },

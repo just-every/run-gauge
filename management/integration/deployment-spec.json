@@ -528,6 +528,18 @@
       "name": "0084_gauge_learning.sql",
       "sha256": "358ae3670f4cb3621cd9ac2b0c3d7181a8f54a241da3a4c5bdd7f6201173b16c",
       "sql": "-- Immutable owner-selected backtests are business evidence, with no execution authority.\nCREATE TABLE g_learningCohorts (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK (json_valid(data))\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0085_gauge_client_roles.sql",
+      "sha256": "5c84a9553082b619feff0ec88be3f601d37c8b2fc2dfb61c60fbdf35d2655caf",
+      "sql": "-- Client role ceilings never confer internal finance authority.\nALTER TABLE g_client_portal_authority ADD COLUMN client_role TEXT NOT NULL DEFAULT 'sponsor' CHECK(client_role IN ('sponsor','collaborator'));\nALTER TABLE g_client_portal_authority ADD COLUMN review_enabled INTEGER NOT NULL DEFAULT 1 CHECK(review_enabled IN (0,1));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0087_gauge_cash_assumptions.sql",
+      "sha256": "9b0510183ef49de98edc2f8ae46d4abe53c70ef2fe0d271e128d0d1d797487d2",
+      "sql": "-- Business assumptions travel as history; they grant no execution authority.\nCREATE TABLE g_cashAssumptions (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK(json_valid(data)),\n engagement_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.engagementId')) STORED NOT NULL,\n source_key TEXT GENERATED ALWAYS AS (json_extract(data,'$.sourceKey')) STORED NOT NULL,\n UNIQUE(engagement_id,source_key)\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

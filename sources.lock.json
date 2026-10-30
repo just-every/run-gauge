@@ -1634,7 +1634,7 @@
       "executable": false
     },
     "src/gauge/cash-forecast.ts": {
-      "sha256": "0c41d0133f84dde7b707b99e2d4c5852cae07284cd9284e56897898cdd5e5d2d",
+      "sha256": "198ba2ff0b3b6ff85a692557f2ae59579f7ced37959ae198aa56b83dbf678f43",
       "executable": false
     },
     "src/gauge/catalog.ts": {
@@ -2370,7 +2370,7 @@
       "executable": false
     },
     "src/gauge/ui-cash.ts": {
-      "sha256": "b9709c6e256b150c29910fd87fb4f6454e447d2028cb551122d3d6d435a637ad",
+      "sha256": "c6656d6f4261b19faa0b4b772f973a54e04c3df8d309b2fb630541dc092b65d0",
       "executable": false
     },
     "src/gauge/ui-client-change.ts": {
@@ -4622,7 +4622,7 @@
       "executable": false
     },
     "tests/gauge-cash-assumptions.mjs": {
-      "sha256": "34f0049cf2df5cf00973507f6d88c30016e6da57a6f99a921f2ee8ca6b19e0b2",
+      "sha256": "2d570517be11175e6022e643e1bd2ae6bd7e7d8323b8850feafae94f0bbc53d4",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {

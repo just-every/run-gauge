@@ -41,4 +41,27 @@ export function cashLineage(c: Lineage) {
    c.add(`cash:${row.currency}:${row.month}:${field}`, `${label}, ${row.month}`, row[field], 'minor', `${formula} As of ${cash.asOf}.`, e, row.currency, row[field])
   }
  }
+ for (const row of c.report.cashConverted ?? []) {
+  const evidence = (historical: boolean) => {
+   const e = c.evidence(), curve = historical ? row.historical : row
+   for (const placement of curve.placements) {
+    const native = c.figures.find(f => f.id === `cash:${placement.currency}:${row.month}:${historical ? 'historicalExpectedMinor' : 'expectedMinor'}`)
+    if (native) { e.sources.push(...native.sources); e.unknown.push(...native.unknownSources) }
+    c.row(e, 'fxRates', placement.rateId)
+    if (placement.convertedMinor === null) e.unknown.push(`${placement.currency}: no approved exchange rate on ${placement.day} for ${placement.source}`)
+   }
+   for (const currency of curve.unknownCurrencies) e.unknown.push(`${currency}: cash forecast incomplete`)
+   return e
+  }
+  for (const historical of [false, true]) {
+   const field = historical ? 'historicalExpectedMinor' : 'expectedMinor', curve = historical ? row.historical : row
+   c.add(`cashConverted:${row.reportingCurrency}:${row.month}:${field}`, `Expected cash ${historical ? 'at historical timing' : 'on terms'} in ${row.reportingCurrency}, ${row.month}`, curve.minor, 'minor',
+    `SUM(each source expected cash × approved exchange rate effective on its ${historical ? 'historical timing' : 'on-terms'} receipt date, or ${cash.asOf} when past due), round half up to the cent per source. Source currencies, exact receipt dates and rate revisions remain in the report snapshot.`, evidence(historical), row.reportingCurrency, curve.knownMinor)
+  }
+  for (const field of ['rangeLowMinor', 'rangeHighMinor']) {
+   const e = evidence(false), late = evidence(true); e.sources.push(...late.sources); e.unknown.push(...late.unknown)
+   c.add(`cashConverted:${row.reportingCurrency}:${row.month}:${field}`, `Expected cash range ${field === 'rangeLowMinor' ? 'lower' : 'upper'} bound, ${row.month}`, row[field], 'minor',
+    `${field === 'rangeLowMinor' ? 'MIN' : 'MAX'}(converted on-terms cash, converted historical-timing cash). Convert the two curves on their own dates before comparing; withhold the range when either curve is incomplete.`, e, row.reportingCurrency)
+  }
+ }
 }

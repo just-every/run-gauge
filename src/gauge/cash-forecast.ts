@@ -6,6 +6,7 @@ import { retainerIssueDate } from './retainer-schedule'
 import { retainerFees } from './retainer-fees'
 import { type Row, type Kind, sum } from './model'
 import { liveInvoices } from './invoice-standing'
+import { acceptedDelivery } from './milestone-delivery'
 import type { financeForecast } from './finance-forecast'
 
 // FINANCE-002 revenue and expected cash by month, on the FINANCE-006 revenue basis and the FINANCE-007 cash basis for the
@@ -25,6 +26,7 @@ const nextMonthStart = (month: string) => { const d = new Date(`${month}-01T00:0
 type CashMonth = { currency: string, month: string, revenueMinor: number, tentativeMinor: number, pipelineMinor: number, invoicesMinor: number, openMinor: number, expectedMinor: number, historicalOpenMinor: number, historicalExpectedMinor: number, pastDueMinor: number, engagements: string[] }
 type ScheduledInvoice = { collectibleOpenMinor?: number, probabilityBasis?: CashBasis, inheritedBasis?: CashBasis, source: string, revenueMonth: string | null, invoiceDate: string, amountMinor: number, openMinor: number, issued: boolean, invoiceSnapshot: Row | null, promiseSnapshot?: Row, promised?:boolean, paymentSnapshots: Row[], creditSnapshots?: Row[], creditedMinor?: number, disputedMinor?: number, disputeSnapshot?: Row, assumption?: string }
 const percentOf = (minor: number, percent: number) => Number((BigInt(minor) * BigInt(percent) + 50n) / 100n)
+const milestoneInvoiceDate = (row: Row): string => acceptedDelivery(row.value) && row.value.delivery.decisions.at(-1).date > row.value.due ? row.value.delivery.decisions.at(-1).date : row.value.due
 
 export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
  const caps=capBalances(data)
@@ -70,7 +72,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   }
   const schedule = (source: string, revenueMonth: string, invoiceDate: string, amountMinor: number, assumption?: string, refs = references(source)) => invoices.push({ probabilityBasis: basis(source, invoiceDate, amountMinor, refs), source, revenueMonth, invoiceDate, amountMinor, openMinor: amountMinor, issued: false, invoiceSnapshot: null, paymentSnapshots: [], ...(assumption ? { assumption } : {}) })
   const milestones = ['fixed','mixed'].includes(f.basis) ? (data.milestones ?? []).filter(m => m.value.engagementId === e.id && m.value.status === 'approved') : []
-  for (const m of milestones) { if (!sources.milestones.includes(m.id)) sources.milestones.push(m.id); if (!issuedMilestones.has(m.id)) schedule(`milestones:${m.id}`, m.value.due.slice(0, 7), m.value.due, m.value.amountMinor) }
+  for (const m of milestones) { if (!sources.milestones.includes(m.id)) sources.milestones.push(m.id); if (!issuedMilestones.has(m.id)) schedule(`milestones:${m.id}`, m.value.due.slice(0, 7), milestoneInvoiceDate(m), m.value.amountMinor) }
   for (const charge of (data.fixedCharges??[]).filter(c=>c.value.engagementId===e.id&&c.value.status==='approved')) {
    (sources.fixedCharges??=[]).push(charge.id)
    if (!issuedMilestones.has(charge.id)) schedule(`fixedCharges:${charge.id}`,charge.value.date.slice(0,7),charge.value.date,charge.value.amountMinor)
@@ -112,7 +114,7 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
     const snapshot = line.sourceSnapshot as Row | undefined
     if (!snapshot || line.amountMinor <= 0) return null
     if (line.kind === 'retainerCharges') return basis(`retainerPeriods:${snapshot.value.periodId}`, snapshot.value.date, line.amountMinor, retainerReferences(snapshot.value.periodSnapshot, snapshot), invoice.value.paymentTermsDays)
-    if (['milestones','fixedCharges'].includes(line.kind)) return basis(`${line.kind}:${line.sourceId}`, snapshot.value.due ?? snapshot.value.date, line.amountMinor, [cashReference(line.kind, snapshot)], invoice.value.paymentTermsDays)
+    if (['milestones','fixedCharges'].includes(line.kind)) return basis(`${line.kind}:${line.sourceId}`, line.kind === 'milestones' ? milestoneInvoiceDate(snapshot) : snapshot.value.date, line.amountMinor, [cashReference(line.kind, snapshot)], invoice.value.paymentTermsDays)
     return null
    }) as (CashBasis | null)[]
    const inherited = !explicit && lineBases.some(b => b && cashProbability(data,e.id,b,client).assumptionSnapshot)

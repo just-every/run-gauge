@@ -11,7 +11,7 @@ import type { financeForecast } from './finance-forecast'
 
 // FINANCE-002 revenue and expected cash by month, on the FINANCE-006 revenue basis and the FINANCE-007 cash basis for the
 // records that exist today. Unissued hourly fees, retainer overages and billable expenses are invoiced monthly in arrears on
-// the 1st of the next month; an approved fixed-fee milestone on its due date. Issued invoices replace their source schedule
+// the 1st of the next month; an approved fixed-fee milestone on its due date or later current acceptance date. Issued invoices replace their source schedule
 // once, use their immutable actual issue/due dates, and deduct user-recorded receipts and issued credit notes (INVOICE-004)
 // dated through the as-of day. A void dated through the as-of day removes its invoice; its reissue is a separate invoice,
 // and the original lines still leave the schedule once, so written-down amounts are never expected again.

@@ -140,11 +140,13 @@ try {
   if(process.env.GAUGE_CASH_SHOTS) { await mkdir(process.env.GAUGE_CASH_SHOTS,{recursive:true}); await cashView.screenshot({path:`${process.env.GAUGE_CASH_SHOTS}/cash-converted-${width}.png`}) }
  }
  await page.setViewportSize({width:1440,height:1000})
- await cashView.locator('[data-cash-converted="2026-12"] a').filter({hasText:'$4,637.01'}).click()
+ await cashView.locator('[data-cash-converted="2026-12"] a[href*="historicalExpectedMinor"]').click()
  assert.equal(new URL(page.url()).searchParams.get('asOf'),'2026-11-01','The drill preserves the exact forecast day')
  assert((await page.locator('#report-evidence').innerText()).includes('$4,637.01'))
  await page.locator('#report-evidence').getByText(/^Source revisions/).click()
  assert((await page.locator('#report-evidence').innerText()).includes(decemberRate.revision))
+ await page.locator('#cash-converted [data-cash-converted="2026-12"] a[href*="rangeHighMinor"]').click()
+ assert((await page.locator('#report-evidence').innerText()).includes('$4,637.01'),'The range links to the independently converted bound')
 
  // A later accepted delivery shifts the unissued date and invalidates its old
  // probability. Reapproval survives exact issuance, receipts and credits.
@@ -179,6 +181,14 @@ try {
  for(const width of [1440,390]) {
   await page.setViewportSize({width,height:1000})
   if(process.env.GAUGE_CASH_SHOTS)await invoiceRow.screenshot({path:`${process.env.GAUGE_CASH_SHOTS}/cash-dispute-${width}.png`})
+ }
+ await cmd('invoice:promise',{...cadInvoice,amountMinor:2000,date:'2027-01-05',reference:'Reviewed partial collection promise'})
+ data=await fxRead()
+ const promised=(month,historical=false)=>(historical?converted(data,month).historical:converted(data,month)).placements.filter(p=>p.engagementId===cadProject.id)
+ for(const historical of [false,true]) {
+  assert.equal(promised('2026-12',historical).reduce((n,p)=>n+p.convertedMinor,0),1480)
+  assert.equal(promised('2027-01',historical).reduce((n,p)=>n+p.convertedMinor,0),740,'A promise bypasses average days late on both curves and creates no extra cash')
+  assert.deepEqual(promised('2027-01',historical).map(p=>p.day),['2027-01-05'])
  }
 
  // A currency with no approved rate never vanishes into a known total; neither

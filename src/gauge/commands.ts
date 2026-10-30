@@ -74,7 +74,7 @@ import { clientCommand } from './clients'
 import { leaveCommand } from './leave-approvals'
 import { agencyProfileCommand } from './agency-profile'
 import { fxCommand, consolidate } from './fx-rates'
-export async function command(env:Bindings,a:Actor,action:string,input:Value) {
+export async function command(env:Bindings,a:Actor,action:string,input:Value,draftRetry=0):Promise<any> {
  await fence(env,a)
  need(!a.clientChange||action==='change:respond','Client change review permits only its exact response',403)
  need(!a.clientPortal||action==='intake:submit'||(!!a.clientChange&&action==='change:respond'),'Project recipients may only submit requested intake',403)
@@ -186,7 +186,14 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value) {
  await recordBudgetAlerts(tx,alertInputs,action,result)
  const acknowledgement={id:result.id??null,revision:result.revision??null,saved:true};
  tx.sql('INSERT INTO g_receipts(key,actor,digest,result) VALUES(?,?,?,?)',key,a.session.operator.id,digest,JSON.stringify(acknowledgement))
- try {await tx.commit()}catch(error){const retry=await env.DB.prepare('SELECT actor,digest,result FROM g_receipts WHERE key=?').bind(key).first<{actor:string;digest:string;result:string}>();if(retry?.actor===a.session.operator.id&&retry.digest===digest){await fence(env,a);return JSON.parse(retry.result)}throw error}
+ try {await tx.commit()}catch(error){const retry=await env.DB.prepare('SELECT actor,digest,result FROM g_receipts WHERE key=?').bind(key).first<{actor:string;digest:string;result:string}>();if(retry?.actor===a.session.operator.id&&retry.digest===digest){await fence(env,a);return JSON.parse(retry.result)}
+  // Distinct received-bill drafts can race the table observation. The failed D1
+  // batch is atomic: rebuild once against current rows with the same request key,
+  // retaining every duplicate, source-revision and authority check. Approvals
+  // still return conflicts so a changed monetary decision requires review.
+  if(action==='vendorBill:save'&&!input.id&&draftRetry===0)return command(env,a,action,input,1)
+  throw error}
+
  // Mutations acknowledge identifiers only: private rate snapshots never leak through staff receipts.
  return {...acknowledgement,...(result.shownOnceToken?{token:result.shownOnceToken}:{})}
 }

@@ -441,7 +441,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "05df65b5e8106dd582d90c6aadf8ecd15bb320c4bc684e6c93022df2e8747d3a",
+      "sha256": "25dceb98d752f025718d972e62621d9fc58d8ca88f36834daac338aca4da1a6f",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -453,7 +453,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "80440ed92f0066e18bbb8affe0bf25372a2c0221504e49cab72fdb5cf48469b9",
+      "sha256": "403bbbe54561c4aad840d40f583ed128c107ecad9e0954e5ee47d4c3e5e53549",
       "executable": false
     },
     "base-copies.json": {
@@ -465,7 +465,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1c02c5e2a7f26203ddb34ac65ddec97e1c2c7d7b4b3b9b2151701ebb5eaba8c2",
+      "sha256": "937e7688252dec76fc5657c1b7cc44be8f095c0c4afc1e1d18b76f9935adfe58",
       "executable": false
     },
     "DEMO.md": {
@@ -1629,7 +1629,7 @@
       "executable": false
     },
     "src/gauge/cash-forecast.ts": {
-      "sha256": "c2573e0f79da11e1f3e0560a4d35f55ef8b28679606fb18e3dcc2d35e2cbc11d",
+      "sha256": "4baae6444c24a75320d5092e037827e8fc798fa2f67e45d614eee0a35714f2fd",
       "executable": false
     },
     "src/gauge/catalog.ts": {
@@ -2049,7 +2049,7 @@
       "executable": false
     },
     "src/gauge/report-lineage-cash.ts": {
-      "sha256": "45ba0db39576ea7b102a6a97b869d4531e64470815e88cd59cdeeff74e786b1a",
+      "sha256": "9490cb53aeca12209170740cb717ba7352c57f5ed536ce6be782907643fc2a51",
       "executable": false
     },
     "src/gauge/report-lineage-custom.ts": {
@@ -2365,7 +2365,7 @@
       "executable": false
     },
     "src/gauge/ui-cash.ts": {
-      "sha256": "57a7ca2251b696b8258893cf2bba277980c3087a905a7ed1c942e7af748a0bb0",
+      "sha256": "f94e01eecbc9a5581d114e2cb07ed2887fc3fd191b10f249465ff1eac079fcc0",
       "executable": false
     },
     "src/gauge/ui-client-change.ts": {
@@ -4605,7 +4605,7 @@
       "executable": false
     },
     "tests/gauge-cash-assumptions.mjs": {
-      "sha256": "68836fb61875f7f58fbc209473e9abd790205b55b6bb195a80fbef3ed43f260c",
+      "sha256": "d87e1cf4787bd8a94d08010fda10d0dbe5ed933b347f43a77baefa1b3d4a19d2",
       "executable": false
     },
     "tests/gauge-cash-forecast.mjs": {

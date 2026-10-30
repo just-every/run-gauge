@@ -144,6 +144,25 @@ export function cashForecast(data: Record<string, Row[]>, forecast: Forecast) {
   return { engagementId: e.id, name: e.value.name, clientId: e.value.clientId, currency: f.currency, basis: f.basis, paymentTermsDays: terms, termsLabel: set === null ? 'Net 30 assumed' : `Net ${terms}`, daysLate, daysLateApprovedBy: client?.value.daysLateApprovedBy ?? null, collectionPercent: percent,
    bookedRevenueMinor: f.actualFeesMinor, backlogMinor: f.eacFeesMinor - f.actualFeesMinor, items, complete: incomplete.length === 0, incomplete: [...new Set(incomplete)], sources }
  })
+ // One invoice decision has one rounded expected amount, even when promises,
+ // source lines or project shares place it in several rows. Allocate its cents
+ // cumulatively, with promised portions first, so a date move creates no cash.
+ type CashPart = {engagementId: string; item: (typeof engagements)[number]['items'][number]}
+ const probabilityGroups = new Map<string, CashPart[]>()
+ for (const engagement of engagements) for (const item of engagement.items) {
+  if (!item.invoiceId) continue
+  const key = JSON.stringify([item.invoiceId, item.assumptionSnapshot?.id ?? null, item.collectionPercent])
+  const group = probabilityGroups.get(key) ?? []
+  group.push({engagementId: engagement.engagementId, item}); probabilityGroups.set(key, group)
+ }
+ for (const group of probabilityGroups.values()) {
+  group.sort((a,b) => Number(!!b.item.promised)-Number(!!a.item.promised) || a.engagementId.localeCompare(b.engagementId) || a.item.source.localeCompare(b.item.source))
+  let through = 0
+  for (const {item} of group) {
+   const before = through; through += item.openMinor
+   item.expectedMinor = percentOf(through,item.collectionPercent)-percentOf(before,item.collectionPercent)
+  }
+ }
  // Per currency and month: committed revenue (FINANCE-006), expected invoices, and cash on terms and at historical timing.
  const months: Record<string, Record<string, CashMonth>> = {}
  const at = (currency: string, month: string) => (months[currency] ??= {})[month] ??= { currency, month, revenueMinor: 0, tentativeMinor: 0, pipelineMinor: 0, invoicesMinor: 0, openMinor: 0, expectedMinor: 0, historicalOpenMinor: 0, historicalExpectedMinor: 0, pastDueMinor: 0, engagements: [] }

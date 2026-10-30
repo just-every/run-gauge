@@ -61,10 +61,24 @@ export async function cashAssumptionsJourney() {
   const page=await context.newPage();await page.setViewportSize({width:1440,height:1000})
   const open=async()=>{await page.goto(h.origin+'/app/review?'+query);await page.locator('#cash-sources > summary').click()}
   await open()
+  await page.locator('#cash-forecast table').getByRole('row',{name:/2026-12/}).getByRole('link',{name:'$5,500.00',exact:true}).first().click()
+  for(const [key,value]of query)assert.equal(new URL(page.url()).searchParams.get(key),value,'Cash drills preserve the captured forecast dates')
+  assert((await page.locator('#report-evidence').innerText()).includes('$5,500.00'))
+  await page.locator('#report-evidence').getByText(/^Source revisions/).click()
+  assert((await page.locator('#report-evidence').innerText()).includes(approved.revision))
+  await open()
   let row=page.locator(`[data-cash-source="${item.source}"]`)
   assert.match(await row.innerText(),/3,000\.00 collectible open.*50%.*1,500\.00 expected/s)
   assert((await row.innerText()).includes(approved.revision))
   await row.getByText('Review collection probability',{exact:true}).click()
+  const cashScreen=page.locator('#cash-forecast')
+  assert(await cashScreen.locator('p,li,a,summary,label,input,button').evaluateAll(nodes=>nodes.filter(n=>n.getBoundingClientRect().height).every(n=>parseFloat(getComputedStyle(n).fontSize)>=13)),'Cash text and controls remain readable')
+  assert.deepEqual(await cashScreen.locator('button,a,summary').evaluateAll(nodes=>nodes.filter(n=>!n.textContent.trim()&&n.querySelector('svg,img')&&!n.hasAttribute('data-tooltip')&&!n.getAttribute('aria-describedby')).map(n=>n.outerHTML)),[],'Icon-only cash controls have tooltips')
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   if(process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS){await mkdir(process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS,{recursive:true});await cashScreen.screenshot({path:`${process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS}/cash-assumptions-${width}.png`})}
+  }
+  await page.setViewportSize({width:1440,height:1000})
   await row.getByLabel('Collection percentage (0–100; blank uses client)').fill('0')
   await row.getByLabel('Approval reason').fill('Do not expect collection on this source')
   await row.getByRole('button',{name:'Approve probability',exact:true}).click()
@@ -125,6 +139,23 @@ export async function cashAssumptionsJourney() {
   const promiseView=await(await request('/app/review?'+issuedQuery,owner)).text()
   assert(promiseView.includes('Full source collectible open:'))
 
+  // Moving a promised portion must preserve the invoice's one rounded expected
+  // amount even when the split falls on an odd cent.
+  const halfApproval=await cmd('cash:approve',{...approveInput(data,promisedParts[0],50),asOf:'2026-11-01'})
+  await cmd('invoice:promise',{...issued,amountMinor:100001,date:'2027-01-05',reference:'Reviewed partial promise with exact cents'})
+  data=await readIssued()
+  const roundedParts=items(data,retainer.id).filter(i=>i.invoiceId===issued.id)
+  assert.equal(roundedParts.reduce((n,i)=>n+i.expectedMinor,0),150000,'Moving a promise cannot create expected cash by rounding its portions twice')
+  assert(roundedParts.every(i=>i.probabilityRevision===halfApproval.revision))
+  assert.equal(roundedParts.find(i=>i.promised).expectedMinor,50001)
+  assert.equal(roundedParts.find(i=>!i.promised).expectedMinor,99999)
+
+  const concurrentInput={...approveInput(data,roundedParts[0],50),asOf:'2026-11-01'}
+  const competing=await Promise.all([0,1].map(()=>h.post('/api/gauge/command',{...concurrentInput,key:crypto.randomUUID(),action:'cash:approve'},owner)))
+  assert.deepEqual(competing.map(r=>r.status).sort(),[200,409],'Only one concurrent decision can replace the reviewed revision')
+  data=await readIssued()
+  assert.equal(items(data,retainer.id).filter(i=>i.invoiceId===issued.id).reduce((n,i)=>n+i.expectedMinor,0),150000)
+
   // A combined document keeps the approved source separate from its other line.
   // Credits reduce the named line before probabilities, including a full credit.
   const mixed=await project('Combined scheduled charges')
@@ -175,6 +206,12 @@ export async function cashAssumptionsJourney() {
   }
   assert.equal(data.data.cashAssumptions.filter(a=>a.value.sourceKey===otherPart.probabilityBasis.key).length,1,'Project shares never create conflicting invoice approvals')
 
+  await cmd('payment:record',{...sharedInvoice,date:'2026-11-01',amountMinor:2,reference:'Exact small balance reduction'})
+  data=await readIssued()
+  const sharedParts=[retainer.id,hourly.id].flatMap(id=>items(data,id).filter(i=>i.invoiceId===sharedInvoice.id))
+  assert.equal(sharedParts.reduce((n,i)=>n+i.openMinor,0),199998)
+  assert.equal(sharedParts.reduce((n,i)=>n+i.expectedMinor,0),99999,'Project shares reconcile to the one rounded invoice expectation')
+
   const lead=await h.invite('synthetic-gauge-15003'),agent=await h.invite('synthetic-gauge-15004')
   await cmd('grant',{operatorId:lead.id,personId:worker.id,role:'lead',enabled:true})
   await cmd('grant',{operatorId:agent.id,personId:worker.id,role:'agent',purpose:'staffing',engagementIds:[retainer.id],enabled:true})
@@ -187,12 +224,24 @@ export async function cashAssumptionsJourney() {
   await cmd('grant',{operatorId:finance.id,personId:worker.id,role:'finance',enabled:false})
   await cmd('cash:approve',{...payload,key:requestKey},finance.cookie,403)
   assert.equal((await request('/api/gauge/history/cashAssumptions/'+approved.id,finance.cookie)).status,403)
+  const erasedPerson=await cmd('save:people',{name:'synthetic-gauge-15005',timezone:'America/New_York'})
+  const erasedFinance=await h.invite('synthetic-gauge-15006')
+  await cmd('grant',{operatorId:erasedFinance.id,personId:erasedPerson.id,role:'finance',enabled:true})
+  const erasedInput={...approveInput(data,sharedParts[0],50),...sharedApproval,asOf:'2026-11-01',key:crypto.randomUUID()}
+  await cmd('cash:approve',erasedInput,erasedFinance.cookie)
+  await cmd('grant',{operatorId:erasedFinance.id,personId:erasedPerson.id,role:'finance',enabled:false})
+  await cmd('privacy:policy',{personalDays:0,fileDays:0,evidenceDays:0,reason:'Owner-reviewed native erasure scope'})
+  await cmd('privacy:exit',{personId:erasedPerson.id,date:'2020-01-01',reason:'Exited finance reviewer'})
+  const erasure=await cmd('privacy:preview',{personId:erasedPerson.id})
+  assert.deepEqual(erasure.blockers,[])
+  await cmd('privacy:erase',{personId:erasedPerson.id,fingerprint:erasure.fingerprint,reason:'Erase only the reviewed native scope',confirm:'erase-reviewed-native-scope',lawfulReceiptRemoval:'authorized'})
+  const beforeRefused=(await readIssued()).data.cashAssumptions
+  await cmd('cash:approve',erasedInput,erasedFinance.cookie,403)
+  assert.equal((await request('/api/gauge/history/cashAssumptions/'+approved.id,erasedFinance.cookie)).status,403)
+  assert.equal((await request('/api/gauge/report.csv?'+issuedQuery,erasedFinance.cookie)).status,403)
+  assert.deepEqual((await readIssued()).data.cashAssumptions,beforeRefused,'Erased-person replays neither read nor change retained finance decisions')
   const allApprovals=(await readIssued()).data.cashAssumptions
   assert.equal(allApprovals.length,4,'Refusals, stale sources and replays create no extra assumptions')
-  for(const width of [1440,390]){
-   await page.setViewportSize({width,height:1000});await page.goto(h.origin+'/app/review?'+issuedQuery);await page.locator('#cash-sources > summary').click()
-   if(process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS){await mkdir(process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS,{recursive:true});await page.locator('#cash-forecast').screenshot({path:`${process.env.GAUGE_CASH_ASSUMPTIONS_SHOTS}/cash-assumptions-${width}.png`})}
-  }
   console.log('PASS invoice collection assumptions: isolated 5500 of 7000, native zero and fallback, source renewal, replay, authority, lineage, CSV and once-only issuance')
  } finally {await browser?.close();await h.dispose()}
 }

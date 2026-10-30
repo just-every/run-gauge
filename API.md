@@ -1271,6 +1271,10 @@ identities into an issued invoice; combined documents retain each source's share
 rather than applying that percentage to unrelated lines. Regrouped hourly cycle
 projections need a separate issued-invoice approval. The invoice original,
 approved commercial terms and payment records are never edited by an assumption.
+Expected collection rounds once per invoice probability decision. Promised portions
+and project shares receive cumulative half-up cents, so changing a promise date
+or splitting a document cannot add expected cash. Cash calculation links retain
+the selected report window and as-of day.
 
 Cash items show collectible open amounts, applied percentages, approvers and exact
 assumption revisions. Calculation drills and the revision-bound report CSV retain

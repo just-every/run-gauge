@@ -1268,3 +1268,21 @@ Cash items show collectible open amounts, applied percentages, approvers and exa
 assumption revisions. Calculation drills and the revision-bound report CSV retain
 the same assumption records. Business export and restore preserve these records
 and their history; they supply no payment or scheduled-execution authority.
+
+The finance state read also returns `cashConverted`: each reporting month keeps
+its on-terms `minor`, currency `buckets` and exact source `placements`, a separate
+`historical` curve with the same fields, and `rangeLowMinor` and `rangeHighMinor`.
+Each source converts half up to cents at the approved rate effective on that
+curve's receipt date, using the as-of day once overdue. Placements retain the
+original receipt date, applied day, source amount, converted amount, and exact
+rate ID and revision. A missing rate or any incomplete source forecast withholds
+the affected total and range, preserving known subtotals and named unknowns.
+The Review amounts link to `cashConverted:<currency>:<month>:expectedMinor` and
+`historicalExpectedMinor` calculation figures; the report CSV includes the same
+figures and source revisions. Conversion changes no commercial or payment record.
+For unissued milestones a later recorded current client acceptance moves the
+expected invoice date; actual issued dates remain immutable. Disputed amounts
+stay open receivables and appear separately on their invoice source, excluded
+from expected cash. Historical timing remains a finance-recorded assumption;
+settled-history qualification and processor settlement still require their
+separately authorized provider proof.

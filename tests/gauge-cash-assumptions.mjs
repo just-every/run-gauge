@@ -180,7 +180,7 @@ export async function cashAssumptionsJourney() {
   await cmd('grant',{operatorId:agent.id,personId:worker.id,role:'agent',purpose:'staffing',engagementIds:[retainer.id],enabled:true})
   for(const cookie of [lead.cookie,agent.cookie]){
    await cmd('cash:approve',issuedInput,cookie,403)
-   const view=await read(cookie);assert.equal(view.cash,null);assert.deepEqual(view.data.cashAssumptions,[])
+   const view=await read(cookie);assert.equal(view.cash,null);assert.equal(view.cashConverted,null);assert(!view.lineage.some(f=>f.id.startsWith('cashConverted:')));assert.deepEqual(view.data.cashAssumptions,[])
    assert.equal((await request('/api/gauge/history/cashAssumptions/'+approved.id,cookie)).status,403)
    const html=await(await request('/app/review?'+query,cookie)).text();assert(!html.includes(approved.revision));assert(!html.includes('cash:approve'))
   }

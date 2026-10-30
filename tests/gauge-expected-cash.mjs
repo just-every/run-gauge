@@ -172,6 +172,14 @@ try {
  assert.equal(converted(data,'2026-12').historical.placements.find(p=>p.engagementId===cadProject.id).convertedMinor,2220)
  assert.deepEqual(data.data.invoices.find(i=>i.id===cadInvoice.id),frozenInvoice)
  assert.match(data.cash.recordedCash,/user-recorded/);assert(!data.cash.settledCash.includes('processor settled'))
+ await page.goto(h.origin+'/app/review?'+fxQuery);await page.locator('#cash-sources > summary').click()
+ const invoiceRow=page.locator(`[data-cash-source^="invoices:${cadInvoice.id}"]`)
+ const sourceText=(await invoiceRow.innerText()).replaceAll('\u00a0',' ')
+ for(const text of ['CA$60.00 collectible open','50%','CA$30.00 expected','CA$10.00 disputed on this invoice','10 days late',data.cash.engagements.find(e=>e.engagementId===cadProject.id).daysLateApprovedBy,'settled-history qualification pending'])assert(sourceText.includes(text),sourceText)
+ for(const width of [1440,390]) {
+  await page.setViewportSize({width,height:1000})
+  if(process.env.GAUGE_CASH_SHOTS)await invoiceRow.screenshot({path:`${process.env.GAUGE_CASH_SHOTS}/cash-dispute-${width}.png`})
+ }
 
  // A currency with no approved rate never vanishes into a known total; neither
  // does an unpriced forecast that currently contributes no numeric cash.

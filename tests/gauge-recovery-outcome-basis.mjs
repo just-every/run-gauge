@@ -58,7 +58,7 @@ export async function recoveryOutcomeBasisJourney() {
   const prepared=await cmd('projectScenario:prepare',{...input,fingerprint:preview.fingerprint,name:'synthetic-gauge-9343 source renewal',reason:'Review equal-price staffing with renewed cash basis'})
   const selected={...prepared,asOf,selectedIds:[current.id]},review=await cmd('projectScenario:preview',selected)
   const adoptedEqual=await cmd('projectScenario:adopt',{...selected,fingerprint:review.fingerprint,reason:'Approve this exact new source revision'})
-  const renewed=await cmd('recovery:outcome-compare',await cmd('recovery:outcome-capture',adoptedEqual))
+  const renewed=await cmd('recovery:outcome-compare',await cmd('recovery:outcome-capture',{id:adoptedEqual.id,revision:adoptedEqual.revision}))
   assert.deepEqual(renewed.changedInputs,[])
   assert.equal(renewed.months.reduce((n,m)=>n+m.expectedMinor,0),40000)
   assert.equal(renewed.months.reduce((n,m)=>n+m.observedMinor,0),40000)

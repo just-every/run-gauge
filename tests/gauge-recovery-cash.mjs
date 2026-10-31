@@ -4,7 +4,7 @@ import { harness } from './gauge-harness.mjs'
 // An unchanged price does not renew an approval bound to the replaced source.
 export async function recoveryCashComparison() {
  const now=new Date().toISOString(),asOf=now.slice(0,10),day=new Date(Date.parse(asOf)+86400000).toISOString().slice(0,10)
- const h=await harness({currency:'USD',timezone:'UTC',now})
+ const h=await harness({currency:'USD',timezone:'UTC',now,databaseBinding:false})
  try {
  const {cmd,owner}=h
  console.log('Recovery cash comparison: native owner setup complete')

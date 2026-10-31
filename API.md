@@ -367,6 +367,45 @@ Finance corrects an issued invoice only with linked documents (INVOICE-004). `in
 Download `/api/gauge/receivables.csv` with the same filters and the returned `fingerprint`. Changed dated inputs return 409 and require a fresh read. CSV row types are `invoice`, `receipt`, `credit`, `void`, `client total` and `aging`; sum only one row type at a time. Invoice rows include cumulative paid amounts; receipt rows itemize those same allocations. Every row names its currency, and all amounts are integer minor units. JSON/CSV are internal statement preparation: no client delivery or provider settlement is claimed. INVOICE-004 credit notes and voids issued through the as-of day reduce each invoice's open amount (`creditedMinor`, `voidedMinor`; invoiced = paid + credited + voided + open) and itemize as `credit` and `void` rows. Client receipts (`receipts`: client, date, reference, `amountMinor`, `allocatedMinor`, `unappliedMinor`, each allocation) and disputes (`disputedMinor`, `dispute` on each invoice) are in the same report and CSV (`client receipt` rows; sum only one row type at a time). Other roles receive 403, signed-out requests 401; scoped utilization keys cannot use this door.
 
 
+### Native late-fee drafts (INVOICE-007, partial)
+
+Owner and finance record existing agreed terms on a client with `save:clients`:
+`lateFeeMode: "monthly-percentage"`, integer `lateFeeRateBasisPoints` (150 means
+1.5%), positive integer `lateFeeCapMinor`, `lateFeeAgreedOn` and
+`lateFeeReference`. `lateFeeMode: "none"` removes terms for future invoices;
+omitting the mode preserves saved terms. Issuance freezes the exact agreement
+and client revision only when its currency matches and its agreement date is
+on or before the issue date. Later client edits never retrofit an issued invoice.
+
+Both commands use `POST /api/gauge/command` with current native finance authority:
+
+- `invoice:late-fee-preview` takes the invoice `id`, `revision` and an `asOf`
+  date no later than today. It returns the frozen terms, invoice identity,
+  principal, payment and credit amounts, exact source revisions, period,
+  calculated `amountMinor` and a `fingerprint`. Preview creates no draft.
+- `invoice:late-fee-draft` sends those same inputs, the reviewed `fingerprint`,
+  a `reason` and the ordinary request `key`. It creates one immutable linked
+  draft with status `awaiting-finance-approval`, attributed to the finance user.
+  Exact request replay returns the original acknowledgement; distinct or
+  concurrent requests cannot create a second draft for that invoice period.
+  Current authority is checked before replay as well as inside a new write.
+
+The supported period is the first monthly anniversary of the frozen due date,
+clamped to month end, after more than 30 days overdue. The simple percentage
+uses current unpaid principal, rounds half up to integer cents and applies the
+frozen cap. Missing terms, disputed or void invoices, fully paid or credited
+principal, changed sources and a preview belonging to another invoice refuse.
+An unallocated client receipt does not reduce invoice principal.
+
+Billing provides the native preview and draft forms. Finance state retains
+`data.lateFeeDrafts`; the ordinary record history and business audit doors retain
+the agreement and draft attribution. Other roles cannot read private terms or
+drafts. Complete installation restore preserves these records and their source
+history, while old sessions grant no access. A draft changes no issued original,
+receivable, expected cash or payment. Approval, issuance, further periods, flat
+fees and compounding remain unavailable. No reminder is scheduled or sent;
+delivered collection, replies and verified stop conditions remain unproved.
+
 ### INVOICE-002 fixed-fee deposit and percentage schedule (partial)
 
 Finance uses `fixed:prepare` with `engagementId`, `budgetId`, `budgetRevision`,

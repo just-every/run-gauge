@@ -69,7 +69,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `INVOICE-004` | done | `tests/gauge-invoice-corrections.mjs`; `tests/gauge-base-portability.mjs`; `src/gauge/invoice-corrections.ts`; `src/gauge/invoice-standing.ts`; `migrations/core/0039_gauge_invoice_corrections.sql` |
 | `INVOICE-005` | missing |  |
 | `INVOICE-006` | done | `src/gauge/receipts.ts`; `src/gauge/receivables.ts`; `src/gauge/invoices.ts`; `src/gauge/ui-invoices.ts`; `src/gauge/cash-forecast.ts`; `migrations/core/0040_gauge_client_receipts.sql`; `tests/gauge-receipts.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-cash-forecast.mjs` |
-| `INVOICE-007` | missing |  |
+| `INVOICE-007` | partial | `tests/gauge-late-fees.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs`; `tests/gauge-receipts.mjs`; `tests/gauge-cash-forecast.mjs` |
 | `INVOICE-008` | done | `tests/gauge-invoices.mjs`; `tests/gauge-cash-forecast.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs`; `tests/gauge-invoice-corrections.mjs`; `tests/gauge-retainer-rules.mjs` |
 | `PAYMENT-001` | partial | `tests/fixtures/stripe-journey.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-cash-forecast.mjs` |
 | `PAYMENT-002` | partial | `tests/fixtures/stripe-journey.mjs`; `tests/gauge-invoices.mjs`; `tests/fixtures/stripe-archive.mjs`; `tests/journeys/stripe-native.mjs` |

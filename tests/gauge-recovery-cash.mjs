@@ -7,6 +7,7 @@ export async function recoveryCashComparison() {
  const h=await harness({currency:'USD',timezone:'UTC',now})
  try {
  const {cmd,owner}=h
+ console.log('Recovery cash comparison: native owner setup complete')
  const people=[]
  for(const suffix of ['original','replacement']) {
   const person=await cmd('save:people',{name:'synthetic-gauge-9340 '+suffix,timezone:'UTC'});people.push(person)
@@ -23,6 +24,7 @@ export async function recoveryCashComparison() {
  assert.equal(item.amountMinor,15000)
  const approve={asOf,from:asOf,to:day,engagementId:project.id,sourceKey:item.probabilityBasis.key,fingerprint:item.probabilityBasis.fingerprint,collectionPercent:25,reason:'Owner reviews this exact scheduled source'}
  const assumption=await cmd('cash:approve',approve)
+ console.log('Recovery cash comparison: source-bound collection assumption approved')
  assert.equal(itemOf(await read()).expectedMinor,3750)
  const input={asOf,changes:[{type:'staffing',...booking,personId:people[1].id,effectiveFrom:day}]}
  const preview=await cmd('projectScenario:preview',input)

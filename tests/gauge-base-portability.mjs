@@ -1,3 +1,4 @@
+import {prepareLateFeePortability} from './gauge-late-fees.mjs'
 import {prepareVendorPortability} from './fixtures/vendor-commitments.mjs'
 import {seedLearningProjects} from './fixtures/learning-projects.mjs'
 import { sourceFieldJourney } from './fixtures/source-custom-fields.mjs'
@@ -11,6 +12,7 @@ import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 // The caller closes the source before passing this verifier to portability().
 export async function prepareCurrentPortability(h,{importJob}) {
  const {cmd,state,request,owner}=h,zone='Australia/Brisbane'
+ const portableLateFee=await prepareLateFeePortability(h)
  const portableVendor=await prepareVendorPortability(h)
  const learning=await seedLearningProjects(h),learningPreview=await cmd('learning:preview',learning.input)
  const portableLearning=await cmd('learning:save',{...learning.input,sourceDigest:learningPreview.sourceDigest})
@@ -342,6 +344,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
    }
   }})
   try{
+   await portableLateFee(restored)
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
    assert.equal((await restored.request('/api/gauge/vendor-files/'+before.data.vendorBills[0].value.attachmentIds[0],portableVendor.approver.cookie)).status,401,'Old finance session cannot read restored bill originals')
    await restored.cmd('vendorBill:approve',{...portableVendor.approved,reason:'Restored bill cannot match twice'},restored.owner,409)

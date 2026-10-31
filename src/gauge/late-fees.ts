@@ -1,6 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
-import { type Row, type Value, type Kind, need, text, date, integer, uuid, workDate, decode, sum } from './model'
+import { type Row, type Value, need, text, date, integer, uuid, workDate, decode, sum } from './model'
 import { type Actor, type Transaction, finance, authority, fence, get } from './store'
 
 /** Agreed terms are finance-recorded evidence, never a default entitlement. */
@@ -49,7 +49,7 @@ async function lateFeeBasis(env: Bindings, a: Actor, input: Value, tx?: Transact
   }
  }
  need(!sources.invoiceCorrections.some(r => r.value.type === 'void' && r.value.status !== 'withdrawn'), 'Invoice is void or awaiting void approval', 409)
- need(!sources.invoiceDisputes.some(r => r.value.status === 'open'), 'Resolve the invoice dispute before preparing any late fee', 409)
+ need(!sources.invoiceDisputes.some(r => r.value.status === 'open' || r.value.resolvedDate > asOf), 'Resolve the invoice dispute before preparing any late fee', 409)
  need(!sources.lateFeeDrafts.some(r => r.value.periodEnd === periodEnd), 'This invoice period already has a late-fee draft', 409)
  const paidMinor = sum(sources.payments.map(r => r.value.amountMinor)), creditedMinor = sum(sources.invoiceCorrections.filter(r => r.value.status === 'issued').map(r => r.value.amountMinor))
  const principalMinor = sum([v.totalMinor, -paidMinor, -creditedMinor])

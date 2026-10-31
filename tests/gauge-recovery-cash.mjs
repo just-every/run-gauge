@@ -10,9 +10,9 @@ export async function recoveryCashComparison() {
  const people=[]
  for(const suffix of ['original','replacement']) {
   const person=await cmd('save:people',{name:'synthetic-gauge-9340 '+suffix,timezone:'UTC'});people.push(person)
-  await cmd('save:rates',{personId:person.id,service:'*',effective:asOf,costMinor:9000,billMinor:15000,currency:'USD'})
   await cmd('save:calendars',{personId:person.id,from:asOf,to:day,dailySeconds:28800,weekdays:'0,1,2,3,4,5,6',timezone:'UTC'})
  }
+ await cmd('save:rates',{service:'Design',effective:asOf,costMinor:9000,billMinor:15000,currency:'USD'})
  const client=await cmd('save:clients',{name:'synthetic-gauge-9341',paymentTermsDays:0})
  const project=await cmd('save:engagements',{name:'synthetic-gauge-9342',clientId:client.id,leadId:people[0].id,members:[people[0].id],scope:'Equal-price staffing replacement',timezone:'UTC',currency:'USD'})
  await cmd('budget:approve',await cmd('save:budgets',{engagementId:project.id,mode:'hourly',amountMinor:100000,effortSeconds:3600,roundingSeconds:60,reason:'Approved native service'}))
@@ -29,7 +29,7 @@ export async function recoveryCashComparison() {
  const prepared=await cmd('projectScenario:prepare',{...input,fingerprint:preview.fingerprint,name:'synthetic-gauge-9343',reason:'Review equal-price replacement'})
  const selection={...prepared,asOf,selectedIds:[booking.id]},selected=await cmd('projectScenario:preview',selection)
  const adopted=await cmd('projectScenario:adopt',{...selection,fingerprint:selected.fingerprint,reason:'Adopt the reviewed replacement'})
- const compare=async()=>cmd('recovery:outcome-compare',await cmd('recovery:outcome-capture',adopted))
+ const compare=async()=>cmd('recovery:outcome-compare',await cmd('recovery:outcome-capture',{id:adopted.id,revision:adopted.revision}))
  const result=await compare(),sum=s=>s.cash.months.reduce((total,month)=>total+month.expectedMinor,0)
  assert.equal(sum(result.before),3750)
  assert.equal(sum(result.expected),15000,'Replacement invalidates source-bound collection approval in the retained prediction')

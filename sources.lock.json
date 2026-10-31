@@ -4811,7 +4811,7 @@
       "executable": false
     },
     "tests/gauge-recovery-cash.mjs": {
-      "sha256": "b986ad7b49d513aabfdb41ec7d405266aac4d3925dfa2c5a799c554bc927615b",
+      "sha256": "70f1529904b4cde0dafd4bdb27e0cd03a7462cb256371ceec73de764b0584ea5",
       "executable": false
     },
     "tests/gauge-recovery-feasibility.mjs": {

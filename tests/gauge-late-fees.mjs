@@ -29,15 +29,22 @@ export async function prepareLateFeePortability(h) {
  await f.changeTerms({lateFeeRateBasisPoints:200,lateFeeReference:'synthetic-gauge-9109 later agreement'})
  const before=await h.state(),client=before.data.clients.find(r=>r.id===f.client.id),issued=before.data.invoices.find(r=>r.id===invoice.id),fee=before.data.lateFeeDrafts.find(r=>r.id===saved.id)
  const history=await(await h.request('/api/gauge/history/clients/'+client.id,h.owner)).json()
+ const auditPath='/api/gauge/audit?'+new URLSearchParams({kind:'lateFeeDrafts',recordId:fee.id})
+ const audit=(await(await h.request(auditPath,h.owner)).json()).entries
  assert.equal(issued.value.lateFeeTerms.rateBasisPoints,150)
+ assert.equal(audit.length,1)
+ assert.deepEqual(audit[0].result,fee.value,'The public audit retains the exact draft, frozen terms and source revisions')
+ assert.equal(audit[0].action,'invoice:late-fee-draft')
  return async restored=>{
   const after=await restored.state()
   for(const [kind,row]of [['clients',client],['invoices',issued],['lateFeeDrafts',fee]])assert.deepEqual(after.data[kind].find(r=>r.id===row.id),row,'Portable exact terms, invoice and draft')
   assert.deepEqual(await(await restored.request('/api/gauge/history/clients/'+client.id,restored.owner)).json(),history)
+  assert.deepEqual((await(await restored.request(auditPath,restored.owner)).json()).entries,audit,'Draft attribution and exact source history survive restore')
   assert.equal((await restored.request('/api/gauge/history/lateFeeDrafts/'+fee.id,h.owner)).status,401,'Old finance session cannot inspect a restored draft')
   await preview(restored,invoice,restored.owner,409)
   await draft(restored,invoice,p,restored.owner,409)
   assert.equal((await restored.state()).data.lateFeeDrafts.filter(r=>r.value.invoiceId===invoice.id).length,1,'Restored history never duplicates an invoice period')
+  console.log('PROBE INVOICE-007 restore: complete archive -> exact frozen agreement, draft and attributed source history; old session and duplicate requests refused')
  }
 }
 
@@ -152,11 +159,24 @@ export async function lateFeeJourney(h) {
 
   // Immediate finance revocation, foreign roles, state and history do not expose terms or drafts.
   const candidate=await f.issue(),approvedPreview=await preview(h,candidate)
+  const differentInvoice=await f.issue()
+  await draft(h,differentInvoice,approvedPreview,owner,409)
+  assert.equal((await state()).data.lateFeeDrafts.filter(r=>r.value.invoiceId===differentInvoice.id).length,0,'A preview cannot authorize a different invoice')
   const user=await h.invite('synthetic-gauge-9121')
-  await cmd('grant',{operatorId:user.id,personId:f.person.id,role:'finance',enabled:true})
+  const financePerson=await cmd('save:people',{name:'synthetic-gauge-9125',timezone:'America/New_York'})
+  await cmd('grant',{operatorId:user.id,personId:financePerson.id,role:'finance',enabled:true})
   assert.equal((await preview(h,candidate,user.cookie)).amountMinor,15000)
-  await cmd('grant',{operatorId:user.id,personId:f.person.id,role:'staff',enabled:true})
+  const financePreview=await preview(h,differentInvoice,user.cookie)
+  const financeBody={action:'invoice:late-fee-draft',...differentInvoice,asOf,fingerprint:financePreview.fingerprint,reason:'synthetic-gauge-9126 finance draft',key:randomUUID()}
+  const financeResponse=await post('/api/gauge/command',financeBody,user.cookie)
+  assert.equal(financeResponse.status,200)
+  const financeDraft=await financeResponse.json(),financeRow=(await state()).data.lateFeeDrafts.find(r=>r.id===financeDraft.id)
+  assert.deepEqual([financeRow.value.preparedBy,financeRow.value.amountMinor,financeRow.value.status],[user.id,15000,'awaiting-finance-approval'])
+  assert.equal((await request('/api/gauge/history/lateFeeDrafts/'+financeDraft.id,user.cookie)).status,200)
+  await cmd('grant',{operatorId:user.id,personId:financePerson.id,role:'staff',enabled:true})
   await preview(h,candidate,user.cookie,403);await draft(h,candidate,approvedPreview,user.cookie,403)
+  assert.equal((await post('/api/gauge/command',financeBody,user.cookie)).status,403,'Revocation refuses even the exact successful draft request key')
+  assert.equal((await request('/api/gauge/history/lateFeeDrafts/'+financeDraft.id,user.cookie)).status,403)
   for(const role of ['staff','lead','agent','none']){
    const actor=await h.invite('synthetic-gauge-9122-'+role)
    if(role!=='none')await cmd('grant',{operatorId:actor.id,personId:f.person.id,role,enabled:true,...(role==='agent'?{purpose:'billing',engagementIds:[f.project.id]}:{})})
@@ -171,7 +191,18 @@ export async function lateFeeJourney(h) {
   }
   assert.equal((await state()).data.lateFeeDrafts.filter(r=>r.value.invoiceId===candidate.id).length,0)
   assert.equal((await request('/api/gauge/history/lateFeeDrafts/'+fee.id,owner)).status,200)
+  await cmd('grant',{operatorId:user.id,personId:financePerson.id,role:'finance',enabled:false})
+  await cmd('privacy:policy',{personalDays:0,fileDays:0,evidenceDays:0,reason:'synthetic-gauge-9127 native retention'})
+  await cmd('privacy:exit',{personId:financePerson.id,date:'2020-09-02',reason:'synthetic-gauge-9128 finance exit'})
+  const erase=await cmd('privacy:preview',{personId:financePerson.id})
+  assert.deepEqual(erase.blockers,[])
+  await cmd('privacy:erase',{personId:financePerson.id,fingerprint:erase.fingerprint,reason:'synthetic-gauge-9129 owner reviewed erasure',confirm:'erase-reviewed-native-scope',lawfulReceiptRemoval:'authorized'})
+  await cmd('grant',{operatorId:user.id,personId:financePerson.id,role:'finance',enabled:true},owner,410)
+  assert.equal((await post('/api/gauge/command',financeBody,user.cookie)).status,403)
+  assert.equal((await request('/api/gauge/history/lateFeeDrafts/'+financeDraft.id,user.cookie)).status,403)
+  assert.deepEqual((await state()).data.lateFeeDrafts.find(r=>r.id===financeDraft.id),financeRow,'Erasure and replay preserve lawful immutable fee evidence')
   console.log('PROBE INVOICE-007 authority: revoked finance and other roles -> preview, draft and private history refused; no private terms in scoped state')
+  console.log('PROBE INVOICE-007 finance and erasure: finance creates an attributed USD 150 draft; revoked or erased finance cannot replay or read it; another invoice cannot reuse its preview')
  } finally {await browser.close()}
 }
 

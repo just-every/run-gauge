@@ -455,7 +455,7 @@
       "executable": false
     },
     "API.md": {
-      "sha256": "bc6779c1d7e1b4a14d86657e31751b641a65fb0b17a26b47f59a3a3cd7f19a21",
+      "sha256": "57764531af4f4f06616b1ba30f9a68b9f1849a65e3c6682059df9c998d0da756",
       "executable": false
     },
     "base-copies.json": {
@@ -467,7 +467,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2870028a78d66e04770c3cffd303ff4d23101348e50a43ed8c47bb2c3ecb8f2f",
+      "sha256": "b10d5bcc86d75c3aed826592978905916f6e61a8cbdbe177c6e3d6dcabc6ff80",
       "executable": false
     },
     "DEMO.md": {
@@ -4723,7 +4723,7 @@
       "executable": false
     },
     "tests/gauge-late-fees.mjs": {
-      "sha256": "f000e71c21b59f091c99584b06833c8725fa75174235d37c861e7711823d36fa",
+      "sha256": "33ac9758399224a07f3c8a35677dd331f6ab5c5865877fbaaac70928c6445024",
       "executable": false
     },
     "tests/gauge-learning.mjs": {

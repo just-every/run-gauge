@@ -1,6 +1,7 @@
 // SETUP-002 on the Engagements page, for finance: the active clients with their terms, a client search by name, PO
 // or external ID, the client form with its contacts, addresses, tax, PO, tag and external-ID fields, and, on a
 // client's edit view, the merge of that duplicate into a surviving client.
+import { lateFeeTermsFields } from './ui-late-fees'
 import type { Row, Value } from './model'
 import { currencies } from './agency'
 import { escape as e, input as i, area, check, choices, form, table, open } from './ui-forms'
@@ -36,6 +37,7 @@ export function clientForm(row?: Row,custom='',legacyCurrency='USD') {
  return form('save:clients', 'Client', i('name', 'Client name', v.name) + i('legalName', 'Legal name', v.legalName ?? '', 'text', false)
   + choices('billingCurrency', 'Default billing currency', [...currencies], v.billingCurrency ?? (row ? legacyCurrency : 'USD'))
   + i('paymentTermsDays', 'Payment terms (Net days)', v.paymentTermsDays ?? '', 'number', false) + i('daysLate', 'Approved average days late', v.daysLate ?? '', 'number', false) + i('collectionPercent', 'Collection probability (%)', v.collectionPercent ?? 100, 'number', false)
+  + lateFeeTermsFields(v.lateFeeTerms)
   + area('contacts', 'Contacts, one per line: billing or project; name; email; phone', contactLines(v), false)
   + area('addresses', 'Addresses, one per line: billing, legal or project; line 1; line 2; city; state; postal code; country', addressLines(v), false)
   + i('taxId', 'Tax ID reference (EIN)', v.taxId ?? '', 'text', false) + i('exemptions', 'Exemption certificate references', list(v.exemptions), 'text', false)

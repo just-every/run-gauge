@@ -40,7 +40,7 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if(['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts'].includes(k)&&a.role!=='owner')return {}
  if(['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','floatAdoptions','learningCohorts'].includes(k)&&a.role!=='owner')return {}
  if(['vendorCommitments','vendorBills'].includes(k)&&!finance(a))return {}
- if(['analystSnapshots','cashAssumptions'].includes(k)&&!finance(a))return {}
+ if(['analystSnapshots','cashAssumptions','lateFeeDrafts'].includes(k)&&!finance(a))return {}
  if(k==='kantataRecords'&&!finance(a))return {}
  if(['revenueSchedules','revenueRecognitions'].includes(k)&&!finance(a))return {}
  if(['fxRates','invoiceSettings','invoiceAccess','invoiceViews'].includes(k)&&!finance(a))return {}
@@ -76,6 +76,7 @@ export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
  data.kantataRecords=finance(a)?data.kantataRecords:[]
  data.vendorCommitments=finance(a)?data.vendorCommitments:[];data.vendorBills=finance(a)?data.vendorBills:[]
  data.analystSnapshots=finance(a)?data.analystSnapshots:[]
+ data.lateFeeDrafts=finance(a)?data.lateFeeDrafts:[]
  data.cashAssumptions=finance(a)?data.cashAssumptions:[]
  data.expenseRates=finance(a)?data.expenseRates:[]
  data.leave=data.leave.map(r=>({...r,value:redact(a,'leave',r.value)}))

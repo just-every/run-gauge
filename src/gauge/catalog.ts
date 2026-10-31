@@ -1,3 +1,4 @@
+import { clientLateFeeTerms } from './late-fees'
 import type { Bindings } from '../auth.server'
 import { type Value, type Kind, type Row, need, text, integer, money, date, zone, flag, sum, workDate } from './model'
 import { type Actor, Transaction, finance, access, get, all } from './store'
@@ -58,6 +59,7 @@ export async function catalog(env: Bindings, a: Actor, tx: Transaction, action: 
    // New clients use USD; legacy clients without a stored choice retain their agency currency.
    v.billingCurrency = input.billingCurrency || previous?.value.billingCurrency || (previous ? a.currency : 'USD')
    need(currencies.includes(v.billingCurrency), 'Choose a supported billing currency')
+   v.lateFeeTerms = clientLateFeeTerms(input, previous?.value, a, v.billingCurrency)
    v.paymentTermsDays = days('paymentTermsDays', 'Payment terms days'); v.daysLate = days('daysLate', 'Days late')
    v.daysLateApprovedBy = v.daysLate === null ? null : v.daysLate === (previous?.value.daysLate ?? null) ? previous?.value.daysLateApprovedBy ?? a.session.operator.id : a.session.operator.id
    v.collectionPercent = input.collectionPercent === undefined ? previous?.value.collectionPercent ?? 100 : input.collectionPercent === '' ? 100 : integer(input.collectionPercent, 'Collection probability percent', 0, 100)

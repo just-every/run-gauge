@@ -1,4 +1,5 @@
 import { vendorCommand } from './vendor-commitments'
+import { lateFeePreview, lateFeeCommand } from './late-fees'
 import { cashAssumptionCommand } from './cash-assumptions'
 import { recoveryBaseline, recoveryFormPreview } from './recovery-feasibility'
 import { learningPreview, learningCommand } from './learning'
@@ -32,7 +33,7 @@ import { sendCommercial,dispatchCommercial } from './commercial-delivery'
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { type Value, need, text } from './model'
-import { type Actor, Transaction, fence, get } from './store'
+import { type Actor, Transaction, fence, get, finance } from './store'
 import { scheduleCommand as retainerScheduleCommand } from './retainer-schedule'
 import { phaseCommand, observeBudgetAlerts, recordBudgetAlerts } from './budget-phases'
 import { capCommand } from './budget-caps'
@@ -94,6 +95,8 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value,dra
  if(action==='commercial:delivery-readback')return readCommercialDelivery(env,a,input)
  if(action==='commercial:signature-readback')return readCommercialSignature(env,a,input)
  if(action==='commercial:send')return sendCommercial(env,a,input)
+ if(action.startsWith('invoice:late-fee-'))need(finance(a),'Finance access required',403)
+ if(action==='invoice:late-fee-preview')return lateFeePreview(env,a,input)
  if(action==='learning:preview')return learningPreview(env,a,input)
  if(action==='estimate:compare')return estimateCompare(env,a,input)
  if(action==='fx:consolidate')return consolidate(env,a,input)
@@ -127,6 +130,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value,dra
  if(!result)result=await vendorCommand(env,a,tx,action,input)
  if(!result)result=await analystCapture(env,a,tx,action,input)
  if(!result)result=await learningCommand(env,a,tx,action,input)
+ if(!result)result=await lateFeeCommand(env,a,tx,action,input)
  if(!result)result=await cashAssumptionCommand(env,a,tx,action,input)
  if(!result)result=await floatDeletionCommand(env,a,tx,action,input)
  if(!result)result=await floatAdoptionCommand(env,a,tx,action,input)

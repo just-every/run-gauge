@@ -1,3 +1,4 @@
+import { frozenLateFeeTerms } from './late-fees'
 import { presentationDocument, invoiceDetailCsv } from './invoice-presentation'
 import { invoicePdf } from './invoice-pdf'
 import type { Bindings } from '../auth.server'
@@ -54,6 +55,7 @@ async function issueVoid(env: Bindings, a: Actor, tx: Transaction, invoice: Row,
   number, issueDate: value.date, dueDate: plusDays(value.date, terms),
   billTo: v.billTo, remitTo: v.remitTo, reference: v.reference, currency: v.currency, totalMinor: value.reissueTotalMinor, lines,
   issuedBy: a.session.operator.id, issuedAt: Date.now(), paymentTermsDays: terms, termsLabel: client.value.paymentTermsDays == null ? 'Net 30 assumed' : `Net ${terms}`,
+  lateFeeTerms: frozenLateFeeTerms(client, v.currency, value.date),
   clientSnapshot: structuredClone(client), engagementSnapshot: v.engagementSnapshot, packetSnapshot: v.packetSnapshot,
   reissueOf: invoice.id, reissueOfNumber: v.number, voidId: row.id,
   taxBasis: 'pre-tax', issuance: 'native ledger only; no sending or accounting-provider submission',

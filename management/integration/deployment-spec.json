@@ -546,6 +546,12 @@
       "name": "0087_gauge_cash_assumptions.sql",
       "sha256": "9b0510183ef49de98edc2f8ae46d4abe53c70ef2fe0d271e128d0d1d797487d2",
       "sql": "-- Business assumptions travel as history; they grant no execution authority.\nCREATE TABLE g_cashAssumptions (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK(json_valid(data)),\n engagement_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.engagementId')) STORED NOT NULL,\n source_key TEXT GENERATED ALWAYS AS (json_extract(data,'$.sourceKey')) STORED NOT NULL,\n UNIQUE(engagement_id,source_key)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0088_gauge_late_fee_drafts.sql",
+      "sha256": "7ffb171f4a3d35f6980926c51caebf0c272b86ed114d3f2115c7b649d2ae3b49",
+      "sql": "-- Native late-fee proposals only. They are not invoices, payments or receivables.\nCREATE TABLE g_lateFeeDrafts (\n id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)),\n invoice_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.invoiceId')) STORED NOT NULL REFERENCES g_invoices(id),\n period_end TEXT GENERATED ALWAYS AS (json_extract(data,'$.periodEnd')) STORED NOT NULL,\n amount_minor INTEGER GENERATED ALWAYS AS (json_extract(data,'$.amountMinor')) STORED NOT NULL CHECK(typeof(amount_minor)='integer' AND amount_minor>0),\n CHECK(json_extract(data,'$.status')='awaiting-finance-approval')\n);\nCREATE UNIQUE INDEX g_late_fee_invoice_period_once ON g_lateFeeDrafts(invoice_id,period_end);\nCREATE TRIGGER g_late_fee_draft_immutable BEFORE UPDATE ON g_lateFeeDrafts BEGIN SELECT RAISE(ABORT,'immutable_late_fee_draft'); END;\nCREATE TRIGGER g_late_fee_draft_no_delete BEFORE DELETE ON g_lateFeeDrafts BEGIN SELECT RAISE(ABORT,'immutable_late_fee_draft'); END;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",

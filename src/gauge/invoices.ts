@@ -1,3 +1,4 @@
+import { frozenLateFeeTerms } from './late-fees'
 import { presentationDocument, invoiceDetailCsv } from './invoice-presentation'
 import { invoicePdf } from './invoice-pdf'
 import type { Bindings } from '../auth.server'
@@ -129,6 +130,7 @@ export async function invoiceCommand(env: Bindings, a: Actor, tx: Transaction, a
    number, issueDate, dueDate, billTo, remitTo, reference,
    currency: packet.value.currency, totalMinor, lines, issuedBy: a.session.operator.id, issuedAt: Date.now(),
    paymentTermsDays, termsLabel: client.value.paymentTermsDays == null ? 'Net 30 assumed' : `Net ${paymentTermsDays}`,
+   lateFeeTerms: frozenLateFeeTerms(client, packet.value.currency, issueDate),
    clientSnapshot: snapshot(client), engagementSnapshot: snapshot(engagement), packetSnapshot: snapshot(packet),
    taxBasis: 'pre-tax', issuance: 'native ledger only; no sending or accounting-provider submission',
   }, undefined, undefined, action)

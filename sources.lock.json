@@ -1983,7 +1983,7 @@
       "executable": false
     },
     "src/gauge/project-scenarios.ts": {
-      "sha256": "bd01123574b389e15889de7f7b978bf2c7e27d46417ad5613c60fd685bfc3bcc",
+      "sha256": "b0ad41e80d86090ec498d98e290d9c5c67ce39584d7cdc3f969ae057ff9fdb31",
       "executable": false
     },
     "src/gauge/proposal-sources.ts": {

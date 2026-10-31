@@ -1,3 +1,4 @@
+import { retainerStewardJourney } from './gauge-retainer-steward.mjs'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -24,7 +25,7 @@ try{
  await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'billing',engagementIds:[project.id,second.id]})
  const preview=(t,engagementId=project.id,extra={},cookie=manager.cookie)=>cmd('retainer:preview',{engagementId,operation:'terms',terms:t,...extra},cookie)
  const save=async(p,reason='Reviewed commercial allowance')=>cmd('retainer:approve',{...p.input,fingerprint:p.fingerprint,reason},manager.cookie)
- browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ browser=await chromium.launch({headless:true,executablePath:process.env.GAUGE_CHROMIUM_EXECUTABLE_PATH,args:['--use-mock-keychain','--password-store=basic']})
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  const login=async cookie=>{await context.clearCookies();await context.addCookies(cookie.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))}
  const url=h.origin+`/app/engagements?edit=${project.id}`
@@ -173,6 +174,7 @@ try{
  await retainerStatementsJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await retainerCloseJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await retainerScheduleJourney(h,browser,{client,lead,worker,staff,manager,agent})
+ await retainerStewardJourney(h,browser,{client,lead,worker,staff,manager,agent})
  await cmd('grant',{operatorId:manager.id,personId:lead.id,role:'lead',enabled:false});await cmd('retainer:preview',open.input,manager.cookie,403)
  console.log('PASS RETAINER-001: native USD value/hours terms, monthly/quarterly/annual periods, exact calendar/working proration, inclusive ends and renewal, immutable commercial versions/calendar snapshots, eligible approved-work policy, lineage and scoped authority')
 }finally{await browser?.close();await h.dispose()}

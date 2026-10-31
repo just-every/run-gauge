@@ -63,6 +63,29 @@ Leads, staff, client recipients, agents and scoped keys gain no vendor costs or
 bill-original access. Restore retains records, originals and exact match history
 without restoring native sessions or provider authority.
 
+## Native retainer readiness
+
+`GET /api/gauge/retainer-readiness?engagementId=...&periodId=...` requires a
+current native owner or finance session. The human-triggered form is on the
+engagement detail. Optional `fingerprint` refuses changed sources with 409.
+The fingerprint binds exact term, period, work, allocation, adjustment, schedule,
+packet and source-reservation inputs, including prior FIFO carry inputs.
+
+Included allowance, carry-over, approved adjustments, posted consumption and
+pending work remain separate. Posted overage uses approved work; provisional
+overage includes stopped pending work and is never an approved charge. Prepared
+adjustments are excluded and held for ordinary finance review. Missing worker,
+reviewer and verified client decisions remain explicitly missing. Ambiguous
+allocations and unknown value inputs withhold a monetary candidate. Reservations
+link the existing ordinary packet and withhold duplicate preparation. Sources
+and exact revisions remain inspectable. Rechecking a changed preview refuses.
+
+This read creates no record, approval, consent, case closure, invoice, payment or
+outbound request. Ordinary authorized time, allocation and billing forms retain
+all existing guards. Agents and scoped credentials gain no private amounts or
+new authority. Delivery chasing, client decisions and provider reconciliation
+remain unfinished under RECOVER-004.
+
 ## Native project analyst
 
 `GET /api/gauge/analyst` accepts `question` (1–500 characters), `engagementId`,

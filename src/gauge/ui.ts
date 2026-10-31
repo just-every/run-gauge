@@ -1,3 +1,4 @@
+import { retainerStewardPanel } from './ui-retainer-steward'
 import { vendorSection } from './ui-vendor-commitments'
 import { learningPanel } from './ui-learning'
 import { intakeSection } from './intake'
@@ -65,6 +66,7 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  if(section==='review')body+=learningPanel(a,report,options)
  if(section==='review')body+=await analystPanel(env,a,report,options)
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
+ if(section==='engagements'&&options.edit)body+=await retainerStewardPanel(env,a,report,options)
  if(section==='engagements'&&options.edit)body+=vendorSection(a,report,options.edit)
  if(section==='engagements'&&options.edit){const project=report.data.engagements.find(r=>r.id===options.edit);if(project)body+=await clientPortalSection(env,a,project)+await intakeSection(env,a,project)}
  if(section==='time')body+=timeSection(a,report,options)

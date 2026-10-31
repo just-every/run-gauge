@@ -4815,7 +4815,7 @@
       "executable": false
     },
     "tests/gauge-recovery-outcome-basis.mjs": {
-      "sha256": "36ff4869dfe0a138b572b466b7d40917cb59e42c641e858a6f850493a66aa6d1",
+      "sha256": "9183c298dc179ccbb55c8e67f88b08df405c48e6d71959d4e6823f46fd5a281a",
       "executable": false
     },
     "tests/gauge-recovery-outcomes.mjs": {

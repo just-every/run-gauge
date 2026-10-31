@@ -1,4 +1,5 @@
 import { recoveryOutcomeJourney } from './gauge-recovery-outcomes.mjs'
+import { recoveryOutcomeBasisJourney } from './gauge-recovery-outcome-basis.mjs'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
@@ -118,6 +119,7 @@ try {
   if(process.env.GAUGE_SCENARIO_SHOTS){await mkdir(process.env.GAUGE_SCENARIO_SHOTS,{recursive:true});await page.screenshot({path:`${process.env.GAUGE_SCENARIO_SHOTS}/capacity-${width}.png`,fullPage:true})}
  }
  await recoveryOutcomeJourney(h,browser)
+ await recoveryOutcomeBasisJourney()
  await rateScenarioJourney(h,browser)
  await deadlineScenarioJourney(h,browser)
  await scopeScenarioJourney(h,browser)

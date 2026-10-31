@@ -97,3 +97,22 @@ export async function caseCommand(env:Bindings,a:Actor,tx:Transaction,action:str
  else return null
  return tx.record('operationalCases',v,row,undefined,action)
 }
+
+// Read the existing owner-only carrier without granting the financial comparison
+// door any case visibility. Every selection binds both current record revisions.
+export async function caseRecoveryReplies(env:Bindings,a:Actor,selections:Value[],projectIds:string[]){
+ owner(a);await fence(env,a)
+ const seen=new Set<string>(),sources=[]
+ for(const selection of selections){
+  const row=await get(env,'operationalCases',text(selection.caseId,'Case'))
+  need(row.revision===selection.caseRevision&&row.value.status!=='closed','Case changed or closed; select its current reply again',409)
+  const ctx=await context(env,row.value)
+  need(ctx.engagementId&&projectIds.includes(ctx.engagementId),'Case is outside the captured recovery projects',403)
+  const reply=await get(env,'caseEvents',text(selection.replyId,'Recorded reply'))
+  need(reply.value.caseId===row.id&&reply.value.type==='reply','Reply belongs to another case or is not a reply',403)
+  need(reply.revision===selection.replyRevision,'Reply revision changed; select it again',409)
+  need(!seen.has(reply.id),'Select each recorded reply once');seen.add(reply.id)
+  sources.push({caseId:row.id,caseRevision:row.revision,replyId:reply.id,replyRevision:reply.revision,engagementId:ctx.engagementId,verification:'Owner-recorded reply; identity and content unverified'})
+ }
+ await fence(env,a);return sources
+}

@@ -1,3 +1,4 @@
+import { recoveryReplyJourney } from './gauge-recovery-replies.mjs'
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
@@ -95,6 +96,11 @@ try {
  assert(unallocated.alternatives[0].unknowns.some(s => /no committed priced allocation/.test(s)))
  assert(unallocated.alternatives[0].deltas.every(d => d.marginMinor === null))
 
+ browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox', '--use-mock-keychain', '--password-store=basic'] })
+ const replyProof = await recoveryReplyJourney(h, { asOf, projectIds, projects, tasks, milestones, bookings, employee, contractor, alternatives, named, fin, agent, browser })
+ await browser.close(); browser = undefined
+ basis = await baseline()
+
  // An omitted native cost and an incompatible declared cost currency remain unknown, never a zero-cost offer.
  for (const person of [unpriced]) {
   const unknown = await compare([{ id: 'unknown', name: 'Unqualified pricing', staffing: bookings.map(b => ({ id: b.id, revision: b.revision, personId: person.id })) }])
@@ -191,6 +197,9 @@ try {
  await cmd('privacy:erase', { personId: contractor.id, fingerprint: erasure.fingerprint, reason: 'Explicit bounded erasure consent', confirm: 'erase-reviewed-native-scope', lawfulReceiptRemoval: 'authorized' })
  await cmd('recovery:preview', { ...basis, alternatives: named }, owner, 409)
  const erasedBasis = await cmd('recovery:baseline', { asOf, projectIds }, owner)
+ await cmd('recovery:recheck', { ...replyProof.basis, alternatives: named, replySelections: replyProof.selections }, owner, 409)
+ const erasedReply = await cmd('recovery:recheck', { ...erasedBasis, alternatives: named, replySelections: replyProof.selections }, owner, 409)
+ assert(!JSON.stringify(erasedReply).includes('Recovery contractor'), 'Rechecked reply captures cannot expose the erased person')
  const erasedComparison = await cmd('recovery:preview', { ...erasedBasis, alternatives: [alternatives[1]] }, owner)
  assert.equal(erasedComparison.alternatives[0].status, 'refused')
  assert(!JSON.stringify(erasedComparison).includes('Recovery contractor'), 'Replayed captures cannot expose the erased profile')

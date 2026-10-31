@@ -17,7 +17,7 @@ import { allocationPricing } from './forecast-allocation-pricing'
 
 type Data = Record<Kind, Row[]>
 // Only native inputs used by delivery, pricing, entitlement and expected-cash calculations.
-const sourceKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments','estimates','estimateConversions','resourceRequests','packets','invoices','payments','paymentPromises','invoiceCorrections','invoiceDisputes','fixedCharges','retainerSchedules','retainerCharges','timeSlices','capWriteDowns','processorPayments']
+const sourceKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','deliveryPlans','retainers','retainerPeriods','retainerCloses','retainerAdjustments','estimates','estimateConversions','resourceRequests','packets','invoices','payments','paymentPromises','invoiceCorrections','invoiceDisputes','fixedCharges','retainerSchedules','retainerCharges','timeSlices','capWriteDowns','processorPayments','vendorCommitments','vendorBills','cashAssumptions']
 const hash = (value: unknown) => sha256(canonicalJson(value))
 const shift = (day: string, n: number) => new Date(Date.parse(day) + n * 86400000).toISOString().slice(0, 10)
 const days = (from: string, to: string) => { const out: string[] = []; for (let d = from; d <= to; d = shift(d, 1)) out.push(d); return out }
@@ -209,12 +209,27 @@ function capacityRequirements(candidate: Data, ids: string[], from: string, to: 
  return { costs, unknowns }
 }
 
-export async function recoveryPreview(env: Bindings, a: Actor, input: Value) {
+export type RecoveryConstraint =
+ | { kind: 'client-date'; engagementId: string; milestoneId: string; due: string }
+ | { kind: 'staffing-refusal'; engagementId: string; personId: string; from: string; to: string }
+
+export async function recoveryPreview(env: Bindings, a: Actor, input: Value, constraints: RecoveryConstraint[] = []) {
  const { data, asOf, ids, digest } = await readBasis(env, a, input)
  need(input.basisDigest === digest, 'Recovery baseline changed; capture and review a fresh baseline', 409)
  const options = list(input.alternatives, 'Alternatives', 5)
  need(options.length > 0 && new Set(options.map(o => o.id)).size === options.length, 'Choose one to five distinct alternatives')
- const candidates = options.map(option => { try { return { option, candidate: candidateFor(data, ids, asOf, option) } } catch (error) { if (!(error instanceof Fault)) throw error; return { option, error: error.message } } })
+ for (const c of constraints) {
+  if (c.kind === 'client-date') need(data.milestones.some(m => m.id === c.milestoneId && m.value.engagementId === c.engagementId), 'Counteroffer milestone is outside its case project', 403)
+  else need(data.people.some(p => p.id === c.personId && !p.value.privacyErased), 'Refusing person is unavailable', 409)
+ }
+ const candidates = options.map(option => { try {
+  const candidate = candidateFor(data, ids, asOf, option)
+  for (const c of constraints) {
+   if (c.kind === 'client-date') need(candidate.milestones.find(m => m.id === c.milestoneId)!.value.due === c.due, 'Alternative does not meet the explicitly entered client date counteroffer', 409)
+   else need(!candidate.staffing.some(s => ids.includes(s.value.engagementId) && s.value.personId === c.personId && s.value.commitment === 'committed' && s.value.dailySeconds > 0 && s.value.from <= c.to && s.value.to >= c.from), 'Alternative assigns a refusing person during the stated dates; priced capacity excess cannot override a staffing refusal', 409)
+  }
+  return { option, candidate }
+ } catch (error) { if (!(error instanceof Fault)) throw error; return { option, error: error.message } } })
  const dates = [data, ...candidates.flatMap(c => c.candidate ? [c.candidate] : [])].flatMap(d => d.staffing.filter(s => ids.includes(s.value.engagementId) && s.value.to > asOf).flatMap(s => [s.value.from > asOf ? s.value.from : shift(asOf, 1), s.value.to]))
  const from = dates.sort()[0] ?? shift(asOf, 1), to = dates.at(-1) ?? from
  need(Date.parse(to) - Date.parse(from) <= 366 * 86400000, 'Recovery compares a window of at most one year')
@@ -256,8 +271,8 @@ export async function recoveryPreview(env: Bindings, a: Actor, input: Value) {
 }
 
 /** Translate the existing page's labelled native selections into the same public comparison input. */
-export async function recoveryFormPreview(env: Bindings, a: Actor, input: Value) {
- if (!input.recoveryForm) return recoveryPreview(env, a, input)
+export async function recoveryFormPreview(env: Bindings, a: Actor, input: Value, constraints: RecoveryConstraint[] = []) {
+ if (!input.recoveryForm) return recoveryPreview(env, a, input, constraints)
  const { data, ids } = await readBasis(env, a, input)
  const schedules = ids.map((id, n) => { const plan = latestPlan(data, id); need(plan, 'Approve a delivery baseline for each selected project first', 409); return { id: plan.id, revision: plan.revision, nodeId: input[`node${n}`], delayBusinessDays: integer(input.delayBusinessDays, 'Business-day delay', 1, 366) } })
  const bookings = ids.map((id, n) => { const row = data.staffing.find(s => s.id === input[`booking${n}`] && s.value.engagementId === id); need(row, 'Choose a booking on each selected project'); return row })
@@ -272,5 +287,5 @@ export async function recoveryFormPreview(env: Bindings, a: Actor, input: Value)
   { id: 'contractor', name: 'Use the selected contractor', schedules, staffing: bookings.map(b => ({ id: b.id, revision: b.revision, personId: input.contractorId })) },
   { id: 'scope', name: 'Revise remaining scope', schedules, tasks, staffing: bookings.map((b, n) => ({ id: b.id, revision: b.revision, dailySeconds: integer(input[`scopeSeconds${n}`], 'Remaining scope seconds', 0, 86400) })), scopes: ids.map((id, n) => ({ id, revision: data.engagements.find(e => e.id === id)!.revision, scope: input[`scope${n}`] })) }
  ].map(option => ({ ...option, commercialChanges: input.declarations?.[option.id]?.commercialChanges ?? [], capacityCosts: input.declarations?.[option.id]?.capacityCosts ?? [] }))
- return recoveryPreview(env, a, { ...input, alternatives })
+ return recoveryPreview(env, a, { ...input, alternatives }, constraints)
 }

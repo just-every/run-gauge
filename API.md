@@ -1320,3 +1320,32 @@ Cash items show collectible open amounts, applied percentages, approvers and exa
 assumption revisions. Calculation drills and the revision-bound report CSV retain
 the same assumption records. Business export and restore preserve these records
 and their history; they supply no payment or scheduled-execution authority.
+
+
+## Native recovery reply recheck
+
+The native owner may call `recovery:recheck` through `POST /api/gauge/command` with
+the same `asOf`, two `projectIds`, `basisDigest` and `alternatives` used by
+`recovery:preview`, plus `replySelections`. Each selection names `caseId`,
+`caseRevision`, `replyId` and `replyRevision` for an existing owner-visible case
+and its recorded reply. Cases must belong to the captured projects and remain
+open. Finance can compare recovery economics but cannot read or recheck these
+owner-only case replies. Revoked owners and agents receive no reply authority.
+
+Each selection has an explicitly entered `constraints` list. A `client-date`
+constraint names a `milestoneId` in that case project and an exact `due` date. A
+`staffing-refusal` names a `personId`, inclusive `from` and `to` dates; any committed
+positive allocation to that person on either selected project during those dates
+is refused, even when excess capacity has been priced. An empty list applies no
+constraint. Quoted reply text is inert, unverified evidence and is never parsed
+into a constraint or an approval.
+
+Review exposes these same labelled selections within the existing recovery
+comparison form. The recheck recomputes the ordinary dependency, global capacity,
+budget, phase, retainer, margin and supported monthly expected-cash results and
+retains every unresolved commercial condition. Exact case and reply revisions
+appear beside the result. Separate renewed lead, client and finance decisions
+remain required, including exact schedule, scope, amounts, recipient and expiry.
+The preview changes no staffing, terms, approvals, invoices, payments or case
+status and sends nothing. Real negotiation, verified inbound collection, the full
+approval lifecycle, connector execution and reconciliation remain unimplemented.

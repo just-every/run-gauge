@@ -1,3 +1,4 @@
+import { recoveryReplyRecheck } from './recovery-replies'
 import { vendorCommand } from './vendor-commitments'
 import { cashAssumptionCommand } from './cash-assumptions'
 import { recoveryBaseline, recoveryFormPreview } from './recovery-feasibility'
@@ -108,6 +109,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value,dra
  if(action==='period:preview')return periodPreview(env,a,input)
  if(action==='change:preview')return scopeChangePreview(env,a,input)
  if(action==='recovery:baseline')return recoveryBaseline(env,a,input)
+ if(action==='recovery:recheck'||action==='recovery:preview'&&input.recoveryMode==='replies')return recoveryReplyRecheck(env,a,input)
  if(action==='recovery:preview')return recoveryFormPreview(env,a,input)
  if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)
  if(action==='retainer:preview')return retainerPreview(env,a,input)

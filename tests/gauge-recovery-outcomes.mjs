@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { adoptedOutcome } from './fixtures/recovery-outcomes.mjs'
+import { recoveryCashComparison } from './gauge-recovery-cash.mjs'
 
 // One end-to-end sanity journey, folded into the existing scenario suite and budget.
 export async function recoveryOutcomeJourney(h,browser) {
+ await recoveryCashComparison()
  const {cmd,owner}=h,fixture=await adoptedOutcome(h),{asOf,day,person,replacement,client,projects,bookings,tasks,adopted,retained}=fixture
  const input={id:adopted.id,revision:adopted.revision}
  const capture=()=>cmd('recovery:outcome-capture',input)

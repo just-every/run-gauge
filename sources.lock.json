@@ -4819,7 +4819,7 @@
       "executable": false
     },
     "tests/gauge-recovery-outcomes.mjs": {
-      "sha256": "650a504e2e9eacf4409b29fbfdf636bbf88ef17c86174380dfade6c19068742c",
+      "sha256": "9ad9c397f583fa561fb37941bcd5ae47725b0af5687151d89a481c0aa244879d",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {

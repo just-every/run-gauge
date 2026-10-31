@@ -467,7 +467,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "43aba35e4559a6f856c2930cf8a65016ba20a8a5c15fef14b26ab8d9369e128d",
+      "sha256": "53b6da9907132a71380ddaa2f75fc6ccc1d7c1def4d104d8cb5e3bda3d2ebba8",
       "executable": false
     },
     "DEMO.md": {
@@ -4815,7 +4815,7 @@
       "executable": false
     },
     "tests/gauge-recovery-outcomes.mjs": {
-      "sha256": "e335e4576d8855c667f83712bd32fa24b8c7d1fbdf48110bd2b282bd7c1a4272",
+      "sha256": "650a504e2e9eacf4409b29fbfdf636bbf88ef17c86174380dfade6c19068742c",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {

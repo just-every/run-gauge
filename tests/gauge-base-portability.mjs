@@ -1,3 +1,4 @@
+import {adoptedOutcome} from './fixtures/recovery-outcomes.mjs'
 import {prepareLateFeePortability} from './gauge-late-fees.mjs'
 import {prepareVendorPortability} from './fixtures/vendor-commitments.mjs'
 import {seedLearningProjects} from './fixtures/learning-projects.mjs'
@@ -12,6 +13,7 @@ import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 // The caller closes the source before passing this verifier to portability().
 export async function prepareCurrentPortability(h,{importJob}) {
  const {cmd,state,request,owner}=h,zone='Australia/Brisbane'
+ const portableOutcome=await adoptedOutcome(h,'synthetic-gauge-9320')
  const portableLateFee=await prepareLateFeePortability(h)
  const portableVendor=await prepareVendorPortability(h)
  const learning=await seedLearningProjects(h),learningPreview=await cmd('learning:preview',learning.input)
@@ -292,6 +294,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableChangePath=`/api/gauge/client-changes/${portableChange.id}/${portableChangeReview.id}`
  const portableChangeResponse=await request(portableChangePath,portableChangeRecipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':portableChangeRelease.token},body:JSON.stringify({key:crypto.randomUUID(),revision:portableChangeRow.revision,outcome:'accepted',signatureName:'Portable Client',consent:true,reason:'Portable exact signed native response'})})
  assert.equal(portableChangeResponse.status,200,await portableChangeResponse.clone().text())
+ const outcomeCapture=await cmd('recovery:outcome-capture',portableOutcome.adopted)
+ const portableObserved=await cmd('recovery:outcome-compare',outcomeCapture)
  const before=await state()
  assert.equal(before.data.customImports.find(r=>r.id===fieldImport.id).value.package.records[0].values.office,'Austin')
  assert.equal(before.data.people.find(r=>r.id===person.id).value.customFields[officeField.id],'Austin')
@@ -345,6 +349,13 @@ export async function prepareCurrentPortability(h,{importJob}) {
   }})
   try{
    await portableLateFee(restored)
+   await restored.cmd('recovery:outcome-compare',outcomeCapture,h.owner,401)
+   const restoredOutcome=await restored.cmd('recovery:outcome-compare',await restored.cmd('recovery:outcome-capture',portableOutcome.adopted))
+   assert.deepEqual(restoredOutcome.before,portableObserved.before)
+   assert.deepEqual(restoredOutcome.expected,portableObserved.expected)
+   assert.deepEqual(restoredOutcome.projects,portableObserved.projects)
+   await restored.cmd('projectScenario:adopt',{...portableOutcome.adopted,asOf:portableOutcome.asOf,selectedIds:[],reason:'History grants no adoption'},restored.owner,409)
+   assert.equal(restored.providerRequests.filter(r=>!r.url.includes('resend.com')).length,0,'Fresh authorized observation replays no provider action')
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
    assert.equal((await restored.request('/api/gauge/vendor-files/'+before.data.vendorBills[0].value.attachmentIds[0],portableVendor.approver.cookie)).status,401,'Old finance session cannot read restored bill originals')
    await restored.cmd('vendorBill:approve',{...portableVendor.approved,reason:'Restored bill cannot match twice'},restored.owner,409)

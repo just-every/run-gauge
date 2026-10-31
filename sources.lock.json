@@ -1983,7 +1983,7 @@
       "executable": false
     },
     "src/gauge/project-scenarios.ts": {
-      "sha256": "bd01123574b389e15889de7f7b978bf2c7e27d46417ad5613c60fd685bfc3bcc",
+      "sha256": "2bdba6b3c439b2163b13adfb261b1bf15da6d9a0e8728c0e6193b5014bd32d56",
       "executable": false
     },
     "src/gauge/proposal-sources.ts": {
@@ -4808,6 +4808,10 @@
     },
     "tests/gauge-receipts.mjs": {
       "sha256": "3b7d4760c1b349f9d570384e3c28755777ad2e97951e864b97d533fe5748e456",
+      "executable": false
+    },
+    "tests/gauge-recovery-cash.mjs": {
+      "sha256": "b986ad7b49d513aabfdb41ec7d405266aac4d3925dfa2c5a799c554bc927615b",
       "executable": false
     },
     "tests/gauge-recovery-feasibility.mjs": {

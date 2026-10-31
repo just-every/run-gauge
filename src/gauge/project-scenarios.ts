@@ -48,7 +48,8 @@ async function compare(env: Bindings, a: Actor, data: Record<Kind,Row[]>, change
     need(!changed.has(key), 'Alternatives change the same source; compare them separately', 409); changed.add(key)
    }
    effect.id = effect.source?.id ?? `scenario:${hash({digest,change,kind:effect.kind,index})}`
-   const row = {id:effect.id, revision:effect.source?.revision ?? 'scenario', value:effect.value}
+   // Adoption advances every written revision, invalidating source-bound approvals.
+   const row = {id:effect.id, revision:`scenario:${hash({source:effect.source?.revision ?? null,value:effect.value})}`, value:effect.value}
    candidate[effect.kind] = effect.source ? candidate[effect.kind].map(r => r.id === effect.source!.id ? row : r) : [...candidate[effect.kind],row]
    effects.push(effect)
   }

@@ -30,10 +30,10 @@ export async function retainerStewardJourney(h,browser,{client,lead,manager,agen
  try{
   const before=await business(),sent=h.providerRequests.length
   let p=await preview();assert.deepEqual(p.figures,{included:144000,carryOver:28800,adjustments:0,opening:172800,postedConsumption:176400,pendingSeconds:7200,postedOverage:20000,provisionalOverage:60000})
-  assert.equal(p.candidate,null);assert.equal(p.status,'decisions-missing');assert(p.decisions.some(d=>d.id===pending.id&&d.kind==='reviewer'&&d.revision===pending.revision))
+  assert(p.work.some(w=>w.id===pending.id&&w.href==='/app/time?edit='+pending.id));assert.equal(p.pricingHref,'/app/rates');assert.equal(p.candidate,null);assert.equal(p.status,'decisions-missing');assert(p.decisions.some(d=>d.id===pending.id&&d.kind==='reviewer'&&d.revision===pending.revision))
   assert(p.sources.some(s=>s.kind==='retainers'&&s.id===retained.id&&s.revision===retained.revision));assert(p.sources.some(s=>s.kind==='time'&&s.id===pending.id));assert.match(p.limits.join(' '),/Client overage decision is missing/)
   const financePreview=await preview(fin.cookie);assert.deepEqual(financePreview.figures,p.figures)
-  await login(fin.cookie);await page.goto(h.origin+`/app/engagements?edit=${project.id}`)
+  await login(fin.cookie);const opened=await page.goto(h.origin+`/app/engagements?edit=${project.id}`);assert.equal(opened.status(),200,await page.locator('body').innerText())
   assert.equal(await page.locator('#retainer-readiness-result').count(),0,'No automatic preview')
   await page.getByLabel('Readiness period',{exact:true}).selectOption(period.id);await page.getByRole('button',{name:'Preview retainer readiness',exact:true}).click()
   const panel=page.locator('#retainer-readiness-result'),text=await panel.innerText();assert.match(text,/\$200\.00/);assert.match(text,/\$600\.00/);assert.match(text,/reviewer approval is missing/);assert.match(text,/Client overage decision is missing/)
@@ -58,6 +58,8 @@ export async function retainerStewardJourney(h,browser,{client,lead,manager,agen
   assert.equal(await page.locator('#retainer-readiness-result').getByRole('link',{name:'Inspect reserved packet',exact:true}).getAttribute('href'),'/app/billing#'+packet.id)
   assert.match(await page.locator('#retainer-readiness-result').innerText(),/no duplicate billing candidate/)
   assert.equal(await page.locator('#retainer-readiness-result').getByRole('link',{name:'Review ordinary overage preparation',exact:true}).count(),0)
+  assert.equal(await page.locator(`#retainers [id="${period.id}"]`).getByRole('button',{name:'Draft overage packet',exact:true}).count(),0)
+  assert.equal(await page.locator(`#retainers [id="${period.id}"]`).getByRole('link',{name:'Inspect reserved overage packet',exact:true}).getAttribute('href'),'/app/billing#'+packet.id)
   await capture('reserved-readiness');assert.deepEqual(await business(),reservedBefore);assert.equal(h.providerRequests.length,reservedSends)
   await cmd('packet:create',{engagementId:project.id,title:'Duplicate readiness charge',sources:[`retainerPeriods:${period.id}`]},h.owner,409)
   console.log('PROBE RECOVER-004 reservation: approve ordinary time then explicitly draft native overage packet -> 60000 cents reserved once; preview links packet, offers no duplicate and stale fingerprints return 409')

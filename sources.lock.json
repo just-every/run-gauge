@@ -2118,7 +2118,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "1bb2565f98ee5b3cf8faecbd3b42604d8bf195f97a187b89228043fdeedbfeb7",
+      "sha256": "1000203203cddd3eb6adda033df68fdbb2a4914775360f6ffffe476fcd4d21be",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -2203,6 +2203,10 @@
     },
     "src/gauge/retainer-statements.ts": {
       "sha256": "d92ef2e70c1840c34f84b11ea4ae87934ad72fa643de6673a2b2b9d999a8dd60",
+      "executable": false
+    },
+    "src/gauge/retainer-steward.ts": {
+      "sha256": "df2eb072ae23e6b42d49a1ce6f8f15153b0f32bd12c12a3ab2dfa6f800f27cb5",
       "executable": false
     },
     "src/gauge/retainers.ts": {
@@ -2593,8 +2597,12 @@
       "sha256": "0d9fc3018fbaae4893ebe86410bf8b422f4f5bdf66c258c6c545cb6eb75fb762",
       "executable": false
     },
+    "src/gauge/ui-retainer-steward.ts": {
+      "sha256": "2eb7f603130ebbf03f449d68b695b95aad28d526af261796dc9c8a3b8807895c",
+      "executable": false
+    },
     "src/gauge/ui-retainers.ts": {
-      "sha256": "683f489db9b72c3f39679d8a8fba5b5e18469c91a35268cab65e5a9caad37ed4",
+      "sha256": "7f1f3cb17074e4f3377b2a80ae455a024a44b09145d327e328d0916649483b9e",
       "executable": false
     },
     "src/gauge/ui-revenue-dashboard.ts": {
@@ -4799,6 +4807,10 @@
     },
     "tests/gauge-retainer-statements.mjs": {
       "sha256": "1f9c66645888ef94b9219a6f6d43c85469c12d21bb51ec828b77e8b2a8a52227",
+      "executable": false
+    },
+    "tests/gauge-retainer-steward.mjs": {
+      "sha256": "a919b4d83ec3a5af4c628b7c5d3d462f71cd362951123d63714e64bb2fd797ba",
       "executable": false
     },
     "tests/gauge-retainers.mjs": {

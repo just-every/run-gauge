@@ -50,12 +50,13 @@ export async function retainerReadiness(env:Bindings,a:Actor,input:Value) {
  const postedMinor=ambiguous.length?null:posted.overageMinor
  const provisionalMinor=ambiguous.length?null:projected.overageMinor
  const decisions=pending.map(t=>({kind:t.value.status==='submitted'?'reviewer':'worker',id:t.id,revision:t.revision,status:t.value.status,href:t.value.status==='submitted'?'/app/review#'+encodeURIComponent(t.id):'/app/time?edit='+encodeURIComponent(t.id),required:t.value.status==='submitted'?'Ordinary reviewer approval is missing':'Worker confirmation and submission are missing'}))
+ const work=relevant.map(t=>({id:t.id,revision:t.revision,status:t.value.status,href:'/app/time?edit='+encodeURIComponent(t.id)}))
  const sources=inputKinds.flatMap(kind=>data[kind].map(r=>({kind,id:r.id,revision:r.revision})))
  const result={engagementId,periodId:period.id,fingerprint:stamp,term:{id:term.id,revision:term.revision,name:term.value.terms.name,rules:term.value.terms.rules},period:{id:period.id,revision:period.revision,from:period.value.activeStart,to:period.value.activeEnd},currency:posted.currency,unit:posted.unit,
   figures:{included:posted.allowance,carryOver:posted.rollover,adjustments:posted.adjustments,opening:posted.opening,postedConsumption:posted.consumed,pendingSeconds:sum(matchedPending.map(t=>t.value.durationSeconds)),postedOverage:postedMinor,provisionalOverage:provisionalMinor},
   status:blockers.length?'blocked':decisions.length?'decisions-missing':'reviewable',blockers,decisions,ambiguous:ambiguous.map(t=>({id:t.id,revision:t.revision,href:'/app/engagements?edit='+encodeURIComponent(engagementId)+'#retainers'})),
   candidate:blockers.length||decisions.length||!(postedMinor>0)?null:{kind:'retainerPeriods',sourceId:period.id,sourceRevision:period.revision,amountMinor:postedMinor,href:'/app/engagements?edit='+encodeURIComponent(engagementId)+'#retainers'},
-  reservations:relevantReservations.map(r=>({...r,href:'/app/billing#'+encodeURIComponent(r.packet_id)})),reservedPacket:periodReservation?.packet_id??null,sources,
+  reservations:relevantReservations.map(r=>({...r,href:'/app/billing#'+encodeURIComponent(r.packet_id)})),reservedPacket:periodReservation?.packet_id??null,sources,work,pricingHref:'/app/rates',termsHref:'/app/engagements?edit='+encodeURIComponent(engagementId)+'#retainers',
   limits:['Client overage decision is missing: no verified client decision is established by this preview.','Preview grants no consent, changes no promise, approval or monetary record, closes no case and sends nothing.','Provisional overage includes stopped pending work but excludes prepared adjustments; it is not a bill, invoice or payment.']}
  need(stamp===fingerprint(await inputs(env,engagementId)),'Retainer sources changed during preview; refresh',409)
  await fence(env,a)

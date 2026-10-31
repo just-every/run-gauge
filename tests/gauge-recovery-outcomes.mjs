@@ -20,6 +20,10 @@ export async function recoveryOutcomeJourney(h,browser) {
  assert.equal(initial.observed.projects.find(p=>p.engagementId===projects[1].id).marginMinor,4*(20000-5000))
  assert.equal(initial.months.reduce((n,m)=>n+m.observedMinor,0),Math.floor((1000000+4*20000)/2))
  assert.equal(initial.observed.dates.find(d=>d.engagementId===projects[0].id).finish,day(5))
+ for(const project of projects) {
+  const approved=before.budgets.filter(b=>b.value.engagementId===project.id&&b.value.status==='approved')
+  assert.deepEqual(initial.observed.dates.find(d=>d.engagementId===project.id).terms.map(t=>({id:t.id,revision:t.revision})),approved.map(b=>({id:b.id,revision:b.revision})))
+ }
  assert.deepEqual((await h.state()).data,before,'Read-only comparison changes no records, cases or approvals')
  assert.equal(h.providerRequests.length,traffic,'No outbound send or provider execution')
  console.log('PROBE RECOVER-003 retained: adopted HTTP scenario -> fixed baseline, expected and current margin, dates, global load and monthly cash reconcile with zero variance')
@@ -115,11 +119,18 @@ export async function recoveryOutcomeJourney(h,browser) {
   assert.match(await moneyCells.nth(2).innerText(),/\$600\.00/)
   assert.match(await moneyCells.nth(3).innerText(),/\$1,050\.00/)
   assert(shown.includes(day(5)));assert(shown.includes('Provider outcomes unobserved'));assert(shown.includes('user-recorded'));assert(shown.includes('USD'))
-  assert(await panel.locator('input,button,p,h2,h3,li,summary,td,th').evaluateAll(nodes=>nodes.every(n=>parseFloat(getComputedStyle(n).fontSize)>=13)))
-  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
-  if(process.env.GAUGE_OUTCOME_SHOTS) {
-   await mkdir(process.env.GAUGE_OUTCOME_SHOTS,{recursive:true})
-   for(const width of [1440,390]) {await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready);await panel.locator('#outcome-results').screenshot({path:`${process.env.GAUGE_OUTCOME_SHOTS}/outcomes-${width}.png`})}
+  if(process.env.GAUGE_OUTCOME_SHOTS)await mkdir(process.env.GAUGE_OUTCOME_SHOTS,{recursive:true})
+  for(const width of [1440,390]) {
+   await page.setViewportSize({width,height:1000})
+   await page.evaluate(()=>document.fonts.ready)
+   assert(await panel.locator('input,button,p,h2,h3,li,summary,td,th').evaluateAll(nodes=>nodes.every(n=>parseFloat(getComputedStyle(n).fontSize)>=13)),`Outcome text remains readable at ${width}`)
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Outcome comparison fits ${width}`)
+   assert.match(await moneyCells.nth(3).innerText(),/\$1,050\.00/)
+   if(process.env.GAUGE_OUTCOME_SHOTS) {
+    await panel.locator('#outcome-results').screenshot({path:`${process.env.GAUGE_OUTCOME_SHOTS}/outcomes-${width}.png`})
+    await panel.locator('#outcome-results').scrollIntoViewIfNeeded()
+    await page.screenshot({path:`${process.env.GAUGE_OUTCOME_SHOTS}/review-${width}.png`})
+   }
   }
  } finally {await context.close()}
  console.log('PROBE RECOVER-003 safeguards: built HTTP and Review forms -> forged figures and stale or unauthorized or revoked access refused; invoices and manual receipts observed; incomplete costs and calendars stay unknown; no comparison effects')

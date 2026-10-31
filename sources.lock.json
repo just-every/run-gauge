@@ -467,7 +467,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "95ef88d8b7e4976bba3c27ed12ae565f27d2981450e8b46c9afb6bceebdc2284",
+      "sha256": "43aba35e4559a6f856c2930cf8a65016ba20a8a5c15fef14b26ab8d9369e128d",
       "executable": false
     },
     "DEMO.md": {
@@ -2579,7 +2579,7 @@
       "executable": false
     },
     "src/gauge/ui-recovery-outcomes.ts": {
-      "sha256": "1133391bf2671807ce4ed2d58ec265c8bed34ed2ad80b3da114e95d031ae06ef",
+      "sha256": "fe75c0ab1ac08c8e12eef7db9bda4aab64a29082f71518cecde553a5346c799a",
       "executable": false
     },
     "src/gauge/ui-recovery.ts": {
@@ -4566,6 +4566,10 @@
       "sha256": "21107edb244bf54c72819d7ba6fa68ea34993b823fa2268c8ddc0043984c8d88",
       "executable": false
     },
+    "tests/fixtures/recovery-outcomes.mjs": {
+      "sha256": "7d20deb39c4676ac90ea619ba3518962dc8a2055be18d7b04e62b1c4429a631a",
+      "executable": false
+    },
     "tests/fixtures/report-downloads.mjs": {
       "sha256": "5c7eff4c55c3f0dd858358da5d3dea72c4439964d82570c44755803eb2920394",
       "executable": false
@@ -4808,6 +4812,10 @@
     },
     "tests/gauge-recovery-feasibility.mjs": {
       "sha256": "fac5ca3e53db46cf55f2ff0725714bb208fa260a89a8cd7d202dca294227840b",
+      "executable": false
+    },
+    "tests/gauge-recovery-outcomes.mjs": {
+      "sha256": "ca29fd4ef9a70736adfa80bd78893d1e5ed20a1687aa26f0efc3c7dbd9f1a565",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {

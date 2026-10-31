@@ -1,3 +1,4 @@
+import { scenarioData, scenarioObservation, observationSources, observationBasis } from './scenario-observations'
 import { assertBudgetTerms } from './catalog'
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
@@ -15,13 +16,8 @@ import type { Alternative, ScenarioEffect } from './project-scenario-effects'
 
 // FINANCE-003: every comparison uses the native committed forecast and cash basis.
 // Full set guards include inserts/deletes as well as revision changes.
-const basisKinds: Kind[] = ['clients','people','engagements','budgets','tasks','milestones','rates','rateWithdrawals','calendars','leave','staffing','time','expenses','retainers','retainerPeriods','retainerCloses','retainerAdjustments','deliveryPlans','invoices','payments','paymentPromises','invoiceCorrections']
 const hash = (value: unknown) => sha256(canonicalJson(value))
-async function basis(env: Bindings, tx?: Transaction) {
- const data = Object.fromEntries(await Promise.all(basisKinds.map(async k => [k, await all(env,k)]))) as Record<Kind,Row[]>
- if(tx) for(const k of basisKinds) { for(const row of data[k])tx.observe(k,row);tx.guard(`(SELECT COUNT(*) FROM g_${k})=?`,data[k].length) }
- return data
-}
+const basis = scenarioData
 /** Client review validates the complete native basis without projecting private comparison data. */
 export async function assertScenarioBasis(env:Bindings,row:Row,tx?:Transaction) {
  need(hash(await basis(env,tx))===row.value.basisDigest,'Change baseline changed; prepare a new version',409)
@@ -79,8 +75,10 @@ async function compare(env: Bindings, a: Actor, data: Record<Kind,Row[]>, change
   return {projects:forecast.engagements.filter(e => ids.has(e.engagementId)).map(e => ({...e,marginMinor:e.complete ? e.marginMinor : null,etcCostMinor:e.complete ? e.etcCostMinor : null,eacCostMinor:e.complete ? e.eacCostMinor : null,eacFeesMinor:e.complete ? e.eacFeesMinor : null})),cash,capacity:cap,dates:projectDates}
  }
  const baseline = project(data,originalForecast), scenario = project(candidate,candidateForecast)
+ const projectIds = [...ids].sort()
+ const observation = { basis: observationBasis, projectIds, asOf, from, to, currencies: projectIds.map(id => ({engagementId:id,currency:data.engagements.find(e=>e.id===id)!.value.currency})), before: scenarioObservation(data,projectIds,asOf,from,to), expected: scenarioObservation(candidate,projectIds,asOf,from,to), sources: observationSources(data) }
  const deltas = scenario.projects.map(p => {const b = baseline.projects.find(b => b.engagementId === p.engagementId)!; const delta = (k:'etcCostMinor'|'eacCostMinor'|'eacFeesMinor'|'marginMinor') => p[k] === null || b[k] === null ? null : p[k]!-b[k]!; return {engagementId:p.engagementId,currency:p.currency,etcCostMinor:delta('etcCostMinor'),eacCostMinor:delta('eacCostMinor'),eacFeesMinor:delta('eacFeesMinor'),marginMinor:delta('marginMinor')}})
- return {from,to,asOf,changes,baseline,scenario,deltas,alternatives:alternatives.map(p => p.details),effects}
+ return {from,to,asOf,changes,baseline,scenario,observation,deltas,alternatives:alternatives.map(p => p.details),effects}
 }
 export async function projectScenarioPreview(env: Bindings, a: Actor, input: Value, tx?: Transaction) {
  need(finance(a), 'Financial scenarios require finance or owner access', 403)
@@ -138,7 +136,10 @@ async function applyEffects(a:Actor,tx:Transaction,candidate:Awaited<ReturnType<
   const current = candidate.effects.find(p=>p.kind==='engagements'&&p.source?.id===e.id)
   const additions = candidate.effects.filter(p => p.kind === 'staffing' && p.value.engagementId === e.id).map(p => p.value.personId), members = [...new Set([...(e.value.members ?? []),...additions])]
   if(current)continue
-  if(additions.length && members.length !== (e.value.members ?? []).length)await tx.record('engagements',{...e.value,members},e,undefined,'projectScenario:assign')
+  if(additions.length && members.length !== (e.value.members ?? []).length) {
+   const assigned = await tx.record('engagements',{...e.value,members},e,undefined,'projectScenario:assign')
+   effects.push({kind:'engagements',sourceId:e.id,id:assigned.id,revision:assigned.revision})
+  }
  }
  return effects
 }

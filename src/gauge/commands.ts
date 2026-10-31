@@ -1,3 +1,4 @@
+import { recoveryOutcome } from './recovery-outcomes'
 import { vendorCommand } from './vendor-commitments'
 import { lateFeePreview, lateFeeCommand } from './late-fees'
 import { cashAssumptionCommand } from './cash-assumptions'
@@ -110,6 +111,7 @@ export async function command(env:Bindings,a:Actor,action:string,input:Value,dra
  if(action==='field:import-preview')return customPreview(env,a,input)
  if(action==='period:preview')return periodPreview(env,a,input)
  if(action==='change:preview')return scopeChangePreview(env,a,input)
+ if(action==='recovery:outcome-capture'||action==='recovery:outcome-compare')return recoveryOutcome(env,a,action,input)
  if(action==='recovery:baseline')return recoveryBaseline(env,a,input)
  if(action==='recovery:preview')return recoveryFormPreview(env,a,input)
  if(action==='projectScenario:preview')return projectScenarioPreview(env,a,input)

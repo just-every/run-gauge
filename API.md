@@ -1359,3 +1359,34 @@ Cash items show collectible open amounts, applied percentages, approvers and exa
 assumption revisions. Calculation drills and the revision-bound report CSV retain
 the same assumption records. Business export and restore preserve these records
 and their history; they supply no payment or scheduled-execution authority.
+
+## Native post-adoption outcome comparison
+
+On Review, native owner and finance sessions can capture current inputs for an
+adopted financial scenario and then compare its observed outcome. The commands
+are `recovery:outcome-capture` with the scenario's exact `id` and `revision`,
+then `recovery:outcome-compare` with those references and the returned
+`basisDigest`. Both commands are read-only. They recheck current authority and
+refuse source drift, unadopted scenarios, stale scenario revisions, supplied
+outcome figures and success claims. Captures confer no approval or execution
+permission and cannot change case status.
+
+New financial scenario comparisons retain a versioned before and expected
+observation alongside the existing exact human adoption and effect revisions.
+The observation uses canonical FINANCE-006 margin and supported FINANCE-007
+expected cash. Current delivery dates, global dated load, approved native
+terms, invoices and payment records are reread with the original projects,
+currencies, as-of day and capacity window fixed. The result gives separate
+currency and month figures, observed variance, changed source revisions,
+collection assumptions and explicit unknowns. An incomplete amount is unknown,
+with its known source detail preserved. Historical observations never become
+current approval, and later records never rewrite them.
+
+Scenarios without the retained calculation basis cannot be reconstructed and
+are refused, as are incompatible future calculation bases or changed project
+currencies. Cash source detail returns calculation fields and revision
+references rather than personal document copies. Manual receipts remain
+user-recorded; provider outcomes, cross-system freshness, settlement and
+recovery completion remain unproved. Restore retains the comparison as business
+history and requires fresh native authority to read it; it replays no adoption
+or provider action.

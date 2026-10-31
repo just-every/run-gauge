@@ -35,7 +35,13 @@ export async function recoveryOutcome(env: Bindings, a: Actor, action: string, i
    return complete ? snapshot.cash.months.find((m: Value) => m.currency === currency && m.month === month)?.[field] ?? 0 : null
   }
   const before = amount(retained.before,'expectedMinor'), expected = amount(retained.expected,'expectedMinor'), current = amount(observed,'expectedMinor')
-  return { currency,month,beforeMinor:before,expectedMinor:expected,observedMinor:current,varianceMinor:difference(expected,current),improvementMinor:difference(before,current),historicalVarianceMinor:difference(amount(retained.expected,'historicalExpectedMinor'),amount(observed,'historicalExpectedMinor')) }
+  const historicalBefore = amount(retained.before,'historicalExpectedMinor'), historicalExpected = amount(retained.expected,'historicalExpectedMinor'), historicalObserved = amount(observed,'historicalExpectedMinor')
+  return { currency,month,historicalBeforeMinor:historicalBefore,historicalExpectedMinor:historicalExpected,historicalObservedMinor:historicalObserved,beforeMinor:before,expectedMinor:expected,observedMinor:current,varianceMinor:difference(expected,current),improvementMinor:difference(before,current),historicalVarianceMinor:difference(amount(retained.expected,'historicalExpectedMinor'),amount(observed,'historicalExpectedMinor')) }
+ })
+ const dateVariances = retained.projectIds.map((engagementId: string) => {
+  const dates = [retained.before,retained.expected,observed].map(s => s.dates.find((d: Value) => d.engagementId === engagementId))
+  const finish = dates.map(d => d?.finish ?? null)
+  return {engagementId,beforeFinish:finish[0],expectedFinish:finish[1],observedFinish:finish[2],finishVarianceDays:finish[1] && finish[2] ? (Date.parse(finish[2])-Date.parse(finish[1]))/86400000 : null}
  })
  const loads = [...new Set<string>([retained.before,retained.expected,observed].flatMap(s => s.loads.map((p: Value) => p.personId)))].flatMap(personId => {
   const people = [retained.before,retained.expected,observed].map(s => s.loads.find((p: Value) => p.personId === personId))
@@ -59,8 +65,8 @@ export async function recoveryOutcome(env: Bindings, a: Actor, action: string, i
  if (action === 'recovery:outcome-capture') return capture
  return { ...capture, basis:retained.basis,asOf:retained.asOf,from:retained.from,to:retained.to,projectIds:retained.projectIds,
   adoptedBy:row.value.adoptedBy,adoptedAt:row.value.adoptedAt,selectedIds:row.value.selectedIds,effects:row.value.effects,
-  before:retained.before,expected:retained.expected,observed,projects,months,loads,changedInputs,
+  before:retained.before,expected:retained.expected,observed,projects,months,loads,dateVariances,changedInputs,
   sources:{before:retained.sources,expected:[...expectedSources.values()],observed:sources},
-  unknowns:[...new Set([...observed.projects.flatMap(p=>p.incomplete),...observed.cash.engagements.flatMap(p=>p.incomplete),...loads.filter(d=>d.observedAvailableSeconds===null).map(d=>`Dated capacity unknown: ${d.personId} on ${d.date}`)])],
+  unknowns:[...new Set([...([['Before',retained.before],['Expected',retained.expected],['Observed',observed]] as const).flatMap(([label,snapshot]) => [...snapshot.projects.flatMap((p: Value)=>p.incomplete),...snapshot.cash.engagements.flatMap((p: Value)=>p.incomplete)].map(s=>`${label}: ${s}`)),...loads.filter(d=>d.observedAvailableSeconds===null).map(d=>`Dated capacity unknown: ${d.personId} on ${d.date}`)])],
   boundaries:['Read-only native observation; no approval, recovery completion or case status is granted','Manual receipts are user-recorded, not bank or processor verified','Provider outcomes unobserved; cross-system freshness and settlement qualification remain unproved','Historical before and expected figures are frozen observations; current native changes are variance, never a rewritten baseline','FINANCE-006 margin and supported FINANCE-007 expected cash; original projects, currencies, as-of day and capacity window remain fixed'] }
 }

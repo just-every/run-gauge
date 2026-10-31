@@ -154,6 +154,12 @@ try {
  const exceptionsNamed = await compare([{ ...alternatives[0], commercialChanges: required.map(r => ({ key: r.key, amountMinor: r.amountMinor, reason: 'Client must separately accept the exact dated and commercial change' })) }])
  assert.equal(exceptionsNamed.alternatives[0].status, 'conditional')
  assert(exceptionsNamed.alternatives[0].requirements.every(r => /no approval granted/.test(r.requires)))
+ const replyExceptions = await cmd('recovery:recheck', { ...basis, alternatives: [{ ...alternatives[0], commercialChanges: required.map(r => ({ key: r.key, amountMinor: r.amountMinor, reason: 'Request renewed exact human decisions' })) }], replySelections: replyProof.selections }, owner)
+ assert.deepEqual(replyExceptions.alternatives[0].requirements, exceptionsNamed.alternatives[0].requirements, 'Reply rechecks retain client-date, project and phase caps, and each dated held retainer condition')
+ assert.equal(replyExceptions.alternatives[0].status, 'conditional')
+ assert.equal(replyExceptions.alternatives[0].renewedDecisions.length, 6)
+ console.log('PROBE RECOVER-002 commercial conditions: reply recheck retains exact client date, project and phase caps, both retainer periods and separate renewed human decisions')
+
 
  // The built page uses labelled native controls for the same comparison; screenshots are proof only.
  browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox', '--use-mock-keychain', '--password-store=basic'] })

@@ -113,6 +113,23 @@ export async function recoveryReplyJourney(h, { asOf, projectIds, projects, task
   }
   assert.deepEqual(await state(), before)
 
+  // Current approved invoice probabilities are part of the same captured basis.
+  const cashReport = await (await h.request('/api/gauge/state?from=2030-01-01&to=2030-03-31&asOf=' + asOf, owner)).json()
+  const item = cashReport.cash.engagements.find(p => p.engagementId === projectIds[0]).items.find(i => !i.issued)
+  const assumption = await cmd('cash:approve', { from: asOf, to: '2030-03-31', asOf, engagementId: projectIds[0], sourceKey: item.probabilityBasis.key, fingerprint: item.probabilityBasis.fingerprint, collectionPercent: 25, reason: 'Finance review of exact scheduled source' })
+  await recheck(named, replies, basis, owner, 409)
+  basis = await cmd('recovery:baseline', { asOf, projectIds })
+  const repriced = await recheck([replacementOption])
+  assert(repriced.sources.some(s => s.kind === 'cashAssumptions' && s.id === assumption.id && s.revision === assumption.revision))
+  const baselineCash = repriced.baseline.cash.engagements.find(p => p.engagementId === projectIds[0]).items.find(i => i.source === item.source)
+  assert.equal(baselineCash.expectedMinor, 30000)
+  assert.equal(baselineCash.probabilitySource, 'invoice override')
+  const revisedCash = repriced.alternatives[0].scenario.cash.engagements.find(p => p.engagementId === projectIds[0]).items.find(i => i.invoiceDate === '2030-02-01')
+  assert.equal(revisedCash.expectedMinor, 34000)
+  assert.equal(revisedCash.probabilitySource, 'client fallback')
+  assert(repriced.alternatives[0].renewedDecisions.some(d => d.role === 'finance'))
+  console.log('PROBE RECOVER-002 cash assumptions: exact scheduled override enters baseline; changed recovery source uses native fallback and requires renewed finance review')
+
   const other = await cmd('save:engagements', { name: 'Outside recovery', clientId: before.engagements.find(p => p.id === projects[0].id).value.clientId, leadId: employee.id, members: [employee.id], scope: 'Unselected work', timezone: 'UTC' })
   const foreign = await cmd('case:open', { type: 'client-decision', title: 'Foreign case', sourceRef: 'engagements:' + other.id + '@' + other.revision, nextAction: 'Separate project review', dueAt: '2030-01-15T12:00:00Z', reason: 'Keep case scope' })
   const foreignReply = await cmd('case:reply', { ...foreign, replyState: 'unverified', externalReference: 'synthetic-gauge-242', quotedReply: 'Unrelated project', reason: 'Recorded only' })

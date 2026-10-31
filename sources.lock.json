@@ -467,7 +467,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b10d5bcc86d75c3aed826592978905916f6e61a8cbdbe177c6e3d6dcabc6ff80",
+      "sha256": "9a16441c470e2876e296448e0f20561d5ed39c83f27417fa5be80acbdfad6e2f",
       "executable": false
     },
     "DEMO.md": {
@@ -4723,7 +4723,7 @@
       "executable": false
     },
     "tests/gauge-late-fees.mjs": {
-      "sha256": "33ac9758399224a07f3c8a35677dd331f6ab5c5865877fbaaac70928c6445024",
+      "sha256": "20bb1481f679b1aa9a97e77bafd4705c2df3a844188ed32ff6199db1cd425e14",
       "executable": false
     },
     "tests/gauge-learning.mjs": {

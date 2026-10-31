@@ -4687,7 +4687,7 @@
       "executable": false
     },
     "tests/gauge-forecast.mjs": {
-      "sha256": "5b69708155803b7d0067cf11dd7c8b2ed31f1377798b3d8ea34cc8e0183809f9",
+      "sha256": "57c6a21d680add25614ebea0664d0f6c9c28e7d372f25a4f668edfccfd21de05",
       "executable": false
     },
     "tests/gauge-github.mjs": {
@@ -4699,7 +4699,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "2c8b3f5425805b787d367be572d915833cd5ad48049afeb00169fe2c160dd6e0",
+      "sha256": "73887513ce6e8adaa293d55df9ac6d774ebe964e6051399466474170e8c0acf6",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {

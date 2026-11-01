@@ -9,7 +9,7 @@ import {createServer} from 'node:net'
 const {Miniflare,convertV4MiniflareOptions,Log,LogLevel}=createRequire(await realpath('node_modules/wrangler/package.json'))('miniflare')
 // The emitted Worker with production mail; outbound capture stands in for the mail provider and never reaches it.
 // GAUGE_TEST_NOW sweeps Worker clocks; a journey's explicit now owns its dated fixtures.
-export async function harness({currency='AUD',timezone='Australia/Brisbane',finishSetup=true,persistenceDirectory,beforeLogin,databaseBinding=true,mailFrom='Gauge <auth@example.test>',now=process.env.GAUGE_TEST_NOW}={}){
+export async function harness({currency='AUD',timezone='Australia/Brisbane',finishSetup=true,persistenceDirectory,beforeLogin,databaseBinding=true,mailFrom='Gauge <auth@example.test>',now=process.env.GAUGE_TEST_NOW,clockRuns=false}={}){
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
  const directory=persistenceDirectory??await mkdtemp(join(tmpdir(),'gauge-flow-')),origin=`https://127.0.0.1:${port}`,secret=()=>randomBytes(32).toString('hex'),mails=[],providerRequests=[],providerEdge={handler:null}
  const vars={AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret(),SETUP_TOKEN:secret(),MAIL_PROVIDER:'resend',MAIL_FROM:mailFrom,MAIL_API_KEY:'synthetic-gauge-900001'}
@@ -30,10 +30,11 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
   // Install the test's clock inside its Worker, before application modules load.
   modules[0].contents=`import './gauge-test-clock.mjs';\n${await readFile(modules[0].path,'utf8')}`
   modules.push({type:'ESModule',path:join(server,'gauge-test-clock.mjs'),contents:`
-   const NativeDate=Date
+   const NativeDate=Date,started=NativeDate.now()
+   const clock=()=>${timestamp}+(${clockRuns ? 'NativeDate.now()-started' : '0'})
    globalThis.Date=class extends NativeDate {
-    constructor(...args){super(...(args.length?args:[${timestamp}]))}
-    static now(){return ${timestamp}}
+    constructor(...args){super(...(args.length?args:[clock()]))}
+    static now(){return clock()}
    }
   `})
  }

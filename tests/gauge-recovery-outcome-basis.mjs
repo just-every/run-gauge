@@ -4,7 +4,7 @@ import { adoptedOutcome } from './fixtures/recovery-outcomes.mjs'
 
 // A pinned month boundary makes wrong cash placement visible even when totals agree.
 export async function recoveryOutcomeBasisJourney() {
- const asOf='2026-10-27',h=await harness({currency:'USD',timezone:'UTC',now:asOf+'T12:00:00Z'})
+ const asOf='2026-10-27',h=await harness({currency:'USD',timezone:'UTC',now:asOf+'T12:00:00Z',clockRuns:true})
  try {
   const {cmd}=h,fixture=await adoptedOutcome(h,'synthetic-gauge-9340')
   const {adopted,day,client,person,replacement,projects}=fixture

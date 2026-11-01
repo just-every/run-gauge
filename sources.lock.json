@@ -4647,7 +4647,7 @@
       "executable": false
     },
     "tests/gauge-base-portability.mjs": {
-      "sha256": "01c9caf2db00e63bb6a99983967ccc65de7f4d46e3ceff0efd86d15e5d197419",
+      "sha256": "ba8f4ccab6a874e4665358f8572e7becbb0b734c35ba1dc1a5afb48ca3a5848c",
       "executable": false
     },
     "tests/gauge-cash-assumptions.mjs": {

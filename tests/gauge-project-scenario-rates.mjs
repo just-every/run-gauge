@@ -5,7 +5,7 @@ import { mkdir } from 'node:fs/promises'
 // FINANCE-003: future rate alternatives share the native RATE-002 door and
 // FINANCE-006/002 pricing. Frozen actuals and unselected cards remain unchanged.
 export async function rateScenarioJourney(h,browser) {
- const {cmd,request,post,owner} = h, asOf = new Date().toISOString().slice(0,10)
+ const {cmd,request,post,owner} = h, asOf = (await h.state()).forecast.asOf
  const day = n => new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
  const next = new Date(`${asOf.slice(0,7)}-01T00:00:00Z`); next.setUTCMonth(next.getUTCMonth()+1)
  const effective = next.toISOString().slice(0,10), from = new Date(+next+86400000).toISOString().slice(0,10), to = new Date(+next+2*86400000).toISOString().slice(0,10)

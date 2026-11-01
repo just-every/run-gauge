@@ -4567,7 +4567,7 @@
       "executable": false
     },
     "tests/fixtures/recovery-outcomes.mjs": {
-      "sha256": "71591dea29473327f02c0f4211c74005fa73b5f06a4188a7d295f6e6f01c28fc",
+      "sha256": "290a01a646d66381b8accbf9cf6050495c790bb4959b7aebecea8e123cdd4585",
       "executable": false
     },
     "tests/fixtures/report-downloads.mjs": {
@@ -4775,23 +4775,23 @@
       "executable": false
     },
     "tests/gauge-project-scenario-deadlines.mjs": {
-      "sha256": "9a31976692fe48f949559b2c588e685f3116174e4a19e46527d0fed9356c478a",
+      "sha256": "fd9e9436953335db884bc8c1ef59b7584c4626f8c82c6a861b2ebbc45fa89929",
       "executable": false
     },
     "tests/gauge-project-scenario-pricing.mjs": {
-      "sha256": "ba4ba4b181adbc132629056939cbabcb9f02bd0997df4b5cf1fe834f82df3822",
+      "sha256": "8cf242e2867021e6ec84e3710d57bef1e312b86e737169e4af389726e60c9ba1",
       "executable": false
     },
     "tests/gauge-project-scenario-rates.mjs": {
-      "sha256": "42701607e9f1eac2bcc88b263202cc5695bbded136f2cd66da17fb60c76c8304",
+      "sha256": "77346ce94584c42c822ab448cbd2b37b279378b32825a2c912e8fd9bbee63edc",
       "executable": false
     },
     "tests/gauge-project-scenario-scope.mjs": {
-      "sha256": "b7960ddb651892f1a081977f189ed9f78291d992c7315c69da4f0d26c11b5770",
+      "sha256": "40089e5fc4f03e933359d06fee7b283336efe6d7687f2a293afeaa56ff6c0254",
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {
-      "sha256": "c4edd6537243f2ad6736bce4a3c77229c15a0e355da87bec3e45e83391da8498",
+      "sha256": "fd4995919ee7200ba9ee6f01e1055678cddf90af3a5190ce7b2585dce8a63997",
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
@@ -4815,7 +4815,7 @@
       "executable": false
     },
     "tests/gauge-recovery-outcome-basis.mjs": {
-      "sha256": "6ccf0ffeb49646bac363a4f0f5705907b2f0b1234e7e542992993bc5c0db01ab",
+      "sha256": "4b815f627501969640829669633f8bad3bf7c417ea5477563cfbde9d72cb876d",
       "executable": false
     },
     "tests/gauge-recovery-outcomes.mjs": {

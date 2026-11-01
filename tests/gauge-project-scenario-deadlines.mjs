@@ -9,7 +9,7 @@ const previousWeekday = day => { do { day = dayAfter(day, -1) } while (!weekday(
 // FINANCE-003 deadline alternative: actual native schedule, fixed-fee cash timing,
 // effective dated cost and global capacity, without touching the prepared baseline.
 export async function deadlineScenarioJourney(h, browser) {
- const { cmd, owner, request } = h, asOf = new Date().toISOString().slice(0, 10)
+ const { cmd, owner, request } = h, asOf = (await h.state()).forecast.asOf
  const monthEnd = new Date(`${asOf}T00:00:00Z`)
  monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 3, 0)
  let due = monthEnd.toISOString().slice(0, 10)

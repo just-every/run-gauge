@@ -5,7 +5,7 @@ import {mkdir} from 'node:fs/promises'
 // FINANCE-003 write-down/overtime alternatives: integer arithmetic through native
 // rate, scenario and forecast doors, including cross-project threshold spillover.
 export async function pricingScenarioJourney(h,browser) {
- const {cmd,request,owner}=h,asOf=new Date().toISOString().slice(0,10)
+ const {cmd,request,owner}=h,asOf=(await h.state()).forecast.asOf
  const day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
  const read=async()=>{const r=await request(`/api/gauge/state?from=${day(-1)}&to=${day(2)}&asOf=${asOf}`,owner);assert.equal(r.status,200);return r.json()}
  const person=await cmd('save:people',{name:'Taylor Brooks',timezone:'UTC'})

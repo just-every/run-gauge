@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 
 // Native setup and adoption, shared with the complete installation restore journey.
-export async function adoptedOutcome(h, label = 'synthetic-gauge-9300', currencyB = 'USD', asOfDay) {
- const {cmd}=h,agency=(await h.state()).agency,asOf=asOfDay??new Intl.DateTimeFormat('en-CA',{timeZone:agency.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(Date.now()),day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
+export async function adoptedOutcome(h, label = 'synthetic-gauge-9300', currencyB = 'USD') {
+ const {cmd}=h,asOf=(await h.state()).forecast.asOf,day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
  const person=await cmd('save:people',{name:label+' designer',timezone:'UTC'})
  const replacement=await cmd('save:people',{name:label+' contractor',employmentType:'contractor',timezone:'UTC'})
  const client=await cmd('save:clients',{name:label+' client',billingCurrency:'USD',paymentTermsDays:0,collectionPercent:50,daysLate:5})

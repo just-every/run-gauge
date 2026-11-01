@@ -12,10 +12,10 @@ import { deadlineScenarioJourney } from './gauge-project-scenario-deadlines.mjs'
 
 // FINANCE-003 staffing slice: real built HTTP doors, two projects, independent arithmetic,
 // exact selected human approval, stale baseline refusal and preserved historical bookings.
-const h=await harness({currency:'USD',timezone:'UTC'})
+const h=await harness({currency:'USD',timezone:'UTC',now:'2026-10-27T12:00:00Z'})
 let browser
 try {
- const {cmd,request,post,owner}=h,asOf=new Date().toISOString().slice(0,10),day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
+ const {cmd,request,post,owner}=h,asOf=(await h.state()).forecast.asOf,day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
  const read=async(cookie=owner)=>{const r=await request(`/api/gauge/state?from=${day(-1)}&to=${day(3)}&asOf=${asOf}`,cookie);assert.equal(r.status,200);return r.json()}
  const employee=await cmd('save:people',{name:'Employee',timezone:'UTC'})
  const contractor=await cmd('save:people',{name:'Contractor',timezone:'UTC',employmentType:'contractor'})

@@ -5,7 +5,7 @@ import {mkdir} from 'node:fs/promises'
 // FINANCE-003 scope: explicit future effort and native replacement terms, not a
 // percentage adjustment hiding unchanged staffing. Through built HTTP doors.
 export async function scopeScenarioJourney(h,browser) {
- const {cmd,request,owner}=h,asOf=new Date().toISOString().slice(0,10)
+ const {cmd,request,owner}=h,asOf=(await h.state()).forecast.asOf
  const day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
  const read=async()=>{const r=await request(`/api/gauge/state?from=${day(-1)}&to=${day(4)}&asOf=${asOf}`,owner);assert.equal(r.status,200);return r.json()}
  const person=await cmd('save:people',{name:'Morgan Rivera',timezone:'UTC'})
@@ -201,7 +201,7 @@ export async function scopeScenarioJourney(h,browser) {
 
 // SALES-005: one explicit client decision on immutable terms, then one owner adoption.
 export async function acceptedChangeJourney(h,browser){
- const {cmd,request,owner}=h,asOf=new Date().toISOString().slice(0,10),day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
+ const {cmd,request,owner}=h,asOf=(await h.state()).forecast.asOf,day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
  const state=async()=>{const r=await request(`/api/gauge/state?asOf=${asOf}`,owner);assert.equal(r.status,200);return r.json()}
  const person=await cmd('save:people',{name:'Synthetic Gauge Change Lead',timezone:'UTC'})
  const client=await cmd('save:clients',{name:'Synthetic Gauge Change Client'})

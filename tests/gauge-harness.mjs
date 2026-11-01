@@ -31,6 +31,7 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
   modules[0].contents=`import './gauge-test-clock.mjs';\n${await readFile(modules[0].path,'utf8')}`
   modules.push({type:'ESModule',path:join(server,'gauge-test-clock.mjs'),contents:`
    const NativeDate=Date
+   // Deterministic ticks order approvals without moving the pinned calendar day.
    let tick=0
    const clock=()=>${timestamp}+(${tickClock ? 'tick++' : '0'})
    globalThis.Date=class extends NativeDate {

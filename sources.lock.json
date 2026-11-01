@@ -443,7 +443,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3155fde2fef030af09592bc5c7bbcbd7e064609896e5f82144f0bc9bef1702aa",
+      "sha256": "920dd9a8ff599a517c1bb7b7251c1572cfa14f0a3217c60327926b2d9c285eff",
       "executable": false
     },
     "AGENTS.consumer.md": {
@@ -467,7 +467,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "007831c666f0a910ed91c84aa72c87fc03cbe75807df22bc3a74754f67869655",
+      "sha256": "c3c0781fdeee63ad2c4fd47f4ce7c0bbe26de1390143f76562d9f56eadc57569",
       "executable": false
     },
     "DEMO.md": {
@@ -507,7 +507,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "1566183f74f34d62e3077c564127d4c56ca20a4444434b69617cfb8e1a80ca9f",
+      "sha256": "01ce0defb968f63a3a856c9a50b54ee83035a6a19b5e7e145bdf7b40b0a8ce74",
       "executable": false
     },
     "docs/engagements.md": {
@@ -1983,7 +1983,7 @@
       "executable": false
     },
     "src/gauge/project-scenarios.ts": {
-      "sha256": "b0ad41e80d86090ec498d98e290d9c5c67ce39584d7cdc3f969ae057ff9fdb31",
+      "sha256": "9b407509502c6a50577523d5e2b8ab7c1c1b4b7e30ebcfa312bb9b09f2a69748",
       "executable": false
     },
     "src/gauge/proposal-sources.ts": {
@@ -4715,7 +4715,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "fc69657db2464da30928d9c8581072a08f53cf977b8f38ecaeef3c0637926da9",
+      "sha256": "c2d88b6fa7d97c52d766034580492283326e9e0dbf379577e32c3c764264c053",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4810,16 +4810,20 @@
       "sha256": "3b7d4760c1b349f9d570384e3c28755777ad2e97951e864b97d533fe5748e456",
       "executable": false
     },
+    "tests/gauge-recovery-cash.mjs": {
+      "sha256": "61cbe933bf6647f518ea81670fe9590716ae5372b75a6888d0673f5457c459a3",
+      "executable": false
+    },
     "tests/gauge-recovery-feasibility.mjs": {
       "sha256": "fac5ca3e53db46cf55f2ff0725714bb208fa260a89a8cd7d202dca294227840b",
       "executable": false
     },
     "tests/gauge-recovery-outcome-basis.mjs": {
-      "sha256": "56b03cccc1f0c6194a13e2390b3acd4aec6a6e517232424b9b54ab0f9353fc98",
+      "sha256": "60267208491d628f06e8a35b267f5a608ef7bfc2b75865157013fc6d369d02e0",
       "executable": false
     },
     "tests/gauge-recovery-outcomes.mjs": {
-      "sha256": "650a504e2e9eacf4409b29fbfdf636bbf88ef17c86174380dfade6c19068742c",
+      "sha256": "9ad9c397f583fa561fb37941bcd5ae47725b0af5687151d89a481c0aa244879d",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {

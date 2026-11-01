@@ -136,7 +136,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `BASE-005` | missing |  |
 | `RECOVER-001` | partial | `tests/gauge-recovery-feasibility.mjs`; `tests/gauge-agent.mjs`; `src/gauge/recovery-feasibility.ts`; `src/gauge/ui-recovery-feasibility.ts` |
 | `RECOVER-002` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
-| `RECOVER-003` | missing |  |
+| `RECOVER-003` | partial | `tests/gauge-project-scenarios.mjs`; `tests/gauge-recovery-outcomes.mjs`; `tests/gauge.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-agent.mjs`; `src/gauge/recovery-outcomes.ts`; `src/gauge/scenario-observations.ts`; `src/gauge/ui-recovery-outcomes.ts` |
 | `RECOVER-004` | missing |  |
 | `RECOVER-005` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
 | `RECOVER-006` | partial | `tests/gauge-learning.mjs`; `tests/gauge.mjs`; `tests/gauge-base-portability.mjs`; `src/gauge/learning.ts`; `src/gauge/learning-score.ts`; `src/gauge/ui-learning.ts` |

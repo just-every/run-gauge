@@ -12,7 +12,7 @@ import { deadlineScenarioJourney } from './gauge-project-scenario-deadlines.mjs'
 
 // FINANCE-003 staffing slice: real built HTTP doors, two projects, independent arithmetic,
 // exact selected human approval, stale baseline refusal and preserved historical bookings.
-const h=await harness({currency:'USD',timezone:'UTC',now:'2026-10-27T12:00:00Z',clockRuns:true})
+const h=await harness({currency:'USD',timezone:'UTC',now:'2026-10-27T12:00:00Z',tickClock:true})
 let browser
 try {
  const {cmd,request,post,owner}=h,asOf=(await h.state()).forecast.asOf,day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)

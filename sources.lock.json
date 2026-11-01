@@ -4715,7 +4715,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "973c7ba125ee8468624e5f9ea150a33e24141ce78a0fcb4ee5b4f8747cf6ba57",
+      "sha256": "fc69657db2464da30928d9c8581072a08f53cf977b8f38ecaeef3c0637926da9",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4791,7 +4791,7 @@
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {
-      "sha256": "9111158fb240655bbb4f359b16a3fbeed48c6fc07a37424b85b6517c9f9e52a1",
+      "sha256": "e5282aa40e71c5200af8b5df3a6f6d9dea7ea76c084ab8d9314699672d2ec2b8",
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
@@ -4815,7 +4815,7 @@
       "executable": false
     },
     "tests/gauge-recovery-outcome-basis.mjs": {
-      "sha256": "2a0716b93d265b3a02be3e1f8f2765a9ccb8a31fa4fd570a862c27c8b0515be7",
+      "sha256": "56b03cccc1f0c6194a13e2390b3acd4aec6a6e517232424b9b54ab0f9353fc98",
       "executable": false
     },
     "tests/gauge-recovery-outcomes.mjs": {

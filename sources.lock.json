@@ -4703,7 +4703,7 @@
       "executable": false
     },
     "tests/gauge-forecast.mjs": {
-      "sha256": "57c6a21d680add25614ebea0664d0f6c9c28e7d372f25a4f668edfccfd21de05",
+      "sha256": "d5c0367a52b14f444e50ce7b6b5a1b6bd9add5a9203f0d3609ef93bead52d2b9",
       "executable": false
     },
     "tests/gauge-github.mjs": {
@@ -4715,7 +4715,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "73887513ce6e8adaa293d55df9ac6d774ebe964e6051399466474170e8c0acf6",
+      "sha256": "79f0be2fa49be941bb9683bf2dd4436b10eff5408219ba9d33c981f2b5479014",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4872,6 +4872,10 @@
     },
     "tests/gauge-teamwork.mjs": {
       "sha256": "1ff1a30d2aee0aa3ce39062797f68bfcd4c6fb8a8c6e2159d931a981c06c1138",
+      "executable": false
+    },
+    "tests/gauge-test-clock.mjs": {
+      "sha256": "405b1d145da8b7381a1209f6eb11b4a770465c858671e7dd4739f2ccebcd9599",
       "executable": false
     },
     "tests/gauge-time-review.mjs": {

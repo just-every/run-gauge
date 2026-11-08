@@ -6,6 +6,7 @@ import {mkdtemp,readdir,readFile,realpath,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join,resolve} from 'node:path'
 import {createServer} from 'node:net'
+import {clockDatabase} from './gauge-test-clock.mjs'
 const {Miniflare,convertV4MiniflareOptions,Log,LogLevel}=createRequire(await realpath('node_modules/wrangler/package.json'))('miniflare')
 // The emitted Worker with production mail; outbound capture stands in for the mail provider and never reaches it.
 // GAUGE_TEST_NOW sweeps Worker clocks; a journey's explicit now owns its dated fixtures.
@@ -25,15 +26,27 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  const logs=[]
  const log=new class extends Log {log(message){logs.push(String(message))}}(LogLevel.INFO)
  const modules=[config.main,...(await readdir(join(server,'assets'))).filter(f=>f.endsWith('.js')).map(f=>`assets/${f}`)].map(f=>({type:'ESModule',path:join(server,f)}))
+ let timestamp
  if(now!==undefined){
-  const timestamp=Date.parse(now);assert(Number.isFinite(timestamp),'test clock is an explicit instant')
+  timestamp=Date.parse(now);assert(Number.isFinite(timestamp),'test clock is an explicit instant')
   // Install the test's clock inside its Worker, before application modules load.
-  modules[0].contents=`import './gauge-test-clock.mjs';\n${await readFile(modules[0].path,'utf8')}`
-  modules.push({type:'ESModule',path:join(server,'gauge-test-clock.mjs'),contents:`
+  modules.push({type:'ESModule',path:join(server,'gauge-test-clock.mjs'),contents:await readFile(new URL('./gauge-test-clock.mjs',import.meta.url),'utf8')})
+  modules.push({type:'ESModule',path:join(server,'gauge-test-clock-install.mjs'),contents:`
    const NativeDate=Date
    globalThis.Date=class extends NativeDate {
     constructor(...args){super(...(args.length?args:[${timestamp}]))}
     static now(){return ${timestamp}}
+   }
+  `})
+  modules.unshift({type:'ESModule',path:join(server,'gauge-test-entry.mjs'),contents:`
+   import './gauge-test-clock-install.mjs'
+   import worker from './${config.main}'
+   import {clockDatabase} from './gauge-test-clock.mjs'
+   const bindings=env=>({...env,DB:clockDatabase(env.DB,${timestamp})})
+   export default {
+    ...worker,
+    fetch:(request,env,ctx)=>worker.fetch(request,bindings(env),ctx),
+    scheduled:(event,env,ctx)=>worker.scheduled(event,bindings(env),ctx),
    }
   `})
  }
@@ -59,7 +72,8 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  const invite=async(name,role='member',email=`${name}@example.test`)=>{const response=await post('/auth/invite',{email,displayName:name,role},owner);assert.equal(response.status,202);const cookie=await confirmLatest(),session=await(await request('/auth/session',cookie)).json();return {cookie,id:session.operator.id}}
  const cmd=async(action,input={},cookie=owner,expected=200)=>{const response=await post('/api/gauge/command',{key:randomUUID(),action,...input},cookie),body=await response.json();assert.equal(response.status,expected,`${action}: ${JSON.stringify(body)}`);return body}
  const state=async(cookie=owner)=>{const r=await request('/api/gauge/state?from=2026-10-01&to=2026-10-31',cookie);assert.equal(r.status,200);return r.json()}
- return {logs,mails,providerRequests,providerEdge,scheduled:(time)=>request('/cdn-cgi/local/scheduled'+(time==null?'':'?time='+encodeURIComponent(time))),...(databaseBinding?{db:await mf.getD1Database('DB')}:{}),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
+ const database=databaseBinding?await mf.getD1Database('DB'):undefined
+ return {logs,mails,providerRequests,providerEdge,scheduled:(time)=>request('/cdn-cgi/local/scheduled'+(time==null?'':'?time='+encodeURIComponent(time))),...(databaseBinding?{db:timestamp===undefined?database:clockDatabase(database,timestamp)}:{}),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
  }catch(error){await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true});throw error}
 }
 

@@ -149,7 +149,7 @@ Send `Authorization: Bearer <app credential>`:
 - `GET /api/gauge/v1/projects/<projectId>/tasks/<taskId>` returns `{version: "1", task}` using the same native task projection. An outside project returns 403; a task outside the selected project or an unknown task returns 404.
 - `GET /api/gauge/v1/time?limit=50&cursor=&projectId=&taskId=&from=&to=` requires `time:read` and returns `{version: "1", time, nextCursor}`. It includes only the bound person's own entries in `draft` status on captured, currently assigned projects. Submitted, returned, approved and other-person work is absent. Project and task identity filters are exact; `from` and `to` are inclusive native work dates, each a valid YYYY-MM-DD date, with the end no earlier than the start. An explicitly requested project outside current or captured scope returns 403. The page size is 1 to 100. Cursors bind the credential, filters and complete projected draft snapshot; edits, submissions or membership changes require restarting pagination with 409. Invalid cursors or dates return 400.
 - `GET /api/gauge/v1/time/<timeId>` requires `time:read` and returns `{version: "1", time}` with the current native draft identity, revision and staff field projection. Use that revision when posting an edit. Unknown entries, another person's entries, entries outside current or captured projects, and entries no longer in draft status all return the same 404. A read-only draft credential cannot write; a project-only or existing write-only credential cannot read drafts. Revocation, expiry, principal changes and the issuing owner's current authority apply at each read as at every other app door.
-- `POST /api/gauge/v1/time` takes the native `time:save` fields and a unique `key` of at most 120 characters (JSON body at most 16 KiB). It creates or edits only that staff member's draft time on a captured, currently assigned project. Existing returned entries are outside this draft-only authority. To edit, send the existing `id` and current `revision`; stale revisions and submitted or approved entries return 409. The same request key replays the original acknowledgement without changing a later revision. Supplied approval status or economics never becomes native approval or finance authority. Native task, custom-field, revision, date, overlap and period-lock rules still apply. It cannot submit, approve, bill or trigger outbound delivery. The acknowledgement matches native command responses. Identical request keys replay one result; changed bodies return 409. Receipts are isolated per credential. A revoked credential returns 401 even for a previously successful request replay; changed native authority returns 403.
+- `POST /api/gauge/v1/time` takes the native `time:save` fields and a unique `key` of at most 120 characters (JSON body at most 16 KiB). It creates or edits only that staff member's draft time on a captured, currently assigned project. Existing returned entries are outside this draft-only authority. To edit, send the existing `id` and current `revision`; stale revisions and submitted or approved entries return 409. The same request key replays the original acknowledgement without changing a later revision. Supplied approval status or economics never becomes native approval or finance authority. Native task, custom-field, revision, date, overlap and period-lock rules still apply. It cannot submit, approve, bill or trigger outbound delivery. The acknowledgement matches native command responses. Identical request keys replay one result; changed bodies return 409. Receipts are isolated per credential. An expired or revoked credential returns 401 even for a previously successful request replay; changed native authority returns 403.
 
 This version exposes project reads, task selection and detail within those projects, and explicitly selected own draft time reads and writes only. The new draft-read scope adopts an owner-issued, exact-person, exact-project, read-only-by-default policy pending CT approval; it adds no submission, approval, deletion, billing or outbound authority. Other routes remain session-only; utilization keys retain their separate aggregate-only boundary. Every app use is audited with its credential identity, scope and principal without its secret. Future API capabilities inherit native authorization, current field visibility, audited request keys and authority-free restore before shipping.
 
@@ -1330,6 +1330,7 @@ Collaborators see project scope, tasks, milestones and permitted nonmonetary cus
 A delivery-only invitation also refuses independently released invoice and commercial-proposal documents for the same client. Revocation preserves an inert deny record until an explicit replacement invitation; removing project access cannot revive an older exact-delivery review. Authority remains excluded from business archives under the existing project-authority table policy. No notice is sent. This conservative client-role policy awaits ct approval; the existing separately released scope-change review remains available under its current authority rules, while role-specific scope approval proof and general configurable native roles remain GOVERN-003 gaps.
 
 
+
 ### Saved report snapshots and native downloads
 
 `saved:save` creates a profitability or utilization definition from the existing custom-field datasets. It accepts `name`, `dataset`, `group` (a permitted custom field), `from`, `to`, `customFilters`, `measures` (permitted numeric or currency custom-field IDs), and `columns`. Profitability columns are `budgetMinor`, `costMinor`, `earnedMinor`, `marginMinor`, `eacFeesMinor`, `eacCostMinor` and `forecastMarginMinor`; utilization columns are `approvedSeconds`, `billableSeconds`, `availableSeconds` and `utilizationPercent`. These select existing calculations; arbitrary expressions never execute. Omitted columns retain the dataset defaults. Editing supplies the definition's exact `id` and `revision`, keeps creator identity and appends ordinary business history.
@@ -1364,6 +1365,24 @@ Cash items show collectible open amounts, applied percentages, approvers and exa
 assumption revisions. Calculation drills and the revision-bound report CSV retain
 the same assumption records. Business export and restore preserve these records
 and their history; they supply no payment or scheduled-execution authority.
+
+The finance state read also returns `cashConverted`: each reporting month keeps
+its on-terms `minor`, currency `buckets` and exact source `placements`, a separate
+`historical` curve with the same fields, and `rangeLowMinor` and `rangeHighMinor`.
+Each source converts half up to cents at the approved rate effective on that
+curve's receipt date, using the as-of day once overdue. Placements retain the
+original receipt date, applied day, source amount, converted amount, and exact
+rate ID and revision. A missing rate or any incomplete source forecast withholds
+the affected total and range, preserving known subtotals and named unknowns.
+The Review amounts link to `cashConverted:<currency>:<month>:expectedMinor` and
+`historicalExpectedMinor` calculation figures; the report CSV includes the same
+figures and source revisions. Conversion changes no commercial or payment record.
+For unissued milestones a later recorded current client acceptance moves the
+expected invoice date; actual issued dates remain immutable. Disputed amounts
+stay open receivables and appear separately on their invoice source, excluded
+from expected cash. Historical timing remains a finance-recorded assumption;
+settled-history qualification and processor settlement still require their
+separately authorized provider proof.
 
 ## Native post-adoption outcome comparison
 

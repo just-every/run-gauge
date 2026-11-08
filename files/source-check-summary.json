@@ -1,0 +1,18 @@
+{
+  "command": "pnpm run source:check",
+  "exit_code": 0,
+  "candidate_tree": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+  "results": [
+    {
+      "ok": true,
+      "edition": "gauge-local/edition",
+      "schemaVersion": 1
+    },
+    {
+      "ok": true,
+      "drift": [],
+      "unrecordedCopies": [],
+      "meaning": "A recorded copy claims byte equality with Base at its commit. Adapted source belongs in edition.json origins and mappings, compared with compare, not in this record."
+    }
+  ]
+}

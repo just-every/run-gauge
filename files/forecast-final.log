@@ -1,0 +1,14 @@
+PASS harness clock offset=-30 days now=2026-10-09T12:00:00.000Z: owner/staff writes and expiry denial
+PASS harness clock offset=-400 days now=2025-10-04T12:00:00.000Z: owner/staff writes and expiry denial
+PASS harness clock offset=400 days now=2027-12-13T12:00:00.000Z: owner/staff writes and expiry denial
+✔ Frozen harness sessions authorize writes and still expire independently of the real date (78237.859432ms)
+✔ MIGRATE-003 Forecast move-in preserves source hours on reviewed working dates, with replay and strict undo (29495.140471ms)
+✔ MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API availability, holiday, leave and placeholders reconcile through import doors (29632.73581ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 137644.916327

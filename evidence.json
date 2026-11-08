@@ -1,0 +1,76 @@
+{
+  "files": [
+    {
+      "blob": "a726231b6484ee8866239f9862fa97ac938c18cc",
+      "bytes": 6869,
+      "path": "REPORT.md",
+      "sha256": "4e178a342ffe834ab90a2b4af80638f961b56c3078ac95aeb5583dabb7418d52"
+    },
+    {
+      "blob": "c36d9c701b74e4cfb84a3e94a9b7c1996003aaaf",
+      "bytes": 1159,
+      "path": "baseline-forecast.log",
+      "sha256": "f2d3630b4285ae3d9ec4e8e761808bb5353cdb4c96f8f9867a1cef8fd18a060b"
+    },
+    {
+      "blob": "190b89f7fc2ce277e6ab3b24276560d2efb44f5d",
+      "bytes": 274,
+      "path": "ci-discovery.json",
+      "sha256": "ecf50bdc23b9482a208852dcaedd1f9711693c5334734fb6df41bced11d35db4"
+    },
+    {
+      "blob": "0761a185a4017498fb5280cfc54079aa66ac18d6",
+      "bytes": 195,
+      "path": "ci-final.json",
+      "sha256": "cef2ce654d86df67c64cedf09686a189e20c3a8557ffeb0d5ca86ef3fe7aced4"
+    },
+    {
+      "blob": "0761a185a4017498fb5280cfc54079aa66ac18d6",
+      "bytes": 195,
+      "path": "ci-latest.json",
+      "sha256": "cef2ce654d86df67c64cedf09686a189e20c3a8557ffeb0d5ca86ef3fe7aced4"
+    },
+    {
+      "blob": "378cef543853ed500e46f384b67771728285f307",
+      "bytes": 830,
+      "path": "forecast-final.log",
+      "sha256": "dcf311ea0906d21d6e891c3d66be383873b1a92c8ac3b740435eac219ca4fb68"
+    },
+    {
+      "blob": "b60282eca196a0bcc202872838cdd46e54da981e",
+      "bytes": 831,
+      "path": "forecast-first.log",
+      "sha256": "0a09aaa4741fd2509c8841577c0e48aeff56af8747deee5d77dfbbab248115a9"
+    },
+    {
+      "blob": "cf6dd87cf9333d33c160e4f1c2136a1856a63b1e",
+      "bytes": 1467,
+      "path": "github-calls.json",
+      "sha256": "3ab76426e97257ca40e82323816dc3618132c1befe9bacb25db60ffc16906652"
+    },
+    {
+      "blob": "e6e604af14f0972867236efd5d2975f04a191ea6",
+      "bytes": 3164,
+      "path": "receipts.json",
+      "sha256": "09223882d1e3092a25c65660cb8adc00120c19539f8efcdd01e0cfa7515fcc02"
+    },
+    {
+      "blob": "1b5f989bf68df6d779c22bf20dab7c5019190552",
+      "bytes": 503,
+      "path": "source-check-summary.json",
+      "sha256": "852029caf68e0dda92a06bd1ea73f613b9333306158fa2c28aac89c5c90f9a46"
+    },
+    {
+      "blob": "75f8ceb48e592b6b323cc4d7061e1403c3780d0b",
+      "bytes": 204,
+      "path": "typecheck.log",
+      "sha256": "969c0bc6b4f023924552710f2e09d9332ee7d77bc059faf883529fcad1270028"
+    }
+  ],
+  "product_branch": "cloud/sx-gauge-clockrot-1",
+  "product_head": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+  "ref": "refs/heads/evidence/sx-gauge-clockrot-1",
+  "repository": "just-every/run-gauge",
+  "schema": 1,
+  "tag": "sx-gauge-clockrot-1"
+}

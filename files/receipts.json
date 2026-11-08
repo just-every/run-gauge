@@ -1,0 +1,105 @@
+{
+  "tag": "sx-gauge-clockrot-1",
+  "repository": "just-every/run-gauge",
+  "branch": "cloud/sx-gauge-clockrot-1",
+  "head": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+  "base": "60d9ff48abe3c441d54312d2fb0e0cffa10fd4b1",
+  "product_files": [
+    "sources.lock.json",
+    "tests/gauge-forecast.mjs",
+    "tests/gauge-harness.mjs",
+    "tests/gauge-test-clock.mjs"
+  ],
+  "commits": [
+    {
+      "head": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+      "author_name": "Run Edit Run fleet",
+      "author_email": "fleet@runeditrun.com",
+      "committer_name": "Run Edit Run fleet",
+      "committer_email": "fleet@runeditrun.com",
+      "trailers": []
+    },
+    {
+      "head": "3adf636e71df42e9914ab7c2a3da148ee314f321",
+      "author_name": "Run Edit Run fleet",
+      "author_email": "fleet@runeditrun.com",
+      "committer_name": "Run Edit Run fleet",
+      "committer_email": "fleet@runeditrun.com",
+      "trailers": []
+    }
+  ],
+  "pr": null,
+  "clauses_changed": [],
+  "done_claim": false,
+  "checks": [
+    {
+      "command": "node --test --test-concurrency=1 --test-name-pattern='Project/Team' tests/gauge-forecast.mjs",
+      "phase": "baseline",
+      "exit_code": 1,
+      "passed": 0,
+      "failed": 1,
+      "receipt": "baseline-forecast.log"
+    },
+    {
+      "command": "npx -y @runeditrun/rer build",
+      "phase": "save",
+      "exit_code": 0,
+      "head": "3adf636e71df42e9914ab7c2a3da148ee314f321",
+      "production_source_identical_to_candidate": true
+    },
+    {
+      "command": "node --test --test-concurrency=1 tests/gauge-forecast.mjs",
+      "phase": "candidate",
+      "head": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "forecast-final.log",
+      "offset_days": [
+        -30,
+        -400,
+        400
+      ],
+      "expiry_during_commit": "409 and complete rollback",
+      "expired_session": "401 and no write"
+    },
+    {
+      "command": "pnpm run typecheck",
+      "phase": "candidate",
+      "head": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+      "exit_code": 0,
+      "receipt": "typecheck.log"
+    },
+    {
+      "command": "pnpm run source:check",
+      "phase": "candidate",
+      "head": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+      "exit_code": 0,
+      "receipt": "source-check-summary.json"
+    },
+    {
+      "command": "git diff --check",
+      "phase": "candidate",
+      "head": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+      "exit_code": 0
+    }
+  ],
+  "counts": {
+    "forecast_registrations_before": 2,
+    "forecast_registrations_after": 3,
+    "gauge_suite_entrypoints_before": 35,
+    "gauge_suite_entrypoints_after": 35
+  },
+  "source_lock_sha256": "8212cd341f943dce47cf9c49507bb92534186c40f1c2e5e11e0e0356a290cf2f",
+  "product_push": "succeeded",
+  "ci": {
+    "conclusion": "success",
+    "head_sha": "0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee",
+    "html_url": "https://github.com/just-every/run-gauge/actions/runs/42484631717",
+    "status": "completed"
+  },
+  "publication_scan": "fleet pre-landing gate; unavailable in this cloud",
+  "landing": "not performed",
+  "blockers": []
+}

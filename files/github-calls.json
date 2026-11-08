@@ -1,0 +1,58 @@
+{
+  "calls": [
+    {
+      "at": 1794144128.4042304,
+      "arguments": [
+        "api",
+        "repos/just-every/run-gauge/actions/runs?head_sha=0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee&per_page=100",
+        "--jq",
+        "[.workflow_runs[] | {id,name,status,conclusion,head_sha,html_url,event}]"
+      ],
+      "exit": 0
+    },
+    {
+      "at": 1794144429.439006,
+      "arguments": [
+        "api",
+        "repos/just-every/run-gauge/actions/runs?head_sha=0982cf30fbd6e00b7dcc74f189f99d2c52bba0ee&per_page=100",
+        "--jq",
+        "[.workflow_runs[] | {id,name,status,conclusion,head_sha,html_url,event}]"
+      ],
+      "exit": 0,
+      "run": "42484631717"
+    },
+    {
+      "at": 1794144730.4637983,
+      "arguments": [
+        "api",
+        "repos/just-every/run-gauge/actions/runs/42484631717",
+        "--jq",
+        "{status,conclusion,head_sha,html_url}"
+      ],
+      "exit": 0,
+      "run": "42484631717"
+    },
+    {
+      "at": 1794145031.489374,
+      "arguments": [
+        "api",
+        "repos/just-every/run-gauge/actions/runs/42484631717",
+        "--jq",
+        "{status,conclusion,head_sha,html_url}"
+      ],
+      "exit": 0,
+      "run": "42484631717"
+    },
+    {
+      "at": 1794145332.5188913,
+      "arguments": [
+        "api",
+        "repos/just-every/run-gauge/actions/runs/42484631717",
+        "--jq",
+        "{status,conclusion,head_sha,html_url}"
+      ],
+      "exit": 0,
+      "run": "42484631717"
+    }
+  ]
+}

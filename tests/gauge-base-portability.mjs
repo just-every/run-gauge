@@ -1,3 +1,7 @@
+import {adoptedOutcome} from './fixtures/recovery-outcomes.mjs'
+import {prepareLateFeePortability} from './gauge-late-fees.mjs'
+import {prepareVendorPortability} from './fixtures/vendor-commitments.mjs'
+import {seedLearningProjects} from './fixtures/learning-projects.mjs'
 import { sourceFieldJourney } from './fixtures/source-custom-fields.mjs'
 import { harvestFinancePackage } from './fixtures/harvest-finance.mjs'
 import assert from 'node:assert/strict'
@@ -9,6 +13,11 @@ import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 // The caller closes the source before passing this verifier to portability().
 export async function prepareCurrentPortability(h,{importJob}) {
  const {cmd,state,request,owner}=h,zone='Australia/Brisbane'
+ const portableOutcome=await adoptedOutcome(h,'synthetic-gauge-9320')
+ const portableLateFee=await prepareLateFeePortability(h)
+ const portableVendor=await prepareVendorPortability(h)
+ const learning=await seedLearningProjects(h),learningPreview=await cmd('learning:preview',learning.input)
+ const portableLearning=await cmd('learning:save',{...learning.input,sourceDigest:learningPreview.sourceDigest})
  // COST-002: retain receipt economics, unit rates, once-only reimbursement and honest receiver history.
  const expensePerson=await cmd('save:people',{name:'synthetic-gauge-7201',timezone:zone})
  const expenseClient=await cmd('save:clients',{name:'Portable travel client'})
@@ -76,6 +85,14 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('approval:limit',{...portableApprovalPolicy,reviewAboveMinor:300000,reason:'Portable bounded automatic invoice consent'})
  const portableSchedule=await cmd('retainer:schedule',{retainerId:portableRetainer.id,basis:'advance',from:'2026-10-16',enabled:true,heldPeriodIds:[],autoIssue:true,capMinor:300000,includeOverages:true,billTo:'Portable client',remitTo:'Portable agency',reference:'Portable service',reason:'Portable automatic schedule with fresh installation consent'})
  await cmd('retainer:run',{...portableSchedule,asOf:'2026-10-16'})
+ const portableCashQuery='from=2026-10-01&to=2026-12-31&asOf=2026-10-16'
+ const portableCash=await(await request('/api/gauge/state?'+portableCashQuery,owner)).json()
+ const portableCashItem=portableCash.cash.engagements.flatMap(e=>e.items.map(i=>({...i,engagementId:e.engagementId}))).find(i=>i.invoiceSnapshot?.value.autoIssue?.scheduleId===portableSchedule.id)
+ assert(portableCashItem,'An issued retained fee is visible before approval')
+ const cashInput={from:'2026-10-01',to:'2026-12-31',asOf:'2026-10-16',engagementId:portableCashItem.engagementId,sourceKey:portableCashItem.probabilityBasis.key,fingerprint:portableCashItem.probabilityBasis.fingerprint,reason:'Portable finance collection assessment'}
+ const originalCashAssumption=await cmd('cash:approve',{...cashInput,collectionPercent:50})
+ const portableCashAssumption=await cmd('cash:approve',{...cashInput,...originalCashAssumption,collectionPercent:25})
+
  // RETAINER-002/003 / BASE-002: exact overage source/artifact and pending projection survive restore.
  const overageTerms=await cmd('retainer:preview',{engagementId:engagement.id,operation:'terms',terms:{name:'Review service retainer',frequency:'monthly',unit:'hours',allowance:3600,services:['Retained review'],consumes:'billable',proration:'calendar',start:'2026-10-01',end:null,renewal:'automatic',noticeDays:0,rules:{carryCap:0,carryPeriods:0,deficit:false,overage:'bill',overageRate:18000}}})
  const reviewRetainer=await cmd('retainer:approve',{...overageTerms.input,fingerprint:overageTerms.fingerprint,reason:'Reviewed overage billing for retained reviews'})
@@ -99,7 +116,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  await cmd('target:set',{scope:'person',personId:person.id,percent:'72.5',effectiveFrom:'2026-10-01'})
  // CONNECT-020 / BASE-002: a live utilization key is installation authority and never travels.
  assert.match((await cmd('apikey:create',{label:'Portability source key'})).token,/^gauge_util_/)
- assert.match((await cmd('appkey:create',{label:'Portability app credential',operatorId:favoriteUser.id,projectIds:[engagement.id],scope:'projects:read time:write'})).token,/^gauge_app_/)
+ assert.match((await cmd('appkey:create',{label:'Portability app credential',operatorId:favoriteUser.id,expiryDays:30,engagementIds:[internal.id],scope:'projects:read time:write'})).token,/^gauge_app_/)
  await cmd('time:policy',{lockThrough:'2020-12-31',reason:'Historical migration cutoff; current work remains open'})
  await cmd('save:staffing',{personId:person.id,engagementId:internal.id,from:'2026-10-09',to:'2026-10-09',dailySeconds:3600,commitment:'tentative',service:'Research',billable:false})
  const agent=await h.invite('portability-agent');await cmd('grant',{operatorId:agent.id,role:'agent',enabled:true,purpose:'staffing',engagementIds:[engagement.id]})
@@ -247,7 +264,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const fieldPreview=await cmd('field:import-preview',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies})
  const fieldImport=await cmd('field:import',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies,fingerprint:fieldPreview.fingerprint,reason:'Portable source field custody'})
  const officeField=(await state()).data.customFields.find(f=>f.value.sourceId==='office')
- const savedFieldReport=await cmd('saved:save',{name:'Portable office utilization',dataset:'utilization',group:officeField.id,from:'2026-10-01',to:'2026-10-31'})
+ const savedFieldReportInitial=await cmd('saved:save',{name:'Portable office utilization',dataset:'utilization',group:officeField.id,columns:['billableSeconds','availableSeconds','utilizationPercent'],from:'2026-10-01',to:'2026-10-31'})
+ const savedFieldReport=await cmd('saved:save',{...savedFieldReportInitial,name:'Portable revised utilization',dataset:'utilization',group:officeField.id,columns:['billableSeconds','utilizationPercent'],from:'2026-10-01',to:'2026-10-31'})
  const privateField=await cmd('field:define',{scope:'engagements',name:'Portable contract value',type:'currency',currency:'AUD',visibility:'finance-only',required:true,reason:'Portable required finance definition; legacy records remain intact'})
  const fieldEngagement=(await state()).data.engagements.find(e=>e.id===engagement.id)
  await cmd('field:values',{scope:'engagements',...fieldEngagement,customFields:{[privateField.id]:123456}})
@@ -274,8 +292,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableChangeRelease=await cmd('change:release-review',{...portableChange,contact:'synthetic-gauge-92504@example.test',description:'Exact portable change description',reason:'Retain direct response history without authority'})
  const portableChangeRow=(await state()).data.projectScenarios.find(r=>r.id===portableChange.id),portableChangeReview=portableChangeRow.value.clientReview
  const portableChangePath=`/api/gauge/client-changes/${portableChange.id}/${portableChangeReview.id}`
- const portableChangeResponse=await request(portableChangePath,portableChangeRecipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':portableChangeRelease.token},body:JSON.stringify({key:crypto.randomUUID(),revision:portableChangeRow.revision,outcome:'accepted',reason:'Portable exact direct response, unsigned'})})
+ const portableChangeResponse=await request(portableChangePath,portableChangeRecipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':portableChangeRelease.token},body:JSON.stringify({key:crypto.randomUUID(),revision:portableChangeRow.revision,outcome:'accepted',signatureName:'Portable Client',consent:true,reason:'Portable exact signed native response'})})
  assert.equal(portableChangeResponse.status,200,await portableChangeResponse.clone().text())
+ const outcomeCapture=await cmd('recovery:outcome-capture',portableOutcome.adopted)
+ const portableObserved=await cmd('recovery:outcome-compare',outcomeCapture)
  const before=await state()
  assert.equal(before.data.customImports.find(r=>r.id===fieldImport.id).value.package.records[0].values.office,'Austin')
  assert.equal(before.data.people.find(r=>r.id===person.id).value.customFields[officeField.id],'Austin')
@@ -307,13 +327,15 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const documentDownloads=before.data.invoices.filter(i=>i.value.document).flatMap(i=>['pdf','detail-pdf','csv'].map(format=>`/api/gauge/invoice-documents/${i.id}?format=${format}`))
  const downloads=documentDownloads.concat(before.data.periodCloses.map(c=>`/api/gauge/closes/${c.id}`).concat(before.data.specialistHandoffs.map(r=>`/api/gauge/handoffs/${r.id}`)))
  for(const packet of before.data.packets.filter(r=>r.value.status==='approved'))downloads.push(`/api/gauge/packets/${packet.id}`)
+ for(const bill of before.data.vendorBills)for(const file of bill.value.attachmentIds??[])downloads.push(`/api/gauge/vendor-files/${file}`)
  for(const expense of before.data.expenses)for(const file of expense.value.attachmentIds??[])downloads.push(`/api/gauge/files/${file}`)
  for(const archive of before.data.archives)downloads.push(`/api/gauge/archives/${archive.id}`)
  downloads.push(`/api/gauge/imports/${importJob}`,`/api/gauge/imports/${retainedImport.id}`)
  const getBytes=async(app,path)=>{const response=await app.request(path,app.owner);assert.equal(response.status,200,path);return Buffer.from(await response.arrayBuffer())}
- const bytes=await Promise.all(downloads.map(path=>getBytes(h,path)))
+ const readAll=async(app,paths)=>{const result=[];for(let i=0;i<paths.length;i+=8)result.push(...await Promise.all(paths.slice(i,i+8).map(path=>getBytes(app,path))));return result}
+ const bytes=await readAll(h,downloads)
  const records=Object.entries(before.data).flatMap(([kind,rows])=>rows.map(row=>`/api/gauge/history/${kind}/${row.id}`))
- const histories=await Promise.all(records.map(path=>getBytes(h,path)))
+ const histories=await readAll(h,records)
  // Restore preserves business values, not SQLite insertion order. Compare records
  // by stable identity; derived groups and source sets have no positional meaning.
  const unordered=value=>Array.isArray(value)?value.map(unordered).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,unordered(v)])):value
@@ -326,7 +348,17 @@ export async function prepareCurrentPortability(h,{importJob}) {
    }
   }})
   try{
+   await portableLateFee(restored)
+   await restored.cmd('recovery:outcome-compare',outcomeCapture,h.owner,401)
+   const restoredOutcome=await restored.cmd('recovery:outcome-compare',await restored.cmd('recovery:outcome-capture',portableOutcome.adopted))
+   assert.deepEqual(restoredOutcome.before,portableObserved.before)
+   assert.deepEqual(restoredOutcome.expected,portableObserved.expected)
+   assert.deepEqual(restoredOutcome.projects,portableObserved.projects)
+   await restored.cmd('projectScenario:adopt',{...portableOutcome.adopted,asOf:portableOutcome.asOf,selectedIds:[],reason:'History grants no adoption'},restored.owner,409)
+   assert.equal(restored.providerRequests.filter(r=>!r.url.includes('resend.com')).length,0,'Fresh authorized observation replays no provider action')
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
+   assert.equal((await restored.request('/api/gauge/vendor-files/'+before.data.vendorBills[0].value.attachmentIds[0],portableVendor.approver.cookie)).status,401,'Old finance session cannot read restored bill originals')
+   await restored.cmd('vendorBill:approve',{...portableVendor.approved,reason:'Restored bill cannot match twice'},restored.owner,409)
    assert.notEqual(restored.vars.SESSION_SECRET,h.vars.SESSION_SECRET,'restore uses fresh private settings')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_milestone_review_authority').first()).n,0,'Client delivery review authority never travels')
    assert.equal((await restored.post('/auth/magic-link',{email:'synthetic-gauge-7305@example.test'})).status,202)
@@ -337,9 +369,24 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const restoredReview=(await restored.state()).data.milestones.find(r=>r.id===reviewMilestone.id)
    assert.equal(restoredReview.value.delivery.decisions[0].confirmedByClient,true,'Direct decision history remains direct evidence after restore')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_retainer_schedule_authority').first()).n,0,'Restored schedules carry no execution consent')
+   const restoredCash=await(await restored.request('/api/gauge/state?'+portableCashQuery,restored.owner)).json()
+   const restoredAssumption=restoredCash.data.cashAssumptions.find(r=>r.id===portableCashAssumption.id)
+   assert.equal(restoredAssumption.revision,portableCashAssumption.revision)
+   assert.equal(restoredAssumption.value.collectionPercent,25)
+   const restoredCashHistory=await(await restored.request('/api/gauge/history/cashAssumptions/'+portableCashAssumption.id,restored.owner)).json()
+   assert.equal(restoredCashHistory.history[0].revision,originalCashAssumption.revision)
+   assert.equal(restoredCashHistory.history[0].value.collectionPercent,50)
+   const restoredCashItem=restoredCash.cash.engagements.flatMap(e=>e.items).find(i=>i.probabilityBasis.key===cashInput.sourceKey)
+   assert.equal(restoredCashItem.probabilityRevision,portableCashAssumption.revision)
+   assert.equal(restoredCashItem.expectedMinor,Math.floor((restoredCashItem.openMinor*25+50)/100),'Restored exact assumptions remain business data, not a payment or schedule authority')
+
    await restored.cmd('handoff:prepare',{purpose:'reimbursement',recipient:'Portable payroll desk',reason:'Restored replay must not reimburse twice',sources:[{kind:'expenses',id:portableClaim.id,revision:portableClaim.revision}]},restored.owner,409)
    const restoredChange=(await restored.state()).data.projectScenarios.find(r=>r.id===portableChange.id)
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_change_review_authority').first()).n,0,'Change recipient authority never travels')
+   assert.equal(restoredChange.value.clientDecision.signature.method,'native-email-confirmed')
+   assert.equal(restoredChange.value.clientDecision.signature.documentDigest,restoredChange.value.clientReview.documentDigest)
+   const restoredAdoption=await restored.post('/api/gauge/command',{action:'change:adopt',key:crypto.randomUUID(),id:restoredChange.id,revision:restoredChange.revision,reason:'Restored signature never restores execution authority'},restored.owner)
+   assert([403,409].includes(restoredAdoption.status),'Restored signed evidence cannot authorize adoption')
    assert.deepEqual(restoredChange.value.clientDecision,before.data.projectScenarios.find(r=>r.id===portableChange.id).value.clientDecision,'Direct change evidence retains exact recipient, reason and fingerprint')
    assert.equal((await restored.post('/auth/magic-link',{email:'synthetic-gauge-92504@example.test'})).status,202)
    const changeConfirmation=new URL(restored.mails.at(-1).text.match(/https:\/\/\S+\/auth\/confirm\?token=\S+/)[0])
@@ -355,6 +402,10 @@ export async function prepareCurrentPortability(h,{importJob}) {
    assert.equal((await restored.state()).data.invoices.length,restoredBefore.data.invoices.length,'Restored schedule cannot issue without fresh consent')
    assert.equal((await restored.scheduled()).status,200)
    assert.deepEqual((await restored.state()).data.retainerRuns,restoredRuns,'Archive history never replays scheduled billing')
+   const restoredLearning=(await restored.state()).data.learningCohorts.find(r=>r.id===portableLearning.id)
+   assert.deepEqual(restoredLearning,before.data.learningCohorts.find(r=>r.id===portableLearning.id),'Exact held-out cohort, source revisions and scores survive restore')
+   assert.equal(restoredLearning.value.adoption.offered,false,'Restored comparison evidence grants no adoption or execution authority')
+   await restored.cmd('learning:adopt',{id:portableLearning.id,revision:portableLearning.revision},restored.owner,409)
    const restoredEstimates=await restored.state(),restoredAttestation=restoredEstimates.data.estimateApprovals.find(r=>r.id===portableApproval.id).value
    for(const key of ['acceptorName','acceptorContact','acceptanceDate','channel','evidenceRef','notice'])assert.equal(restoredAttestation[key],savedAttestation[key],'Restore keeps the structured acceptance field '+key)
    assert.equal(restoredEstimates.data.estimateApprovals.find(r=>r.id===withdrawnApproval.id).value.status,'withdrawn')
@@ -363,9 +414,23 @@ export async function prepareCurrentPortability(h,{importJob}) {
    assert.deepEqual(restoredEstimates.data.operationalCases,before.data.operationalCases,'Case owners, next actions, reply state, snooze and baseline survive restore')
    assert.deepEqual(restoredEstimates.data.caseEvents,before.data.caseEvents,'Case attempt/reply history survives without authority or automatic action')
    assert.deepEqual(stable(restoredEstimates),stable(before),'fresh native login sees the same current records, money and capacity')
-   const restoredBytes=await Promise.all(downloads.map(path=>getBytes(restored,path)))
+   const restoredBytes=await readAll(restored,downloads)
    assert.deepEqual(restoredBytes,bytes,'packet artifacts, receipts and retained source originals round-trip byte for byte')
-   assert.deepEqual(await Promise.all(records.map(path=>getBytes(restored,path))),histories,'all business revision history survives')
+   assert.deepEqual(await readAll(restored,records),histories,'all business revision history survives')
+   const savedSnapshot=await(await restored.request('/api/gauge/saved/'+savedFieldReport.id,restored.owner)).json()
+   assert.equal(savedSnapshot.definition.revision,savedFieldReport.revision)
+   assert.deepEqual(savedSnapshot.definition.value.columns,['billableSeconds','utilizationPercent'])
+   const savedHistory=await(await restored.request('/api/gauge/history/savedReports/'+savedFieldReport.id,restored.owner)).json()
+   assert.deepEqual(savedHistory.history[0].value.columns,['billableSeconds','availableSeconds','utilizationPercent'],'Exact earlier definition stays portable')
+   const {csvRows,workbookRows,pdfLines}=await import('./fixtures/report-downloads.mjs')
+   const savedDownload=async format=>{
+    const response=await restored.request(`/api/gauge/saved/${savedFieldReport.id}.${format}?`+new URLSearchParams({revision:savedSnapshot.definition.revision,fingerprint:savedSnapshot.fingerprint}),restored.owner)
+    assert.equal(response.status,200);return new Uint8Array(await response.arrayBuffer())
+   }
+   const restoredCsv=csvRows(Buffer.from(await savedDownload('csv')))
+   assert.deepEqual(workbookRows(await savedDownload('xlsx')),restoredCsv,'Restored view still exports exact workbook rows')
+   assert.equal((await pdfLines(await savedDownload('pdf'))).join(''),restoredCsv.map(r=>r.join(' | ')).join(''),'Restored view still exports exact PDF cells')
+
    const restoredScopePreview=await restored.cmd('change:preview',scopeInput)
    const continuedChange=await restored.cmd('change:prepare',{...scopeInput,previousId:portableChange.id,fingerprint:restoredScopePreview.fingerprint,name:'Continued restored change request',reason:'Version order is business order after restore'})
    const continuedRow=(await restored.state()).data.projectScenarios.find(r=>r.id===continuedChange.id)

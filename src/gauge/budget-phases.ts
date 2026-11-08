@@ -32,7 +32,7 @@ export function phaseViews(data:Record<string,Row[]>){
    const linePhase=(line:Value)=>line.phaseKey??sourcePhase(line.kind,line.sourceId)
    const view={...data}
    view.budgets=(data.budgets??[]).filter(b=>b.value.engagementId!==e.id).concat([{...budget!,value:{...budget!.value,phases:[],mode:phase.mode,amountMinor:phase.feeBudgetMinor,effortSeconds:phase.hourBudgetSeconds,expenseBudgetMinor:phase.expenseBudgetMinor}}])
-   for(const kind of ['time','expenses','tasks','milestones','staffing','fixedCharges'])view[kind]=(data[kind]??[]).filter(r=>r.value.engagementId!==e.id||r.value.phaseKey===phase.key)
+   for(const kind of ['time','expenses','tasks','milestones','staffing','fixedCharges','vendorCommitments','vendorBills'])view[kind]=(data[kind]??[]).filter(r=>r.value.engagementId!==e.id||r.value.phaseKey===phase.key)
    const billing=projectBillingData(data,e.id,'9999-12-31',phase.key)
    for(const kind of ['packets','invoices','invoiceCorrections','payments','paymentPromises','invoiceDisputes'])view[kind]=billing[kind]
    return {engagementId:e.id,phase,budget:budget!,data:view}

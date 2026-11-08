@@ -74,6 +74,11 @@ try {
  assert.equal(december.rangeLowMinor, Math.min(december.expectedMinor, december.historicalExpectedMinor)); assert.equal(december.rangeHighMinor, Math.max(december.expectedMinor, december.historicalExpectedMinor)); assert(december.rangeLowMinor < december.rangeHighMinor)
  const terms = data.cash.engagements.find(x => x.engagementId === fixed.id)
  assert.equal(terms.termsLabel, 'Net 30'); assert.equal(terms.daysLate, 10); assert(terms.daysLateApprovedBy); assert.equal(terms.collectionPercent, 50)
+ const approvingOwner=(await(await request('/auth/session',owner)).json()).operator.id
+ const clientAssumption=data.data.clients.find(c=>c.id===client.id)
+ assert.equal(clientAssumption.value.collectionApprovedBy,approvingOwner)
+ for(const source of terms.items){assert.equal(source.collectionPercent,50);assert.equal(source.probabilityApprovedBy,approvingOwner);assert.equal(source.probabilityRevision,clientAssumption.revision,'Every fallback figure cites the approved client revision')}
+
  // Each month's cash traces to its milestone, client terms and as-of day.
  const figure = data.lineage.find(x => x.id === 'cash:USD:2026-12:expectedMinor')
  assert.equal(figure.value, december.expectedMinor); assert(figure.sources.some(s => s.kind === 'milestones' && s.id === launch.id)); assert(figure.sources.some(s => s.kind === 'clients' && s.id === client.id)); assert.match(figure.formula, /As of 2026-10-20/)
@@ -91,7 +96,7 @@ try {
  const lead = await h.invite('Ada'); await cmd('grant', { operatorId: lead.id, personId: worker.id, role: 'lead', enabled: true })
  const leadView = await read(lead.cookie)
  assert.equal(leadView.cash, null); assert(!leadView.lineage.some(x => x.id.startsWith('cash:')))
- assert(leadView.data.clients.every(c => c.value.daysLate === undefined && c.value.collectionPercent === undefined && c.value.paymentTermsDays === undefined))
+ assert(leadView.data.clients.every(c => c.value.daysLate === undefined && c.value.collectionPercent === undefined && c.value.paymentTermsDays === undefined && c.value.collectionApprovedBy === undefined && c.value.collectionApprovedByName === undefined))
 
  await revenueDashboardJourney(h,{read,worker,client,hourly,entry,asOf})
 

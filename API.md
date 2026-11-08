@@ -19,6 +19,116 @@ The forward migration infers an existing agency's currency from stored monetary 
 - `GET /api/gauge/audit/verify[?seq&hash]` recomputes the chain and returns `{entries, head, mismatches, gaps, unsealed, checkpoint, intact}`; a checkpoint (an earlier export's `head.seq` and `head.hash`) matches only when the chain recomputed from the first entry reproduces it.
 - `GET /api/gauge/packets/{id}` downloads an approved packet's CSV (finance); `GET /api/gauge/files/{id}` a receipt (its owner or finance).
 
+## Native vendor costs
+
+Owner and finance use the vendor panel on the engagement page. Native vendor
+costs require matching agency and project currencies. They carry no accounting
+connection, payment instruction or provider verification.
+
+- `vendor:save` prepares a draft with `engagementId`, the approved `phaseKey`
+  when phases exist, `vendor`, `scope`, `poReference`, `amountMinor`, `date`,
+  `from`, `to`, `expectedDate` and a `reason`. Draft edits send `id` and
+  `revision`. `vendor:approve` separately approves that exact revision with
+  a reason under the owner's existing monetary-review limit.
+- `vendorBill:save` records `engagementId`, `phaseKey`, the current approved
+  `commitmentId` and `commitmentRevision`, vendor bill `reference`,
+  `amountMinor`, `date` and a `reason`. The bill date must be within the
+  commitment period. Vendor bill references cannot be received twice. Purchase order references are unique across native commitment chains.
+- `vendorBill:file` takes the draft bill's `id` and `revision` plus an original
+  PDF, PNG, JPEG or text file of at most 1 MiB. It returns the new revision.
+  `vendorBill:approve` separately approves and matches that exact original-backed
+  revision once, with a reason and the same independent-review rule.
+  `GET /api/gauge/vendor-files/{id}` downloads the retained original; current
+  owner or finance authority is required on every read.
+- Approved records cannot be edited. A new draft with `previousId` and
+  `previousRevision` prepares a linked correction of the current approved
+  record. A bill correction retains its commitment and cannot predate the
+  original. The approved successor replaces only its own chain; original
+  records and files remain inspectable. An amount reduction is a signed cost
+  delta on the correction date, preserving earlier monthly actuals.
+
+Approved received bills reduce the unbilled commitment remainder once. The
+forecast includes actual bills plus that remainder, with exact revision sources
+in calculation drills and the captured report CSV. Project, phase, margin and
+portfolio totals use the same ledger. Drafts have no effect on costs. Received
+unapproved bills appear on the monthly close checklist; an approved close
+retains its native vendor sources and signed cost totals. Backdated writes to a
+closed period require the ordinary finance reopening.
+
+The native commitment link is mandatory on every bill. Expense costs without a distinct native phase or period,
+billable expense budgets and contractor work in the same project, phase and
+period are refused instead of silently counted as another cost source.
+The same checks run on later native writes and classification changes.
+Leads, staff, client recipients, agents and scoped keys gain no vendor costs or
+bill-original access. Restore retains records, originals and exact match history
+without restoring native sessions or provider authority.
+
+## Native project analyst
+
+`GET /api/gauge/analyst` accepts `question` (1–500 characters), `engagementId`,
+`from`, `to`, `compareFrom`, `compareTo`, optional `asOf` (forecast date, default
+`to`) and optional `fingerprint` binding the current report inputs. It requires
+a live native lead or finance session; bearer keys and agent grants cannot use
+it. The same read-only door is available under Review in “Ask about this project”.
+The current dates follow the Review period; comparison dates are selected in the
+question form. An old fingerprint returns 409 rather than silently reusing a
+changed snapshot.
+
+The bounded native calculation recognizes utilization, project margin, time-policy
+and billing questions, including ordinary phrases such as “less billable time”
+and “losing money”. Questions combining subjects or requesting execution return
+an explicit unsupported answer. No data is sent to a model or other provider.
+
+Utilization compares recorded billable seconds against participating people’s
+available calendar seconds in two nonoverlapping periods. Margin reconciles
+whole-project earned operational value, approved and provisional cost, and actual
+and forecast margin. Time-policy review checks visible project entries against
+the current entry and notes limits, cites the policy revision, identifies changed
+submission policy and distinguishes current findings from historical approval.
+A lead’s visible day subtotal never establishes full-day compliance. The ordinary
+time submission and approval commands still check all native time.
+
+Billing reconciliation is finance-only: earned operational value, approved
+preparation, issued invoices net of credits, recorded receipts and reviewed
+source amounts along the approved correction branch remain distinct. Missing
+receipts are unknown rather than zero cash, and user-recorded receipts never
+establish processor settlement. Draft correction packets do not affect billed
+totals. Consolidated packet review shows only lines tagged to the selected project.
+
+Answers include status, scope, snapshot fingerprints and read times, formulas,
+exact source kinds, IDs and revisions, explicit missing inputs and limits. Raw
+source payloads are omitted. Unknown costs, absent activity and missing capacity
+remain unknown. Leads receive permitted project totals and an explicit finance
+boundary; private calculations run inside finance’s native session. Agent grants
+receive no additional data or authority.
+
+`actions` contains proposed review steps with a label, ordinary review link,
+required human decisions and exact source revisions. Questions, suggestions and
+review links write nothing. A time correction still requires the authorized
+reviewer to reopen the exact approved revision with a reason, then the time owner
+or finance edits and resubmits it for ordinary approval. A billing adjustment
+still requires finance to choose the exact approved packet and source, supply a
+reviewed replacement amount and reason, then separately approve the draft delta.
+Locks, immutable originals, independent approval and all existing guards remain.
+No correction amount or business cause is invented from an arithmetic difference.
+
+Finance can explicitly retain an immutable margin observation through
+`analyst:capture` on `POST /api/gauge/command`, with a unique `key`, `engagementId`,
+`from`, `to`, optional `asOf`, the exact current `fingerprint` and a `label` of at
+most 120 characters. The Review form calls the same command. Capture is a separate
+audited human action; asking never captures. Changed inputs refuse with 409.
+Only financial figures, formulas, unknowns, capture metadata and source revision
+references are retained; source text, credentials and execution authority are not.
+
+An optional `comparisonSnapshotId` on the analyst question selects a captured
+observation for the same project and currency. Margin change reconciles earned
+value change minus approved cost change against that exact earlier observation.
+The capture time stays visible; an old forecast date never manufactures a past
+observation. Missing inputs keep the comparison incomplete. Captured observations
+travel with the complete installation archive, while restored sessions confer no
+access and no correction is replayed. Current finance authority is required for
+every read, capture and comparison, including after revocation or native erasure.
+
 ## Utilization keys (CONNECT-020)
 
 The owner creates a read-only utilization key on **Access** (or `apikey:create` with a `label`; owner only, 403 otherwise). The answer and the page show the key (`gauge_util_…`) once; Gauge stores only its SHA-256, and replaying the request key returns the key's `id` without it. `apikey:revoke` with the key's `id` revokes it; the next keyed request answers 401.
@@ -29,7 +139,7 @@ The owner creates a read-only utilization key on **Access** (or `apikey:create` 
 
 ## Version 1 app API (CONNECT-020)
 
-On Access the native owner creates `appkey:create` with `label`, `operatorId` (an active staff operator with a person) and `scope`: `projects:read`, `projects:read time:write`, `projects:read time:read`, or `projects:read time:read time:write`. Draft reads require the explicitly selected `time:read` permission; previously issued credentials gain no permission. Supply `projectIds` as a nonempty explicit array of currently assigned project identities and `expiryDays` as 1 to 365 days (default 30). Access provides project checkboxes and the lifetime field. The captured project set never expands with later assignments and remains intersected with current native membership. Existing credentials without a captured scope and finite expiry require fresh issuance. The credential is shown once and stored only as SHA-256. Access lists the named operator and person, permitted projects and operations, issuing owner, credential format version, bound operator and grant versions, issue time, expiry, last use and stopped reason. Expiry refuses the next read or write, including a successful request-key replay; the committing transaction also rechecks expiry. Replaying creation returns its acknowledgement without the credential. `appkey:revoke` takes its `id`. The creating owner must remain an active owner, and the staff operator, operator version and exact staff grant must remain live. Changing that grant invalidates existing credentials; issue a new one after review. Every API request and committing batch checks these conditions. Keys and their hashes never enter installation archives; audit history does.
+On Access the native owner creates `appkey:create` with `label`, `operatorId` (an active staff operator with a person) and `scope`: `projects:read`, `projects:read time:write`, `projects:read time:read`, or `projects:read time:read time:write`, plus `engagementIds` (1 to 100 exact projects currently assigned to that person) and `expiryDays` (a whole number from 1 to 365). Draft reads require the explicitly selected `time:read` permission; previously issued credentials gain no permission. The form defaults to read-only and 30 days, with no projects selected. Later assignments never widen the captured set; reads and writes intersect it with current native membership. A changed grant or operator version requires fresh issuance. Access lists the principal and person identity, exact project identities, permissions, issuing owner, credential and authority versions, issue time, expiry, last use, revocation time and stop reason, plus the latest 50 secret-free credential audit events. Existing credentials issued before finite expiry was recorded stop immediately and require fresh issuance. Expiry refuses the next read or write, including a successful request-key replay; the committing transaction also rechecks expiry. The credential is shown once and stored only as SHA-256. Replaying creation returns its acknowledgement without the credential. `appkey:revoke` takes its `id`. The creating owner must remain an active owner, and the staff operator, operator version and exact staff grant must remain live. Changing that grant invalidates existing credentials; issue a new one after review. Every API request and committing batch checks these conditions. Keys and their hashes never enter installation archives; audit history does.
 
 Send `Authorization: Bearer <app credential>`:
 
@@ -39,7 +149,7 @@ Send `Authorization: Bearer <app credential>`:
 - `GET /api/gauge/v1/projects/<projectId>/tasks/<taskId>` returns `{version: "1", task}` using the same native task projection. An outside project returns 403; a task outside the selected project or an unknown task returns 404.
 - `GET /api/gauge/v1/time?limit=50&cursor=&projectId=&taskId=&from=&to=` requires `time:read` and returns `{version: "1", time, nextCursor}`. It includes only the bound person's own entries in `draft` status on captured, currently assigned projects. Submitted, returned, approved and other-person work is absent. Project and task identity filters are exact; `from` and `to` are inclusive native work dates, each a valid YYYY-MM-DD date, with the end no earlier than the start. An explicitly requested project outside current or captured scope returns 403. The page size is 1 to 100. Cursors bind the credential, filters and complete projected draft snapshot; edits, submissions or membership changes require restarting pagination with 409. Invalid cursors or dates return 400.
 - `GET /api/gauge/v1/time/<timeId>` requires `time:read` and returns `{version: "1", time}` with the current native draft identity, revision and staff field projection. Use that revision when posting an edit. Unknown entries, another person's entries, entries outside current or captured projects, and entries no longer in draft status all return the same 404. A read-only draft credential cannot write; a project-only or existing write-only credential cannot read drafts. Revocation, expiry, principal changes and the issuing owner's current authority apply at each read as at every other app door.
-- `POST /api/gauge/v1/time` takes the native `time:save` fields and a unique `key` of at most 120 characters (JSON body at most 16 KiB). It creates or edits only that staff member's draft time on an assigned project. To edit, send the existing `id` and current `revision`; stale revisions and submitted or approved entries return 409. The same request key replays the original acknowledgement without changing a later revision. Supplied approval status or economics never becomes native approval or finance authority. Native task, custom-field, revision, date, overlap and period-lock rules still apply. It cannot submit, approve, bill or trigger outbound delivery. The acknowledgement matches native command responses. Identical request keys replay one result; changed bodies return 409. Receipts are isolated per credential. A revoked credential returns 401 even for a previously successful request replay; changed native authority returns 403.
+- `POST /api/gauge/v1/time` takes the native `time:save` fields and a unique `key` of at most 120 characters (JSON body at most 16 KiB). It creates or edits only that staff member's draft time on a captured, currently assigned project. Existing returned entries are outside this draft-only authority. To edit, send the existing `id` and current `revision`; stale revisions and submitted or approved entries return 409. The same request key replays the original acknowledgement without changing a later revision. Supplied approval status or economics never becomes native approval or finance authority. Native task, custom-field, revision, date, overlap and period-lock rules still apply. It cannot submit, approve, bill or trigger outbound delivery. The acknowledgement matches native command responses. Identical request keys replay one result; changed bodies return 409. Receipts are isolated per credential. A revoked credential returns 401 even for a previously successful request replay; changed native authority returns 403.
 
 This version exposes project reads, task selection and detail within those projects, and explicitly selected own draft time reads and writes only. The new draft-read scope adopts an owner-issued, exact-person, exact-project, read-only-by-default policy pending CT approval; it adds no submission, approval, deletion, billing or outbound authority. Other routes remain session-only; utilization keys retain their separate aggregate-only boundary. Every app use is audited with its credential identity, scope and principal without its secret. Future API capabilities inherit native authorization, current field visibility, audited request keys and authority-free restore before shipping.
 
@@ -199,6 +309,14 @@ Project margin (FINANCE-001, finance only): `GET /api/gauge/state` returns `marg
 Revenue and cash forecast (FINANCE-002, finance only): `GET /api/gauge/state` returns `cash` (`null` for other roles) on the forecast's as-of day. `months[]` carry per `currency` and `month`: `revenueMinor` (FINANCE-006 committed fees), `tentativeMinor`, `pipelineMinor`, `invoicesMinor` (expected invoices), `openMinor` and `expectedMinor` (cash on terms × collection probability), `historicalOpenMinor`/`historicalExpectedMinor` (with approved days late), `rangeLowMinor`/`rangeHighMinor`, `pastDueMinor` and `complete`. `engagements[]` list `items[]` (source, invoice date, receipt date, cash month, historical date), `termsLabel` (`Net N` or `Net 30 assumed`), `daysLate`, `daysLateApprovedBy`, `collectionPercent`, `bookedRevenueMinor` and `backlogMinor`. `issuedReceivables` shows native open totals per currency, or `None issued`; `recordedCash` labels manual receipts while pending/settled processor amounts remain unverified. Finance sets `paymentTermsDays`, `daysLate` and `collectionPercent` (0–100, default 100) with `save:clients`; other roles never read them. Lineage ids are `cash:<currency>:<month>:<invoicesMinor|expectedMinor|historicalExpectedMinor>`.
 
 
+## RECOVER-001 native recovery comparison
+
+Native owner and finance sessions can compare two client projects from Review without preparing or adopting a financial scenario. `recovery:baseline` takes `{asOf, projectIds: [firstId, secondId]}` and returns a digest and exact source revisions. `recovery:preview` takes that response plus one to five `alternatives`. Every alternative has an `id`, `name` and optional `schedules`, `staffing`, `tasks` and `scopes` lists. A schedule selects the latest delivery plan by `id` and `revision`, then either a `nodeId` and `delayBusinessDays` or explicit `starts: [{nodeId, start}]`. A requested start that violates its predecessor or calendar is refused. Staffing selects exact future committed booking revisions and a replacement `personId` or `dailySeconds`; tasks select exact future open-task revisions and `remainingSeconds`; scope selects exact engagement revisions and the proposed `scope` text. Unallocated remaining effort keeps financial comparisons incomplete. Unsupported change kinds refuse.
+
+The comparison returns both projects' baseline and candidate dates, dated global loads, native forecast margins and expected-cash months, per-project and combined cash deltas, assumptions, unknowns and required decisions. A refused alternative is never offered. Missing native pricing, dated capacity, entitlement or currency conversion prevents a qualified offer. Money remains integer minor units per currency; expected collection is not settlement. Retainer demand uses native entitlement and FIFO rules in memory. No comparison writes staffing, terms, invoices, payments or an approval.
+
+Capacity excess returns an exact cost key, seconds, currency, amount and native rate revisions. Listing that exact cost under the alternative's `capacityCosts` permits only a conditional offer requiring separate lead acceptance; the labor cost is already inside FINANCE-006 and is never added twice. `commercialChanges: [{key, amountMinor, reason}]` explicitly names each returned client-date or commercial exception. Known change amounts must match. An unknown commercial price remains a human proposal and keeps the offer incomplete. These declarations authorize no lead decision, client acceptance, change order, invoice, collection or recovery execution. Changed sources require a new captured baseline. Agent grants, read-only accountants, staff, leads and API keys gain no access to these private comparisons.
+
 ## FINANCE-003 project scenarios
 
 Native finance/owner sessions use `POST /api/gauge/command`; leads, staff, agents and utilization Bearer keys cannot use this door. Leads keep the ordinary project-scoped delivery and staffing doors.
@@ -253,6 +371,45 @@ Finance corrects an issued invoice only with linked documents (INVOICE-004). `in
 
 Download `/api/gauge/receivables.csv` with the same filters and the returned `fingerprint`. Changed dated inputs return 409 and require a fresh read. CSV row types are `invoice`, `receipt`, `credit`, `void`, `client total` and `aging`; sum only one row type at a time. Invoice rows include cumulative paid amounts; receipt rows itemize those same allocations. Every row names its currency, and all amounts are integer minor units. JSON/CSV are internal statement preparation: no client delivery or provider settlement is claimed. INVOICE-004 credit notes and voids issued through the as-of day reduce each invoice's open amount (`creditedMinor`, `voidedMinor`; invoiced = paid + credited + voided + open) and itemize as `credit` and `void` rows. Client receipts (`receipts`: client, date, reference, `amountMinor`, `allocatedMinor`, `unappliedMinor`, each allocation) and disputes (`disputedMinor`, `dispute` on each invoice) are in the same report and CSV (`client receipt` rows; sum only one row type at a time). Other roles receive 403, signed-out requests 401; scoped utilization keys cannot use this door.
 
+
+### Native late-fee drafts (INVOICE-007, partial)
+
+Owner and finance record existing agreed terms on a client with `save:clients`:
+`lateFeeMode: "monthly-percentage"`, integer `lateFeeRateBasisPoints` (150 means
+1.5%), positive integer `lateFeeCapMinor`, `lateFeeAgreedOn` and
+`lateFeeReference`. `lateFeeMode: "none"` removes terms for future invoices;
+omitting the mode preserves saved terms. Issuance freezes the exact agreement
+and client revision only when its currency matches and its agreement date is
+on or before the issue date. Later client edits never retrofit an issued invoice.
+
+Both commands use `POST /api/gauge/command` with current native finance authority:
+
+- `invoice:late-fee-preview` takes the invoice `id`, `revision` and an `asOf`
+  date no later than today. It returns the frozen terms, invoice identity,
+  principal, payment and credit amounts, exact source revisions, period,
+  calculated `amountMinor` and a `fingerprint`. Preview creates no draft.
+- `invoice:late-fee-draft` sends those same inputs, the reviewed `fingerprint`,
+  a `reason` and the ordinary request `key`. It creates one immutable linked
+  draft with status `awaiting-finance-approval`, attributed to the finance user.
+  Exact request replay returns the original acknowledgement; distinct or
+  concurrent requests cannot create a second draft for that invoice period.
+  Current authority is checked before replay as well as inside a new write.
+
+The supported period is the first monthly anniversary of the frozen due date,
+clamped to month end, after more than 30 days overdue. The simple percentage
+uses current unpaid principal, rounds half up to integer cents and applies the
+frozen cap. Missing terms, disputed or void invoices, fully paid or credited
+principal, changed sources and a preview belonging to another invoice refuse.
+An unallocated client receipt does not reduce invoice principal.
+
+Billing provides the native preview and draft forms. Finance state retains
+`data.lateFeeDrafts`; the ordinary record history and business audit doors retain
+the agreement and draft attribution. Other roles cannot read private terms or
+drafts. Complete installation restore preserves these records and their source
+history, while old sessions grant no access. A draft changes no issued original,
+receivable, expected cash or payment. Approval, issuance, further periods, flat
+fees and compounding remain unavailable. No reminder is scheduled or sent;
+delivered collection, replies and verified stop conditions remain unproved.
 
 ### INVOICE-002 fixed-fee deposit and percentage schedule (partial)
 
@@ -1048,15 +1205,15 @@ Forecast captures use original page envelopes and a separate original `forecast-
 
 ## Reviewed client scope requests
 
-Native owner and finance sessions use `change:preview` with `asOf` and `changes` on the FINANCE-003 basis: one `scope` alternative and optional `deadline` alternatives from that engagement. The result retains baseline and proposed dates, capacity, forecast, cash and private margin with unknown inputs explicit. `change:prepare` binds that fingerprint, a name and reason, and the latest `previousId` when revising. It creates an immutable comparison in `projectScenarios`, marked `changeOrder`. A different finance person or owner uses `change:review` with exact `id`, `revision`, reason and internal `outcome` of `approved` or `declined`; changed inputs or a superseding version refuse review. `change:withdraw` records an exact-revision withdrawal with a reason. These commands never change approved work, dates, budgets, forecasts or billing. Ordinary `projectScenario:adopt` refuses these requests. ct approved this PARTIAL boundary on 25 October 2026. One person cannot self-review after a role change or through another account linked to the preparing person. `reviewLabel` identifies Internal approval or Internal decline on the stored version, while the audit page and export identify Internal approval. Client acceptance, signed evidence and adoption remain SALES-005 work; internal approval does not supply them.
+Native owner and finance sessions use `change:preview` with `asOf` and `changes` on the FINANCE-003 basis: one scope alternative and optional deadline alternatives from the same engagement. `change:prepare` binds the fingerprint, name, reason and latest `previousId`. A different owner or finance person reviews that exact version using `change:review`. One person cannot self-review through another role or account. Internal approval retains its label and supplies neither client consent nor adoption authority. Ordinary `projectScenario:adopt` refuses change requests.
 
-## Exact client change review
+`change:release-review` is native-owner-only and takes the exact `id`, `revision`, confirmed non-staff `contact`, customer `description`, `reason` and one to 30 `days` (default seven). It sends nothing. Release generates a closed immutable customer document from the stored comparison: prior and proposed scope, currency, amount, effort, rounding, expense allowance and dates. Costs, margins and internal review reasons are absent. Release shows a key once and stores only its hash in installation authority. Replacement releases invalidate previous keys. Issuing-owner and recipient versions are captured; a lifecycle change requires fresh release. `change:revoke-review` immediately removes the exact `reviewId` authority.
 
-`change:release-review` lets the native owner release an exact internally approved change version. It takes `id`, `revision`, confirmed non-staff recipient `contact`, an explicit customer `description`, `reason` and `days` from one to 30 (default seven). It sends nothing. The first response contains a shown-once `token`; only its SHA-256 hash is stored in installation authority. A request replay never returns it again. A replacement release invalidates the previous key. `change:revoke-review` takes the current change revision, `reviewId` and reason and immediately removes that authority.
+The invited project lists only released changes that pass the same current review and live authority checks as the review page. Superseded, withdrawn, expired, revoked and stale reviews are omitted. The native recipient opens the exact document at `/app/client-changes/CHANGE_ID/REVIEW_ID`, using current project authority or the separately shared key. The API at `/api/gauge/client-changes/CHANGE_ID/REVIEW_ID` accepts the key in `x-gauge-review-token`, never a query string. Both doors recheck current recipient, owner, expiry, project scope, baseline and supersession. The form and API accept an exact `revision`, request `key`, `outcome` and `reason`. An accepted outcome additionally requires `signatureName` and boolean `consent: true`. The retained signature binds the native confirmed account, typed name, document digest, change fingerprint and response revision. Rejection retains its reason without fabricating a signature. Responses alone change no business record outside the comparison and audit.
 
-The recipient uses their native session and `X-Gauge-Review-Token` at `GET /api/gauge/client-changes/<change-id>/<review-id>`. The closed projection contains the exact version, owner-selected description, expiry and their saved decision. It exposes no internal comparison, private margin, rates or costs. POST accepts JSON `key`, `revision`, `outcome` (`accepted` or `rejected`) and `reason`, with same-origin checks and a 16 KiB limit. The server binds the recipient and exact fingerprint. Changed baseline inputs, superseding versions, withdrawal, expiry, revocation, internal grants and loss of the releasing owner refuse access. Committing responses recheck current authority and baseline inputs. Each access and response is audited.
+`change:adopt` requires a native owner, exact current `id` and `revision`, request `key` and explicit `reason`. It refuses pending, rejected, stale, superseded, revoked, expired or restored authority. Live recipient and releasing-owner versions and the complete native baseline are checked again in the transaction. The native scenario planner applies exactly the accepted effect set atomically, once. Prior approved terms remain intact; new terms reference that prior record and the signed change. No packet or invoice is created. A successful retry with the same request key returns the original acknowledgement; changed content and a fresh second adoption are refused. Adopted customer terms remain readable while their review authority is live.
 
-Default ADOPTED pending ct for SALES-005: this is an unsigned direct response through an API carrier. It grants no signed evidence, budget, date, forecast, billing or adoption authority. Internal approval stays labelled internal. Recipient forms, complete exact client commercial disclosure, signed evidence and once-only adoption remain named gaps. Business records retain responses; installation review authority is excluded from archives.
+Default ADOPTED pending ct for SALES-005: explicit owner release, native identity-bound client consent and separate once-only native-owner adoption. This is not an external signature-provider or legal-compliance claim. Internal review remains internal. Archives retain the exact document, signed response, comparison and history, exclude all review authority and cannot resume adoption. CONNECT-018 retains broader external signature-provider handoffs.
 
 ## Exact client delivery review
 
@@ -1091,10 +1248,150 @@ These payment controls currently use the conservative native-owner policy awaiti
 
 ## Client project and delivery review
 
-The native owner uses `client:invite-project` with `engagementId`, a confirmed non-staff `contact`, `days` (one to 30) and a reason. Invite and native email confirmation happen through the existing Access door first. A fresh invitation replaces earlier authority for that recipient and project, so later revocation cannot fall back to an older grant. The command sends no notification and grants no monetary access. Native finance uses `client:share-money` with the exact invitation `id` and `revision`, `shareMoney` (`yes` or `no`) and a reason. `client:revoke-project` takes that exact identity, revision and reason. These commands use ordinary request keys and committing authority checks.
+The native owner uses `client:invite-project` with `engagementId`, a confirmed non-staff `contact`, `days` (one to 30) and a reason. Invite and native email confirmation happen through the existing Access door first. A fresh invitation replaces earlier authority for that recipient and project, so later revocation cannot fall back to an older grant. The command sends no notification and grants no monetary access. Native finance uses `client:share-money` with the exact invitation `id` and `revision`, the individual monetary choices (`yes` or `no`) and a reason. `client:revoke-project` takes that exact identity, revision and reason. These commands use ordinary request keys and committing authority checks.
 
-The recipient opens `/app/client-projects/{engagementId}` or reads `GET /api/gauge/client-projects/{engagementId}` after native sign-in. The closed projection contains the invited project scope, deliverables, milestones, authorized review links and retainer statements. Finance-selected approved budget amounts and aggregate burn appear only when expressly shared. Burn reports whole-project approved effort, separately provisional stopped pending effort, and frozen approved hourly commercial work value in the project currency, never staff costs or rates. Missing approved hourly values keep the total unknown beside a known subtotal and missing-value count; these figures are not invoiced or paid amounts. Retainer value statements and currency custom fields require the same current monetary-sharing choice. Client, project and task custom fields require everyone visibility under both the current definition and the value’s saved definition version. Broadening a definition never publishes an old private value; an explicit audited resave publishes its new version. The projection carries the selected value and definition revisions, never a staff record. Source traces contain work date, duration, status, service and revision, without staff names, notes, costs or private rates. Current recipient, releasing owner, client identity, expiry and invitation revision are checked again before returning data. Internal routes grant no additional rights. Archives preserve business audit but exclude project recipient authority.
+The recipient opens `/app/client-projects/{engagementId}` or reads `GET /api/gauge/client-projects/{engagementId}` after native sign-in. The closed projection contains the invited project scope, deliverables, milestones, authorized review links and retainer statements. Finance-selected approved budget amounts and aggregate burn appear only when expressly shared. Burn reports whole-project approved effort, separately provisional stopped pending effort, and frozen approved hourly commercial work value in the project currency, never staff costs or rates. Missing approved hourly values keep the total unknown beside a known subtotal and missing-value count; these figures are not invoiced or paid amounts. Retainer value statements and currency custom fields each require their own current monetary-sharing choice. Client, project and task custom fields require everyone visibility under both the current definition and the value’s saved definition version. Broadening a definition never publishes an old private value; an explicit audited resave publishes its new version. The projection carries the selected value and definition revisions, never a staff record. Source traces contain work date, duration, status, service and revision, without staff names, notes, costs or private rates. Current recipient, releasing owner, client identity, expiry and invitation revision are checked again before returning data. Internal routes grant no additional rights. Archives preserve business audit but exclude project recipient authority.
 
-Owner milestone controls release one exact delivery under the existing `milestone:release-review` policy. The shown-once key and `/app/client-milestones/{milestoneId}/{reviewId}` link must be shared separately with the confirmed recipient; Gauge sends nothing. The key is entered in a POST body, never in the address. Native recipient review and reasoned acceptance or rejection reuse the exact API authority and transaction checks. Rejection opens its owned issue. Acceptance creates no packet or invoice and does not authorize finance billing. All new controls have visible text labels.
+Owner milestone controls release one exact delivery under the existing `milestone:release-review` policy. Recipients without current project access need the shown-once key and `/app/client-milestones/{milestoneId}/{reviewId}` link shared separately; current project recipients open the released review from their project page. Gauge sends nothing. The key is entered in a POST body, never in the address. Native recipient review and reasoned acceptance or rejection reuse the exact API authority and transaction checks. Rejection opens its owned issue. Acceptance creates no packet or invoice and does not authorize finance billing. All new controls have visible text labels.
 
-CLIENT-001 remains partial solely pending ct approval of the adopted owner-only project invitation policy. The native journey now proves selected aggregate burn, permitted custom fields, nonzero retainer rollover, linked corrections and value statements, and full restore with no recipient authority. A fresh matching email remains refused after restore until the new installation owner issues a new invitation; monetary sharing starts off and requires a separate finance choice. The bounded direct-delivery carrier uses the existing ct-approved policy.
+ct approved the project invitation policy with riders on 26 October 2026. The project carrier is proved by clientPortalJourney, including exact-delivery decisions, renewable access, current owner-version fences and independent monetary selection. CLIENT-003 and CLIENT-004 retain their separately named work. The native journey now proves selected aggregate burn, permitted custom fields, nonzero retainer rollover, linked corrections and value statements, and full restore with no recipient authority. A fresh matching email remains refused after restore until the new installation owner issues a new invitation; monetary sharing starts off and requires a separate finance choice. The bounded direct-delivery carrier uses the existing ct-approved policy.
+
+
+### Renewable project invitations
+
+`client:invite-project` accepts either `days` from 1 to 30 or `months` from 1 to 12. Calendar-month access clamps to the final day of the destination month. `client:renew-project` takes the invitation `id`, current `revision`, duration and audited `reason`; only a current native owner renews, without re-entering the recipient. An expired or stopped releasing owner grants no access; renewal binds the current owner and authority version and preserves the expressly selected monetary choices. A changed client relationship requires a fresh invitation.
+
+`GET /api/gauge/client-projects` and `/app/client-projects` list exactly the signed-in recipient's currently authorized projects. Project links open exact released milestone reviews without requiring their separate review keys. Every response still rechecks the current project invitation and exact delivery authority, including inside a decision transaction. The separate shown-once key remains available to recipients without current project access.
+
+`client:share-money` now requires an explicit `yes` or `no` for each of `shareBudget`, `shareBurn`, `shareRemaining`, `shareValue` and `shareFields`. They select the approved budget amount, approved hourly commercial burn and provisional effort, remaining budget after approved hourly work, retainer value statements and public currency custom fields independently. Remaining budget becomes unknown when approved hourly value is unknown; this is not an invoice or payment balance. Migration retains previously explicit sharing choices. Fresh invitations disclose no monetary detail. All choices are audited; invitations, renewals, sharing and revocation send nothing. Invitation and renewal notices belong to CLIENT-004.
+
+Project invitations capture the releasing owner’s authority version. Deactivation or an authority change permanently stops that version, even if the former owner is later reactivated. A current owner explicitly renews it. Invitations created before this version binding remain stopped until renewal; migration preserves their separate monetary choices.
+
+## Client intake and follow-through
+
+On an engagement, the assigned lead or native finance opens **Request client inputs**,
+sets the questions, requested file, due date, first in-app reminder and repeat interval.
+The invited recipient opens the existing client project, fills the form and uploads
+one file per submission. Empty answers and a missing file may be submitted for review;
+acceptance refuses either omission. Rejection requires a reason and leaves the request
+due. Every new submission keeps the earlier answers, file and review decisions.
+
+Native commands use the normal request key and exact revision:
+
+- `intake:request`: engagementId, title, questions (an array or one question per line),
+  fileLabel, due, reminderOn and everyDays (one to 30 calendar days).
+- `intake:review`: id, revision, outcome (accepted or rejected) and reason.
+- `intake:remind`: id, revision, on and reason; advances the reminder by its interval.
+- `intake:escalate`: id, revision and reason; records the blocked input for its lead.
+
+The recipient form posts multipart data to
+`/app/client-intake/<engagementId>/<requestId>` with key, revision, answer0 onward and
+file. Only the current invited project recipient may submit; a native staff command
+cannot impersonate that person. Request-key replay creates one submission, changed
+content refuses, and revocation also refuses an already successful replay. Every
+write checks live authority inside its committing batch. Submitted intake remains
+due until its latest complete revision receives explicit lead or finance acceptance.
+
+Files are limited to 512 KiB. The submitting recipient while invited, the assigned
+lead and native finance can download exact retained bytes from
+`/api/gauge/intake-files/<fileId>`. Download always uses an opaque attachment with
+content sniffing disabled. Another project, unrelated staff and other recipients
+cannot read the file. No file executes and no invitation or intake command sends mail.
+Archives retain requests, file versions, decisions and reminders; restored data carries
+no project recipient authority.
+
+A delivery template accepts intakeForms with title, questions, fileLabel, everyDays
+and offsetDays. Applying the exact immutable template creates each requested intake
+on the agency business calendar. Later template versions do not rewrite requests
+already created. The template editor carries one intake form; the command may carry
+several.
+
+Optional chestUrl and blotterUrl retain a reference to broader shared-file work in
+Chest or accounting-practice requests in Blotter. They must be HTTPS links without
+embedded credentials, query data or fragments. Opening a reference leaves Gauge and
+uses the other product's permissions; Gauge neither fetches it nor grants access.
+
+
+### Forecast backtesting
+
+A native owner previews a read-only comparison with `learning:preview` through `POST /api/gauge/command`. Select one to fifty original converted project estimates with `selections` entries containing `engagementId`, `engagementRevision`, `estimateId` and `estimateRevision`; provide `name`, `reason`, `completedThrough` and a `candidate` with `role` and integer `basisPoints` (10000 keeps original effort). Optional `excludedClients` entries bind a client `id`, `revision` and exclusion `reason`. Review exposes the same selection and comparison forms.
+
+The current comparison supports completed fixed-fee projects with approved actual work, completed tasks and no later committed work. Exclusions and incomplete inputs are explicit. Effort MAPE and margin error use the same eligible projects; fewer than five yields insufficient history. The original estimate retains fixed fees and cost assumptions, while final margin uses FINANCE-006. A candidate changes only its selected role effort and corresponding retained estimated cost. Currencies are never pooled, and missing costs remain unknown.
+
+`learning:save` takes the same inputs plus the preview's `sourceDigest` and a fresh request `key`. It refuses changed sources and keeps immutable numeric scores, exact source references and selection reasons in `learningCohorts`, with an owner-only audit. The installation archive carries this business evidence without adding execution authority. Saved score figures and their comparison revision are included in the ordinary report calculation CSV. Payment-timing evidence remains unavailable; manual bank receipts remain user-recorded. No comparison offers adoption, changes an estimate or executes a payment.
+
+
+### Client role ceilings (GOVERN-003)
+
+The existing project invitation accepts `clientRole` as `sponsor` or `collaborator` and `reviewEnabled` as `yes` or `no`. Omitted fields preserve the existing sponsor behavior. A collaborator always has delivery decisions disabled; explicitly requesting otherwise returns 403. The native owner alone sends `client:configure-role` with the current invitation `id`, `revision`, those two choices and a reason. Unsupported roles are refused. The command changes the invitation revision and records its decision in the business audit. It never grants an internal Gauge role.
+
+Collaborators see project scope, tasks, milestones and permitted nonmonetary custom fields. They see no budgets, burn or retainer statements. Finance sharing cannot widen that ceiling. A sponsor may inspect finances only after the separate finance sharing command, and may decide only a separately owner-released exact delivery through current project access or its existing review key. Turning delivery decisions off refuses the next review request and previously successful command replays. Changing a sponsor to collaborator clears monetary sharing; a later sponsor assignment requires fresh finance sharing.
+
+A delivery-only invitation also refuses independently released invoice and commercial-proposal documents for the same client. Revocation preserves an inert deny record until an explicit replacement invitation; removing project access cannot revive an older exact-delivery review. Authority remains excluded from business archives under the existing project-authority table policy. No notice is sent. This conservative client-role policy awaits ct approval; the existing separately released scope-change review remains available under its current authority rules, while role-specific scope approval proof and general configurable native roles remain GOVERN-003 gaps.
+
+
+### Saved report snapshots and native downloads
+
+`saved:save` creates a profitability or utilization definition from the existing custom-field datasets. It accepts `name`, `dataset`, `group` (a permitted custom field), `from`, `to`, `customFilters`, `measures` (permitted numeric or currency custom-field IDs), and `columns`. Profitability columns are `budgetMinor`, `costMinor`, `earnedMinor`, `marginMinor`, `eacFeesMinor`, `eacCostMinor` and `forecastMarginMinor`; utilization columns are `approvedSeconds`, `billableSeconds`, `availableSeconds` and `utilizationPercent`. These select existing calculations; arbitrary expressions never execute. Omitted columns retain the dataset defaults. Editing supplies the definition's exact `id` and `revision`, keeps creator identity and appends ordinary business history.
+
+`GET /api/gauge/saved/:id` returns the definition, permitted result, displayed table, formulas, overlap warning and source fingerprint. The native Review form opens the same view with `savedReport` in its query. Finance can read saved definitions; a lead reads only their own utilization reports. Current field policy and project access are checked again at each read; narrowing access to a retained project refuses the saved read.
+
+Append `.csv`, `.xlsx` or `.pdf` to the saved-report endpoint and send its exact `revision` and `fingerprint` query parameters. Each native download contains the same captured rows, exact minor units, seconds, formulas and explicit unknowns as the displayed table. Source or definition changes require reopening the report. Text is formula-safe, currencies remain distinct and overlapping cohorts cannot be summed. Restoring business records preserves definitions and history, without restoring sessions or grants. Scheduling, outbound sending, warehouse delivery and BI feeds remain unavailable.
+## Invoice collection assumptions
+
+Native owner and finance sessions may submit `cash:approve` with a request key,
+`from`, `to`, `asOf`, `engagementId`, `sourceKey`, `fingerprint`, an integer
+`collectionPercent` from 0 to 100 and a reason. The source key and fingerprint
+come from the cash item's `probabilityBasis`. An existing assumption also requires
+its exact `id` and `revision`. Blank or null percentage restores the client
+fallback; zero means no expected collection. The Review cash section offers the
+same source-specific approval form.
+
+The approval retains the finance approver, source references and immutable prior
+revisions. Changed scheduled amounts, dates, source revisions or payment terms
+invalidate it; the report labels the client fallback and asks for renewed approval.
+A client probability change alone does not replace a valid invoice override.
+One issued invoice override applies to every project share of that document, with
+one approval revision. It applies to the remaining collectible balance, including
+promised portions, after dated receipts, credits and standing disputes. Exact
+scheduled retainer fee and fixed-source approvals follow their frozen source
+identities into an issued invoice; combined documents retain each source's share
+rather than applying that percentage to unrelated lines. Regrouped hourly cycle
+projections need a separate issued-invoice approval. The invoice original,
+approved commercial terms and payment records are never edited by an assumption.
+
+Cash items show collectible open amounts, applied percentages, approvers and exact
+assumption revisions. Calculation drills and the revision-bound report CSV retain
+the same assumption records. Business export and restore preserve these records
+and their history; they supply no payment or scheduled-execution authority.
+
+## Native post-adoption outcome comparison
+
+On Review, native owner and finance sessions can capture current inputs for an
+adopted financial scenario and then compare its observed outcome. The commands
+are `recovery:outcome-capture` with the scenario's exact `id` and `revision`,
+then `recovery:outcome-compare` with those references and the returned
+`basisDigest`. Both commands are read-only. They recheck current authority and
+refuse source drift, unadopted scenarios, stale scenario revisions, supplied
+outcome figures and success claims. Captures confer no approval or execution
+permission and cannot change case status.
+
+New financial scenario comparisons retain a versioned before and expected
+observation alongside the existing exact human adoption and effect revisions.
+The observation uses canonical FINANCE-006 margin and supported FINANCE-007
+expected cash. Current delivery dates, global dated load, approved native
+terms, invoices and payment records are reread with the original projects,
+currencies, as-of day and capacity window fixed. The result gives separate
+currency and month figures, observed variance, changed source revisions,
+collection assumptions and explicit unknowns. An incomplete amount is unknown,
+with its known source detail preserved. Historical observations never become
+current approval, and later records never rewrite them.
+
+Scenarios without the retained calculation basis cannot be reconstructed and
+are refused, as are incompatible future calculation bases or changed project
+currencies. Cash source detail returns calculation fields and revision
+references rather than personal document copies. Manual receipts remain
+user-recorded; provider outcomes, cross-system freshness, settlement and
+recovery completion remain unproved. Restore retains the comparison as business
+history and requires fresh native authority to read it; it replays no adoption
+or provider action.

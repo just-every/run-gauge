@@ -1,3 +1,4 @@
+import { permittedColumns, savedTable, savedFingerprint } from './saved-report-export'
 import { sourceCustomFields } from './source-custom-fields'
 import type { Bindings } from '../auth.server'
 import { canonicalJson,sha256 } from '../modules/import-kit/src/d1/index'
@@ -82,11 +83,31 @@ export async function customCommand(env:Bindings,a:Actor,tx:Transaction,action:s
  if(action==='saved:save'){
   await observeDefinitions(env,tx)
   need(finance(a)||a.role==='lead','Lead or finance saves reports',403);need(['profitability','utilization'].includes(input.dataset),'Choose profitability or utilization');need(input.dataset!=='profitability'||finance(a),'Profitability is finance only',403)
+  const old=input.id?await get(env,'savedReports',text(input.id,'Saved report')):undefined
+  if(old){need(savedVisible(a,old.value),'Saved report unavailable',403);need(old.revision===input.revision,'Saved definition changed; refresh before editing',409);tx.observe('savedReports',old)}
   const filter=filters(a,input.nativeFilters??input.customFilters,undefined,!!input.nativeFilters),group=text(input.group,'Custom report group'),field=a.customDefinitions?.find(f=>f.id===group);need(field&&canField(a,field),'Report field unavailable',403)
+  need(Array.isArray(input.measures??[])&&(input.measures??[]).length<=100,'Choose at most 100 custom measures')
   const measures=(input.measures??[]).map((id:string)=>{const f=a.customDefinitions?.find(f=>f.id===id);need(f&&canField(a,f)&&['number','currency'].includes(f.value.type),'Measure field unavailable',403);return id})
-  return tx.record('savedReports',{name:text(input.name,'Report name'),dataset:input.dataset,group,customFilters:filter,measures,from:date(input.from),to:date(input.to),createdBy:a.session.operator.id,createdAt:Date.now()})
+  need(new Set(measures).size===measures.length,'Choose each custom measure once')
+  const from=date(input.from),to=date(input.to);need(from<=to,'Report from must precede through')
+  const {visible}=await import('./reports'),data=await visible(env,a)
+  // Retained scope prevents a later narrower grant from silently changing a saved report.
+  const projectIds=data.engagements.map(r=>r.id)
+  for(const row of data.engagements)tx.observe('engagements',await access(env,a,row.id))
+  return tx.record('savedReports',{name:text(input.name,'Report name',200),dataset:input.dataset,group,customFilters:filter,measures,columns:permittedColumns(input.dataset,input.columns),from,to,projectIds,createdBy:old?.value.createdBy??a.session.operator.id,createdAt:old?.value.createdAt??Date.now(),updatedBy:a.session.operator.id,updatedAt:Date.now()},old,undefined,action)
  }
+
  return null
 }
-export function savedVisible(a:Actor,v:Value){return (finance(a)||v.createdBy===a.session.operator.id)&&[v.group,...Object.keys(v.customFilters??{}),...(v.measures??[])].every(id=>{const f=a.customDefinitions?.find(f=>f.id===id);return f&&canField(a,f)})}
-export async function savedRead(env:Bindings,a:Actor,id:string){const r=await get(env,'savedReports',id);need(savedVisible(a,r.value),'Saved report unavailable',403);need(r.value.dataset!=='profitability'||finance(a),'Finance required',403);const {reports}=await import('./reports');const v=r.value,result=await reports(env,a,v.from,v.to,undefined,null,{portfolioGroup:'custom:'+v.group,customGroup:v.group,customFilters:v.customFilters,customMeasures:v.measures});await fence(env,a);return {definition:r,result:v.dataset==='profitability'?result.portfolio:result.customPerformance}}
+export function savedVisible(a:Actor,v:Value){return (finance(a)||a.role==='lead'&&v.createdBy===a.session.operator.id&&v.dataset==='utilization')&&[v.group,...Object.keys(v.customFilters??{}),...(v.measures??[])].every(id=>{const f=a.customDefinitions?.find(f=>f.id===id);return f&&canField(a,f)})}
+export async function savedRead(env:Bindings,a:Actor,id:string){
+ const r=await get(env,'savedReports',id);need(savedVisible(a,r.value),'Saved report unavailable',403);need(r.value.dataset!=='profitability'||finance(a),'Finance required',403)
+ for(const id of r.value.projectIds??[])await access(env,a,id)
+ const {reports}=await import('./reports'),v=r.value
+ const report=await reports(env,a,v.from,v.to,undefined,v.to,{portfolioGroup:'custom:'+v.group,customGroup:v.group,customFilters:v.customFilters,customMeasures:v.measures})
+ const result=v.dataset==='profitability'?report.portfolio:report.customPerformance
+ const {savedReports,...sources}=report.data
+ const table=savedTable(v,result!,report.data.customFields),fingerprint=savedFingerprint(r,result!,sources)
+ await fence(env,a)
+ return {definition:r,result,table,fingerprint}
+}

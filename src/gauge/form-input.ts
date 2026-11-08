@@ -41,6 +41,17 @@ function readCustomForm(form:FormData,input:Value,prefix:string,destination:stri
 
 export function formInput(form: FormData): Value {
  const input: Value = Object.fromEntries(form)
+ if(form.has('recoveryInput')){Object.assign(input,JSON.parse(String(form.get('recoveryInput'))));for(const n of [0,1]){input[`scopeSeconds${n}`]=Math.round(decimal(String(form.get(`scopeHours${n}`)),'Remaining scope hours')*3600);input[`taskSeconds${n}`]=Math.round(decimal(String(form.get(`taskHours${n}`)),'Remaining task hours')*3600)}}
+ if(form.has('recoveryDeclarations')){
+  const previous=JSON.parse(String(form.get('recoveryDeclarations')));input.declarations={}
+  for(const option of previous){
+   input.declarations[option.id]={commercialChanges:[],capacityCosts:[]}
+   for(const r of option.requirements??[])if(form.has(`nameCommercial:${option.id}:${r.key}`))input.declarations[option.id].commercialChanges.push({key:r.key,amountMinor:cents(String(form.get(`changeAmount:${option.id}:${r.key}`))),reason:String(form.get(`changeReason:${option.id}:${r.key}`)??'')})
+   for(const c of option.capacityCosts??[])if(form.has(`nameCapacity:${option.id}:${c.key}`))input.declarations[option.id].capacityCosts.push({key:c.key,seconds:c.seconds,currency:c.currency,amountMinor:c.amountMinor})
+  }
+ }
+
+ if(input.action==='template:save'&&form.has('intakeTitle'))input.intakeForms=String(input.intakeTitle).trim()?[{title:input.intakeTitle,questions:input.intakeQuestions,fileLabel:input.intakeFileLabel,offsetDays:input.intakeOffsetDays,everyDays:input.intakeEveryDays,chestUrl:input.intakeChestUrl,blotterUrl:input.intakeBlotterUrl}]:[];if(input.action==='template:save'&&form.has('intakeExtraForms'))input.intakeForms=[...input.intakeForms,...JSON.parse(String(form.get('intakeExtraForms')))]
  if(['kantataAdopt:','floatAdopt:'].some(prefix=>String(input.action).startsWith(prefix))&&typeof input.config==='string')input.config=JSON.parse(input.config||'{}')
  if(form.has('closeInput'))Object.assign(input,JSON.parse(String(form.get('closeInput'))))
  if(input.action==='period:preview')input.retainerExceptions=Object.fromEntries(String(input.retainerExceptionLines??'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(line=>{const at=line.indexOf('|');need(at>0,'Use family ID | exception reason');return [line.slice(0,at).trim(),line.slice(at+1).trim()]}))
@@ -103,11 +114,15 @@ export function formInput(form: FormData): Value {
  if(input.action.startsWith('field:import'))for(const name of ['mapping','policies'])if(typeof input[name]==='string')input[name]=JSON.parse(input[name])
  if(input.action==='client:merge')input.customFieldChoices=Object.fromEntries(Object.keys(input).filter(k=>k.startsWith('merge-field:')).map(k=>[k.slice(12),input[k]]))
  if(input.action==='save:resourceRequests')input.nativeFilters=Object.fromEntries(Object.keys(input).filter(k=>k.startsWith('filter:')&&String(input[k]).trim()).map(k=>[k.slice(7),input[k]]))
- if(input.action==='saved:save'){input.nativeFilters=Object.fromEntries(Object.keys(input).filter(k=>k.startsWith('filter:')&&String(input[k]).trim()).map(k=>[k.slice(7),input[k]]));input.measures=JSON.parse(input.measures??'[]')}
+ if(input.action==='saved:save'){input.nativeFilters=Object.fromEntries(Object.keys(input).filter(k=>k.startsWith('filter:')&&String(input[k]).trim()).map(k=>[k.slice(7),input[k]]));input.measures=form.has('measure')?form.getAll('measure'):JSON.parse(input.measures??'[]');input.columns=form.has('column:'+input.dataset)?form.getAll('column:'+input.dataset):[]}
  if(input.action==='estimate:save'){
   for(const name of ['contingency','discount']){const raw=String(input[name+'Percent']??'0').trim();need(/^\d+(?:\.\d{1,2})?$/.test(raw),'Use a percentage with at most two decimal places');input[name+'BasisPoints']=cents(raw)}
   input.phases=Object.keys(input).filter(k=>/^estimatePhase\d+Name$/.test(k)&&String(input[k]).trim()).map(k=>{const pre=k.slice(0,-4);return {key:input[pre+'Key'],name:input[k],service:input[pre+'Service'],mode:input[pre+'Mode'],from:input[pre+'From'],to:input[pre+'To']}})
   input.lines=Object.keys(input).filter(k=>/^estimateLine\d+Name$/.test(k)&&String(input[k]).trim()).map(k=>{const pre=k.slice(0,-4),v:Value={key:input[pre+'Key'],name:input[k],phaseKey:input[pre+'Phase'],kind:input[pre+'Kind'],role:input[pre+'Role'],personId:input[pre+'Person']||null,effortSeconds:input[pre+'EffortSeconds'],billRateMinor:input[pre+'BillRateMinor'],quantity:input[pre+'Quantity'],unitBillMinor:input[pre+'UnitBillMinor']};if(input[pre+'CostRateMinor']!==undefined&&input[pre+'CostRateMinor']!=='')v.costRateMinor=input[pre+'CostRateMinor'];if(input[pre+'CostMinor']!==undefined&&input[pre+'CostMinor']!=='')v.costMinor=input[pre+'CostMinor'];if(v.costRateMinor!==undefined||v.costMinor!==undefined)v.costReference=input[pre+'CostReference'];return v})
+ }
+ if(input.action.startsWith('learning:')){
+  if(input.payload){const payload=JSON.parse(input.payload);Object.assign(input,payload)}
+  else{input.candidateBasisPoints=decimal(String(input.candidatePercent),'Candidate effort percent')*100;input.selections=form.getAll('selectedSamples').map(v=>JSON.parse(String(v)));input.excludedClients=form.getAll('excludedClients').map(v=>({...JSON.parse(String(v)),reason:input.exclusionReason}))}
  }
  return input
 }

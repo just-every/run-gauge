@@ -16,7 +16,7 @@ export const GENESIS = 'gauge-audit-v1'
 interface AuditRow { seq: number; at: number; actor: string; role: string | null; person_id: string | null; request_key: string | null; action: string; kind: string; record_id: string; previous_revision: string | null; revision: string | null; data: string; reference: string | null; hash: string | null }
 const fields = (r: AuditRow) => ({ seq: r.seq, at: r.at, actor: r.actor, role: r.role, personId: r.person_id, requestKey: r.request_key, action: r.action, kind: r.kind, recordId: r.record_id, previousRevision: r.previous_revision, revision: r.revision, data: JSON.parse(r.data), reference: r.reference })
 export const chainHash = (previous: string, r: AuditRow) => sha256(canonicalJson({ previous, entry: fields(r) }))
-const ownerPrivate = (kind: string) => ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts','providerInstallation','retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','agencyProfiles'].includes(kind)
+const ownerPrivate = (kind: string) => ['providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts','providerInstallation','retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','agencyProfiles','learningCohorts'].includes(kind)
 const withheld = (kind: string, a:Actor, data?:string) => kind === 'timeFavorites' || (a.role!=='owner'&&(ownerPrivate(kind)||kind==='commercialEvents'&&String(JSON.parse(data??'{}').type).startsWith('signature-')))
 const PAGE = 500
 
@@ -100,7 +100,7 @@ export async function auditSearch(env: Bindings, a: Actor, q: AuditQuery) {
  const from = q.from ? date(q.from) : null, to = q.to ? date(q.to) : null
  if (from && to) need(from <= to, 'The audit search ends on or after its start')
  const where: string[] = ["kind<>'timeFavorites'"], params: unknown[] = []
- if(a.role!=='owner')where.push("NOT(kind='commercialEvents' AND json_extract(data,'$.type') IN ('signature-binding','signature-evidence'))","kind NOT IN ('providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts','providerInstallation')")
+ if(a.role!=='owner')where.push("NOT(kind='commercialEvents' AND json_extract(data,'$.type') IN ('signature-binding','signature-evidence'))","kind NOT IN ('providerConnections','providerUses','providerJobs','providerSyncs','providerFollowups','githubRepos','githubEvidence','githubEffects','githubFollowups','paymentLinks','processorPayments','processorEvents','stripeAccounts','providerInstallation','learningCohorts')")
  if (q.kind) { where.push('kind=?'); params.push(q.kind) }
  if (q.recordId) { where.push('record_id=?'); params.push(q.recordId.trim()) }
  if (q.actor) { where.push('actor=?'); params.push(q.actor) }

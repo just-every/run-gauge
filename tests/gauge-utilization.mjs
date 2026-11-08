@@ -24,7 +24,7 @@ try {
   if (denominator === null || denominator === 0) assert.equal(r.ratios[key].percent, null, key)
   else assert(Math.abs(r.ratios[key].percent - numerator / denominator * 100) < 1e-8, key)
  }
- const client = await cmd('save:clients', { name: 'Cascade Cider' })
+ const client = await cmd('save:clients', { name: 'Cascade Cider', billingCurrency: 'AUD' })
  const person = await cmd('save:people', { name: 'Mia Chen', timezone: 'Australia/Brisbane' })
  const zero = await cmd('save:people', { name: 'Zero availability', timezone: 'Australia/Brisbane' })
  const missing = await cmd('save:people', { name: 'Unsupplied calendar', timezone: 'Australia/Brisbane' })
@@ -76,9 +76,9 @@ try {
   for (const width of [1440, 390]) {
    await page.setViewportSize({ width, height: 1000 }); await page.evaluate(() => document.fonts.ready)
    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name} fits ${width}`)
-   await page.screenshot({ path: `${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`, fullPage: true })
+   await page.screenshot({ path: `${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`, fullPage: true, mask: [page.locator('[name=createdKey]')] })
    const focus=page.locator(name.startsWith('utilization-key')?'#api-keys':name.startsWith('internal')?'form:has(input[value="save:engagements"])':'#utilization')
-   await focus.scrollIntoViewIfNeeded(); await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`})
+   await focus.scrollIntoViewIfNeeded(); await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`,mask:[page.locator('[name=createdKey]')]})
   }
  }
  await page.goto(h.origin + '/app/engagements')

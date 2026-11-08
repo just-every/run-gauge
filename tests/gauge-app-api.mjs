@@ -9,38 +9,44 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
  const app=(token,path='/api/gauge/v1/projects',input)=>request(path,'',{...(input?{method:'POST',body:JSON.stringify(input)}:{}),headers:{authorization:`Bearer ${token}`,'content-type':'application/json'}})
  const assigned=[]
  for(let i=0;i<3;i++)assigned.push(await cmd('save:engagements',{name:`App project ${i}`,clientId:client.id,leadId:person.id,members:[person.id],scope:'Assigned app work',timezone:'Australia/Brisbane'}))
- const create={projectIds:(await h.state(staff.cookie)).data.engagements.map(r=>r.id).sort(),expiryDays:30,label:'Scoped timesheet app',operatorId:staff.id,scope:'projects:read time:read time:write'}
+ const create={engagementIds:(await h.state(staff.cookie)).data.engagements.map(r=>r.id).sort(),expiryDays:30,label:'Scoped timesheet app',operatorId:staff.id,scope:'projects:read time:read time:write'}
  await cmd('appkey:create',create,staff.cookie,403)
  await cmd('appkey:create',{...create,scope:'owner:*'},owner,400)
- for(const expiryDays of [0,366,'Infinity'])await cmd('appkey:create',{...create,expiryDays},owner,400)
- await cmd('appkey:create',{...create,projectIds:[]},owner,400)
+ for(const expiryDays of [undefined,0,366,1.5,'Infinity'])await cmd('appkey:create',{...create,expiryDays},owner,400)
+ for(const engagementIds of [undefined,[],['synthetic-gauge-unassigned']])await cmd('appkey:create',{...create,engagementIds},owner,engagementIds?.length?404:400)
 
  const context=await browser.newContext({ignoreHTTPSErrors:true}),page=await context.newPage()
  await context.addCookies(owner.split('; ').map(part=>{const i=part.indexOf('=');return {name:part.slice(0,i),value:part.slice(i+1),url:h.origin}}))
  const capture=async name=>{
-  for(const width of [1440,390]){
+  await page.setViewportSize({width:1440,height:1000});await page.evaluate(()=>document.fonts.ready)
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'App credential screen fits desktop')
+  for(const control of await page.locator('button.g-btn--icon,a.g-btn--icon').all())assert(await control.getAttribute('data-tooltip'))
+  if(process.env.GAUGE_UTILIZATION_SHOTS)for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.evaluate(()=>document.fonts.ready)
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`App credential screen fits ${width}`)
    // Access uses text buttons. Any icon-only control must retain the shared tooltip.
    if(width===1440)for(const control of await page.locator('button.g-btn--icon,a.g-btn--icon').all())assert(await control.getAttribute('data-tooltip'))
-   if(process.env.GAUGE_UTILIZATION_SHOTS){await mkdir(process.env.GAUGE_UTILIZATION_SHOTS,{recursive:true});await page.locator('#app-keys').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`,fullPage:true});await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`})}
+   if(process.env.GAUGE_UTILIZATION_SHOTS){await mkdir(process.env.GAUGE_UTILIZATION_SHOTS,{recursive:true});await page.locator('#app-keys').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-${width}.png`,fullPage:true,mask:[page.locator('[name=createdKey]')]});await page.screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/${name}-viewport-${width}.png`,mask:[page.locator('[name=createdKey]')]})}
   }
  }
  try{
   await page.goto(h.origin+'/app/access');const form=page.locator('form:has(input[value="appkey:create"])')
   await form.getByLabel('App label',{exact:true}).fill(create.label);await form.locator('select[name=operatorId]').selectOption(staff.id);await form.locator('select[name=scope]').selectOption(create.scope)
-  for(const id of create.projectIds)await form.locator(`input[name=projectIds][value="${id}"]`).check()
-  await form.getByLabel('Expires after days (1 to 365)',{exact:true}).fill('30')
+  for(const id of create.engagementIds)await form.locator(`input[name=engagementIds][value="${id}"]`).check()
+  await form.getByLabel('Expires after days',{exact:true}).fill('30')
   await capture('app-credential-create');const posting=page.waitForResponse(r=>new URL(r.url()).pathname==='/app/action'&&r.request().method()==='POST');await form.getByRole('button',{name:'Create app credential',exact:true}).click();const issued=await posting;assert.equal(issued.status(),200,(await issued.text()).match(/role="alert">([^<]*)/)?.[1]??'App credential form must succeed')
   const token=await page.locator('[name=createdKey]').inputValue();assert.match(token,/^gauge_app_/)
-  const key=await h.db.prepare('SELECT * FROM g_app_keys WHERE label=?').bind(create.label).first();assert.equal(key.hash,createHash('sha256').update(token).digest('hex'));assert(!JSON.stringify(key).includes(token));assert.equal(key.expires_at-key.created_at,30*86400000);assert.equal(key.person_id,person.id);assert.deepEqual(JSON.parse(key.project_ids),create.projectIds)
-  const lifecycle=await page.locator(`tr[id="${key.id}"]`).innerText();for(const value of ['Expires','Issued','Last used','Credential v1','Mia Chen'])assert(lifecycle.includes(value),value)
+  const key=await h.db.prepare('SELECT * FROM g_app_keys WHERE label=?').bind(create.label).first();assert.equal(key.hash,createHash('sha256').update(token).digest('hex'));assert(!JSON.stringify(key).includes(token));assert.equal(key.expires_at-key.created_at,30*86400000);assert.equal(key.person_id,person.id);assert.deepEqual(JSON.parse(key.engagement_ids),create.engagementIds)
+  const lifecycle=await page.locator(`tr[id="${key.id}"]`).innerText();for(const value of ['Expires','Issued','Last used','Credential version 1',person.id])assert(lifecycle.includes(value),value)
+  assert(lifecycle.includes(new Date(key.expires_at).toISOString().slice(0,16).replace('T',' ')+' UTC'));assert(lifecycle.includes('operator '+key.operator_version));assert(lifecycle.includes('grant '+key.grant_version));for(const id of create.engagementIds)assert(lifecycle.includes(id))
   await capture('app-credential-shown-once');await page.reload();assert.equal(await page.locator('[name=createdKey]').count(),0)
   const repeated={...create,key:randomUUID()},first=await cmd('appkey:create',repeated),replay=await cmd('appkey:create',repeated);assert.equal(replay.id,first.id);assert(!replay.token)
   await cmd('appkey:create',{...repeated,scope:'projects:read'},owner,409)
+  await cmd('appkey:create',{...repeated,expiryDays:31},owner,409)
+  await cmd('appkey:create',{...repeated,engagementIds:[engagement.id]},owner,409)
   const hiddenPerson=await cmd('save:people',{name:'Other app principal',timezone:'Australia/Brisbane'})
   const hidden=await cmd('save:engagements',{name:'Hidden app project',clientId:client.id,leadId:hiddenPerson.id,members:[hiddenPerson.id],scope:'Private project',timezone:'Australia/Brisbane'})
-  await cmd('appkey:create',{...create,projectIds:[hidden.id]},owner,403)
+  await cmd('appkey:create',{...create,engagementIds:[hidden.id]},owner,403)
   const sharedField=await cmd('field:define',{scope:'engagements',name:'App shared context',type:'text',visibility:'everyone',reason:'Explicit shared app context'})
   const privateField=await cmd('field:define',{scope:'engagements',name:'App private context',type:'text',visibility:'finance-only',reason:'Keep private commercial context out of apps'})
   const currentProject=(await h.state()).data.engagements.find(r=>r.id===engagement.id)
@@ -117,7 +123,7 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,...someoneElse,key:randomUUID()})).status,403,'A known entry identity cannot edit another person’s draft')
   const secondDraft=await cmd('time:save',{...input,key:randomUUID(),taskId:secondTask.id,start:'2026-10-04T13:00:00+10:00',end:'2026-10-04T13:30:00+10:00',notes:'Second recoverable app draft'})
   const outsideDraft=await cmd('time:save',{...input,key:randomUUID(),engagementId:assigned[0].id,taskId:otherTask.id,start:'2026-10-04T14:00:00+10:00',end:'2026-10-04T14:30:00+10:00'})
-  const readGrant=await cmd('appkey:create',{...create,label:'Review own drafts',projectIds:[engagement.id],scope:'projects:read time:read'})
+  const readGrant=await cmd('appkey:create',{...create,label:'Review own drafts',engagementIds:[engagement.id],scope:'projects:read time:read'})
   const draftPath='/api/gauge/v1/time?from=2026-10-04&to=2026-10-04',drafts=[];let draftCursor=null,firstDraftCursor
   do{const response=await app(readGrant.token,draftPath+'&limit=1'+(draftCursor?'&cursor='+encodeURIComponent(draftCursor):''));assert.equal(response.status,200);const body=await response.json();drafts.push(...body.time);draftCursor=body.nextCursor;if(!firstDraftCursor)firstDraftCursor=draftCursor}while(draftCursor)
   assert.deepEqual(drafts.map(r=>r.id).sort(),[saved.id,secondDraft.id].sort(),'Draft pagination returns the complete own captured-project set')
@@ -148,17 +154,23 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
 
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,end:'2026-10-04T10:00:00+10:00'})).status,409,'A changed request cannot replay the same key')
   for(const data of [{...input,key:randomUUID(),personId:hiddenPerson.id},{...input,key:randomUUID(),engagementId:hidden.id},...['time:submit','time:approve','packet:create','grant','providerJob:dispatch'].map(action=>({...input,key:randomUUID(),action}))])assert.equal((await app(token,'/api/gauge/v1/time',data)).status,403)
+  await cmd('appkey:create',{...create,engagementIds:[hidden.id]},owner,403)
+  const laterAssignment=await cmd('save:engagements',{name:'Later native assignment',clientId:client.id,leadId:person.id,members:[person.id],scope:'Not captured by existing credential',timezone:'Australia/Brisbane'})
+  const laterTask=await cmd('save:tasks',{engagementId:laterAssignment.id,name:'Later assigned task',remainingSeconds:0})
+  assert((await h.state(staff.cookie)).data.engagements.some(r=>r.id===laterAssignment.id),'Native visibility really widens')
+  const bounded=await(await app(token)).json();assert.deepEqual(bounded.projects.map(r=>r.id).sort(),create.engagementIds,'Captured project authority never widens')
+  assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),engagementId:laterAssignment.id,taskId:laterTask.id})).status,403,'Native widening grants no app write authority')
   const widened=await cmd('save:engagements',{...hidden,...(await h.state()).data.engagements.find(r=>r.id===hidden.id).value,members:[hiddenPerson.id,person.id]})
   assert((await h.state(staff.cookie)).data.engagements.some(r=>r.id===widened.id),'Native widening is visible to the staff member')
-  assert.deepEqual((await(await app(token)).json()).projects.map(r=>r.id).sort(),create.projectIds,'Native widening cannot add app projects')
+  assert.deepEqual((await(await app(token)).json()).projects.map(r=>r.id).sort(),create.engagementIds,'Native widening cannot add app projects')
   assert.equal((await app(token,'/api/gauge/v1/time',{...input,key:randomUUID(),engagementId:widened.id})).status,403,'A newly assigned project is still outside the captured write scope')
-  await cmd('appkey:create',{...create,projectIds:[widened.id],operatorId:staff.id,expiryDays:1})
+  await cmd('appkey:create',{...create,engagementIds:[widened.id],operatorId:staff.id,expiryDays:1})
   const readOnly=await cmd('appkey:create',{...create,label:'Read-only app',scope:'projects:read'})
   assert.equal((await app(readOnly.token,'/api/gauge/v1/time',{...input,key:randomUUID()})).status,403)
   assert.equal((await app(readOnly.token,'/api/gauge/v1/time')).status,403)
   assert.equal((await app(token,'/api/gauge/v1/audit')).status,403)
   assert.equal((await app(token,'/api/gauge/state?from=2026-10-01&to=2026-10-31')).status,401,'App credential cannot use the utilization door')
-  const selected=await cmd('appkey:create',{...create,label:'Only one project',projectIds:[engagement.id]})
+  const selected=await cmd('appkey:create',{...create,label:'Only one project',engagementIds:[engagement.id]})
   assert.deepEqual((await(await app(selected.token)).json()).projects.map(r=>r.id),[engagement.id],'Explicit selection excludes another already assigned project')
   const removed=(await h.state()).data.engagements.find(r=>r.id===engagement.id)
   const narrowed=await cmd('save:engagements',{...removed,...removed.value,members:[]})
@@ -169,7 +181,16 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.deepEqual((await(await app(readGrant.token,draftPath)).json()).time,[],'Native project removal ends draft collection access')
   assert.equal((await app(readGrant.token,'/api/gauge/v1/time/'+secondDraft.id)).status,404,'Native project removal ends draft detail access')
   await cmd('save:engagements',{...narrowed,...removed.value})
-  const audit=await(await request('/api/gauge/audit',owner)).json();assert(audit.entries.some(e=>e.action==='appkey:use'));assert(!JSON.stringify(audit).includes(token))
+  const audit=await(await request('/api/gauge/audit',owner)).json();const use=audit.entries.find(e=>e.action==='appkey:use'&&e.recordId===key.id);assert(use);const useDetail=use.result;assert.equal(useDetail.personId,person.id);assert.deepEqual(useDetail.engagementIds,create.engagementIds);assert.equal(useDetail.expiresAt,key.expires_at);assert.equal(useDetail.operatorVersion,key.operator_version);assert.equal(useDetail.grantVersion,key.grant_version);assert(!JSON.stringify(audit).includes(token))
+  const lifecycleExpiry=await cmd('appkey:create',{...create,label:'Expiring app'})
+  const expiringInput={...input,key:randomUUID(),start:'2026-10-04T10:00:00+10:00',end:'2026-10-04T10:30:00+10:00'}
+  assert.equal((await app(lifecycleExpiry.token,'/api/gauge/v1/time',expiringInput)).status,200)
+  await h.db.prepare('UPDATE g_app_keys SET expires_at=0 WHERE id=?').bind(lifecycleExpiry.id).run()
+  assert.equal((await app(lifecycleExpiry.token)).status,401,'Expiry refuses the next read')
+  assert.equal((await app(lifecycleExpiry.token,'/api/gauge/v1/time',expiringInput)).status,401,'Expiry refuses a previously successful write replay')
+  assert.equal((await app(lifecycleExpiry.token,'/api/gauge/v1/time',{...expiringInput,key:randomUUID()})).status,401,'Expiry refuses a fresh write')
+  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${lifecycleExpiry.id}"]`).innerText(),/expired/)
+  const lifecycleUsed=await h.db.prepare('SELECT last_used_at FROM g_app_keys WHERE id=?').bind(key.id).first();assert(lifecycleUsed.last_used_at);assert((await page.locator(`tr[id="${key.id}"]`).innerText()).includes(new Date(lifecycleUsed.last_used_at).toISOString().slice(0,16).replace('T',' ')+' UTC'));assert((await page.getByRole('heading',{name:'App credential activity',exact:true}).locator('..').innerText()).includes('appkey:use'));assert.equal(await page.locator('[name=createdKey]').count(),0);await capture('app-credential-expired')
   await page.goto(h.origin+'/app/access');await page.locator(`tr[id="${key.id}"]`).getByRole('button',{name:'Revoke app credential',exact:true}).click()
   await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${key.id}"]`).innerText(),/revoked/);await capture('app-credential-revoked')
   assert.equal((await app(token)).status,401);assert.equal((await app(token,'/api/gauge/v1/time',input)).status,401,'Revocation also refuses an exact write replay')
@@ -182,9 +203,10 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.equal((await app(expiring.token)).status,401,'Expiry refuses the next read')
   assert.equal((await app(expiring.token,'/api/gauge/v1/time')).status,401,'Expiry also closes the draft read door')
   assert.equal((await app(expiring.token,'/api/gauge/v1/time',expiryInput)).status,401,'Expiry refuses a previously successful write replay')
+  assert.equal((await app(expiring.token,'/api/gauge/v1/time',{...expiryInput,key:randomUUID()})).status,401,'Expiry refuses a fresh write')
   await h.db.prepare('UPDATE g_app_keys SET expires_at=1 WHERE id=?').bind(expiring.id).run()
   await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${expiring.id}"]`).innerText(),/expired/)
-  const used=await h.db.prepare('SELECT last_used_at FROM g_app_keys WHERE id=?').bind(key.id).first();assert(used.last_used_at>=key.created_at)
+  const used=await h.db.prepare('SELECT last_used_at FROM g_app_keys WHERE id=?').bind(key.id).first();assert(used.last_used_at>=key.created_at);assert((await page.locator(`tr[id="${key.id}"]`).innerText()).includes(new Date(used.last_used_at).toISOString().slice(0,16).replace('T',' ')+' UTC'));assert((await page.getByRole('heading',{name:'App credential activity',exact:true}).locator('..').innerText()).includes('appkey:use'));assert.equal(await page.locator('[name=createdKey]').count(),0);await capture('app-credential-expired')
   const race=await cmd('appkey:create',{...create,label:'Expiry during request'})
   let streamRequest
   const inFlight=new Promise((resolve,reject)=>{
@@ -212,7 +234,7 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
 
   await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true})
   assert.equal((await app(readOnly.token)).status,403,'A changed native grant invalidates existing credentials')
-  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${readOnly.id}"]`).innerText(),/grant changed/);await capture('app-credential-lifecycle')
+  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${readOnly.id}"]`).innerText(),/principal or grant changed/);await capture('app-credential-invalidated')
   const issuer=await h.invite('app-continuity-owner','owner')
   const issuerBound=await cmd('appkey:create',{...create,label:'Issuing owner authority'},issuer.cookie)
   assert.equal((await app(issuerBound.token)).status,200)
@@ -222,8 +244,8 @@ export async function appApiJourney(h,browser,{staff,person,client,task,engageme
   assert.equal((await app(liveBound.token)).status,200)
   await h.db.prepare('UPDATE oa_operators SET version=version+1 WHERE id=?').bind(staff.id).run()
   assert.equal((await app(liveBound.token)).status,403,'A changed principal operator version invalidates the credential')
-  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${liveBound.id}"]`).innerText(),/operator changed/)
+  await page.goto(h.origin+'/app/access');assert.match(await page.locator(`tr[id="${liveBound.id}"]`).innerText(),/principal or grant changed/)
   if(process.env.GAUGE_UTILIZATION_SHOTS)for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('section.g-card--table').filter({has:page.getByRole('heading',{name:'App credentials',exact:true})}).screenshot({path:`${process.env.GAUGE_UTILIZATION_SHOTS}/app-credential-register-${width}.png`})}
-  console.log('PASS CONNECT-020 appApiJourney: scoped native project and task pagination and filters, individual project and task projection, explicitly selected own-draft readback and pagination with exact revisions, scope and status boundaries and bound cursors, malformed and stale cursor refusal, native draft edits and refusal boundaries, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, finite expiry and expired replay refusal, captured scope non-widening, visible lifecycle, grant change and revoked replay refusal, Access at 1440 and 390')
+  console.log('PASS CONNECT-020 appApiJourney: scoped native project and task details and pagination, explicitly selected own-draft reads, native draft edits and filters, stale cursor refusal, one draft per request key, changed replay refusal, read-only and person boundaries, audited SHA-256 custody, grant change and revoked replay refusal, finite expiry including write replays, exact captured scope non-widening and native membership intersection, visible lifecycle and safe activity, Access at 1440 and 390')
  }finally{await context.close()}
 }

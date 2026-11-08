@@ -21,6 +21,7 @@ export async function timeCommand(env: Bindings,a: Actor,tx: Transaction,action:
  if (action === 'time:save' || action === 'timer:start') {
   const old = input.id ? await get(env,'time',input.id) : undefined
   if (old) { need(finance(a) || a.personId === old.value.personId, 'Only your own entry', 403); const original = await access(env,a,old.value.engagementId); tx.observe('engagements',original); need(old.value.personId === input.personId && old.value.engagementId === input.engagementId,'Cannot move an existing entry'); need(old.revision === input.revision,'Entry changed; reload',409); need(['draft','returned'].includes(old.value.status),'Submitted or approved entries require return/correction',409) }
+  if(a.appKey&&old)need(old.value.status==='draft','App credentials edit draft time only',403)
   if(old)await assertRetainerSourceEditable(env,tx,old)
   if(old)await assertTimeUnlocked(env,tx,[old.value.workDate])
   const policy=await observedPolicy(env,tx),settings=reviewSettings(policy)

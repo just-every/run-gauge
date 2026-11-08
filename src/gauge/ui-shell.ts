@@ -21,11 +21,11 @@ const paths: Record<string, string> = {
 export const icon = (name: string) => `<svg class="g-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">${paths[name] ?? ''}</svg>`
 
 /** The brand lockup: the picked mark and the serif name. */
-export const lockup = (href: string, name: string) => `<a class="g-brand" href="${href}"><img src="/brand/mark.svg" alt="" width="28" height="28"><span data-rer-name>${name}</span></a>`
+export const lockup = (href: string, name: string) => `<a class="g-brand" href="${href}" data-tooltip="Open workspace"><img src="/brand/mark.svg" alt="" width="28" height="28"><span data-rer-name>${name}</span></a>`
 
 /** The rail. Under 900 px it folds into a top bar whose links open from Menu (no script: the app's CSP allows none). */
 export function rail(tabs: string[], section: string) {
- const links = tabs.map(t => `<li><a href="/app/${t}"${section === t ? ' aria-current="page"' : ''}>${icon(t)}<span>${tabLabels[t]}</span></a></li>`).join('')
+ const links = tabs.map(t => `<li><a href="/app/${t}" data-tooltip="${e(tabLabels[t])} page"${section === t ? ' aria-current="page"' : ''}>${icon(t)}<span>${tabLabels[t]}</span></a></li>`).join('')
  return `<nav class="g-rail" aria-label="Workspace">${lockup('/app', 'Gauge')}<details class="g-menu"><summary>Menu</summary><ul role="list">${links}</ul></details></nav>`
 }
 

@@ -22,7 +22,9 @@ export async function scopeChangePreview(env:Bindings,a:Actor,input:Value,tx?:Tr
  const before=latestBudget(await all(env,'budgets'),engagement.id),proposed=scope[0].terms
  if(tx&&before)tx.observe('budgets',before)
  const after=proposed?Object.fromEntries(['mode','amountMinor','effortSeconds','roundingSeconds','expenseBudgetMinor','expenseDate','reason'].filter(k=>proposed[k]!==undefined).map(k=>[k,proposed[k]])):before?.value??null
- return {...preview,engagementId:engagement.id,scopeDifference:{before:engagement.value.scope,after:text(scope[0].scope,'Proposed scope')},termsDifference:{before:before??null,after,changed:!!proposed}}
+ if(proposed&&after){after.notToExceed=before?.value.notToExceed??false;after.phases=proposed.phases??before?.value.phases??[]}
+ const customerNames=Object.fromEntries(await Promise.all(['tasks','milestones'].map(async k=>[k,Object.fromEntries((await all(env,k as 'tasks'|'milestones')).filter(r=>r.value.engagementId===engagement.id).map(r=>[r.id,r.value.name]))])))
+ return {...preview,customerNames,engagementId:engagement.id,scopeDifference:{before:engagement.value.scope,after:text(scope[0].scope,'Proposed scope')},termsDifference:{before:before??null,after,changed:!!proposed}}
 }
 export async function scopeChangeCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null> {
  if(!['change:prepare','change:review','change:withdraw'].includes(action))return null

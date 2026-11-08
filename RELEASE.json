@@ -50,7 +50,8 @@
     "migrations/core/0063_gauge_float.sql",
     "migrations/core/0064_dependency_keys_sealed.sql",
     "migrations/core/0064_gauge_invoice_presentation.sql",
-    "migrations/core/0065_gauge_invoice_access.sql"
+    "migrations/core/0065_gauge_invoice_access.sql",
+    "migrations/core/0085_gauge_client_roles.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Retain the installation identity and all applied migration bytes. Build and verify the committed source before packaging; configure the declared mail provider before sending mail."

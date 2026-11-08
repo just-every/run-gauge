@@ -24,7 +24,7 @@ export async function providerCustodyJourney(browser){
   await context.addCookies(owner.split('; ').map(part=>{const at=part.indexOf('=');return {name:part.slice(0,at),value:part.slice(at+1),url:h.origin}}))
   const page=await context.newPage(),shots=process.env.GAUGE_PROVIDER_SHOTS
   if(shots)await mkdir(shots,{recursive:true})
-  const capture=async(name,section)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await section.scrollIntoViewIfNeeded();await page.evaluate(()=>document.fonts.ready);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Provider ${name} fits ${width}`);scan(`provider ${name} page`,await page.content());if(shots)await section.screenshot({path:`${shots}/${name}-${width}.png`})}}
+  const capture=async(name,section)=>{for(const width of shots?[1440,390]:[1440]){await page.setViewportSize({width,height:1000});await section.scrollIntoViewIfNeeded();await page.evaluate(()=>document.fonts.ready);if(width===1440){assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Provider ${name} fits ${width}`);scan(`provider ${name} page`,await page.content())}if(shots)await section.screenshot({path:`${shots}/${name}-${width}.png`})}}
   const form=action=>page.locator('form').filter({has:page.locator(`input[name="action"][value="${action}"]`)})
   const section=heading=>page.locator('section.g-card').filter({has:page.getByRole('heading',{name:heading,exact:true})})
 

@@ -477,27 +477,99 @@
     },
     {
       "binding": "DB",
-      "name": "0079_gauge_app_key_scope.sql",
-      "sha256": "0fa622cf6fb6bdbab18f931bc0579e1bcb10ec98e874fbc72c996c741d5ff7ea",
-      "sql": "-- Existing unbounded credentials require fresh owner review and issuance.\nALTER TABLE g_app_keys ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0;\nALTER TABLE g_app_keys ADD COLUMN person_id TEXT;\nALTER TABLE g_app_keys ADD COLUMN project_ids TEXT NOT NULL DEFAULT '[]';\nALTER TABLE g_app_keys ADD COLUMN last_used_at INTEGER;\n"
-    },
-    {
-      "binding": "DB",
       "name": "0079_gauge_change_review.sql",
       "sha256": "3d614f898559ae7d16518ceea3329c5ea61a812d391961e56579180438c75150",
       "sql": "-- Installation-only review authority is excluded from business archives.\nCREATE TABLE g_change_review_authority (\n review_id TEXT PRIMARY KEY,\n change_id TEXT NOT NULL,\n recipient_id TEXT NOT NULL,\n contact TEXT NOT NULL,\n owner_id TEXT NOT NULL,\n expires_at INTEGER NOT NULL,\n token_hash TEXT NOT NULL\n);\n"
     },
     {
       "binding": "DB",
-      "name": "0080_gauge_webhook_previews.sql",
+      "name": "0079_gauge_portal_choices.sql",
+      "sha256": "7ab366f3009e619461d19eed3072208642a67e3ebf2a73ca8f16d4e26e0b23cd",
+      "sql": "ALTER TABLE g_client_portal_authority ADD COLUMN share_budget INTEGER NOT NULL DEFAULT 0;\nALTER TABLE g_client_portal_authority ADD COLUMN share_burn INTEGER NOT NULL DEFAULT 0;\nALTER TABLE g_client_portal_authority ADD COLUMN share_remaining INTEGER NOT NULL DEFAULT 0;\nALTER TABLE g_client_portal_authority ADD COLUMN share_value INTEGER NOT NULL DEFAULT 0;\nALTER TABLE g_client_portal_authority ADD COLUMN share_fields INTEGER NOT NULL DEFAULT 0;\nUPDATE g_client_portal_authority SET share_budget=share_money,share_burn=share_money,share_remaining=share_money,share_value=share_money,share_fields=share_money;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0080_gauge_intake.sql",
+      "sha256": "ea400c3494be892db41187739b88ec1a4d77e957eada70bf07a43f9e5a7adb3a",
+      "sql": "CREATE TABLE g_intakeRequests (id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)));\nCREATE TABLE g_intake_files (id TEXT PRIMARY KEY, request_id TEXT NOT NULL REFERENCES g_intakeRequests(id), submission_id TEXT NOT NULL, name TEXT NOT NULL, digest TEXT NOT NULL, bytes BLOB NOT NULL);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0080_gauge_portal_owner_version.sql",
+      "sha256": "e2b1b7b526530ccce9849f09418ffece71e24742d4ae09d00c10088781fece15",
+      "sql": "ALTER TABLE g_client_portal_authority ADD COLUMN owner_version INTEGER NOT NULL DEFAULT -1;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0081_gauge_app_key_lifecycle.sql",
+      "sha256": "51e1a1fa0ce9935dd2528deba50974365046a77709d3f2d76e182441821f2932",
+      "sql": "-- Existing credentials expire closed; fresh issuance captures exact project authority.\nALTER TABLE g_app_keys ADD COLUMN expires_at INTEGER NOT NULL DEFAULT 0;\nALTER TABLE g_app_keys ADD COLUMN engagement_ids TEXT NOT NULL DEFAULT '[]';\nALTER TABLE g_app_keys ADD COLUMN person_id TEXT;\nALTER TABLE g_app_keys ADD COLUMN credential_version INTEGER NOT NULL DEFAULT 1;\nALTER TABLE g_app_keys ADD COLUMN last_used_at INTEGER;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0081_gauge_change_acceptance_versions.sql",
+      "sha256": "97aa276992de3a006ab6493557b53ab1ab50ea2a1d630c4362a9ba8899d42815",
+      "sql": "-- Existing unsigned review authority is deliberately invalid until freshly issued.\nALTER TABLE g_change_review_authority ADD COLUMN owner_version INTEGER NOT NULL DEFAULT 0;\nALTER TABLE g_change_review_authority ADD COLUMN recipient_version INTEGER NOT NULL DEFAULT 0;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0082_gauge_webhook_previews.sql",
       "sha256": "2c9942d7fa3ea75120d7fc4f3350eec77230e0ee10ee348ee5f36812eca49283",
       "sql": "-- Preview bindings are installation authority. Exact payload bytes are derived, never stored.\nCREATE TABLE g_webhook_previews (\n id TEXT PRIMARY KEY, event_id TEXT NOT NULL, owner_id TEXT NOT NULL, owner_version INTEGER NOT NULL, connection_id TEXT NOT NULL,\n credential_version INTEGER NOT NULL, source_ref TEXT NOT NULL, event_type TEXT,\n payload_digest TEXT NOT NULL, expires_at INTEGER NOT NULL\n);\n"
     },
     {
       "binding": "DB",
-      "name": "0081_gauge_app_draft_reads.sql",
-      "sha256": "dad560df27597dbb0554fc8f76131700fac615125f0d74894d676b7d3bdb4186",
-      "sql": "-- Preserve existing authority exactly; draft reads require fresh scoped issuance.\nCREATE TABLE g_app_keys_with_draft_reads (\n id TEXT PRIMARY KEY, label TEXT NOT NULL, hash TEXT NOT NULL UNIQUE CHECK(length(hash)=64),\n operator_id TEXT NOT NULL, operator_version INTEGER NOT NULL, grant_version INTEGER NOT NULL,\n scope TEXT NOT NULL CHECK(scope IN ('projects:read','projects:read time:write','projects:read time:read','projects:read time:read time:write')),\n created_by TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER,\n expires_at INTEGER NOT NULL DEFAULT 0, person_id TEXT, project_ids TEXT NOT NULL DEFAULT '[]', last_used_at INTEGER\n);\nINSERT INTO g_app_keys_with_draft_reads\n SELECT id,label,hash,operator_id,operator_version,grant_version,scope,created_by,created_at,revoked_at,expires_at,person_id,project_ids,last_used_at FROM g_app_keys;\nDROP TABLE g_app_keys;\nALTER TABLE g_app_keys_with_draft_reads RENAME TO g_app_keys;\n"
+      "name": "0083_gauge_analyst_snapshots.sql",
+      "sha256": "e5f8f7836ab2f8a57f3218807419a743b2c3b55b475f4f57929733a6fef88066",
+      "sql": "-- Financial observations carry no source text, credential or execution authority.\nCREATE TABLE g_analystSnapshots (\n id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)),\n engagement_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.engagementId')) STORED NOT NULL REFERENCES g_engagements(id)\n);\nCREATE TRIGGER g_analyst_snapshot_immutable BEFORE UPDATE ON g_analystSnapshots\nBEGIN SELECT RAISE(ABORT,'immutable_analyst_snapshot'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0084_gauge_learning.sql",
+      "sha256": "358ae3670f4cb3621cd9ac2b0c3d7181a8f54a241da3a4c5bdd7f6201173b16c",
+      "sql": "-- Immutable owner-selected backtests are business evidence, with no execution authority.\nCREATE TABLE g_learningCohorts (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK (json_valid(data))\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0085_gauge_client_roles.sql",
+      "sha256": "5c84a9553082b619feff0ec88be3f601d37c8b2fc2dfb61c60fbdf35d2655caf",
+      "sql": "-- Client role ceilings never confer internal finance authority.\nALTER TABLE g_client_portal_authority ADD COLUMN client_role TEXT NOT NULL DEFAULT 'sponsor' CHECK(client_role IN ('sponsor','collaborator'));\nALTER TABLE g_client_portal_authority ADD COLUMN review_enabled INTEGER NOT NULL DEFAULT 1 CHECK(review_enabled IN (0,1));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0086_gauge_vendor_commitments.sql",
+      "sha256": "c33aa5e1b16cb4274faf8403d71717a494436be3103e2f4c8e771c5a8a4e38e5",
+      "sql": "-- Native, user-recorded vendor costs. These records grant no provider authority.\nCREATE TABLE g_vendorCommitments (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK(json_valid(data))\n);\nCREATE TABLE g_vendorBills (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK(json_valid(data))\n);\nCREATE TABLE g_vendor_files (\n id TEXT PRIMARY KEY,\n bill_id TEXT NOT NULL REFERENCES g_vendorBills(id),\n name TEXT NOT NULL,\n media_type TEXT NOT NULL,\n bytes BLOB NOT NULL,\n size INTEGER NOT NULL\n);\nCREATE TABLE g_vendor_matches (\n bill_id TEXT PRIMARY KEY REFERENCES g_vendorBills(id),\n commitment_id TEXT NOT NULL REFERENCES g_vendorCommitments(id),\n commitment_revision TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0087_gauge_cash_assumptions.sql",
+      "sha256": "9b0510183ef49de98edc2f8ae46d4abe53c70ef2fe0d271e128d0d1d797487d2",
+      "sql": "-- Business assumptions travel as history; they grant no execution authority.\nCREATE TABLE g_cashAssumptions (\n id TEXT PRIMARY KEY,\n revision TEXT NOT NULL,\n data TEXT NOT NULL CHECK(json_valid(data)),\n engagement_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.engagementId')) STORED NOT NULL,\n source_key TEXT GENERATED ALWAYS AS (json_extract(data,'$.sourceKey')) STORED NOT NULL,\n UNIQUE(engagement_id,source_key)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0088_gauge_late_fee_drafts.sql",
+      "sha256": "7ffb171f4a3d35f6980926c51caebf0c272b86ed114d3f2115c7b649d2ae3b49",
+      "sql": "-- Native late-fee proposals only. They are not invoices, payments or receivables.\nCREATE TABLE g_lateFeeDrafts (\n id TEXT PRIMARY KEY, revision TEXT NOT NULL, data TEXT NOT NULL CHECK(json_valid(data)),\n invoice_id TEXT GENERATED ALWAYS AS (json_extract(data,'$.invoiceId')) STORED NOT NULL REFERENCES g_invoices(id),\n period_end TEXT GENERATED ALWAYS AS (json_extract(data,'$.periodEnd')) STORED NOT NULL,\n amount_minor INTEGER GENERATED ALWAYS AS (json_extract(data,'$.amountMinor')) STORED NOT NULL CHECK(typeof(amount_minor)='integer' AND amount_minor>0),\n CHECK(json_extract(data,'$.status')='awaiting-finance-approval')\n);\nCREATE UNIQUE INDEX g_late_fee_invoice_period_once ON g_lateFeeDrafts(invoice_id,period_end);\nCREATE TRIGGER g_late_fee_draft_immutable BEFORE UPDATE ON g_lateFeeDrafts BEGIN SELECT RAISE(ABORT,'immutable_late_fee_draft'); END;\nCREATE TRIGGER g_late_fee_draft_no_delete BEFORE DELETE ON g_lateFeeDrafts BEGIN SELECT RAISE(ABORT,'immutable_late_fee_draft'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0089_gauge_app_key_scope.sql",
+      "sha256": "0a9979785573d0e407509a47e3963547207c64c39a7dcc121297f8ea510f27cb",
+      "sql": "-- Exact captured scope, finite expiry, person binding and last use are already\n-- installed by 0081_gauge_app_key_lifecycle.sql. Preserve its engagement_ids\n-- and credential_version columns and all existing credential authority.\nSELECT 1;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0090_gauge_webhook_previews.sql",
+      "sha256": "3eb02a5ced9a156838808a222b677c85d10fc200d0b27f40493d828a3a64d0d4",
+      "sql": "-- Preview bindings are installation authority. Exact payload bytes are derived, never stored.\n-- Main already installs the same preview bindings in 0082_gauge_webhook_previews.sql.\nCREATE TABLE IF NOT EXISTS g_webhook_previews (\n id TEXT PRIMARY KEY, event_id TEXT NOT NULL, owner_id TEXT NOT NULL, owner_version INTEGER NOT NULL, connection_id TEXT NOT NULL,\n credential_version INTEGER NOT NULL, source_ref TEXT NOT NULL, event_type TEXT,\n payload_digest TEXT NOT NULL, expires_at INTEGER NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0091_gauge_app_draft_reads.sql",
+      "sha256": "0d61c7658d7d520f084d4678a4d912719ed51bf0dbea701bdd880a1e8fd9dbfc",
+      "sql": "-- Preserve existing authority exactly; draft reads require fresh scoped issuance.\nCREATE TABLE g_app_keys_with_draft_reads (\n id TEXT PRIMARY KEY, label TEXT NOT NULL, hash TEXT NOT NULL UNIQUE CHECK(length(hash)=64),\n operator_id TEXT NOT NULL, operator_version INTEGER NOT NULL, grant_version INTEGER NOT NULL,\n scope TEXT NOT NULL CHECK(scope IN ('projects:read','projects:read time:write','projects:read time:read','projects:read time:read time:write')),\n created_by TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER,\n expires_at INTEGER NOT NULL DEFAULT 0, person_id TEXT, engagement_ids TEXT NOT NULL DEFAULT '[]', credential_version INTEGER NOT NULL DEFAULT 1, last_used_at INTEGER\n);\nINSERT INTO g_app_keys_with_draft_reads\n SELECT id,label,hash,operator_id,operator_version,grant_version,scope,created_by,created_at,revoked_at,expires_at,person_id,engagement_ids,credential_version,last_used_at FROM g_app_keys;\nDROP TABLE g_app_keys;\nALTER TABLE g_app_keys_with_draft_reads RENAME TO g_app_keys;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
@@ -514,7 +586,6 @@
     "MAIL_RELAY_URL": "",
     "MAIL_ACCOUNT_ID": "",
     "IDENTITY_PROVIDER": "",
-    "OWNER_EMAIL": "",
     "APP_NAME": "Gauge",
     "PRIMARY_COLOR": "#174F84"
   },

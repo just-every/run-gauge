@@ -1,3 +1,4 @@
+import { normalizeIntake, createIntake } from './intake'
 import { normalizeCustom,visibleCustom } from './custom-values'
 import { normalizePhases } from './budget-phases'
 import type { Bindings } from '../auth.server'
@@ -60,6 +61,7 @@ export async function templateCommand(env: Bindings, a: Actor, tx: Transaction, 
   need(purposes.includes(purpose), 'Choose a project or client-onboarding template')
   const id = uuid(), number = (previous?.value.number ?? 0) + 1
   const value = { rootId: previous?.value.rootId ?? id, number, previousId: previous?.id ?? null, name: text(input.name ?? previous?.value.name, 'Template name', 200), purpose, currency: a.currency, items: normalizeItems(input.items, await all(env, 'people')), reason: text(input.reason, 'Version reason'), savedBy: a.session.operator.id, savedAt: Date.now() }
+  Object.assign(value,{intakeForms:input.intakeForms===undefined?previous?.value.intakeForms??[]:normalizeIntakeForms(input.intakeForms)})
   // Defaults are typed at authoring time; required completeness is checked for each task on application.
   const priorOverlay=tx.customOverlay,priorWrite=tx.customWrite;tx.customOverlay=(tx.actor.customDefinitions??[]).map(f=>({...f,value:{...f.value,required:false}}))
   for(const item of value.items)if(item.kind==='task'){
@@ -100,5 +102,8 @@ export async function templateCommand(env: Bindings, a: Actor, tx: Transaction, 
   }
   if (item.kind === 'milestone') await tx.record('milestones', { ...(item.customFields?{customFields:item.customFields}:{}),...(item.phaseKey?{phaseKey:item.phaseKey}:{}),engagementId: engagement.id, currency: engagement.value.currency, name: item.name, due: node.end, amountMinor: item.amountMinor, status: 'draft', templateItem: item.key }, undefined, ids.get(item.key), 'template:apply')
  }
+ for(const f of t.intakeForms??[])await createIntake(tx,engagement,{...f,due:businessDay(calendar,start,f.offsetDays),reminderOn:businessDay(calendar,start,f.offsetDays),templateId:template.id})
  return tx.record('deliveryPlans', { engagementId: engagement.id, previousId: null, number: 1, schedule, reason: text(input.reason, 'Template application reason'), approvedBy: a.session.operator.id, approvedAt: Date.now(), template: { id: template.id, rootId: t.rootId, number: t.number, name: t.name, start } }, undefined, undefined, 'template:apply')
 }
+
+function normalizeIntakeForms(raw:unknown){need(Array.isArray(raw)&&raw.length<=10,'Use at most ten intake forms');return raw.map(f=>({...normalizeIntake(f),offsetDays:integer(f.offsetDays??0,'Intake business-day offset',0,730)}))}

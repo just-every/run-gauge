@@ -3,6 +3,49 @@ import test from 'node:test'
 import {harness} from './gauge-harness.mjs'
 import {forecastPackage,forecastMetadata} from './fixtures/forecast.mjs'
 
+test('Frozen harness sessions authorize writes and still expire independently of the real date',async()=>{
+ const realNow=Date.now(),day=86400000
+ for(const offset of [-30,-400,400]){
+  const timestamp=new Date(realNow+offset*day).setUTCHours(12,0,0,0),now=new Date(timestamp).toISOString()
+  const h=await harness({now})
+  try{
+   const person=await h.cmd('save:people',{name:'Clock staff',timezone:'Australia/Brisbane'})
+   const staff=await h.invite('clock-staff')
+   await h.cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true})
+   const client=await h.cmd('save:clients',{name:'Clock client'})
+   const project=await h.cmd('save:engagements',{name:'Clock project',clientId:client.id,leadId:person.id,members:[person.id],scope:'Clock regression',timezone:'Australia/Brisbane'})
+   const task=await h.cmd('save:tasks',{engagementId:project.id,name:'Clock task',remainingSeconds:3600})
+   const input={name:'Clock favorite',taskId:task.id,service:'Design',timezone:'Australia/Brisbane'}
+   const favorite=await h.cmd('time:favorite',input,staff.cookie)
+   assert((await h.state(staff.cookie)).data.timeFavorites.some(row=>row.id===favorite.id),'staff transaction commits on the journey clock')
+   assert.equal((await h.state()).asOf,now,'Worker observation uses the same frozen instant')
+   const sessions=await h.db.prepare('SELECT created_at,expires_at FROM oa_sessions').all()
+   assert(sessions.results.length>=2)
+   for(const session of sessions.results){assert.equal(session.created_at,timestamp);assert(session.expires_at>timestamp,'normal session TTL is retained')}
+   const clock=await h.db.prepare("SELECT CAST(unixepoch('subsec')*1000 AS INTEGER) AS at, unixepoch() AS seconds, strftime('%s','now') AS formatted, datetime('now','+7 days') AS ttl, CURRENT_TIMESTAMP AS observed, 'unixepoch(''subsec'')' AS literal").first()
+   assert.equal(clock.at,timestamp,'harness D1 reads share the Worker clock')
+   assert.equal(clock.seconds,timestamp/1000,'import admission uses the same clock')
+   assert.equal(Number(clock.formatted),timestamp/1000,'SQL-derived timestamps share the frozen instant')
+   assert.equal(clock.ttl,new Date(timestamp+7*day).toISOString().slice(0,19).replace('T',' '),'SQL TTL modifiers retain their duration')
+   assert.equal(clock.observed,now.slice(0,19).replace('T',' '))
+   assert.equal(clock.literal,"unixepoch('subsec')",'fixture text is not rewritten')
+   // Expiry during a write must still fail the production batch's final fence.
+   await h.db.exec(`CREATE TRIGGER clock_expiry AFTER INSERT ON g_timeFavorites BEGIN UPDATE oa_sessions SET expires_at=${timestamp-1} WHERE operator_id='${staff.id}'; END`)
+   try{
+    await h.cmd('time:favorite',{...input,name:'Expires during commit'},staff.cookie,409)
+    const favorites=(await h.state(staff.cookie)).data.timeFavorites
+    assert.deepEqual(favorites.map(row=>row.id),[favorite.id],'expiry rolls back the entire write and the trigger')
+   }finally{await h.db.exec('DROP TRIGGER clock_expiry')}
+   await h.db.prepare('UPDATE oa_sessions SET expires_at=? WHERE operator_id=?').bind(timestamp-1,staff.id).run()
+   const before=await h.db.prepare('SELECT COUNT(*) AS count FROM g_timeFavorites').first()
+   const denied=await h.post('/api/gauge/command',{key:crypto.randomUUID(),action:'time:favorite',...input,name:'Expired favorite'},staff.cookie)
+   assert.equal(denied.status,401,'expired sessions remain denied')
+   assert.deepEqual(await h.db.prepare('SELECT COUNT(*) AS count FROM g_timeFavorites').first(),before,'expiry denial writes nothing')
+   console.log(`PASS harness clock offset=${offset} days now=${now}: owner/staff writes and expiry denial`)
+  }finally{await h.dispose()}
+ }
+})
+
 test('MIGRATE-003 Forecast move-in preserves source hours on reviewed working dates, with replay and strict undo',async()=>{
  const h=await harness(),pack=await forecastPackage()
  const report=async()=>{
@@ -62,7 +105,8 @@ test('MIGRATE-003 Forecast move-in preserves source hours on reviewed working da
 })
 
 test('MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API availability, holiday, leave and placeholders reconcile through import doors',async()=>{
- const h=await harness(),state=async()=>(await(await h.request('/api/gauge/state?from=2026-11-02&to=2026-11-08',h.owner)).json())
+ // Availability must still be future when the imported calendar is edited below.
+ const h=await harness({now:'2026-10-31T12:00:00Z'}),state=async()=>(await(await h.request('/api/gauge/state?from=2026-11-02&to=2026-11-08',h.owner)).json())
  const finish=async(job)=>{for(let n=0;n<30&&['queued','applying','undoing'].includes(job.state);n++)job=await h.cmd('import:resume',{id:job.id});return job}
  const apply=async(pack)=>{const preview=await h.cmd('import:preview',{package:pack}),job=await finish(await h.cmd('import:create',{package:pack,fingerprint:preview.fingerprint}));assert.equal(job.state,'completed');return {preview,job}}
  const undo=async(job)=>assert.equal((await finish(await h.cmd('import:undo',{id:job.id}))).state,'undone')
@@ -113,6 +157,7 @@ test('MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API avai
   paged.people.pages=[{page:1,totalPages:2,totalCount:2,next:'synthetic-gauge-page-2',data:peopleRows.slice(0,1)},{page:2,cursor:'synthetic-gauge-page-2',totalPages:2,totalCount:2,next:null,data:peopleRows.slice(1)}]
   pack.files['forecast.json']=JSON.stringify(paged)
   const captured=await apply(pack),data=await state(),cap=data.capacity[0]
+  assert.equal(data.asOf,'2026-10-31T12:00:00.000Z','the journey owns its clock before the imported availability starts')
   assert.equal(cap.availableSeconds,30*3600,'four workdays minus two hours of leave')
   assert.equal(cap.committedSeconds,20*3600)
   assert.equal(cap.tentativeSeconds,0,'placeholder demand stays unfilled, not assigned to a real person')

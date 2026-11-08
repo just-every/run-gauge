@@ -80,10 +80,21 @@
           "migrations/core/0073_gauge_milestone_review.sql",
           "migrations/core/0074_gauge_milestone_review_tokens.sql",
           "migrations/core/0078_gauge_client_portal.sql",
+          "migrations/core/0079_gauge_portal_choices.sql",
+          "migrations/core/0080_gauge_portal_owner_version.sql",
           "migrations/core/0079_gauge_change_review.sql",
-          "migrations/core/0079_gauge_app_key_scope.sql",
-          "migrations/core/0080_gauge_webhook_previews.sql",
-          "migrations/core/0081_gauge_app_draft_reads.sql"
+          "migrations/core/0080_gauge_intake.sql",
+          "migrations/core/0081_gauge_app_key_lifecycle.sql",
+          "migrations/core/0082_gauge_webhook_previews.sql",
+          "migrations/core/0083_gauge_analyst_snapshots.sql",
+          "migrations/core/0084_gauge_learning.sql",
+          "migrations/core/0085_gauge_client_roles.sql",
+          "migrations/core/0086_gauge_vendor_commitments.sql",
+          "migrations/core/0087_gauge_cash_assumptions.sql",
+          "migrations/core/0088_gauge_late_fee_drafts.sql",
+          "migrations/core/0089_gauge_app_key_scope.sql",
+          "migrations/core/0090_gauge_webhook_previews.sql",
+          "migrations/core/0091_gauge_app_draft_reads.sql"
         ]
       }
     },

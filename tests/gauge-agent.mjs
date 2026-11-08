@@ -8,7 +8,7 @@ async function flow(name,fn){await fn();console.log(`PASS ${name}`);count++}
 const evidence=[{source:'calendar:2026-10-06 Acme design review',summary:'Owner-consented calendar entry, 09:00-11:00 Brisbane, attendees from the client'}]
 try{
  const staffPerson=await cmd('save:people',{name:'Staff',timezone:'Australia/Brisbane'}),leadPerson=await cmd('save:people',{name:'Lead',timezone:'Australia/Brisbane'}),spare=await cmd('save:people',{name:'Contractor',timezone:'Australia/Brisbane',contractor:true})
- const client=await cmd('save:clients',{name:'Acme'}),eng=await cmd('save:engagements',{name:'Acme site',clientId:client.id,leadId:leadPerson.id,members:[staffPerson.id],scope:'Agreed site rebuild',timezone:'Australia/Brisbane'}),task=await cmd('save:tasks',{engagementId:eng.id,name:'Design',remainingSeconds:36000})
+ const client=await cmd('save:clients',{name:'Acme',billingCurrency:'AUD'}),eng=await cmd('save:engagements',{name:'Acme site',clientId:client.id,leadId:leadPerson.id,members:[staffPerson.id],scope:'Agreed site rebuild',timezone:'Australia/Brisbane'}),task=await cmd('save:tasks',{engagementId:eng.id,name:'Design',remainingSeconds:36000})
  const terms=await cmd('save:budgets',{engagementId:eng.id,mode:'hourly',amountMinor:100000,effortSeconds:36000,roundingSeconds:900,reason:'Initial terms'});await cmd('budget:approve',terms)
  await cmd('save:rates',{personId:staffPerson.id,service:'*',effective:'2026-01-01',costMinor:6000,billMinor:15000})
  await cmd('save:calendars',{personId:spare.id,from:'2026-11-02',to:'2026-11-06',dailySeconds:28800,weekdays:'1,2,3,4,5',timezone:'Australia/Brisbane'})

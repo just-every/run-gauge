@@ -5,24 +5,35 @@ import { readFile, mkdir } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
-import { agencyJourney, clientCurrencyJourney } from './gauge-agency.mjs'
+import { agencyJourney, clientCurrencyJourney, newClientCurrencyJourney } from './gauge-agency.mjs'
 
 const h = await harness({ finishSetup: false }), { cmd, state, request, owner } = h
 let browser
 try {
- browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
- const context = await browser.newContext({ ignoreHTTPSErrors: true }), page = await context.newPage()
+ browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}), headless: true, args: ['--use-mock-keychain', '--password-store=basic', ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? ['--no-sandbox'] : [])] })
+ const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } }), page = await context.newPage()
  await context.addCookies(owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: h.origin } }))
  const evidence = process.env.GAUGE_CURRENCY_SHOTS
- const capture = async name => {
+ const capture = async (name, target = page) => {
   if (!evidence) return
   await mkdir(evidence, { recursive: true })
+  const viewport = target.viewportSize()
   for (const width of [1440, 390]) {
-   await page.setViewportSize({ width, height: 1000 }); await page.evaluate(() => document.fonts.ready)
-   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name} fits ${width}`)
-   await page.screenshot({ path: `${evidence}/${name}-${width}.png`, fullPage: true })
+   await target.setViewportSize({ width, height: 1000 }); await target.evaluate(() => document.fonts.ready)
+   assert(await target.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name} fits ${width}`)
+   const path = `${evidence}/${name}-${width}.png`
+   if (['new-client-usd', 'saved-client-cad'].includes(name)) await target.locator('section.g-card').filter({ has: target.locator('[name=action][value="save:clients"]') }).screenshot({ path })
+   else await target.screenshot({ path, fullPage: true })
   }
+  await target.setViewportSize(viewport)
  }
+ const aud = await harness({ finishSetup: false })
+ const audContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } })
+ try {
+  await audContext.addCookies(aud.owner.split('; ').map(part => { const i = part.indexOf('='); return { name: part.slice(0, i), value: part.slice(i + 1), url: aud.origin } }))
+  const audPage = await audContext.newPage()
+  await newClientCurrencyJourney(aud, audPage, name => capture(name, audPage))
+ } finally { await audContext.close(); await aud.dispose() }
  await page.goto(h.origin + '/setup')
  assert.equal(await page.locator('[name=currency]').inputValue(), 'USD')
  await page.getByLabel('Work timezone').fill('America/New_York')
@@ -131,7 +142,8 @@ try {
 const legacy = await harness()
 try {
  const person = await legacy.cmd('save:people', { name: 'Agency lead', timezone: 'Australia/Brisbane' })
- const client = await legacy.cmd('save:clients', { name: 'Existing Australian client' })
+ const client = await legacy.cmd('save:clients', { name: 'Existing Australian client', billingCurrency: 'AUD' })
+ await legacy.db.prepare("UPDATE g_clients SET data=json_remove(data,'$.billingCurrency') WHERE id=?").bind(client.id).run()
  const engagement = await legacy.cmd('save:engagements', { name: 'Existing delivery', clientId: client.id, leadId: person.id, members: [person.id], scope: 'Previously agreed scope', timezone: 'Australia/Brisbane' })
  const milestone = await legacy.cmd('save:milestones', { engagementId: engagement.id, name: 'Existing milestone', due: '2026-10-31', amountMinor: 1234 })
  await legacy.db.prepare("UPDATE g_milestones SET data=json_remove(data,'$.currency') WHERE id=?").bind(milestone.id).run()

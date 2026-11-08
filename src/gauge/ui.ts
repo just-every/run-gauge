@@ -1,3 +1,6 @@
+import { vendorSection } from './ui-vendor-commitments'
+import { learningPanel } from './ui-learning'
+import { intakeSection } from './intake'
 import { clientPortalSection } from './client-portal'
 import { accountantBody } from './accountant'
 import { floatSection } from './ui-float'
@@ -19,7 +22,7 @@ import { escape as e } from './ui-forms'
 import { hours, money, when, chip } from './ui-format'
 import { type Report, describeSource } from './ui-describe'
 import { tabLabels, rail, topBar } from './ui-shell'
-import { agentNotice } from './ui-recovery'
+import { agentNotice, analystPanel, feasibilityPanel, outcomePanel } from './ui-recovery'
 import { operations } from './ui-operations'
 import { reviewSection } from './ui-review'
 import { engagementsSection } from './ui-engagements'
@@ -58,8 +61,13 @@ export async function appPage(env:Bindings,a:Actor,section:string,options:Value=
  need(tabsFor(a).includes(section),'Page unavailable',404)
  let body=options.error?`<p class="g-alert" role="alert">${e(options.error)}</p>`:options.saved?'<p class="g-saved" role="status">Saved.</p>':''
  if(section==='review')body+=await reviewSection(env,a,report,options)
+ if(section==='review')body+=outcomePanel(a,report,options)
+ if(section==='review')body+=feasibilityPanel(a,report,options)
+ if(section==='review')body+=learningPanel(a,report,options)
+ if(section==='review')body+=await analystPanel(env,a,report,options)
  if(section==='engagements')body+=engagementsSection(a,report,{...options,zone},today)
- if(section==='engagements'&&options.edit){const project=report.data.engagements.find(r=>r.id===options.edit);if(project)body+=await clientPortalSection(env,a,project)}
+ if(section==='engagements'&&options.edit)body+=vendorSection(a,report,options.edit)
+ if(section==='engagements'&&options.edit){const project=report.data.engagements.find(r=>r.id===options.edit);if(project)body+=await clientPortalSection(env,a,project)+await intakeSection(env,a,project)}
  if(section==='time')body+=timeSection(a,report,options)
  if(section==='access')body+=await agencySection(env,a,report)+customDefinitionSection(a,report,options)
  if(section==='engagements')body+=customRecordSection(a,report,options)

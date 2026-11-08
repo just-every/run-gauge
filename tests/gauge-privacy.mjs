@@ -30,7 +30,7 @@ export async function privacyJourney(){
   await cmd('leave:decide',{...await cmd('save:leave',{personId:person.id,from:'2020-10-06',to:'2020-10-06',dailySeconds:3600,note:'Personal time',timezone:'America/New_York'}),outcome:'approved'})
   const staff=await h.invite('retention-staff'),finance=await h.invite('retention-finance')
   await cmd('grant',{operatorId:staff.id,personId:person.id,role:'staff',enabled:true});await cmd('grant',{operatorId:finance.id,personId:lead.id,role:'finance',enabled:true})
-  const appKey=await cmd('appkey:create',{label:'synthetic-gauge-4103',operatorId:staff.id,projectIds:[project.id],expiryDays:1,scope:'projects:read time:read time:write'})
+  const appKey=await cmd('appkey:create',{label:'synthetic-gauge-4103',operatorId:staff.id,engagementIds:[project.id],expiryDays:1,scope:'projects:read time:read time:write'})
   const appRead=path=>request(path,'',{headers:{authorization:`Bearer ${appKey.token}`}})
   assert.equal((await appRead('/api/gauge/v1/projects/'+project.id)).status,200)
   assert.equal((await appRead('/api/gauge/v1/time')).status,200)

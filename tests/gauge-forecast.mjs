@@ -22,9 +22,20 @@ test('Frozen harness sessions authorize writes and still expire independently of
    const sessions=await h.db.prepare('SELECT created_at,expires_at FROM oa_sessions').all()
    assert(sessions.results.length>=2)
    for(const session of sessions.results){assert.equal(session.created_at,timestamp);assert(session.expires_at>timestamp,'normal session TTL is retained')}
-   const clock=await h.db.prepare("SELECT CAST(unixepoch('subsec')*1000 AS INTEGER) AS at, 'unixepoch(''subsec'')' AS literal").first()
+   const clock=await h.db.prepare("SELECT CAST(unixepoch('subsec')*1000 AS INTEGER) AS at, unixepoch() AS seconds, strftime('%s','now') AS formatted, datetime('now','+7 days') AS ttl, CURRENT_TIMESTAMP AS observed, 'unixepoch(''subsec'')' AS literal").first()
    assert.equal(clock.at,timestamp,'harness D1 reads share the Worker clock')
+   assert.equal(clock.seconds,timestamp/1000,'import admission uses the same clock')
+   assert.equal(Number(clock.formatted),timestamp/1000,'SQL-derived timestamps share the frozen instant')
+   assert.equal(clock.ttl,new Date(timestamp+7*day).toISOString().slice(0,19).replace('T',' '),'SQL TTL modifiers retain their duration')
+   assert.equal(clock.observed,now.slice(0,19).replace('T',' '))
    assert.equal(clock.literal,"unixepoch('subsec')",'fixture text is not rewritten')
+   // Expiry during a write must still fail the production batch's final fence.
+   await h.db.exec(`CREATE TRIGGER clock_expiry AFTER INSERT ON g_timeFavorites BEGIN UPDATE oa_sessions SET expires_at=${timestamp-1} WHERE operator_id='${staff.id}'; END`)
+   try{
+    await h.cmd('time:favorite',{...input,name:'Expires during commit'},staff.cookie,409)
+    const favorites=(await h.state(staff.cookie)).data.timeFavorites
+    assert.deepEqual(favorites.map(row=>row.id),[favorite.id],'expiry rolls back the entire write and the trigger')
+   }finally{await h.db.exec('DROP TRIGGER clock_expiry')}
    await h.db.prepare('UPDATE oa_sessions SET expires_at=? WHERE operator_id=?').bind(timestamp-1,staff.id).run()
    const before=await h.db.prepare('SELECT COUNT(*) AS count FROM g_timeFavorites').first()
    const denied=await h.post('/api/gauge/command',{key:crypto.randomUUID(),action:'time:favorite',...input,name:'Expired favorite'},staff.cookie)

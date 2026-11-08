@@ -1,12 +1,26 @@
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
 import { actor, type Actor, Transaction, fence, get, access } from './store'
-import { need, text, uuid } from './model'
+import { need, text, uuid, date, type Row } from './model'
 import { visible } from './reports'
 import { command, publicResult } from './commands'
 
 const encode = (value:unknown) => btoa(unescape(encodeURIComponent(JSON.stringify(value)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
-const decode = (value:string) => { try { return JSON.parse(decodeURIComponent(escape(atob(value.replace(/-/g,'+').replace(/_/g,'/'))))) } catch { need(false,'Invalid page cursor',400) } }
+const decode = (value:string):{fingerprint:string;after:string} => {
+ try {
+  need(value.length<=2048,'Invalid page cursor')
+  const cursor=JSON.parse(decodeURIComponent(escape(atob(value.replace(/-/g,'+').replace(/_/g,'/')))))
+  need(cursor&&typeof cursor==='object'&&!Array.isArray(cursor)&&typeof cursor.fingerprint==='string'&&typeof cursor.after==='string','Invalid page cursor')
+  return cursor
+ }catch{need(false,'Invalid page cursor',400)}
+}
+function paginated(rows:Row[],url:URL,binding:Record<string,unknown>) {
+ const limit=Number(url.searchParams.get('limit')??50);need(Number.isInteger(limit)&&limit>=1&&limit<=100,'Page size must be 1 to 100')
+ const fingerprint=sha256(canonicalJson({...binding,rows})),cursor=url.searchParams.get('cursor');let start=0
+ if(cursor){const c=decode(cursor);need(c.fingerprint===fingerprint,'List or filters changed; restart pagination',409);const index=rows.findIndex(r=>r.id===c.after);need(index>=0,'Invalid page cursor');start=index+1}
+ const page=rows.slice(start,start+limit)
+ return {page,nextCursor:start+limit<rows.length?encode({fingerprint,after:page.at(-1)!.id}):null}
+}
 
 export async function appKeyCommand(env:Bindings,a:Actor,action:string,input:Record<string,any>) {
  await fence(env,a);need(a.role==='owner'&&a.session.kind==='native','Only the native owner manages app credentials',403)
@@ -18,7 +32,7 @@ export async function appKeyCommand(env:Bindings,a:Actor,action:string,input:Rec
  let result:any,token:string|undefined
  if(action==='appkey:create'){
   const label=text(input.label,'App label',80),operatorId=text(input.operatorId,'Staff operator'),scope=text(input.scope,'App scope')
-  need(['projects:read','projects:read time:write'].includes(scope),'Choose a supported app scope')
+  need(['projects:read','projects:read time:write','projects:read time:read','projects:read time:read time:write'].includes(scope),'Choose a supported app scope')
   const grant=await env.DB.prepare("SELECT o.version AS operatorVersion,g.version AS grantVersion,g.person_id AS personId FROM oa_operators o JOIN g_grants g ON g.operator_id=o.id WHERE o.id=? AND o.status='active' AND o.role='member' AND g.enabled=1 AND g.role='staff'").bind(operatorId).first<any>()
   need(grant?.personId,'Choose an active staff operator with a person',403)
   const person=await get(env,'people',grant.personId);tx.observe('people',person)
@@ -51,15 +65,43 @@ export async function appKeyRequest(env:Bindings,request:Request,url:URL,headers
  await fence(env,a)
  const audit=new Transaction(env,a);audit.audit('appkey:use','appKeys',key.id,{label:key.label,scope:key.scope,method:request.method,path:url.pathname,personId:key.person_id,engagementIds:a.appKey.engagementIds,credentialVersion:key.credential_version,operatorVersion:key.operator_version,grantVersion:key.grant_version,expiresAt:key.expires_at});audit.sql('UPDATE g_app_keys SET last_used_at=? WHERE id=?',Date.now(),key.id);await audit.commit()
  const responseHeaders={...headers,'gauge-api-version':'1'}
- if(url.pathname==='/api/gauge/v1/projects'){
+ const projectRoute=url.pathname.match(/^\/api\/gauge\/v1\/projects(?:\/([^/%]+)(\/tasks)?(?:\/([^/%]+))?)?$/)
+ if(projectRoute){
   need(request.method==='GET','Use GET for projects',405);need(key.scope.includes('projects:read'),'Project read scope required',403)
-  const limit=Number(url.searchParams.get('limit')??50);need(Number.isInteger(limit)&&limit>=1&&limit<=100,'Page size must be 1 to 100')
-  const clientId=url.searchParams.get('clientId')??'',q=url.searchParams.get('q')??''
-  const rows=(await visible(env,a)).engagements.filter(r=>a.appKey!.engagementIds.includes(r.id)&&(!clientId||r.value.clientId===clientId)&&r.value.name.toLowerCase().includes(q.toLowerCase())).sort((x,y)=>x.id.localeCompare(y.id))
-  const fingerprint=sha256(canonicalJson({key:key.id,clientId,q,rows})),cursor=url.searchParams.get('cursor');let start=0
-  if(cursor){const c=decode(cursor);need(c.fingerprint===fingerprint,'Project list or filters changed; restart pagination',409);const index=rows.findIndex(r=>r.id===c.after);need(index>=0,'Invalid page cursor');start=index+1}
-  const projects=rows.slice(start,start+limit),next=start+limit<rows.length?encode({fingerprint,after:projects.at(-1)!.id}):null
-  await fence(env,a);return Response.json({version:'1',projects,nextCursor:next},{headers:responseHeaders})
+  const projectId=projectRoute[1],tasks=!!projectRoute[2],taskId=projectRoute[3]
+  need(!taskId||tasks,'App credential cannot open this route',403)
+  if(projectId)await access(env,a,projectId)
+  const data=await visible(env,a),clientId=url.searchParams.get('clientId')??'',q=url.searchParams.get('q')??''
+  if(taskId){
+   const task=data.tasks.find(r=>r.id===taskId&&r.value.engagementId===projectId);need(task,'Task not found',404)
+   await access(env,a,projectId);await fence(env,a);return Response.json({version:'1',task},{headers:responseHeaders})
+  }
+  if(projectId&&!tasks){
+   const project=data.engagements.find(r=>r.id===projectId);need(project,'Project not found',404)
+   await fence(env,a);return Response.json({version:'1',project},{headers:responseHeaders})
+  }
+  const rows=(tasks?data.tasks.filter(r=>r.value.engagementId===projectId):data.engagements.filter(r=>a.appKey!.engagementIds.includes(r.id)&&(!clientId||r.value.clientId===clientId))).filter(r=>r.value.name.toLowerCase().includes(q.toLowerCase())).sort((x,y)=>x.id.localeCompare(y.id))
+  const {page,nextCursor}=paginated(rows,url,{key:key.id,resource:tasks?'tasks':'projects',projectId:projectId??null,clientId,q})
+  await fence(env,a);return Response.json({version:'1',...(tasks?{tasks:page}:{projects:page}),nextCursor},{headers:responseHeaders})
+ }
+ const timeRoute=url.pathname.match(/^\/api\/gauge\/v1\/time(?:\/([^/%]+))?$/)
+ if(timeRoute&&request.method==='GET'){
+  need(key.scope.split(' ').includes('time:read'),'Draft time read scope required',403)
+  const projectId=url.searchParams.get('projectId')??'',taskId=url.searchParams.get('taskId')??''
+  const from=url.searchParams.has('from')?date(url.searchParams.get('from')):'',to=url.searchParams.has('to')?date(url.searchParams.get('to')):''
+  need(!from||!to||from<=to,'End date must not precede start date')
+  if(projectId)await access(env,a,projectId)
+  const data=await visible(env,a)
+  const rows=data.time.filter(r=>a.appKey!.engagementIds.includes(r.value.engagementId)&&r.value.personId===a.personId&&r.value.status==='draft').sort((x,y)=>x.id.localeCompare(y.id))
+  const id=timeRoute[1]
+  if(id){
+   const entry=rows.find(r=>r.id===id);need(entry,'Draft time not found',404)
+   await access(env,a,entry.value.engagementId);await fence(env,a)
+   return Response.json({version:'1',time:entry},{headers:responseHeaders})
+  }
+  const filtered=rows.filter(r=>(!projectId||r.value.engagementId===projectId)&&(!taskId||r.value.taskId===taskId)&&(!from||r.value.workDate>=from)&&(!to||r.value.workDate<=to))
+  const {page,nextCursor}=paginated(filtered,url,{key:key.id,resource:'draft-time',projectId,taskId,from,to})
+  await fence(env,a);return Response.json({version:'1',time:page,nextCursor},{headers:responseHeaders})
  }
  need(url.pathname==='/api/gauge/v1/time','App credential cannot open this route',403)
  need(request.method==='POST','Use POST for draft time',405);need(key.scope.includes('time:write'),'Draft time scope required',403)

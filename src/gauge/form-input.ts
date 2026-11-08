@@ -114,7 +114,7 @@ export function formInput(form: FormData): Value {
  if(input.action.startsWith('field:import'))for(const name of ['mapping','policies'])if(typeof input[name]==='string')input[name]=JSON.parse(input[name])
  if(input.action==='client:merge')input.customFieldChoices=Object.fromEntries(Object.keys(input).filter(k=>k.startsWith('merge-field:')).map(k=>[k.slice(12),input[k]]))
  if(input.action==='save:resourceRequests')input.nativeFilters=Object.fromEntries(Object.keys(input).filter(k=>k.startsWith('filter:')&&String(input[k]).trim()).map(k=>[k.slice(7),input[k]]))
- if(input.action==='saved:save'){input.nativeFilters=Object.fromEntries(Object.keys(input).filter(k=>k.startsWith('filter:')&&String(input[k]).trim()).map(k=>[k.slice(7),input[k]]));input.measures=JSON.parse(input.measures??'[]')}
+ if(input.action==='saved:save'){input.nativeFilters=Object.fromEntries(Object.keys(input).filter(k=>k.startsWith('filter:')&&String(input[k]).trim()).map(k=>[k.slice(7),input[k]]));input.measures=form.has('measure')?form.getAll('measure'):JSON.parse(input.measures??'[]');input.columns=form.has('column:'+input.dataset)?form.getAll('column:'+input.dataset):[]}
  if(input.action==='estimate:save'){
   for(const name of ['contingency','discount']){const raw=String(input[name+'Percent']??'0').trim();need(/^\d+(?:\.\d{1,2})?$/.test(raw),'Use a percentage with at most two decimal places');input[name+'BasisPoints']=cents(raw)}
   input.phases=Object.keys(input).filter(k=>/^estimatePhase\d+Name$/.test(k)&&String(input[k]).trim()).map(k=>{const pre=k.slice(0,-4);return {key:input[pre+'Key'],name:input[k],service:input[pre+'Service'],mode:input[pre+'Mode'],from:input[pre+'From'],to:input[pre+'To']}})

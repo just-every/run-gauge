@@ -8,7 +8,8 @@ import {join,resolve} from 'node:path'
 import {createServer} from 'node:net'
 const {Miniflare,convertV4MiniflareOptions,Log,LogLevel}=createRequire(await realpath('node_modules/wrangler/package.json'))('miniflare')
 // The emitted Worker with production mail; outbound capture stands in for the mail provider and never reaches it.
-export async function harness({currency='AUD',timezone='Australia/Brisbane',finishSetup=true,persistenceDirectory,beforeLogin,databaseBinding=true,mailFrom='Gauge <auth@example.test>'}={}){
+// GAUGE_TEST_NOW sweeps Worker clocks; a journey's explicit now owns its dated fixtures.
+export async function harness({currency='AUD',timezone='Australia/Brisbane',finishSetup=true,persistenceDirectory,beforeLogin,databaseBinding=true,mailFrom='Gauge <auth@example.test>',now=process.env.GAUGE_TEST_NOW}={}){
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
  const directory=persistenceDirectory??await mkdtemp(join(tmpdir(),'gauge-flow-')),origin=`https://127.0.0.1:${port}`,secret=()=>randomBytes(32).toString('hex'),mails=[],providerRequests=[],providerEdge={handler:null}
  const vars={AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret(),SETUP_TOKEN:secret(),MAIL_PROVIDER:'resend',MAIL_FROM:mailFrom,MAIL_API_KEY:'synthetic-gauge-900001'}
@@ -23,9 +24,22 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  }
  const logs=[]
  const log=new class extends Log {log(message){logs.push(String(message))}}(LogLevel.INFO)
+ const modules=[config.main,...(await readdir(join(server,'assets'))).filter(f=>f.endsWith('.js')).map(f=>`assets/${f}`)].map(f=>({type:'ESModule',path:join(server,f)}))
+ if(now!==undefined){
+  const timestamp=Date.parse(now);assert(Number.isFinite(timestamp),'test clock is an explicit instant')
+  // Install the test's clock inside its Worker, before application modules load.
+  modules[0].contents=`import './gauge-test-clock.mjs';\n${await readFile(modules[0].path,'utf8')}`
+  modules.push({type:'ESModule',path:join(server,'gauge-test-clock.mjs'),contents:`
+   const NativeDate=Date
+   globalThis.Date=class extends NativeDate {
+    constructor(...args){super(...(args.length?args:[${timestamp}]))}
+    static now(){return ${timestamp}}
+   }
+  `})
+ }
  const mf=new Miniflare({log,...convertV4MiniflareOptions({
   host:'127.0.0.1',port,https:true,
-  modulesRoot:server,modules:[config.main,...(await readdir(join(server,'assets'))).filter(f=>f.endsWith('.js')).map(f=>`assets/${f}`)].map(f=>({type:'ESModule',path:join(server,f)})),
+  modulesRoot:server,modules,
   compatibilityDate:config.compatibility_date,compatibilityFlags:config.compatibility_flags,assets:{directory:resolve('dist/client'),routerConfig:{has_user_worker:true}},
   d1Databases:{DB:config.d1_databases[0].database_id},bindings:vars,
   outboundService:async request=>{const body=request.method==='GET'?null:request.headers.get('content-type')?.includes('application/x-www-form-urlencoded')?Object.fromEntries(new URLSearchParams(await request.clone().text())):await request.clone().json();providerRequests.push({url:request.url,method:request.method,headers:{authorization:request.headers.get('authorization'),signature:request.headers.get('x-gauge-signature'),eventId:request.headers.get('x-gauge-event-id'),idempotencyKey:request.headers.get('idempotency-key')},body});if(providerEdge.handler){const response=await providerEdge.handler(request,body);if(response)return response}if(request.url==='https://crank.example.test/api/crank/flows/budget-exception/trigger')return Response.json({id:`synthetic-gauge-run-${providerRequests.length}`,state:'pending'},{status:201});if(request.url!=='https://api.resend.com/emails')throw Error(`Unexpected test network destination ${new URL(request.url).origin}`);mails.push(body);return Response.json({id:`test-receipt-${mails.length}`})},

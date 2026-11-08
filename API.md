@@ -19,6 +19,50 @@ The forward migration infers an existing agency's currency from stored monetary 
 - `GET /api/gauge/audit/verify[?seq&hash]` recomputes the chain and returns `{entries, head, mismatches, gaps, unsealed, checkpoint, intact}`; a checkpoint (an earlier export's `head.seq` and `head.hash`) matches only when the chain recomputed from the first entry reproduces it.
 - `GET /api/gauge/packets/{id}` downloads an approved packet's CSV (finance); `GET /api/gauge/files/{id}` a receipt (its owner or finance).
 
+## Native vendor costs
+
+Owner and finance use the vendor panel on the engagement page. Native vendor
+costs require matching agency and project currencies. They carry no accounting
+connection, payment instruction or provider verification.
+
+- `vendor:save` prepares a draft with `engagementId`, the approved `phaseKey`
+  when phases exist, `vendor`, `scope`, `poReference`, `amountMinor`, `date`,
+  `from`, `to`, `expectedDate` and a `reason`. Draft edits send `id` and
+  `revision`. `vendor:approve` separately approves that exact revision with
+  a reason under the owner's existing monetary-review limit.
+- `vendorBill:save` records `engagementId`, `phaseKey`, the current approved
+  `commitmentId` and `commitmentRevision`, vendor bill `reference`,
+  `amountMinor`, `date` and a `reason`. The bill date must be within the
+  commitment period. Vendor bill references cannot be received twice. Purchase order references are unique across native commitment chains.
+- `vendorBill:file` takes the draft bill's `id` and `revision` plus an original
+  PDF, PNG, JPEG or text file of at most 1 MiB. It returns the new revision.
+  `vendorBill:approve` separately approves and matches that exact original-backed
+  revision once, with a reason and the same independent-review rule.
+  `GET /api/gauge/vendor-files/{id}` downloads the retained original; current
+  owner or finance authority is required on every read.
+- Approved records cannot be edited. A new draft with `previousId` and
+  `previousRevision` prepares a linked correction of the current approved
+  record. A bill correction retains its commitment and cannot predate the
+  original. The approved successor replaces only its own chain; original
+  records and files remain inspectable. An amount reduction is a signed cost
+  delta on the correction date, preserving earlier monthly actuals.
+
+Approved received bills reduce the unbilled commitment remainder once. The
+forecast includes actual bills plus that remainder, with exact revision sources
+in calculation drills and the captured report CSV. Project, phase, margin and
+portfolio totals use the same ledger. Drafts have no effect on costs. Received
+unapproved bills appear on the monthly close checklist; an approved close
+retains its native vendor sources and signed cost totals. Backdated writes to a
+closed period require the ordinary finance reopening.
+
+The native commitment link is mandatory on every bill. Expense costs without a distinct native phase or period,
+billable expense budgets and contractor work in the same project, phase and
+period are refused instead of silently counted as another cost source.
+The same checks run on later native writes and classification changes.
+Leads, staff, client recipients, agents and scoped keys gain no vendor costs or
+bill-original access. Restore retains records, originals and exact match history
+without restoring native sessions or provider authority.
+
 ## Native project analyst
 
 `GET /api/gauge/analyst` accepts `question` (1–500 characters), `engagementId`,
@@ -322,6 +366,45 @@ Finance corrects an issued invoice only with linked documents (INVOICE-004). `in
 
 Download `/api/gauge/receivables.csv` with the same filters and the returned `fingerprint`. Changed dated inputs return 409 and require a fresh read. CSV row types are `invoice`, `receipt`, `credit`, `void`, `client total` and `aging`; sum only one row type at a time. Invoice rows include cumulative paid amounts; receipt rows itemize those same allocations. Every row names its currency, and all amounts are integer minor units. JSON/CSV are internal statement preparation: no client delivery or provider settlement is claimed. INVOICE-004 credit notes and voids issued through the as-of day reduce each invoice's open amount (`creditedMinor`, `voidedMinor`; invoiced = paid + credited + voided + open) and itemize as `credit` and `void` rows. Client receipts (`receipts`: client, date, reference, `amountMinor`, `allocatedMinor`, `unappliedMinor`, each allocation) and disputes (`disputedMinor`, `dispute` on each invoice) are in the same report and CSV (`client receipt` rows; sum only one row type at a time). Other roles receive 403, signed-out requests 401; scoped utilization keys cannot use this door.
 
+
+### Native late-fee drafts (INVOICE-007, partial)
+
+Owner and finance record existing agreed terms on a client with `save:clients`:
+`lateFeeMode: "monthly-percentage"`, integer `lateFeeRateBasisPoints` (150 means
+1.5%), positive integer `lateFeeCapMinor`, `lateFeeAgreedOn` and
+`lateFeeReference`. `lateFeeMode: "none"` removes terms for future invoices;
+omitting the mode preserves saved terms. Issuance freezes the exact agreement
+and client revision only when its currency matches and its agreement date is
+on or before the issue date. Later client edits never retrofit an issued invoice.
+
+Both commands use `POST /api/gauge/command` with current native finance authority:
+
+- `invoice:late-fee-preview` takes the invoice `id`, `revision` and an `asOf`
+  date no later than today. It returns the frozen terms, invoice identity,
+  principal, payment and credit amounts, exact source revisions, period,
+  calculated `amountMinor` and a `fingerprint`. Preview creates no draft.
+- `invoice:late-fee-draft` sends those same inputs, the reviewed `fingerprint`,
+  a `reason` and the ordinary request `key`. It creates one immutable linked
+  draft with status `awaiting-finance-approval`, attributed to the finance user.
+  Exact request replay returns the original acknowledgement; distinct or
+  concurrent requests cannot create a second draft for that invoice period.
+  Current authority is checked before replay as well as inside a new write.
+
+The supported period is the first monthly anniversary of the frozen due date,
+clamped to month end, after more than 30 days overdue. The simple percentage
+uses current unpaid principal, rounds half up to integer cents and applies the
+frozen cap. Missing terms, disputed or void invoices, fully paid or credited
+principal, changed sources and a preview belonging to another invoice refuse.
+An unallocated client receipt does not reduce invoice principal.
+
+Billing provides the native preview and draft forms. Finance state retains
+`data.lateFeeDrafts`; the ordinary record history and business audit doors retain
+the agreement and draft attribution. Other roles cannot read private terms or
+drafts. Complete installation restore preserves these records and their source
+history, while old sessions grant no access. A draft changes no issued original,
+receivable, expected cash or payment. Approval, issuance, further periods, flat
+fees and compounding remain unavailable. No reminder is scheduled or sent;
+delivered collection, replies and verified stop conditions remain unproved.
 
 ### INVOICE-002 fixed-fee deposit and percentage schedule (partial)
 
@@ -1241,6 +1324,15 @@ Collaborators see project scope, tasks, milestones and permitted nonmonetary cus
 
 A delivery-only invitation also refuses independently released invoice and commercial-proposal documents for the same client. Revocation preserves an inert deny record until an explicit replacement invitation; removing project access cannot revive an older exact-delivery review. Authority remains excluded from business archives under the existing project-authority table policy. No notice is sent. This conservative client-role policy awaits ct approval; the existing separately released scope-change review remains available under its current authority rules, while role-specific scope approval proof and general configurable native roles remain GOVERN-003 gaps.
 
+
+
+### Saved report snapshots and native downloads
+
+`saved:save` creates a profitability or utilization definition from the existing custom-field datasets. It accepts `name`, `dataset`, `group` (a permitted custom field), `from`, `to`, `customFilters`, `measures` (permitted numeric or currency custom-field IDs), and `columns`. Profitability columns are `budgetMinor`, `costMinor`, `earnedMinor`, `marginMinor`, `eacFeesMinor`, `eacCostMinor` and `forecastMarginMinor`; utilization columns are `approvedSeconds`, `billableSeconds`, `availableSeconds` and `utilizationPercent`. These select existing calculations; arbitrary expressions never execute. Omitted columns retain the dataset defaults. Editing supplies the definition's exact `id` and `revision`, keeps creator identity and appends ordinary business history.
+
+`GET /api/gauge/saved/:id` returns the definition, permitted result, displayed table, formulas, overlap warning and source fingerprint. The native Review form opens the same view with `savedReport` in its query. Finance can read saved definitions; a lead reads only their own utilization reports. Current field policy and project access are checked again at each read; narrowing access to a retained project refuses the saved read.
+
+Append `.csv`, `.xlsx` or `.pdf` to the saved-report endpoint and send its exact `revision` and `fingerprint` query parameters. Each native download contains the same captured rows, exact minor units, seconds, formulas and explicit unknowns as the displayed table. Source or definition changes require reopening the report. Text is formula-safe, currencies remain distinct and overlapping cohorts cannot be summed. Restoring business records preserves definitions and history, without restoring sessions or grants. Scheduling, outbound sending, warehouse delivery and BI feeds remain unavailable.
 ## Invoice collection assumptions
 
 Native owner and finance sessions may submit `cash:approve` with a request key,
@@ -1286,3 +1378,34 @@ stay open receivables and appear separately on their invoice source, excluded
 from expected cash. Historical timing remains a finance-recorded assumption;
 settled-history qualification and processor settlement still require their
 separately authorized provider proof.
+
+## Native post-adoption outcome comparison
+
+On Review, native owner and finance sessions can capture current inputs for an
+adopted financial scenario and then compare its observed outcome. The commands
+are `recovery:outcome-capture` with the scenario's exact `id` and `revision`,
+then `recovery:outcome-compare` with those references and the returned
+`basisDigest`. Both commands are read-only. They recheck current authority and
+refuse source drift, unadopted scenarios, stale scenario revisions, supplied
+outcome figures and success claims. Captures confer no approval or execution
+permission and cannot change case status.
+
+New financial scenario comparisons retain a versioned before and expected
+observation alongside the existing exact human adoption and effect revisions.
+The observation uses canonical FINANCE-006 margin and supported FINANCE-007
+expected cash. Current delivery dates, global dated load, approved native
+terms, invoices and payment records are reread with the original projects,
+currencies, as-of day and capacity window fixed. The result gives separate
+currency and month figures, observed variance, changed source revisions,
+collection assumptions and explicit unknowns. An incomplete amount is unknown,
+with its known source detail preserved. Historical observations never become
+current approval, and later records never rewrite them.
+
+Scenarios without the retained calculation basis cannot be reconstructed and
+are refused, as are incompatible future calculation bases or changed project
+currencies. Cash source detail returns calculation fields and revision
+references rather than personal document copies. Manual receipts remain
+user-recorded; provider outcomes, cross-system freshness, settlement and
+recovery completion remain unproved. Restore retains the comparison as business
+history and requires fresh native authority to read it; it replays no adoption
+or provider action.

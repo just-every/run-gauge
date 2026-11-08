@@ -134,8 +134,9 @@ export async function milestoneDeliveryJourney(h,browser,{lead,worker,manager,st
    await cmd('milestone:decision',{id:row.id,revision:row.revision,deliveryId:latest.id,outcome:'accepted',contact:'Casey Client',date:'2026-10-20',reason:'Before delivery'},manager.cookie,400)
    // Finance may record the decision too; request replay retains a single decision.
    const input={key:randomUUID(),action:'milestone:decision',id:row.id,revision:row.revision,deliveryId:latest.id,outcome:'accepted',contact:'Casey Client',date:'2026-10-21',reason:'All missing work completed'}
-   const first=await h.post('/api/gauge/command',input,financePerson.cookie);assert.equal(first.status,200)
-   assert.deepEqual(await(await h.post('/api/gauge/command',input,financePerson.cookie)).json(),await first.json())
+   // Read the first body before the replay: a dispatchFetch body left unread across another request can be cancelled by GC.
+   const first=await h.post('/api/gauge/command',input,financePerson.cookie);assert.equal(first.status,200);const result=await first.json()
+   assert.deepEqual(await(await h.post('/api/gauge/command',input,financePerson.cookie)).json(),result)
    assert.equal((await h.post('/api/gauge/command',{...input,reason:'Changed decision under the same key'},financePerson.cookie)).status,409,'Changed milestone request content cannot reuse its key')
    await h.deliveryAudit.remember('milestone:decision',input,financePerson.cookie,await current())
    row=await current();assert.equal(row.value.delivery.decisions.length,2);assert.equal(row.value.delivery.decisions[1].notice,'recorded by delivery-finance, not confirmed by the client');assert.deepEqual(row.value.delivery.deliveries[0],snapshot,'Earlier delivery snapshot is immutable');assert.equal(row.value.delivery.issues[0].status,'resolved');assert.equal(row.value.delivery.dependencies[0].status,'received')

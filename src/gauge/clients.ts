@@ -8,7 +8,7 @@ import { type Actor, Transaction, finance, get, all, fence } from './store'
 import { activeRates } from './rate-cards'
 
 /** Workspace fields only finance sees; others keep seeing the client's name, as before. */
-export const privateClientKeys = ['paymentTermsDays', 'daysLate', 'daysLateApprovedBy', 'collectionPercent', 'collectionApprovedBy', 'collectionApprovedByName', 'legalName', 'contacts', 'addresses', 'taxId', 'exemptions', 'poRequired', 'poNumbers', 'tags', 'externalIds', 'merge', 'mergedFrom']
+export const privateClientKeys = ['lateFeeTerms', 'paymentTermsDays', 'daysLate', 'daysLateApprovedBy', 'collectionPercent', 'collectionApprovedBy', 'collectionApprovedByName', 'legalName', 'contacts', 'addresses', 'taxId', 'exemptions', 'poRequired', 'poNumbers', 'tags', 'externalIds', 'merge', 'mergedFrom']
 const optional = (v: unknown, name: string, max = 200) => v === undefined || v === null || String(v).trim() === '' ? null : text(String(v), name, max)
 const lines = (v: unknown): unknown[] => Array.isArray(v) ? v : String(v ?? '').split(/\r?\n/).map(s => s.trim()).filter(Boolean)
 const parts = (v: unknown, keys: string[]): Value => typeof v === 'string' ? Object.fromEntries(v.split(';').map((s, i) => [keys[i], s.trim()])) : { ...(v as Value) }
@@ -77,7 +77,7 @@ export async function activeClient(env: Bindings, id: string): Promise<Row> {
  return client
 }
 
-const terms = (v: Value) => ({ paymentTermsDays: v.paymentTermsDays ?? null, daysLate: v.daysLate ?? null, collectionPercent: v.collectionPercent ?? 100 })
+const terms = (v: Value) => ({ paymentTermsDays: v.paymentTermsDays ?? null, daysLate: v.daysLate ?? null, collectionPercent: v.collectionPercent ?? 100, lateFeeTerms: v.lateFeeTerms ?? null })
 export const termsLabel = (v: Value) => `${v.paymentTermsDays == null ? 'Net 30 assumed' : `Net ${v.paymentTermsDays}`}${v.daysLate == null ? '' : `, ${v.daysLate} days late`}, ${v.collectionPercent ?? 100}% collection`
 
 export async function clientCommand(env: Bindings, a: Actor, tx: Transaction, action: string, input: Value): Promise<Value | null> {
@@ -103,7 +103,7 @@ export async function clientCommand(env: Bindings, a: Actor, tx: Transaction, ac
  const list = (key: string, eq: (x: any, y: any) => boolean = same) => [...(s[key] ?? []), ...(d[key] ?? []).filter((x: unknown) => !(s[key] ?? []).some((y: unknown) => eq(x, y)))]
  const word = (x: string, y: string) => x.toLowerCase() === y.toLowerCase(), own = identities({ source: s.source })
  const merged = {
-  ...s, paymentTermsDays: kept.paymentTermsDays ?? null, daysLate: kept.daysLate ?? null, daysLateApprovedBy: kept.daysLate == null ? null : kept.daysLateApprovedBy ?? null, collectionPercent: kept.collectionPercent ?? 100, collectionApprovedBy: kept.collectionApprovedBy ?? null, collectionApprovedByName: kept.collectionApprovedByName ?? null,
+  ...s, lateFeeTerms: kept.lateFeeTerms ?? null, paymentTermsDays: kept.paymentTermsDays ?? null, daysLate: kept.daysLate ?? null, daysLateApprovedBy: kept.daysLate == null ? null : kept.daysLateApprovedBy ?? null, collectionPercent: kept.collectionPercent ?? 100, collectionApprovedBy: kept.collectionApprovedBy ?? null, collectionApprovedByName: kept.collectionApprovedByName ?? null,
   legalName: s.legalName ?? d.legalName ?? null, taxId: s.taxId ?? d.taxId ?? null, poRequired: Boolean(s.poRequired || d.poRequired),
   contacts: list('contacts'), addresses: list('addresses'), exemptions: list('exemptions', word), poNumbers: list('poNumbers', word), tags: list('tags', word),
   externalIds: [...(s.externalIds ?? []), ...identities(d)].filter((x, i, xs) => !own.some(o => same(o, x)) && xs.findIndex(y => same(x, y)) === i),

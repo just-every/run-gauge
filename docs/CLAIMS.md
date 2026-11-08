@@ -55,7 +55,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `TIME-005` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
 | `TIME-006` | partial | `src/gauge/time.ts`; `tests/gauge.mjs` |
 | `COST-002` | done | `tests/gauge-handoffs.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-handoffs.mjs` |
-| `COST-003` | missing |  |
+| `COST-003` | missing | `tests/gauge-vendor-commitments.mjs`; `tests/gauge-finance-forecast.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs` |
 | `FINANCE-001` | done | `src/gauge/margin.ts`; `src/gauge/report-lineage-margin.ts`; `src/gauge/ui-margin.ts`; `src/gauge/finance-forecast.ts`; `tests/gauge-finance-forecast.mjs`; `tests/gauge-invoices.mjs` |
 | `FINANCE-002` | done | `src/gauge/cash-forecast.ts`; `src/gauge/report-lineage-cash.ts`; `src/gauge/ui-cash.ts`; `src/gauge/catalog.ts`; `tests/gauge-cash-forecast.mjs`; `tests/gauge-invoices.mjs` |
 | `FINANCE-003` | done | `src/gauge/project-scenarios.ts`; `src/gauge/project-scenario-scope.ts`; `src/gauge/project-scenario-rates.ts`; `src/gauge/project-scenario-deadlines.ts`; `src/gauge/forecast-allocation-pricing.ts`; `tests/gauge-project-scenarios.mjs`; `tests/gauge-project-scenario-scope.mjs`; `tests/gauge-project-scenario-pricing.mjs`; `tests/gauge-project-scenario-rates.mjs`; `tests/gauge-project-scenario-deadlines.mjs` |
@@ -69,7 +69,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `INVOICE-004` | done | `tests/gauge-invoice-corrections.mjs`; `tests/gauge-base-portability.mjs`; `src/gauge/invoice-corrections.ts`; `src/gauge/invoice-standing.ts`; `migrations/core/0039_gauge_invoice_corrections.sql` |
 | `INVOICE-005` | missing |  |
 | `INVOICE-006` | done | `src/gauge/receipts.ts`; `src/gauge/receivables.ts`; `src/gauge/invoices.ts`; `src/gauge/ui-invoices.ts`; `src/gauge/cash-forecast.ts`; `migrations/core/0040_gauge_client_receipts.sql`; `tests/gauge-receipts.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-cash-forecast.mjs` |
-| `INVOICE-007` | missing |  |
+| `INVOICE-007` | partial | `tests/gauge-late-fees.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs`; `tests/gauge-receipts.mjs`; `tests/gauge-cash-forecast.mjs` |
 | `INVOICE-008` | done | `tests/gauge-invoices.mjs`; `tests/gauge-cash-forecast.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge.mjs`; `tests/gauge-invoice-corrections.mjs`; `tests/gauge-retainer-rules.mjs` |
 | `PAYMENT-001` | partial | `tests/fixtures/stripe-journey.mjs`; `tests/gauge-invoices.mjs`; `tests/gauge-cash-forecast.mjs` |
 | `PAYMENT-002` | partial | `tests/fixtures/stripe-journey.mjs`; `tests/gauge-invoices.mjs`; `tests/fixtures/stripe-archive.mjs`; `tests/journeys/stripe-native.mjs` |
@@ -77,7 +77,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `REPORT-001` | done | `src/gauge/portfolio.ts`; `src/gauge/portfolio-labor.ts`; `src/gauge/retainer-fees.ts`; `src/gauge/ui-portfolio.ts`; `tests/gauge-portfolio.mjs`; `tests/gauge-report-lineage.mjs`; `tests/gauge-base-portability.mjs` |
 | `REPORT-002` | done | `src/gauge/billability.ts`; `src/gauge/ui-performance.ts`; `tests/gauge-realization.mjs` |
 | `REPORT-003` | partial | `src/gauge/revenue-dashboard.ts`; `src/gauge/ui-revenue-dashboard.ts`; `src/gauge/report-lineage-revenue.ts`; `tests/gauge-revenue-dashboard.mjs`; `tests/gauge-cash-forecast.mjs` |
-| `REPORT-004` | missing |  |
+| `REPORT-004` | partial | `src/gauge/custom-fields.ts`; `src/gauge/custom-report.ts`; `src/gauge/saved-report-export.ts`; `src/gauge/ui-custom-fields.ts`; `tests/gauge-saved-reports.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-report-lineage.mjs` |
 | `REPORT-005` | done | `src/gauge/report-lineage.ts`; `src/gauge/report-export.ts`; `src/gauge/ui-report-evidence.ts`; `tests/gauge-report-lineage.mjs`; `src/gauge/report-lineage-demand.ts`; `src/gauge/ui-demand.ts`; `tests/gauge-demand-forecast.mjs` |
 | `CLIENT-001` | done | `tests/gauge-milestone-delivery.mjs`; `tests/gauge-delivery.mjs`; `.github/workflows/verify.yml` |
 | `CLIENT-002` | missing |  |
@@ -136,7 +136,7 @@ Generated from CONTRACT.md by scripts/contract-docs.mjs. [The authoritative cont
 | `BASE-005` | missing |  |
 | `RECOVER-001` | partial | `tests/gauge-recovery-feasibility.mjs`; `tests/gauge-agent.mjs`; `src/gauge/recovery-feasibility.ts`; `src/gauge/ui-recovery-feasibility.ts` |
 | `RECOVER-002` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
-| `RECOVER-003` | missing |  |
+| `RECOVER-003` | partial | `tests/gauge-project-scenarios.mjs`; `tests/gauge-recovery-outcomes.mjs`; `tests/gauge.mjs`; `tests/gauge-base-portability.mjs`; `tests/gauge-agent.mjs`; `src/gauge/recovery-outcomes.ts`; `src/gauge/scenario-observations.ts`; `src/gauge/ui-recovery-outcomes.ts` |
 | `RECOVER-004` | missing |  |
 | `RECOVER-005` | partial | `src/gauge/proposals.ts`; `tests/gauge-agent.mjs` |
 | `RECOVER-006` | partial | `tests/gauge-learning.mjs`; `tests/gauge.mjs`; `tests/gauge-base-portability.mjs`; `src/gauge/learning.ts`; `src/gauge/learning-score.ts`; `src/gauge/ui-learning.ts` |

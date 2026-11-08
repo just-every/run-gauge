@@ -62,7 +62,8 @@ test('MIGRATE-003 Forecast move-in preserves source hours on reviewed working da
 })
 
 test('MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API availability, holiday, leave and placeholders reconcile through import doors',async()=>{
- const h=await harness(),state=async()=>(await(await h.request('/api/gauge/state?from=2026-11-02&to=2026-11-08',h.owner)).json())
+ // Availability must still be future when the imported calendar is edited below.
+ const h=await harness({now:'2026-10-31T12:00:00Z'}),state=async()=>(await(await h.request('/api/gauge/state?from=2026-11-02&to=2026-11-08',h.owner)).json())
  const finish=async(job)=>{for(let n=0;n<30&&['queued','applying','undoing'].includes(job.state);n++)job=await h.cmd('import:resume',{id:job.id});return job}
  const apply=async(pack)=>{const preview=await h.cmd('import:preview',{package:pack}),job=await finish(await h.cmd('import:create',{package:pack,fingerprint:preview.fingerprint}));assert.equal(job.state,'completed');return {preview,job}}
  const undo=async(job)=>assert.equal((await finish(await h.cmd('import:undo',{id:job.id}))).state,'undone')
@@ -113,6 +114,7 @@ test('MIGRATE-003 Project/Team rows/columns, weekly/monthly aggregates, API avai
   paged.people.pages=[{page:1,totalPages:2,totalCount:2,next:'synthetic-gauge-page-2',data:peopleRows.slice(0,1)},{page:2,cursor:'synthetic-gauge-page-2',totalPages:2,totalCount:2,next:null,data:peopleRows.slice(1)}]
   pack.files['forecast.json']=JSON.stringify(paged)
   const captured=await apply(pack),data=await state(),cap=data.capacity[0]
+  assert.equal(data.asOf,'2026-10-31T12:00:00.000Z','the journey owns its clock before the imported availability starts')
   assert.equal(cap.availableSeconds,30*3600,'four workdays minus two hours of leave')
   assert.equal(cap.committedSeconds,20*3600)
   assert.equal(cap.tentativeSeconds,0,'placeholder demand stays unfilled, not assigned to a real person')

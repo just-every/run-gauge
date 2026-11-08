@@ -1,3 +1,6 @@
+import {adoptedOutcome} from './fixtures/recovery-outcomes.mjs'
+import {prepareLateFeePortability} from './gauge-late-fees.mjs'
+import {prepareVendorPortability} from './fixtures/vendor-commitments.mjs'
 import {seedLearningProjects} from './fixtures/learning-projects.mjs'
 import { sourceFieldJourney } from './fixtures/source-custom-fields.mjs'
 import { harvestFinancePackage } from './fixtures/harvest-finance.mjs'
@@ -10,6 +13,9 @@ import { recordMilestoneAcceptance, harness } from './gauge-harness.mjs'
 // The caller closes the source before passing this verifier to portability().
 export async function prepareCurrentPortability(h,{importJob}) {
  const {cmd,state,request,owner}=h,zone='Australia/Brisbane'
+ const portableOutcome=await adoptedOutcome(h,'synthetic-gauge-9320')
+ const portableLateFee=await prepareLateFeePortability(h)
+ const portableVendor=await prepareVendorPortability(h)
  const learning=await seedLearningProjects(h),learningPreview=await cmd('learning:preview',learning.input)
  const portableLearning=await cmd('learning:save',{...learning.input,sourceDigest:learningPreview.sourceDigest})
  // COST-002: retain receipt economics, unit rates, once-only reimbursement and honest receiver history.
@@ -258,7 +264,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const fieldPreview=await cmd('field:import-preview',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies})
  const fieldImport=await cmd('field:import',{package:fieldPackage,mapping:fieldMap,policies:fieldPolicies,fingerprint:fieldPreview.fingerprint,reason:'Portable source field custody'})
  const officeField=(await state()).data.customFields.find(f=>f.value.sourceId==='office')
- const savedFieldReport=await cmd('saved:save',{name:'Portable office utilization',dataset:'utilization',group:officeField.id,from:'2026-10-01',to:'2026-10-31'})
+ const savedFieldReportInitial=await cmd('saved:save',{name:'Portable office utilization',dataset:'utilization',group:officeField.id,columns:['billableSeconds','availableSeconds','utilizationPercent'],from:'2026-10-01',to:'2026-10-31'})
+ const savedFieldReport=await cmd('saved:save',{...savedFieldReportInitial,name:'Portable revised utilization',dataset:'utilization',group:officeField.id,columns:['billableSeconds','utilizationPercent'],from:'2026-10-01',to:'2026-10-31'})
  const privateField=await cmd('field:define',{scope:'engagements',name:'Portable contract value',type:'currency',currency:'AUD',visibility:'finance-only',required:true,reason:'Portable required finance definition; legacy records remain intact'})
  const fieldEngagement=(await state()).data.engagements.find(e=>e.id===engagement.id)
  await cmd('field:values',{scope:'engagements',...fieldEngagement,customFields:{[privateField.id]:123456}})
@@ -287,6 +294,8 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const portableChangePath=`/api/gauge/client-changes/${portableChange.id}/${portableChangeReview.id}`
  const portableChangeResponse=await request(portableChangePath,portableChangeRecipient.cookie,{method:'POST',headers:{origin:h.origin,'content-type':'application/json','x-gauge-review-token':portableChangeRelease.token},body:JSON.stringify({key:crypto.randomUUID(),revision:portableChangeRow.revision,outcome:'accepted',signatureName:'Portable Client',consent:true,reason:'Portable exact signed native response'})})
  assert.equal(portableChangeResponse.status,200,await portableChangeResponse.clone().text())
+ const outcomeCapture=await cmd('recovery:outcome-capture',portableOutcome.adopted)
+ const portableObserved=await cmd('recovery:outcome-compare',outcomeCapture)
  const before=await state()
  assert.equal(before.data.customImports.find(r=>r.id===fieldImport.id).value.package.records[0].values.office,'Austin')
  assert.equal(before.data.people.find(r=>r.id===person.id).value.customFields[officeField.id],'Austin')
@@ -318,6 +327,7 @@ export async function prepareCurrentPortability(h,{importJob}) {
  const documentDownloads=before.data.invoices.filter(i=>i.value.document).flatMap(i=>['pdf','detail-pdf','csv'].map(format=>`/api/gauge/invoice-documents/${i.id}?format=${format}`))
  const downloads=documentDownloads.concat(before.data.periodCloses.map(c=>`/api/gauge/closes/${c.id}`).concat(before.data.specialistHandoffs.map(r=>`/api/gauge/handoffs/${r.id}`)))
  for(const packet of before.data.packets.filter(r=>r.value.status==='approved'))downloads.push(`/api/gauge/packets/${packet.id}`)
+ for(const bill of before.data.vendorBills)for(const file of bill.value.attachmentIds??[])downloads.push(`/api/gauge/vendor-files/${file}`)
  for(const expense of before.data.expenses)for(const file of expense.value.attachmentIds??[])downloads.push(`/api/gauge/files/${file}`)
  for(const archive of before.data.archives)downloads.push(`/api/gauge/archives/${archive.id}`)
  downloads.push(`/api/gauge/imports/${importJob}`,`/api/gauge/imports/${retainedImport.id}`)
@@ -338,7 +348,17 @@ export async function prepareCurrentPortability(h,{importJob}) {
    }
   }})
   try{
+   await portableLateFee(restored)
+   await restored.cmd('recovery:outcome-compare',outcomeCapture,h.owner,401)
+   const restoredOutcome=await restored.cmd('recovery:outcome-compare',await restored.cmd('recovery:outcome-capture',portableOutcome.adopted))
+   assert.deepEqual(restoredOutcome.before,portableObserved.before)
+   assert.deepEqual(restoredOutcome.expected,portableObserved.expected)
+   assert.deepEqual(restoredOutcome.projects,portableObserved.projects)
+   await restored.cmd('projectScenario:adopt',{...portableOutcome.adopted,asOf:portableOutcome.asOf,selectedIds:[],reason:'History grants no adoption'},restored.owner,409)
+   assert.equal(restored.providerRequests.filter(r=>!r.url.includes('resend.com')).length,0,'Fresh authorized observation replays no provider action')
    const favoritePage=await restored.request(`/app/time?sheetPerson=${person.id}&sheetFrom=2026-10-05`,restored.owner);assert.equal(favoritePage.status,200);assert((await favoritePage.text()).includes('Research workshop'),'Restored private favorite is available when the owner acts for its person on Time')
+   assert.equal((await restored.request('/api/gauge/vendor-files/'+before.data.vendorBills[0].value.attachmentIds[0],portableVendor.approver.cookie)).status,401,'Old finance session cannot read restored bill originals')
+   await restored.cmd('vendorBill:approve',{...portableVendor.approved,reason:'Restored bill cannot match twice'},restored.owner,409)
    assert.notEqual(restored.vars.SESSION_SECRET,h.vars.SESSION_SECRET,'restore uses fresh private settings')
    assert.equal((await restored.db.prepare('SELECT COUNT(*) AS n FROM g_milestone_review_authority').first()).n,0,'Client delivery review authority never travels')
    assert.equal((await restored.post('/auth/magic-link',{email:'synthetic-gauge-7305@example.test'})).status,202)
@@ -397,6 +417,20 @@ export async function prepareCurrentPortability(h,{importJob}) {
    const restoredBytes=await readAll(restored,downloads)
    assert.deepEqual(restoredBytes,bytes,'packet artifacts, receipts and retained source originals round-trip byte for byte')
    assert.deepEqual(await readAll(restored,records),histories,'all business revision history survives')
+   const savedSnapshot=await(await restored.request('/api/gauge/saved/'+savedFieldReport.id,restored.owner)).json()
+   assert.equal(savedSnapshot.definition.revision,savedFieldReport.revision)
+   assert.deepEqual(savedSnapshot.definition.value.columns,['billableSeconds','utilizationPercent'])
+   const savedHistory=await(await restored.request('/api/gauge/history/savedReports/'+savedFieldReport.id,restored.owner)).json()
+   assert.deepEqual(savedHistory.history[0].value.columns,['billableSeconds','availableSeconds','utilizationPercent'],'Exact earlier definition stays portable')
+   const {csvRows,workbookRows,pdfLines}=await import('./fixtures/report-downloads.mjs')
+   const savedDownload=async format=>{
+    const response=await restored.request(`/api/gauge/saved/${savedFieldReport.id}.${format}?`+new URLSearchParams({revision:savedSnapshot.definition.revision,fingerprint:savedSnapshot.fingerprint}),restored.owner)
+    assert.equal(response.status,200);return new Uint8Array(await response.arrayBuffer())
+   }
+   const restoredCsv=csvRows(Buffer.from(await savedDownload('csv')))
+   assert.deepEqual(workbookRows(await savedDownload('xlsx')),restoredCsv,'Restored view still exports exact workbook rows')
+   assert.equal((await pdfLines(await savedDownload('pdf'))).join(''),restoredCsv.map(r=>r.join(' | ')).join(''),'Restored view still exports exact PDF cells')
+
    const restoredScopePreview=await restored.cmd('change:preview',scopeInput)
    const continuedChange=await restored.cmd('change:prepare',{...scopeInput,previousId:portableChange.id,fingerprint:restoredScopePreview.fingerprint,name:'Continued restored change request',reason:'Version order is business order after restore'})
    const continuedRow=(await restored.state()).data.projectScenarios.find(r=>r.id===continuedChange.id)

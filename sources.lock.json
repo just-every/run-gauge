@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "gauge-local/edition",
-  "manifest": "65bd49d9d7f53044b0db26efea8965e081b782ecf6b45a6add0c1db93b2b7fbe",
+  "manifest": "daa44221593351e249b11a0de0c3614b2b75f8237c7739463639da9f0a945c6e",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -94,7 +94,8 @@
           "migrations/core/0088_gauge_late_fee_drafts.sql",
           "migrations/core/0089_gauge_app_key_scope.sql",
           "migrations/core/0090_gauge_webhook_previews.sql",
-          "migrations/core/0091_gauge_app_draft_reads.sql"
+          "migrations/core/0091_gauge_app_draft_reads.sql",
+          "migrations/core/0092_gauge_read_budget.sql"
         ]
       },
       "baseline": null
@@ -570,7 +571,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "65bd49d9d7f53044b0db26efea8965e081b782ecf6b45a6add0c1db93b2b7fbe",
+      "sha256": "daa44221593351e249b11a0de0c3614b2b75f8237c7739463639da9f0a945c6e",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -582,7 +583,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "3201f4391bd25dc154878614f791d58e262ee70873abd38df1b8e9ee3ad65732",
+      "sha256": "5beaf3f8036a5c535d88fe235599c4177bc6de76cf48b2157d013299d9cafd11",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -959,6 +960,10 @@
     },
     "migrations/core/0091_gauge_app_draft_reads.sql": {
       "sha256": "0d61c7658d7d520f084d4678a4d912719ed51bf0dbea701bdd880a1e8fd9dbfc",
+      "executable": false
+    },
+    "migrations/core/0092_gauge_read_budget.sql": {
+      "sha256": "cadbde27d9a7acb3c9c585c4dbc87b6f00400b27eea68382b3d484ed73c42d38",
       "executable": false
     },
     "MOVE-IN.md": {
@@ -1390,7 +1395,7 @@
       "executable": false
     },
     "scripts/gauge-tests.mjs": {
-      "sha256": "a8e0363b04df88f192453dc8f30fd4252197cec2220eb42e9f7dd0dc20f59423",
+      "sha256": "5eee59720b904c550b25e942be5b4183faff6a619ca5e880af1a4d2ae8cd31d1",
       "executable": false
     },
     "scripts/install.mjs": {
@@ -1618,7 +1623,7 @@
       "executable": false
     },
     "src/gauge/api-keys.ts": {
-      "sha256": "c7446195ad64edb151ebc58c87659e626e540fa80060d30cd168d9da2c5a8993",
+      "sha256": "84d76fa8b8d2dfd1c6debace64a99c21f78c1a945c55d2e6029aff5a8975c7ed",
       "executable": false
     },
     "src/gauge/app-keys.ts": {
@@ -2166,7 +2171,7 @@
       "executable": false
     },
     "src/gauge/reports.ts": {
-      "sha256": "31d7c846d7004977af592c00cc14cdb52cb12ecd456f899aac653717dd5439a7",
+      "sha256": "11f5942cbc10b2cecf9081be5802b0085441d8d77ef0751f1acaa97bbd3bbb3d",
       "executable": false
     },
     "src/gauge/resource-candidates.ts": {
@@ -2209,6 +2214,10 @@
       "sha256": "a7568548729d8bab0b0223a8631653157984608b604571840b36571496038739",
       "executable": false
     },
+    "src/gauge/retainer-due.ts": {
+      "sha256": "9c7d5f9cbe777e5bcdf0404c91f97d93e43b34631b50ab468fd1fc475ac29133",
+      "executable": false
+    },
     "src/gauge/retainer-eligibility.ts": {
       "sha256": "ac2ef4abdf201dbef48bba3f9cb653067a10903f4a053949e3945262794b1eef",
       "executable": false
@@ -2238,7 +2247,7 @@
       "executable": false
     },
     "src/gauge/retainer-schedule.ts": {
-      "sha256": "afb57440d411dff3167b11e544f441ea19b01c208de06c7dc6e451f3793de895",
+      "sha256": "837db27e68bbef812424f8d188f4f0be4a077d22504f6d47da5925e583db7bbf",
       "executable": false
     },
     "src/gauge/retainer-source-lock.ts": {
@@ -2334,7 +2343,7 @@
       "executable": false
     },
     "src/gauge/store.ts": {
-      "sha256": "11c869cdfe3faff359440f1590dadb921048202a3715011d86b35ab3118a301d",
+      "sha256": "8be93ac69b5123df85aebf93c8cef38200a447c40153896bbcc30eee31fdfacd",
       "executable": false
     },
     "src/gauge/stripe-api.ts": {
@@ -4713,6 +4722,10 @@
       "sha256": "b714a26a0474ecb455e057cb3992d6de743f8201bc95b5a37a7b86b854235888",
       "executable": false
     },
+    "tests/gauge-d1-meter.mjs": {
+      "sha256": "4083177c2d232b2cc89dc9e3fa47c45c5e79562db85c3e3789dabc195614aaa3",
+      "executable": false
+    },
     "tests/gauge-delivery-templates.mjs": {
       "sha256": "85776a2da16e74d824aa86e05215dd42e04847abe0d8a53afdc956d190ab3fe4",
       "executable": false
@@ -4750,7 +4763,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "79f0be2fa49be941bb9683bf2dd4436b10eff5408219ba9d33c981f2b5479014",
+      "sha256": "a3a9252072d495b03c92936a127b4bebae21630942c68aabbbbedbd616e9db41",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4835,6 +4848,10 @@
     },
     "tests/gauge-rate-cards.mjs": {
       "sha256": "243fd2bb5eeafe48d738b0fb71b31c9f804f71bfc08641bef9e1881cbf4989f4",
+      "executable": false
+    },
+    "tests/gauge-read-budget.mjs": {
+      "sha256": "d472f2c7f7260856417da6823ea4e74cf1bcb5810a16306026d8ac6d7686f292",
       "executable": false
     },
     "tests/gauge-realization.mjs": {

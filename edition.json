@@ -94,7 +94,8 @@
           "migrations/core/0088_gauge_late_fee_drafts.sql",
           "migrations/core/0089_gauge_app_key_scope.sql",
           "migrations/core/0090_gauge_webhook_previews.sql",
-          "migrations/core/0091_gauge_app_draft_reads.sql"
+          "migrations/core/0091_gauge_app_draft_reads.sql",
+          "migrations/core/0092_gauge_read_budget.sql"
         ]
       }
     },

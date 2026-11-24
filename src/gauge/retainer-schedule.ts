@@ -1,5 +1,5 @@
 import type { Bindings } from '../auth.server'
-import { type Actor, Transaction, all, get, finance, fence } from './store'
+import { type Actor, Transaction, all, allWhere, get, finance, fence } from './store'
 import { type Value, type Row, type Kind, need, text, date, flag, workDate, sum, Fault } from './model'
 import { retainerPeriods } from './retainer-periods'
 import { retainerFees } from './retainer-fees'
@@ -8,10 +8,10 @@ import { retainerConsumption } from './retainer-consumption'
 import { agency } from './agency'
 import { packetArtifact } from './billing-artifact'
 import { scheduledCreditConsent, scheduledCreditLines } from './retainer-schedule-credits'
+import { nextDay as next, retainerIssueDate, schedulePeriodDue } from './retainer-due'
 import { autoIssueConsent, autoIssueCheck, scheduleAuthority, scheduleLocks, issueScheduledInvoice } from './retainer-auto-issue'
 
-const next=(day:string)=>new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().slice(0,10)
-export function retainerIssueDate(period:Row,basis:string){return basis==='arrears'?next(period.value.activeEnd):period.value.activeStart}
+export { retainerIssueDate }
 export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null>{
  if(!['retainer:schedule','retainer:run'].includes(action))return null
  need(finance(a),'Finance access required',403)
@@ -38,7 +38,7 @@ export async function scheduleCommand(env:Bindings,a:Actor,tx:Transaction,action
  tx.guard('(SELECT COUNT(*) FROM g_retainerSchedules)=?',schedules.length)
  const schedule=await tx.record('retainerSchedules',{rootId:term.value.rootId,engagementId:term.value.engagementId,basis,from,enabled:flag(input.enabled),autoIssue,...consent,billTo,remitTo,reference,creditAdjustments,number:(old?.value.number??0)+1,consentTermsNumber:term.value.number,consentTermsRevision:term.revision,heldPeriodIds:[...new Set(holds)],reason,configuredBy:a.session.operator.id,configuredByName:a.session.operator.displayName,grantVersion:a.grantVersion,configuredAt:Date.now()},old)
  tx.sql('DELETE FROM g_retainer_schedule_authority WHERE schedule_id=?',schedule.id)
- if(!schedule.value.enabled){const monitor=(await all(env,'retainerJobs')).find(r=>r.id==='job-'+schedule.id);if(monitor)await tx.record('retainerJobs',{...monitor.value,status:'cancelled',leaseUntil:null,nextAttemptAt:null,completedAt:Date.now()},monitor,undefined,'retainer:job-cancel')}
+ if(!schedule.value.enabled){const monitor=(await allWhere(env,'retainerJobs','id=?','job-'+schedule.id))[0];if(monitor)await tx.record('retainerJobs',{...monitor.value,status:'cancelled',leaseUntil:null,nextAttemptAt:null,completedAt:Date.now()},monitor,undefined,'retainer:job-cancel')}
  if(schedule.value.enabled)tx.sql('INSERT INTO g_retainer_schedule_authority(schedule_id,revision,operator_id) VALUES(?,?,?)',schedule.id,schedule.revision,a.session.operator.id)
  return schedule
 }
@@ -136,12 +136,14 @@ export async function runRetainerSchedules(env:Bindings,asOf?:string,at=Date.now
  for(const grant of grants){
   const schedule=await get(env,'retainerSchedules',grant.schedule_id)
   const a={...settings,session:{operator:{id:grant.operator_id},id:''},role:'finance',personId:null,grantVersion:schedule.value.grantVersion,scheduled:{id:grant.schedule_id,revision:grant.revision}} as Actor
+  const id='job-'+schedule.id,stored=(await allWhere(env,'retainerJobs','id=?',id))[0]
+  const same=stored?.value.scheduleRevision===schedule.revision
+  if(same&&(stored.value.status==='exhausted'||stored.value.nextAttemptAt>at||stored.value.status==='running'&&stored.value.leaseUntil>at))continue
+  // An idle monitor with nothing due needs no claim, history or audit rows: the hourly job stays read-only until a period is due.
+  if(same&&stored.value.status==='idle'&&!await schedulePeriodDue(env,schedule,day))continue
   // Authority itself is durable. A lost grant is an owned exception for finance;
   // an expired principal never receives a write capability.
   try{await fence(env,a)}catch(error){if(error instanceof Fault)continue;throw error}
-  const id='job-'+schedule.id,stored=(await all(env,'retainerJobs')).find(r=>r.id===id)
-  const same=stored?.value.scheduleRevision===schedule.revision
-  if(same&&(stored.value.status==='exhausted'||stored.value.nextAttemptAt>at||stored.value.status==='running'&&stored.value.leaseUntil>at))continue
   const attempts=same?stored!.value.attempts:0
   const tx=new Transaction(env,a);tx.action='retainer:job-claim';tx.observe('retainerSchedules',schedule)
   if(!stored)tx.guard('NOT EXISTS(SELECT 1 FROM g_retainerJobs WHERE id=?)',id)

@@ -7,10 +7,11 @@ import {tmpdir} from 'node:os'
 import {join,resolve} from 'node:path'
 import {createServer} from 'node:net'
 import {clockDatabase} from './gauge-test-clock.mjs'
+import {meterModule} from './gauge-d1-meter.mjs'
 const {Miniflare,convertV4MiniflareOptions,Log,LogLevel}=createRequire(await realpath('node_modules/wrangler/package.json'))('miniflare')
 // The emitted Worker with production mail; outbound capture stands in for the mail provider and never reaches it.
 // GAUGE_TEST_NOW sweeps Worker clocks; a journey's explicit now owns its dated fixtures.
-export async function harness({currency='AUD',timezone='Australia/Brisbane',finishSetup=true,persistenceDirectory,beforeLogin,databaseBinding=true,mailFrom='Gauge <auth@example.test>',now=process.env.GAUGE_TEST_NOW}={}){
+export async function harness({currency='AUD',timezone='Australia/Brisbane',finishSetup=true,persistenceDirectory,beforeLogin,databaseBinding=true,mailFrom='Gauge <auth@example.test>',now=process.env.GAUGE_TEST_NOW,meter=false}={}){
  const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
  const directory=persistenceDirectory??await mkdtemp(join(tmpdir(),'gauge-flow-')),origin=`https://127.0.0.1:${port}`,secret=()=>randomBytes(32).toString('hex'),mails=[],providerRequests=[],providerEdge={handler:null}
  const vars={AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret(),SETUP_TOKEN:secret(),MAIL_PROVIDER:'resend',MAIL_FROM:mailFrom,MAIL_API_KEY:'synthetic-gauge-900001'}
@@ -50,6 +51,7 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
    }
   `})
  }
+ if(meter)modules.unshift({type:'ESModule',path:join(server,'gauge-d1-meter-entry.mjs'),contents:meterModule(timestamp!==undefined?'gauge-test-entry.mjs':config.main)})
  const mf=new Miniflare({log,...convertV4MiniflareOptions({
   host:'127.0.0.1',port,https:true,
   modulesRoot:server,modules,
@@ -73,7 +75,8 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  const cmd=async(action,input={},cookie=owner,expected=200)=>{const response=await post('/api/gauge/command',{key:randomUUID(),action,...input},cookie),body=await response.json();assert.equal(response.status,expected,`${action}: ${JSON.stringify(body)}`);return body}
  const state=async(cookie=owner)=>{const r=await request('/api/gauge/state?from=2026-10-01&to=2026-10-31',cookie);assert.equal(r.status,200);return r.json()}
  const database=databaseBinding?await mf.getD1Database('DB'):undefined
- return {logs,mails,providerRequests,providerEdge,scheduled:(time)=>request('/cdn-cgi/local/scheduled'+(time==null?'':'?time='+encodeURIComponent(time))),...(databaseBinding?{db:timestamp===undefined?database:clockDatabase(database,timestamp)}:{}),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
+ const reads=async()=>(await(await request('/__reads?reset=1')).json())
+ return {reads,logs,mails,providerRequests,providerEdge,scheduled:(time)=>request('/cdn-cgi/local/scheduled'+(time==null?'':'?time='+encodeURIComponent(time))),...(databaseBinding?{db:timestamp===undefined?database:clockDatabase(database,timestamp)}:{}),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
  }catch(error){await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true});throw error}
 }
 

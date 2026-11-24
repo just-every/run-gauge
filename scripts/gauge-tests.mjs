@@ -106,6 +106,10 @@ const suites = [
  ],
  [
   "node",
+  "tests/gauge-read-budget.mjs"
+ ],
+ [
+  "node",
   "tests/gauge-agent.mjs"
  ],
  [
@@ -159,7 +163,8 @@ const groups = [
   "gauge-report-lineage.mjs",
   "gauge-utilization.mjs",
   "gauge-resources.mjs",
-  "gauge-schedule.mjs"
+  "gauge-schedule.mjs",
+  "gauge-read-budget.mjs"
  ]
 ]
 const names=suites.map(s=>basename(s.at(-1))),assigned=groups.flat()

@@ -9,7 +9,7 @@ import { decode, type Kind, type Row, type Value, need, uuid } from './model'
 export interface Actor { clientChange?:{id:string;reviewId:string;tokenHash:string}; clientPortal?:{id:string;revision:string}; appKey?: {id:string;hash:string;ownerId:string;engagementIds:string[]}; session: Session; role: string; personId: string | null; grantVersion: number | null; resourceScope?:{engagementIds:string[];personIds:string[];grantedBy:string}; currency: string; timezone: string; customDefinitions?:Row[];customHistory?:Row[];customStamp?:string;agentScope?: AgentScope; clientMilestone?: {id:string;reviewId:string;tokenHash:string;portal?:{id:string;revision:string}}; clientInvoice?: {id:string;revision:string}; clientProposal?: {id:string;revision:string}; scheduled?: {id:string;revision:string} }
 export async function actor(env: Bindings, session: Session): Promise<Actor> {
  const grant = await env.DB.prepare('SELECT * FROM g_grants WHERE operator_id=? AND enabled=1').bind(session.operator.id).first<{ role: string; person_id: string; version: number; purpose: string; engagement_ids: string; planning_people:string; granted_by: string }>()
- const customDefinitions=await all(env,'customFields'),customHistory=(await env.DB.prepare("SELECT record_id AS id,revision,data FROM g_history WHERE kind='customFields'").all<any>()).results.map(decode)
+ const customDefinitions=await all(env,'customFields'),customHistory=(await env.DB.prepare("SELECT record_id AS id,revision,data FROM g_history WHERE kind='customFields' ORDER BY id").all<any>()).results.map(decode)
  return {customDefinitions,customHistory,customStamp:definitionStamp(customDefinitions), ...await agency(env), session, role: session.operator.role === 'owner' ? 'owner' : grant?.role ?? 'none', personId: grant?.person_id ?? null, grantVersion: grant?.version ?? null, ...(grant?.role==='resource-manager'?{resourceScope:{engagementIds:JSON.parse(grant.engagement_ids),personIds:JSON.parse(grant.planning_people),grantedBy:grant.granted_by}}:{}), ...(grant?.role==='agent'?{agentScope:{purpose:grant.purpose,engagementIds:JSON.parse(grant.engagement_ids),grantedBy:grant.granted_by}}:{}) }
 }
 export function authority(a: Actor, privileged = false):{sql:string;params:any[]} {
@@ -32,6 +32,10 @@ export async function all(env: Bindings, k: Kind): Promise<Row[]> {
  const field=['estimates','commercialProposals'].includes(k)?'number':['commercialEvents','providerUses','caseEvents','privacyExits','privacyErasures','kantataAdoptions'].includes(k)?'at':k==='operationalCases'?'openedAt':['providerConnections','providerJobs'].includes(k)?'createdAt':null
  const order=k==='kantataRecords'?'id':field?`json_extract(data,'$.${field}'),id`:'rowid'
  return (await env.DB.prepare(`SELECT id,revision,data FROM g_${k} ORDER BY ${order}`).all<{id:string;revision:string;data:string}>()).results.map(decode)
+}
+/** The rows of one kind that match an indexed condition, in the same stable order as all(). Migration 0092 holds the indexes the callers rely on. */
+export async function allWhere(env: Bindings, k: Kind, condition: string, ...params: (string | number)[]): Promise<Row[]> {
+ return (await env.DB.prepare(`SELECT id,revision,data FROM g_${k} WHERE ${condition} ORDER BY rowid`).bind(...params).all<{id:string;revision:string;data:string}>()).results.map(decode)
 }
 export async function access(env: Bindings, a: Actor, engagementId: string, manage = false): Promise<Row> {
  if(a.appKey)need(a.appKey.engagementIds.includes(engagementId),'Project is outside this app credential',403)

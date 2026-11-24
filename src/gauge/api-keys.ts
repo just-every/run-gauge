@@ -1,6 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { canonicalJson, sha256 } from '../modules/import-kit/src/d1/index'
-import { type Actor, Transaction, all, fence } from './store'
+import { type Actor, Transaction, all, allWhere, fence } from './store'
 import { date, need, sum, text, uuid } from './model'
 import { capacity } from './reports'
 import { utilization } from './utilization'
@@ -62,7 +62,11 @@ export async function utilizationKeyRead(env: Bindings, token: string, from: str
  const key = await env.DB.prepare('SELECT id,label FROM g_api_keys WHERE hash=? AND scope=? AND revoked_at IS NULL').bind(sha256(token), keyScope).first<{id:string;label:string}>()
  need(key, 'Invalid or revoked API key', 401)
  const start = date(from), end = date(to)
- const data: any = Object.fromEntries(await Promise.all((['people','calendars','leave','staffing','time','engagements'] as const).map(async k => [k, await all(env, k)])))
+ // Only the window is read: calendars, people and engagements are small; leave, staffing and time come from date indexes (migration 0092),
+ // so an hourly poll costs the same in the first month and the fifth year.
+ const overlapping = (k: 'leave' | 'staffing') => allWhere(env, k, "json_extract(data,'$.to')>=? AND json_extract(data,'$.from')<=?", start, end)
+ const [people, calendars, engagements, leave, staffing, time] = await Promise.all([all(env, 'people'), all(env, 'calendars'), all(env, 'engagements'), overlapping('leave'), overlapping('staffing'), allWhere(env, 'time', "json_extract(data,'$.workDate') BETWEEN ? AND ?", start, end)])
+ const data: any = { people, calendars, leave, staffing, time, engagements }
  const cap = capacity(data, start, end), detail = utilization(data, cap, start, end).details
  const knownAvailableSeconds = sum(cap.map(c => c.knownAvailableSeconds)), missingCalendarDays = sum(cap.map(c => c.missingCalendarDays))
  const result = { scope: keyScope, from: start, to: end, participantCount: cap.length, availableSeconds: missingCalendarDays ? null : knownAvailableSeconds, knownAvailableSeconds, missingCalendarDays, approvedBillableSeconds: sum(detail.map(d => d.approvedBillableSeconds)), asOf: new Date().toISOString() }

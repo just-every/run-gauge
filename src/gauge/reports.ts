@@ -68,9 +68,11 @@ export function redact(a: Actor, k: Kind, value: Value): Value {
  if (k === 'leave' && v.personId !== a.personId) v.note = 'Private leave'
  return v
 }
-export async function visible(env: Bindings,a: Actor,favoritePersonId?:string) {
+/** `unfiltered` receives every time row before this actor's filters, so a report that needs the whole recorded total reads the table once. */
+export async function visible(env: Bindings,a: Actor,favoritePersonId?:string,unfiltered?:{time?:Row[]}) {
  if(a.role==='resource-manager')return resourceData(env,a)
  const data = Object.fromEntries(await Promise.all(kinds.map(async k=>[k,await all(env,k)]))) as Record<Kind,Row[]>
+ if(unfiltered)unfiltered.time=data.time
  data.customFields=data.customFields.filter(f=>canField(a,f));data.customImports=finance(a)?data.customImports:[];data.savedReports=data.savedReports.filter(r=>savedVisible(a,r.value))
  for(const k of ['retentionPolicies','privacyExits','privacyErasures','operationalCases','caseEvents','kantataAdoptions','floatAdoptions','learningCohorts'] as const)data[k]=a.role==='owner'?data[k]:[]
  data.kantataRecords=finance(a)?data.kantataRecords:[]
@@ -168,11 +170,11 @@ export function economics(data: Awaited<ReturnType<typeof visible>>,a: Actor) {
 }
 export async function reports(env: Bindings,a: Actor,from: string,to: string,favoritePersonId?:string,forecastAsOf?:string|null,portfolioOptions:Value={}) {
  const asOf=new Date().toISOString(),forecastDay=forecastAsOf?date(forecastAsOf):workDate(Date.now(),a.timezone)
- const data=await visible(env,a,favoritePersonId),cap=a.role==='resource-manager'?capacity({people:data.people,calendars:await all(env,'calendars'),leave:await all(env,'leave'),staffing:await all(env,'staffing')},from,to).map(c=>({...c,conflicts:c.conflicts.map(x=>({...x,sources:[]})),days:c.days.map(d=>({...d,calendarId:null,leaveSources:[],committedSources:[],tentativeSources:[]}))})):capacity(data,from,to),econ=economics(data,a),exceptions:any[]=[]
+ const unfiltered:{time?:Row[]}={},data=await visible(env,a,favoritePersonId,unfiltered),cap=a.role==='resource-manager'?capacity({people:data.people,calendars:await all(env,'calendars'),leave:await all(env,'leave'),staffing:await all(env,'staffing')},from,to).map(c=>({...c,conflicts:c.conflicts.map(x=>({...x,sources:[]})),days:c.days.map(d=>({...d,calendarId:null,leaveSources:[],committedSources:[],tentativeSources:[]}))})):capacity(data,from,to),econ=economics(data,a),exceptions:any[]=[]
  for(const c of cap){ for(const conflict of c.conflicts)exceptions.push({type:'capacity conflict',personId:c.personId,...conflict});if(c.missingCalendarDays)exceptions.push({type:'availability missing',personId:c.personId,days:c.missingCalendarDays,demand:c.days.filter(d=>d.calendarId===null&&(d.committedSeconds>0||d.tentativeSeconds>0))}) }
  for(const e of econ) { if('costMinor' in e && e.budgetMinor!==null && e.knownCostMinor>e.budgetMinor)exceptions.push({type:'overspend',source:`engagements:${e.engagementId}`,amountMinor:e.knownCostMinor-e.budgetMinor,currency:e.currency,incomplete:e.missingCostSources.length>0||e.otherCostCurrencies.length>0}); }
  // Recorded time is a per-person total over every entry, not just those this viewer may open, so every viewer reads the same number; no record is exposed.
- const allTime=['agent','resource-manager'].includes(a.role)?data.time:await all(env,'time')
+ const allTime=['agent','resource-manager'].includes(a.role)?data.time:unfiltered.time!
  for(const p of (a.role==='agent'&&a.agentScope?.purpose!=='time'?[]:data.people)){const expected=cap.find(c=>c.personId===p.id)?.knownAvailableSeconds ?? 0;const recorded=allTime.filter(r=>r.value.personId===p.id && r.value.workDate>=from && r.value.workDate<=to).reduce((n,r)=>n+(r.value.durationSeconds??0),0);if(recorded<expected)exceptions.push({type:'missing time',personId:p.id,expectedSeconds:expected,recordedSeconds:recorded,sources:data.calendars.filter(r=>r.value.personId===p.id).map(r=>r.id)})}
  for(const p of data.proposals)if(p.value.status==='proposed')p.value.availability=await proposalAvailability(env,p)
  for(const r of data.proposals)if(r.value.status==='proposed'&&!r.value.availability&&await canDecide(env,a,r))exceptions.push({type:'decision due',source:`proposals:${r.id}`,kind:r.value.kind})

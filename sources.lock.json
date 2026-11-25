@@ -4735,7 +4735,7 @@
       "executable": false
     },
     "tests/gauge-demand-forecast.mjs": {
-      "sha256": "aaf784534ce535480c72ca92f989633c0350a1dc694b55e3c0e531b6950f8b37",
+      "sha256": "cc005169eeb311f848d876d259642707bb499fbee9638a4fc875de93c0dc92f6",
       "executable": false
     },
     "tests/gauge-expected-cash.mjs": {

@@ -74,7 +74,7 @@ export async function harness({currency='AUD',timezone='Australia/Brisbane',fini
  const cmd=async(action,input={},cookie=owner,expected=200)=>{const response=await post('/api/gauge/command',{key:randomUUID(),action,...input},cookie),body=await response.json();assert.equal(response.status,expected,`${action}: ${JSON.stringify(body)}`);return body}
  const state=async(cookie=owner)=>{const r=await request('/api/gauge/state?from=2026-10-01&to=2026-10-31',cookie);assert.equal(r.status,200);return r.json()}
  const database=databaseBinding?await mf.getD1Database('DB'):undefined
- return {logs,mails,providerRequests,providerEdge,scheduled:(time)=>request('/cdn-cgi/local/scheduled'+(time==null?'':'?time='+encodeURIComponent(time))),...(databaseBinding?{db:timestamp===undefined?database:clockDatabase(database,timestamp)}:{}),now:timestamp,directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
+ return {logs,mails,providerRequests,providerEdge,scheduled:(time)=>request('/cdn-cgi/local/scheduled'+(time==null?'':'?time='+encodeURIComponent(time))),...(databaseBinding?{db:timestamp===undefined?database:clockDatabase(database,timestamp)}:{}),directory,origin,owner,vars,request,post,cmd,state,invite,close,dispose:async()=>{await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true})}}
  }catch(error){await close();if(!persistenceDirectory)await rm(directory,{recursive:true,force:true});throw error}
 }
 

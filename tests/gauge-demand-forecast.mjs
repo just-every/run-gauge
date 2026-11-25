@@ -5,7 +5,7 @@ import { chromium } from '@playwright/test'
 import { harness } from './gauge-harness.mjs'
 
 // RESOURCE-005 resource demand forecast as of 20 October 2026, through the command and state doors and Week in review.
-const h = await harness({ currency: 'USD', timezone: 'America/New_York' })
+const h = await harness({ currency: 'USD', timezone: 'America/New_York', now: '2026-10-20T14:00:00Z' })
 let browser
 try {
  const { cmd, request, owner } = h, zone = 'America/New_York', hour = 3600

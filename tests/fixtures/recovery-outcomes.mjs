@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 
 // Native setup and adoption, shared with the complete installation restore journey.
 export async function adoptedOutcome(h, label = 'synthetic-gauge-9300', currencyB = 'USD') {
- const {cmd}=h,agency=(await h.state()).agency,asOf=new Intl.DateTimeFormat('en-CA',{timeZone:agency.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(h.now??Date.now()),day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
+ const {cmd}=h,agency=(await h.state()).agency,asOf=new Intl.DateTimeFormat('en-CA',{timeZone:agency.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(Date.now()),day=n=>new Date(Date.parse(asOf)+n*86400000).toISOString().slice(0,10)
  const person=await cmd('save:people',{name:label+' designer',timezone:'UTC'})
  const replacement=await cmd('save:people',{name:label+' contractor',employmentType:'contractor',timezone:'UTC'})
  const client=await cmd('save:clients',{name:label+' client',billingCurrency:'USD',paymentTermsDays:0,collectionPercent:50,daysLate:5})
  for(const p of [person,replacement])await cmd('save:calendars',{personId:p.id,from:asOf,to:day(20),dailySeconds:28800,weekdays:'0,1,2,3,4,5,6',timezone:'UTC'})
  await cmd('save:rates',{personId:person.id,service:'*',effective:asOf,costMinor:9000,billMinor:15000,currency:'USD'})
- await cmd('save:rates',{personId:replacement.id,service:'*',effective:asOf,costMinor:5000,billMinor:20000,currency:'USD'})
+ await cmd('save:rates',{personId:replacement.id,service:'*',effective:day(-1),costMinor:5000,billMinor:20000,currency:'USD'})
  const projects=[],bookings=[],tasks=[],plans=[],milestones=[]
  for(const [index,mode] of ['fixed','hourly'].entries()) {
   const p=await cmd('save:engagements',{name:label+' '+mode,clientId:client.id,leadId:person.id,members:[person.id],scope:'Native outcome observation',timezone:'UTC',currency:index?currencyB:'USD'});projects.push(p)

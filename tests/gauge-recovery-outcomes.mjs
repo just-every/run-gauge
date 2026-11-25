@@ -88,7 +88,8 @@ export async function recoveryOutcomeJourney(h,browser) {
  assert(rescheduled.changedInputs.some(s=>s.kind==='deliveryPlans'))
  // Read current native invoices and user-recorded receipts, even when their sources were not in the original forecast.
  const pastTask=await cmd('save:tasks',{engagementId:projects[1].id,name:'synthetic-gauge-9306 past work',remainingSeconds:0})
- const time=await cmd('time:approve',await cmd('time:submit',await cmd('time:save',{personId:replacement.id,engagementId:projects[1].id,taskId:pastTask.id,service:'Design',notes:'Native observed work',timezone:'UTC',billable:true,start:asOf+'T09:00:00Z',end:asOf+'T10:00:00Z'})))
+ const workDay=day(-1)
+ const time=await cmd('time:approve',await cmd('time:submit',await cmd('time:save',{personId:replacement.id,engagementId:projects[1].id,taskId:pastTask.id,service:'Design',notes:'Native observed work',timezone:'UTC',billable:true,start:workDay+'T09:00:00Z',end:workDay+'T10:00:00Z'})))
  const packet=await cmd('packet:approve',await cmd('packet:create',{engagementId:projects[1].id,title:'synthetic-gauge-9307',sources:[`time:${time.id}`]}))
  const invoice=await cmd('invoice:issue',{...packet,issueDate:asOf,dueDate:asOf,billTo:'Native client',remitTo:'Native agency',reference:'synthetic-gauge-9308'})
  await cmd('payment:record',{...invoice,date:asOf,amountMinor:10000,reference:'synthetic-gauge-9309'})

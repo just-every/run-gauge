@@ -4602,7 +4602,7 @@
       "executable": false
     },
     "tests/fixtures/recovery-outcomes.mjs": {
-      "sha256": "4ffcc5e01198f471d471ce20717dfc58447e401311c6013e3e6f98390d389b83",
+      "sha256": "923ace6eab160fc4237c635dd39337b42aff28c6f066298a8e9b564280742f90",
       "executable": false
     },
     "tests/fixtures/report-downloads.mjs": {
@@ -4722,7 +4722,7 @@
       "executable": false
     },
     "tests/gauge-demand-forecast.mjs": {
-      "sha256": "aaf784534ce535480c72ca92f989633c0350a1dc694b55e3c0e531b6950f8b37",
+      "sha256": "cc005169eeb311f848d876d259642707bb499fbee9638a4fc875de93c0dc92f6",
       "executable": false
     },
     "tests/gauge-expected-cash.mjs": {
@@ -4750,7 +4750,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "fd3753ba56d4fc045933071b9c6d89d110843168184735c38be48cd7984d6ba5",
+      "sha256": "6c3fa2f1a86e57bcc0b81000eaec5bb5196c84a3fa19633cceeeb2148e8bf051",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4830,7 +4830,7 @@
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {
-      "sha256": "1e20edf1644b960cd006f68036d3fe47c6452a07938319c7f9a8090f35718cd9",
+      "sha256": "3958a03f0676aa2f4bb4ded6a6a464f47aa5371941f1a8d3a21a7dcd574e15fc",
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
@@ -4858,7 +4858,7 @@
       "executable": false
     },
     "tests/gauge-recovery-outcomes.mjs": {
-      "sha256": "9ad9c397f583fa561fb37941bcd5ae47725b0af5687151d89a481c0aa244879d",
+      "sha256": "5e26cc364475adba647277568295baeff219aec14483570f50b7affdab62327e",
       "executable": false
     },
     "tests/gauge-report-lineage.mjs": {

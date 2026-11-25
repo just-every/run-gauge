@@ -54,6 +54,7 @@ export async function commercialCommand(env:Bindings,a:Actor,tx:Transaction,acti
   return tx.record('commercialProposals',{document,fingerprint,nativeOriginal,estimateId:estimate.id,estimateRevision:estimate.revision,estimateRootId:estimate.value.rootId,opportunityId:estimate.value.opportunityId,clientId:estimate.value.clientId,rootId:previous?.value.rootId??id,previousId:previous?.id??null,number:(previous?.value.number??0)+1,status:'prepared',preparedBy:a.session.operator.id,preparedAt:Date.now(),reason:text(input.reason,'Preparation reason')},undefined,id,action)
  }
  if(action==='commercial:claim'){
+  need(env.MAIL_PROVIDER!=='none','mail_off',503)
   const row=await get(env,'commercialProposals',text(input.id,'Proposal'));need(row.revision===input.revision,'Proposal changed; reload',409)
   need(row.value.status==='prepared','Only a prepared proposal can be sent; inspect its existing delivery outcome',409)
   await latestCommercial(env,tx,row)

@@ -24,6 +24,7 @@ export const commandAdapter = createCommandAdapter(lifecycle, {
  dev: developmentTarget, preview: previewTarget, verify: ['pnpm', ['run', 'verify:app']], deploy: ownerDeploy('deploy.json', lifecycle),
  portability: localPortability({ database: 'gauge', policy: portabilityPolicy, transient: ['local runtime caches and logs'] }),
  setup: { manifestFile: 'rer-setup.json' }, browserModule: 'scripts/installer/ui/seed.mjs',
+ mailOffSignIn: 'rer signin',
  // The run site (rer build --site, rer deploy --site, RER_SITE): Gauge's homepage, the Run page
  // and the docs built from docs/*.md, written to an ignored folder; its domain is in deploy-site.json.
  site: { entry: 'src/site/pages.ts', output: 'dist/site', declaration: 'deploy-site.json' },

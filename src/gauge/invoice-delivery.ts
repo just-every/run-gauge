@@ -11,6 +11,7 @@ export const invoiceSubject=(invoice:Row)=>`Invoice ${invoice.value.number} · $
 export async function invoiceMailCommand(env:Bindings,a:Actor,tx:Transaction,action:string,input:Value):Promise<Row|null>{
  if(action!=='invoice:queue-mail')return null
  need(a.role==='owner'&&a.session.kind==='native','Only the native owner releases invoice mail',403)
+ need(env.MAIL_PROVIDER!=='none','mail_off',503)
  const release=await get(env,'invoiceAccess',text(input.id,'Invoice access'))
  need(release.revision===input.revision,'Invoice access changed; refresh',409)
  const invoice=await assertInvoiceMailSource(env,tx,release),reason=text(input.reason,'Explicit mail release reason')
@@ -26,6 +27,7 @@ export async function invoiceMailCommand(env:Bindings,a:Actor,tx:Transaction,act
 /** The durable claim commits before verification or submission; uncertain submissions never replay. */
 export async function dispatchInvoice(env:Bindings,a:Actor,input:Value):Promise<Value>{
  need(a.role==='owner'&&a.session.kind==='native','Only the native owner dispatches invoice mail',403);await fence(env,a)
+ need(env.MAIL_PROVIDER!=='none','mail_off',503)
  const job=await get(env,'providerJobs',text(input.id,'Invoice job')),key=text(input.key,'Unique request key',200)
  need(job.value.operation==='email:send'&&job.value.source.kind==='invoiceAccess'&&['sendgrid','resend'].includes(job.value.provider),'Choose an invoice mail job')
  if(['queued','retry-wait'].includes(job.value.status))need(job.revision===input.revision,'Provider job changed; refresh',409)

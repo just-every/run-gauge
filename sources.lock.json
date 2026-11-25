@@ -454,7 +454,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "cd99a05b41b5a62a1121bc7a4712835d5b703594adb2b0c72fbc55593a114a4d",
+      "sha256": "442285fe573b809ed88a9f482ce9892c97eb211905737757d1a6ecf513f0f61e",
       "executable": false
     },
     "API.md": {
@@ -506,7 +506,7 @@
       "executable": false
     },
     "deploy.json": {
-      "sha256": "f7730680ae61c047d43660dc50a2f7ee5c98594d2a0d1f1847824b78e86b131c",
+      "sha256": "aa40bc2928801ac3c5044fe3cdd56e1c4aa06742b76381492885f6e3b21dfdfd",
       "executable": false
     },
     "docs/access.md": {
@@ -582,7 +582,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "3201f4391bd25dc154878614f791d58e262ee70873abd38df1b8e9ee3ad65732",
+      "sha256": "2fc08c87d64d0ba9e864056d4b111be16815026c3a224c785dfe618c647ac154",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -974,11 +974,11 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "01a0e66a4fd0163a1f4d7101d68846f7912822812deedcbb87c8e89b9b925a32",
+      "sha256": "087d372cdc41d2cfb8e4b8be5fcd8c785998640a5ac846d060ceacb9e6653deb",
       "executable": false
     },
     "package.json": {
-      "sha256": "8e6cca78f9fb57492e8ed75d96e7a337ff2f7ed3c26d1c29593f22ab792d7514",
+      "sha256": "42ddd58ea3ac55bd9d57f5fca334e1436c26d329b066d6fdc03f7d2d19d0e990",
       "executable": false
     },
     "packaging.json": {
@@ -986,7 +986,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "d984bb9c114cfd2399ae3c4d3f4d08ee05934cca1f4a125792700b3c38b0ba12",
+      "sha256": "3889b8ea78772744cafbeb64f71d191756bbaf24e2e50ebd1604999487cb7d68",
       "executable": false
     },
     "PROVENANCE.md": {
@@ -1230,15 +1230,15 @@
       "executable": false
     },
     "rer-project.json": {
-      "sha256": "796fe0c0c343cfb0ae297b29b0b4c7ef9fd4a2e72654996dca9760d10ff65d11",
+      "sha256": "3fdef177fe025c06daba479bf563f3b51b4195a534e982adb3c21238a3d3fb25",
       "executable": false
     },
     "rer-setup.json": {
-      "sha256": "7d8102e7452ce293f1dc9fc7b75aaf5651c632beaa4a789b743c8164d3ef0117",
+      "sha256": "7a73f66d0dbf0f4c2b93d4516e8a6a03e6e5b23b1e947a888d80dd0792e652f2",
       "executable": false
     },
     "RUN-LOCALLY.md": {
-      "sha256": "127c2ecb5a6968240b802cad9371055edd633cca1b4323aa75fb6169ba44bff4",
+      "sha256": "664ae5ee84a1d43a5c1b2ad1a8fe63b1e89300d5033d6eeb8e25feb11bb3d366",
       "executable": false
     },
     "scripts/build-deployment-spec.mjs": {
@@ -1390,7 +1390,7 @@
       "executable": false
     },
     "scripts/gauge-tests.mjs": {
-      "sha256": "a8e0363b04df88f192453dc8f30fd4252197cec2220eb42e9f7dd0dc20f59423",
+      "sha256": "0aaed3bd3091f6d51b47861f9489fae8b382debfa87d1e711624eaf27cb506f1",
       "executable": false
     },
     "scripts/install.mjs": {
@@ -1398,7 +1398,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "6c04bcb070fbfb78a354327c488b1f10943849c2b91eef212e9f112a05e11069",
+      "sha256": "54d317087fb2319728f2fe1c6ac4718f1eb232b6ffecd181034ef5584379bbcf",
       "executable": false
     },
     "scripts/installer/portability-policy.d.mts": {
@@ -1438,7 +1438,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "791cda218929f8610844c2a32d0423b4208df12e033df148e1b89f142dda4f4c",
+      "sha256": "48654c285f5089d772978f501ce83077b57ad1c70b2477838103e72bae15d8d3",
       "executable": false
     },
     "src/base/contract-filter.ts": {
@@ -1698,7 +1698,7 @@
       "executable": false
     },
     "src/gauge/commercial-delivery.ts": {
-      "sha256": "c27a289404505288d92c66e8e63176805b225de0d6b434a83464a860eb21e1e5",
+      "sha256": "b53ab010d2b6e7ff191a5b9365f9a4cdb300c44965ef91986b15d95f6e2444a4",
       "executable": false
     },
     "src/gauge/commercial-proposal-document.ts": {
@@ -1710,7 +1710,7 @@
       "executable": false
     },
     "src/gauge/commercial-proposals.ts": {
-      "sha256": "b96713ef2a6d6bd7b9cc6c13e27956b87028e6be5bae3427286024c4714ed315",
+      "sha256": "a62bf8e4030e45f4be19d29d4288889ec5cfc688b88aafe37d56f2b22be8f5fb",
       "executable": false
     },
     "src/gauge/commercial-readback.ts": {
@@ -1886,7 +1886,7 @@
       "executable": false
     },
     "src/gauge/invoice-delivery.ts": {
-      "sha256": "6b9b6c4662c8262971fb82d000f848de9706e5a49e768900e37178728a0323e5",
+      "sha256": "d429d54f705944fa1e4b12709c0530ee002fc7ef5407b6fb2eaea119e40f53ac",
       "executable": false
     },
     "src/gauge/invoice-documents.ts": {
@@ -2742,7 +2742,7 @@
       "executable": false
     },
     "src/mail.server.mjs": {
-      "sha256": "2ed31a7ca861dc07b9a0b37067f64738c101162e831cba51808010c3cd07c19a",
+      "sha256": "37582acd15d4d9b73e97c0c69e72e0cbbd791cbc0ce62cdcdc28e38473b1f86b",
       "executable": false
     },
     "src/modules/ai/client.mjs": {
@@ -4602,7 +4602,7 @@
       "executable": false
     },
     "tests/fixtures/recovery-outcomes.mjs": {
-      "sha256": "7d20deb39c4676ac90ea619ba3518962dc8a2055be18d7b04e62b1c4429a631a",
+      "sha256": "4ffcc5e01198f471d471ce20717dfc58447e401311c6013e3e6f98390d389b83",
       "executable": false
     },
     "tests/fixtures/report-downloads.mjs": {
@@ -4654,7 +4654,7 @@
       "executable": false
     },
     "tests/fresh-clone.mjs": {
-      "sha256": "dd8433a471ab78b0560ee21f1ce18c0e92c6b842c27e8b73ea80128fda33c088",
+      "sha256": "a846bfad71794891e3fe30c3fdaf20686bb50cdcf1888bd431d5d2973e9aad13",
       "executable": false
     },
     "tests/gauge-agency.mjs": {
@@ -4694,7 +4694,7 @@
       "executable": false
     },
     "tests/gauge-cli-journey.mjs": {
-      "sha256": "22e1568538b5418e6b35b2053fd871a38f45a1d1fb7b8399bdcd08b91bafaa82",
+      "sha256": "5f2285f98581ccd24afb0be9b1aa5c9a0402366a7ee6c3154dafb723fefe62ca",
       "executable": false
     },
     "tests/gauge-client-roles.mjs": {
@@ -4750,7 +4750,7 @@
       "executable": false
     },
     "tests/gauge-harness.mjs": {
-      "sha256": "79f0be2fa49be941bb9683bf2dd4436b10eff5408219ba9d33c981f2b5479014",
+      "sha256": "fd3753ba56d4fc045933071b9c6d89d110843168184735c38be48cd7984d6ba5",
       "executable": false
     },
     "tests/gauge-harvest-history.mjs": {
@@ -4779,6 +4779,10 @@
     },
     "tests/gauge-learning.mjs": {
       "sha256": "df6acc75d9593df5c16fd3fc86be4bb1a58698257b09e80ad66ee284183271b5",
+      "executable": false
+    },
+    "tests/gauge-mail-off.mjs": {
+      "sha256": "e0da44c098b1a42061487c335154733b0310f4dc0b91d6f08f1e3d58074396b8",
       "executable": false
     },
     "tests/gauge-milestone-delivery.mjs": {
@@ -4826,7 +4830,7 @@
       "executable": false
     },
     "tests/gauge-project-scenarios.mjs": {
-      "sha256": "3958a03f0676aa2f4bb4ded6a6a464f47aa5371941f1a8d3a21a7dcd574e15fc",
+      "sha256": "1e20edf1644b960cd006f68036d3fe47c6452a07938319c7f9a8090f35718cd9",
       "executable": false
     },
     "tests/gauge-provider-custody.mjs": {
@@ -4974,7 +4978,7 @@
       "executable": false
     },
     "wrangler.jsonc": {
-      "sha256": "723c6b4d31bfcf36f4615e8cee3f71c06c6d5d66d9fcd78c0c03be254dfc2874",
+      "sha256": "ed3f47dbe7bb4c8d8e47dcf921d860752e589c76c8dccafc93c1f5e7620f47a2",
       "executable": false
     }
   }

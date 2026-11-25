@@ -91,6 +91,10 @@
           "label": "Local development (no mail)"
         },
         {
+          "value": "none",
+          "label": "Off (owner signs in with rer signin)"
+        },
+        {
           "value": "rer",
           "label": "RER managed mail"
         },
@@ -108,7 +112,7 @@
         }
       ],
       "group": "mail",
-      "help": "Local review sends no mail. For a hosted installation, choose RER managed mail or configure a verified provider."
+      "help": "For a hosted installation, choose Off or configure a verified mail provider. Local review sends no mail."
     },
     {
       "name": "MAIL_FROM",

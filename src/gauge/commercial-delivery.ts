@@ -12,6 +12,7 @@ import { escape as e } from './ui-forms'
 /** Manual send commits document release and a version-bound job before the provider edge. */
 export async function sendCommercial(env:Bindings,a:Actor,input:Value):Promise<Value>{
  need(a.role==='owner'&&a.session.kind==='native','Only the native owner sends a client proposal',403);await fence(env,a)
+ need(env.MAIL_PROVIDER!=='none','mail_off',503)
  need(env.MAIL_FROM,'Configure the installation sender address before sending',409)
  const key=text(input.key,'Unique request key',200)
  const prior=await env.DB.prepare('SELECT actor FROM g_receipts WHERE key=?').bind(key).first()
@@ -25,6 +26,7 @@ export async function sendCommercial(env:Bindings,a:Actor,input:Value):Promise<V
 /** Also serves an explicitly re-queued credential-rotation exception. Never retries uncertain sends. */
 export async function dispatchCommercial(env:Bindings,a:Actor,input:Value):Promise<Value>{
  need(a.role==='owner'&&a.session.kind==='native','Only the native owner dispatches proposal mail',403);await fence(env,a)
+ need(env.MAIL_PROVIDER!=='none','mail_off',503)
  const job=await get(env,'providerJobs',text(input.id,'Provider job')),key=text(input.key,'Unique request key',200),from=text(env.MAIL_FROM,'Installation sender address')
  need(job.value.operation==='email:send'&&job.value.provider==='resend','Choose a proposal email job')
  const row=await get(env,'commercialProposals',job.value.source.id)

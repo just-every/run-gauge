@@ -28,7 +28,7 @@ For the current shell, run `export PATH="$HOME/.local/bin:$PATH"` after installi
 
 To install for a real owner instead of a review launch, run the verbs yourself
 from the checkout root. `rer` runs each verb with the exact `@runeditrun/rer`
-version this checkout pins in `package.json` (0.2.30); do not add a local CLI copy.
+version this checkout pins in `package.json` (0.2.134); do not add a local CLI copy.
 
 ```sh
 rer install

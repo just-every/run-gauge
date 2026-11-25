@@ -215,6 +215,12 @@ provider request. The default environment is `production`; select another with
 `--environment NAME`. Local validation does not establish provider acceptance,
 hosted health or mail delivery.
 
+For a Business without mail, run `MAIL_PROVIDER=none rer deploy --dry-run`.
+Use the same setting for the real deploy and leave `MAIL_FROM` and
+`MAIL_API_KEY` unset. After the deploy claims the owner, run `rer signin` from
+the same checkout to open a one-time owner link. Email sign-in, invitations,
+email confirmations, and invoice and proposal delivery are disabled in this mode.
+
 `rer describe` reads the current checkout's actual verbs,
 flags, aliases, pins, effects and local state without installing or running
 project commands. New verbs accept `--help`, `--cwd PATH`, `--non-interactive`

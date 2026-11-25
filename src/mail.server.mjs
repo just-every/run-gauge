@@ -2,6 +2,7 @@ import { createMailSender } from './modules/mail/index.mjs'
 
 // Demo and local runs suppress auth mail; a real provider is constructed only on a send.
 export function operatorMail(env) {
+ if (env.MAIL_PROVIDER === 'none') return { send: async () => ({ status: 'rejected', provider: 'none', providerMessageId: null, code: 'mail_off' }) }
  if (env.RER_DEMO === '1' || env.AUTH_LOCAL === 'true') return createMailSender({ provider: 'development', mode: 'development' })
  if (!env.MAIL_PROVIDER || env.MAIL_PROVIDER === 'development') return undefined
  return { send: message => createMailSender({ provider: env.MAIL_PROVIDER, mode: 'production', apiKey: env.MAIL_API_KEY, ...(env.MAIL_PROVIDER === 'rer' ? { relayUrl: env.MAIL_RELAY_URL } : {}), ...(env.MAIL_PROVIDER === 'cloudflare' ? { accountId: env.MAIL_ACCOUNT_ID } : {}) }).send(message) }

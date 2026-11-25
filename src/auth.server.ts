@@ -4,7 +4,7 @@ import { agencySetupResponse as firstRunResponse } from './gauge/setup'
 import { fontHead } from './base/font-head'
 import { fontDocumentResponse } from './base/font-response'
 import { themeFrame } from './base/theme-frame'
-import { createOperatorAuth, createAuthHandler, createSignInHandler, devGate, devNotFound, type AuthConfig } from './modules/operator-auth/index.mjs'
+import { AuthError, createOperatorAuth, createAuthHandler, createSignInHandler, devGate, devNotFound, type AuthConfig } from './modules/operator-auth/index.mjs'
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
 
@@ -38,7 +38,7 @@ export interface Bindings {
  INSTALLATION_KEY?: string
  INSTALLATION_KEY_PREVIOUS?: string
  SETUP_TOKEN?: string
- MAIL_PROVIDER?: 'development' | 'rer' | 'resend' | 'sendgrid' | 'cloudflare'
+ MAIL_PROVIDER?: 'none' | 'development' | 'rer' | 'resend' | 'sendgrid' | 'cloudflare'
  MAIL_FROM?: string
  MAIL_API_KEY?: string
  MAIL_RELAY_URL?: string
@@ -48,7 +48,11 @@ export interface Bindings {
 export const runtimeBindings = (env: Bindings): Bindings => env.RER_DEV_ORIGIN && env.AUTH_LOCAL === 'true' ? { ...env, AUTH_ORIGIN: env.RER_DEV_ORIGIN } : env
 export const authConfig = (env: Bindings): AuthConfig => ({ dependencies: true, origin: env.AUTH_ORIGIN, local: env.AUTH_LOCAL === 'true', OWNER_EMAIL: env.OWNER_EMAIL, SESSION_SECRET: env.SESSION_SECRET, INSTALLATION_KEY: env.INSTALLATION_KEY, INSTALLATION_KEY_PREVIOUS: env.INSTALLATION_KEY_PREVIOUS, SETUP_TOKEN: env.SETUP_TOKEN, MAIL_FROM: env.MAIL_FROM, branding: { productName: branding.name, accentColor: branding.primaryColor, signInPath: '/signin', theme: theme.href } })
 export function operatorAuth(env: Bindings) {
- return createOperatorAuth({ db: env.DB, config: authConfig(env), mailSender: operatorMail(env), clientIp: request => request.headers.get('CF-Connecting-IP') ?? '' })
+ const auth = createOperatorAuth({ db: env.DB, config: authConfig(env), mailSender: operatorMail(env), clientIp: request => request.headers.get('CF-Connecting-IP') ?? '' })
+ if (env.MAIL_PROVIDER !== 'none') return auth
+ // Refuse before email-link auth creates a token or an invitation.
+ const refuseMail = async () => { throw new AuthError('mail_off', 503) }
+ return { ...auth, emailSignInAvailable: false, requestMagicLink: refuseMail, requestStepUp: refuseMail, invite: refuseMail }
 }
 
 const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' }

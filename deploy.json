@@ -11,10 +11,11 @@
     }
   ],
   "originVar": "AUTH_ORIGIN",
+  "publicSettings": ["MAIL_PROVIDER", "MAIL_FROM"],
   "vars": {
     "AUTH_LOCAL": "false",
     "MAIL_PROVIDER": "resend",
-    "MAIL_FROM": "auth@example.invalid"
+    "MAIL_FROM": ""
   },
   "secrets": [
     {
@@ -40,7 +41,18 @@
     },
     {
       "binding": "MAIL_API_KEY",
-      "environment": "MAIL_API_KEY"
+      "environment": "MAIL_API_KEY",
+      "optional": true
+    },
+    {
+      "binding": "MAIL_PROVIDER",
+      "environment": "MAIL_PROVIDER",
+      "optional": true
+    },
+    {
+      "binding": "MAIL_FROM",
+      "environment": "MAIL_FROM",
+      "optional": true
     }
   ],
   "platforms": [

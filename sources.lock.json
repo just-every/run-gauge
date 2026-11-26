@@ -485,6 +485,10 @@
       "sha256": "89aad87d178233b465d06eeddd9b86b7a919eb1269dcad9c926cfbf6ae824501",
       "executable": false
     },
+    "CHANGELOG.md": {
+      "sha256": "96d01d55eeff76477d72ee0879b9c234db71ed549ad98c5194c646548c6e96af",
+      "executable": false
+    },
     "CLAUDE.md": {
       "sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
       "executable": false
